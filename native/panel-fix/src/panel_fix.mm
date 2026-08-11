@@ -81,7 +81,44 @@ static napi_value NotchInfo(napi_env env, napi_callback_info info) {
 }
 static NSWindow *WindowFromArg(napi_env env, napi_value value) { void *ptr = nullptr; size_t len = 0; if (napi_get_buffer_info(env,value,&ptr,&len)!=napi_ok || len < sizeof(void*)) return nil; NSView *view = (__bridge NSView *)*(void **)ptr; return view.window; }
 static napi_value FixPanel(napi_env env, napi_callback_info info) {
-  size_t argc=2; napi_value argv[2]; napi_get_cb_info(env,info,&argc,argv,nullptr,nullptr); if(argc<2) return nullptr; NSWindow *window=WindowFromArg(env,argv[0]); if(!window) return nullptr; NSScreen *screen=ScreenForId(ArgString(env,argv[1])); MakeWindowUnconstrained(window); NSRect frame=window.frame; NSRect sf=screen.frame; frame.origin.x=NSMidX(sf)-frame.size.width/2; frame.origin.y=NSMaxY(sf)-frame.size.height; [window setFrame:frame display:NO]; [window setLevel:CGWindowLevelForKey(kCGOverlayWindowLevelKey)]; [window setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces|NSWindowCollectionBehaviorFullScreenAuxiliary|NSWindowCollectionBehaviorStationary]; [window setHidesOnDeactivate:NO]; return nullptr;
+  size_t argc=2; napi_value argv[2]; napi_get_cb_info(env,info,&argc,argv,nullptr,nullptr);
+  if(argc<2) return nullptr;
+  NSWindow *window=WindowFromArg(env,argv[0]);
+  if(!window) return nullptr;
+  NSScreen *screen=ScreenForId(ArgString(env,argv[1]));
+  MakeWindowUnconstrained(window);
+  NSRect frame=window.frame;
+  NSRect sf=screen.frame;
+  NSRect vf=screen.visibleFrame;
+  NSEdgeInsets safe=screen.safeAreaInsets;
+  frame.origin.x=NSMidX(sf)-frame.size.width/2;
+  // ── 垂直定位 ──────────────────────────────────────────────────
+  // 有刘海（safeAreaInsets.top > 0）：嵌入物理刘海，贴屏幕顶部。
+  // 无刘海但有菜单栏（frame.h - visibleFrame.h > 0）：
+  //   窗口垂直居中对齐菜单栏高度，而不是压在菜单栏上或下移到下方。
+  //   menuBarHeight = sf.height - vf.height（含刘海屏的安全区域差值）。
+  //   居中 y = 屏幕顶部 - menuBarHeight + (menuBarHeight - windowHeight)/2
+  // 无刘海且无菜单栏（全屏应用，菜单栏自动隐藏）：贴屏幕顶部。
+  BOOL hasNotch = safe.top > 0;
+  CGFloat menuBarH = sf.size.height - vf.size.height;
+  if (hasNotch) {
+    // 有刘海：嵌入物理刘海，贴屏幕顶部
+    frame.origin.y = NSMaxY(sf) - frame.size.height;
+  } else if (menuBarH > 0 && frame.size.height <= menuBarH + 1) {
+    // 无刘海 + 菜单栏可见 + 收起态：窗口垂直居中对齐菜单栏高度
+    // macOS 坐标系 y 轴朝上：菜单栏底部 = NSMaxY(sf) - menuBarH
+    frame.origin.y = NSMaxY(sf) - menuBarH + (menuBarH - frame.size.height) / 2.0;
+  } else {
+    // 展开态（height > menuBarH）或无菜单栏（全屏）：
+    // 窗口顶部对齐屏幕顶部，向下生长。展开时覆盖菜单栏区域（窗口 level 高于菜单栏），
+    // 与刘海屏展开行为一致。
+    frame.origin.y = NSMaxY(sf) - frame.size.height;
+  }
+  [window setFrame:frame display:NO];
+  [window setLevel:CGWindowLevelForKey(kCGOverlayWindowLevelKey)];
+  [window setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces|NSWindowCollectionBehaviorFullScreenAuxiliary|NSWindowCollectionBehaviorStationary];
+  [window setHidesOnDeactivate:NO];
+  return nullptr;
 }
 static napi_value FixPet(napi_env env, napi_callback_info info) { size_t argc=1; napi_value arg; napi_get_cb_info(env,info,&argc,&arg,nullptr,nullptr); NSWindow *w=WindowFromArg(env,arg); if(w){[w setLevel:NSStatusWindowLevel]; [w setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces|NSWindowCollectionBehaviorFullScreenAuxiliary];} return nullptr; }
 static napi_value Haptic(napi_env env,napi_callback_info) { if(@available(macOS 10.11,*)) [[NSHapticFeedbackManager defaultPerformer] performFeedbackPattern:NSHapticFeedbackPatternAlignment performanceTime:NSHapticFeedbackPerformanceTimeNow]; return nullptr; }

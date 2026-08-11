@@ -18,3 +18,4 @@ resources/bin/panel_fix.node
 .tools/
 .idea/
 .vscode/
+native/panel-fix/build/

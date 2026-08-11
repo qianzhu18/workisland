@@ -178,6 +178,10 @@ function createWindowClasses(dependencies) {
         this.isPanelExpanded = false;
         this.applyClosedWindowTarget("hidden-hotspot");
       } else {
+        // 从全屏隐藏恢复时，菜单栏可见性可能已变化（全屏→桌面），
+        // 重新 fixPanel 让无刘海屏的窗口重新对齐菜单栏高度。
+        const { display } = this.currentTarget;
+        fixPanel(this.win.getNativeWindowHandle(), display.id);
         this.applyRequestedHeight(this.requestedHeight);
         this.win.setOpacity(1);
         this.win.setIgnoreMouseEvents(true, { forward: true });
@@ -308,6 +312,18 @@ function createWindowClasses(dependencies) {
       if (this.shouldStayConcealed) return;
       const [width] = this.win.getSize();
       this.win.setSize(width, clamped);
+      // 无刘海屏上，收起态窗口对齐菜单栏高度，展开态从屏幕顶部向下生长。
+      // 两者 y 定位不同，跨阈值时需要重新 fixPanel。
+      // 有刘海屏 fixPanel 统一贴顶，重定位是 no-op（幂等），不会副作用。
+      const { screenInfo, display } = this.currentTarget;
+      if (!screenInfo.hasNotch && screenInfo.menuBarHeight > 0) {
+        const prevH = this._lastAppliedHeight ?? clamped;
+        const menuBarH = screenInfo.menuBarHeight;
+        if ((prevH <= menuBarH) !== (clamped <= menuBarH)) {
+          fixPanel(this.win.getNativeWindowHandle(), display.id);
+        }
+      }
+      this._lastAppliedHeight = clamped;
     }
   }
   const BASE_PET_SIZE = 130;
