@@ -31,6 +31,9 @@ button, select, input { font:inherit; }
 .switch input:checked + .switch-track { background:#34c759; }
 .switch input:checked + .switch-track::after { transform:translateX(16px); }
 select { min-width:142px; height:30px; padding:0 28px 0 9px; color:inherit; background:rgba(255,255,255,.68); border:1px solid var(--line); border-radius:7px; }
+.inline-controls { display:flex; align-items:center; gap:8px; flex:0 0 auto; }
+.inline-controls select { min-width:220px; }
+.text-input { width:230px; height:30px; padding:0 9px; color:inherit; background:rgba(255,255,255,.68); border:1px solid var(--line); border-radius:7px; }
 .compact-select { min-width:130px; height:27px; margin-top:7px; font-size:12px; }
 .button { min-height:30px; padding:4px 12px; border:1px solid var(--line); border-radius:7px; color:inherit; background:rgba(255,255,255,.65); box-shadow:0 1px 1px rgba(0,0,0,.04); }
 .button:active { transform:translateY(1px); }
@@ -56,4 +59,5 @@ input[type=range] { flex:1; accent-color:var(--accent); }
 .toast { position:fixed; left:50%; bottom:24px; z-index:10; transform:translate(-50%,12px); padding:8px 14px; border-radius:9px; color:white; background:rgba(34,34,37,.9); opacity:0; pointer-events:none; transition:.2s ease; }
 .toast.visible { transform:translate(-50%,0); opacity:1; }
 .toast.error { background:rgba(190,35,35,.94); }
-@media (prefers-color-scheme:dark) { :root { --text:#f5f5f7; --muted:#a1a1a6; --line:rgba(255,255,255,.12); --sidebar:rgba(31,31,34,.88); --content:rgba(38,38,41,.94); --card:rgba(255,255,255,.055); } select,.button { background:rgba(255,255,255,.075); } }
+@media (max-width:680px) { .window { grid-template-columns:170px 1fr; } .content { padding:30px 20px 48px; } .setting-row { align-items:flex-start; flex-direction:column; gap:10px; } .inline-controls { width:100%; } .inline-controls select { flex:1; min-width:0; } .text-input { width:100%; } }
+@media (prefers-color-scheme:dark) { :root { --text:#f5f5f7; --muted:#a1a1a6; --line:rgba(255,255,255,.12); --sidebar:rgba(31,31,34,.88); --content:rgba(38,38,41,.94); --card:rgba(255,255,255,.055); } select,.button,.text-input { background:rgba(255,255,255,.075); } }

@@ -37,6 +37,8 @@ export const CODEX_V2_ROWS = Object.freeze({
 export const CODEX_V2_TOTAL_ROWS = 11;
 export const CODEX_V2_HEIGHT = 2288;
 export const CODEX_V2_WIDTH = 1536;
+export const CODEX_V2_CELL_WIDTH = 192;
+export const CODEX_V2_CELL_HEIGHT = 208;
 
 /**
  * Codex V2 协议下，orca 内部状态 → codex sprite 行的映射。

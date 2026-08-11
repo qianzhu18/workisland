@@ -20,6 +20,7 @@ electron.contextBridge.exposeInMainWorld("settingsApi", {
     return () => electron.ipcRenderer.removeListener(ipc.IPC.SETTINGS_DID_CHANGE, handler);
   },
   getDisplays: () => electron.ipcRenderer.invoke(ipc.IPC.SETTINGS_GET_DISPLAYS),
+  getCodexPets: () => electron.ipcRenderer.invoke(ipc.IPC.SETTINGS_GET_CODEX_PETS),
   quitApp: () => {
     electron.ipcRenderer.send(ipc.IPC.APP_QUIT);
   },
@@ -31,6 +32,9 @@ electron.contextBridge.exposeInMainWorld("settingsApi", {
   },
   openSpritesDir: () => {
     electron.ipcRenderer.send(ipc.IPC.PET_OPEN_SPRITES_DIR);
+  },
+  togglePet: () => {
+    electron.ipcRenderer.send(ipc.IPC.PET_TOGGLE);
   },
   openExternal: (url) => {
     electron.ipcRenderer.send(ipc.IPC.APP_OPEN_EXTERNAL, url);

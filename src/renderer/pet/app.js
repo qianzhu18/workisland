@@ -9,6 +9,7 @@ import {
   STATUS_ROWS,
   TOTAL_ROWS,
   CODEX_V2_TOTAL_ROWS,
+  CODEX_V2_CELL_WIDTH,
   isCodexV2Sprite,
   derivePetBubble,
   derivePetStatus,
@@ -77,13 +78,25 @@ function PetApp() {
       setDisplaySize(size.displaySize);
     });
     const offBurn = window.petBridge?.onTodayBurnUpdate((total) => setTodayBurnTotal(total));
-    window.petBridge?.getSpritePath().then((url) => {
-      if (url) setSpriteUrl(url);
-    }).catch(() => {
+    const loadSprite = async (fileName) => {
+      if (!window.petBridge?.getSpritePath) return;
+      try {
+        const result = await window.petBridge.getSpritePath(fileName);
+        const url = typeof result === "string" ? result : result?.dataUrl;
+        if (url) setSpriteUrl(url);
+      } catch (error) {
+        console.error("[PetApp] sprite load failed; using bundled fallback", error);
+        setSpriteUrl(orcaSprite);
+      }
+    };
+    void loadSprite();
+    const offSettings = window.petBridge?.onSettingsChanged((settings) => {
+      if (settings?.petSprite) void loadSprite(settings.petSprite);
     });
     window.petBridge?.ready();
     return () => {
       offBurn?.();
+      offSettings?.();
     };
   }, []);
   reactExports.useEffect(() => {
@@ -102,7 +115,7 @@ function PetApp() {
       const totalRows = codexV2 ? CODEX_V2_TOTAL_ROWS : TOTAL_ROWS;
       // codex V2 cell 是 192×208（非正方形），默认协议 cell 是正方形
       const cellHeight = Math.round(img.naturalHeight / totalRows);
-      const cellWidth = codexV2 ? 192 : cellHeight;
+      const cellWidth = codexV2 ? CODEX_V2_CELL_WIDTH : cellHeight;
       const maxFrameCount = Math.floor(img.naturalWidth / cellWidth);
       const offscreen = document.createElement("canvas");
       offscreen.width = img.naturalWidth;

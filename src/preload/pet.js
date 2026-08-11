@@ -36,6 +36,11 @@ electron.contextBridge.exposeInMainWorld("petBridge", {
   onSizeUpdate(cb) {
     electron.ipcRenderer.on(ipc.IPC.PET_SIZE_UPDATE, (_event, size) => cb(size));
   },
+  onSettingsChanged(cb) {
+    const handler = (_event, settings) => cb(settings);
+    electron.ipcRenderer.on(ipc.IPC.SETTINGS_DID_CHANGE, handler);
+    return () => electron.ipcRenderer.off(ipc.IPC.SETTINGS_DID_CHANGE, handler);
+  },
   ready() {
     electron.ipcRenderer.send(ipc.IPC.PET_READY);
   },

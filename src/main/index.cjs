@@ -611,7 +611,7 @@ const { registerIpcHandlers, getCustomIconDataUrl, applyDockIcon } = createIpcSe
   performHapticFeedback,
   isAllowedExternalUrl
 });
-const { createDisplayManagerClass } = require("./display-manager.cjs");
+const { createDisplayManagerClass, normalizeDisplayPreference } = require("./display-manager.cjs");
 const DisplayManager = createDisplayManagerClass({
   getAllScreensInfo,
   getFrontmostAppDisplayId,
@@ -744,18 +744,15 @@ async function runIslandApp() {
   log.info("[local-dev] local runtime initialized");
   electron.ipcMain.handle(IPC.GET_APP_VERSION, () => electron.app.getVersion());
   const initSettings = coordinator.getSettings();
+  // "active" was the old persisted spelling for the frontmost-app display
+  // mode. Normalize it before constructing DisplayManager so old settings do
+  // not enter the pinned-display migration path.
+  const initPreference = normalizeDisplayPreference(initSettings.displayPreference);
   let initLabel = initSettings.displayPreferenceLabel;
-  if (initSettings.displayPreference !== "auto" && initSettings.displayPreference !== "primary" && !initLabel) {
-    const targets = getAllDisplayTargets();
-    const match = targets.find((t) => t.screenInfo.displayId === initSettings.displayPreference);
-    if (match?.screenInfo.label) {
-      initLabel = match.screenInfo.label;
-      coordinator.updateSettings({ displayPreferenceLabel: initLabel });
-    } else {
-      log.warn(`[main] displayPreference migration: stored id "${initSettings.displayPreference}" not found in current displays (stale-id), will fallback to primary`);
-    }
+  if (initPreference !== initSettings.displayPreference) {
+    coordinator.updateSettings({ displayPreference: initPreference });
   }
-  displayManager = new DisplayManager(initSettings.displayPreference, initLabel);
+  displayManager = new DisplayManager(initPreference, initLabel);
   displayManager.on("preferenceIdCorrected", (correctedId, correctedLabel) => {
     coordinator.updateSettings({ displayPreference: correctedId, displayPreferenceLabel: correctedLabel });
   });
@@ -899,6 +896,17 @@ async function runIslandApp() {
   });
   electron.ipcMain.on(IPC.PET_RETURN_TO_ISLAND, () => {
     coordinator.exitPetMode();
+  });
+  electron.ipcMain.on(IPC.PET_TOGGLE, () => {
+    if (coordinator.getPetWindow()) {
+      coordinator.exitPetMode();
+      return;
+    }
+    const display = displayManager?.getCurrentTarget()?.display ?? electron.screen.getPrimaryDisplay();
+    coordinator.enterPetMode(
+      display.bounds.x + Math.round(display.bounds.width / 2),
+      display.bounds.y + Math.round(display.bounds.height / 2)
+    );
   });
   log.info("[main] creating SettingsWindow...");
   try {

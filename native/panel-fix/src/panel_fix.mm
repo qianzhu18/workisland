@@ -14,6 +14,13 @@ static IMP g_originalConstrainFrame = nullptr;
 
 static napi_value String(napi_env env, NSString *value) { napi_value out; napi_create_string_utf8(env, value.UTF8String ?: "", NAPI_AUTO_LENGTH, &out); return out; }
 static NSString *ArgString(napi_env env, napi_value value) {
+  napi_valuetype type = napi_undefined;
+  if (napi_typeof(env, value, &type) == napi_ok && type == napi_number) {
+    double number = 0;
+    if (napi_get_value_double(env, value, &number) == napi_ok) {
+      return [NSString stringWithFormat:@"%.0f", number];
+    }
+  }
   size_t n = 0; napi_get_value_string_utf8(env, value, nullptr, 0, &n); std::string s(n + 1, '\0'); napi_get_value_string_utf8(env, value, s.data(), s.size(), &n); return [NSString stringWithUTF8String:s.c_str()] ?: @"";
 }
 static napi_value Obj(napi_env env) { napi_value o; napi_create_object(env, &o); return o; }
@@ -59,7 +66,11 @@ static napi_value Screens(napi_env env, napi_callback_info info) {
     CGFloat left = NSIsEmptyRect(leftArea) ? 0 : NSMaxX(leftArea) - NSMinX(frame);
     CGFloat right = NSIsEmptyRect(rightArea) ? frame.size.width : NSMinX(rightArea) - NSMinX(frame);
     BOOL notch = safe.top > 0 && (left > 0 || right < frame.size.width);
-    napi_value o = Obj(env); Num(env,o,"width",frame.size.width); Num(env,o,"height",frame.size.height); Num(env,o,"scaleFactor",screen.backingScaleFactor); Bool(env,o,"isMain", screen == NSScreen.mainScreen); Num(env,o,"cgDisplayId",did); Set(env,o,"localizedName",String(env, screen.localizedName)); Bool(env,o,"hasNotch",notch); Num(env,o,"notchHeight",notch ? safe.top : 0); Num(env,o,"notchWidth",notch ? frame.size.width - left - (frame.size.width-right) : 0); Num(env,o,"menuBarHeight",frame.size.height-visible.size.height); Num(env,o,"screenWidth",frame.size.width); Num(env,o,"screenHeight",frame.size.height); Num(env,o,"screenOriginX",frame.origin.x); Num(env,o,"screenOriginY",frame.origin.y); napi_set_element(env,array,(uint32_t)i++,o);
+    // visibleFrame also excludes the Dock. Only the gap between the top edges
+    // is the menu bar; using frame.height - visible.height includes the Dock
+    // and pushes the Island down on external displays.
+    CGFloat menuBarHeight = MAX(0, NSMaxY(frame) - NSMaxY(visible));
+    napi_value o = Obj(env); Num(env,o,"width",frame.size.width); Num(env,o,"height",frame.size.height); Num(env,o,"scaleFactor",screen.backingScaleFactor); Bool(env,o,"isMain", screen == NSScreen.mainScreen); Num(env,o,"cgDisplayId",did); Set(env,o,"localizedName",String(env, screen.localizedName)); Bool(env,o,"hasNotch",notch); Num(env,o,"notchHeight",notch ? safe.top : 0); Num(env,o,"notchWidth",notch ? frame.size.width - left - (frame.size.width-right) : 0); Num(env,o,"menuBarHeight",menuBarHeight); Num(env,o,"screenWidth",frame.size.width); Num(env,o,"screenHeight",frame.size.height); Num(env,o,"screenOriginX",frame.origin.x); Num(env,o,"screenOriginY",frame.origin.y); napi_set_element(env,array,(uint32_t)i++,o);
   }
   return array;
 }
@@ -94,13 +105,14 @@ static napi_value FixPanel(napi_env env, napi_callback_info info) {
   frame.origin.x=NSMidX(sf)-frame.size.width/2;
   // ── 垂直定位 ──────────────────────────────────────────────────
   // 有刘海（safeAreaInsets.top > 0）：嵌入物理刘海，贴屏幕顶部。
-  // 无刘海但有菜单栏（frame.h - visibleFrame.h > 0）：
+  // 无刘海但有菜单栏（顶部 frame 与 visibleFrame 的间距 > 0）：
   //   窗口垂直居中对齐菜单栏高度，而不是压在菜单栏上或下移到下方。
-  //   menuBarHeight = sf.height - vf.height（含刘海屏的安全区域差值）。
+  //   menuBarHeight = NSMaxY(sf) - NSMaxY(vf)。visibleFrame 还会扣除 Dock，
+  //   因此不能使用 sf.height - vf.height，否则会把 Dock 高度也算进去。
   //   居中 y = 屏幕顶部 - menuBarHeight + (menuBarHeight - windowHeight)/2
   // 无刘海且无菜单栏（全屏应用，菜单栏自动隐藏）：贴屏幕顶部。
   BOOL hasNotch = safe.top > 0;
-  CGFloat menuBarH = sf.size.height - vf.size.height;
+  CGFloat menuBarH = MAX(0, NSMaxY(sf) - NSMaxY(vf));
   if (hasNotch) {
     // 有刘海：嵌入物理刘海，贴屏幕顶部
     frame.origin.y = NSMaxY(sf) - frame.size.height;

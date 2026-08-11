@@ -144,6 +144,9 @@ electron.contextBridge.exposeInMainWorld("islandBridge", {
   getSettings() {
     return electron.ipcRenderer.invoke(ipc.IPC.SETTINGS_GET);
   },
+  getPetSpritePath() {
+    return electron.ipcRenderer.invoke(ipc.IPC.PET_GET_SPRITE_PATH);
+  },
   getLocale() {
     return electron.ipcRenderer.invoke(ipc.IPC.GET_LOCALE);
   },

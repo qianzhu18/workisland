@@ -3,11 +3,11 @@
 const electron = require("electron");
 const fs = require("node:fs");
 const path = require("node:path");
-const os = require("node:os");
 const child_process = require("node:child_process");
 const promises = require("node:fs/promises");
 const { IPC } = require("../shared/ipc.cjs");
 const { listPluginAgentMeta } = require("./agent-registry.cjs");
+const { listCodexPets, resolveCodexPet } = require("./codex-pet.cjs");
 const { previewSound, getUserSoundsDir } = require("./sound-service.cjs");
 const path__namespace = path;
 
@@ -99,20 +99,13 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl }) {
    *   3. "codex:<pet-name>" → 解析 ~/.codex/pets/<pet-name>/spritesheet.webp
    *      （兼容 Codex V2 桌宠协议，pet.json 描述布局）
    */
-  function resolveSpritePath(fileName) {
+  function resolveSpriteSelection(fileName) {
     const raw = fileName || DEFAULT_SPRITE;
     // Codex pet 协议：codex:<pet-name>
     if (raw.startsWith("codex:")) {
       const petName = raw.slice("codex:".length);
-      if (!petName || petName.includes("/") || petName.includes("..") || petName.includes("\\")) {
-        throw new Error("Invalid codex pet name");
-      }
-      const codexPetsDir = path.join(os.homedir(), ".codex", "pets");
-      const webpPath = path.join(codexPetsDir, petName, "spritesheet.webp");
-      if (fs.existsSync(webpPath)) return webpPath;
-      const pngPath = path.join(codexPetsDir, petName, "spritesheet.png");
-      if (fs.existsSync(pngPath)) return pngPath;
-      throw new Error(`Codex pet not found: ${petName}`);
+      const pet = resolveCodexPet(petName);
+      return { filePath: pet.spritePath, protocol: "codex-v2", pet };
     }
     // 普通文件名：接受 .png 和 .webp
     const safe = path.basename(raw);
@@ -124,8 +117,8 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl }) {
       throw new Error("Only .png and .webp are allowed");
     }
     const userPath = path.join(getUserSpritesDir(), safe);
-    if (fs.existsSync(userPath)) return userPath;
-    return path.join(getDefaultSpritesDir(), safe);
+    const filePath = fs.existsSync(userPath) ? userPath : path.join(getDefaultSpritesDir(), safe);
+    return { filePath, protocol: "orca-v1" };
   }
   let spriteDirsInitialized = false;
   function initSpriteDirs() {
@@ -163,8 +156,12 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl }) {
       coordinator.updateSettings({ locale }, "settings");
     });
     electron.ipcMain.handle(IPC.SETTINGS_SET, (_event, partial) => {
+      if (typeof partial?.petSprite === "string" && partial.petSprite.startsWith("codex:")) {
+        resolveCodexPet(partial.petSprite.slice("codex:".length));
+      }
       coordinator.updateSettings(partial, "settings");
     });
+    electron.ipcMain.handle(IPC.SETTINGS_GET_CODEX_PETS, () => listCodexPets());
     electron.ipcMain.handle(IPC.SETTINGS_GET_CUSTOM_ICON, () => {
       return getCustomIconDataUrl();
     });
@@ -319,7 +316,11 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl }) {
     });
     electron.ipcMain.handle(IPC.PET_GET_SPRITE_PATH, async (_event, fileName) => {
       initSpriteDirs();
-      const filePath = resolveSpritePath(fileName);
+      // The renderer may omit the argument; use the setting so custom files
+      // and Codex V2 pets are actually reachable from the settings page.
+      const configuredSprite = coordinator.getSettings()?.petSprite || DEFAULT_SPRITE;
+      const selection = resolveSpriteSelection(fileName || configuredSprite);
+      const filePath = selection.filePath;
       const { size } = await promises.stat(filePath);
       if (size > 10 * 1024 * 1024) {
         throw new Error("Sprite file too large");
@@ -327,7 +328,17 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl }) {
       const buf = await promises.readFile(filePath);
       const ext = path.extname(filePath).toLowerCase();
       const mime = ext === ".webp" ? "image/webp" : "image/png";
-      return `data:${mime};base64,${buf.toString("base64")}`;
+      return {
+        dataUrl: `data:${mime};base64,${buf.toString("base64")}`,
+        protocol: selection.protocol,
+        pet: selection.pet
+          ? {
+              id: selection.pet.id,
+              displayName: selection.pet.displayName,
+              spriteVersionNumber: selection.pet.spriteVersionNumber
+            }
+          : null
+      };
     });
     electron.ipcMain.handle(IPC.COLLECT_LOGS, async () => {
       const scriptPath = electron.app.isPackaged ? path__namespace.join(process.resourcesPath, "scripts", "collect-logs.sh") : path__namespace.join(electron.app.getAppPath(), "scripts", "collect-logs.sh");

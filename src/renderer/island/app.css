@@ -198,6 +198,24 @@ body {
   transition: background 0.15s ease, transform 0.15s ease;
 }
 
+.pet-button-icon,
+.pet-button-icon-fallback {
+  display: block;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+}
+
+.pet-button-icon {
+  background-repeat: no-repeat;
+  background-position: 0 0;
+}
+
+.pet-button-icon-fallback {
+  object-fit: contain;
+  -webkit-user-drag: none;
+}
+
 .panel-btn.panel-pet-button:hover {
   background: rgba(255, 255, 255, 0.18);
   transform: scale(1.06);

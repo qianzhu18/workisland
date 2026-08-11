@@ -11,7 +11,7 @@ const AGENTS = [
 ];
 
 const APPROVAL_AGENTS = new Set(["codex", "coco", "copilot-cli", "traex"]);
-const state = { settings: null, statuses: new Map(), plugins: [], activeTab: "general", busy: new Set() };
+const state = { settings: null, statuses: new Map(), plugins: [], displays: [], codexPets: [], activeTab: "general", busy: new Set() };
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -71,8 +71,33 @@ function section(title, subtitle) {
 }
 
 async function save(partial) {
+  const previous = state.settings;
   state.settings = { ...state.settings, ...partial };
-  await api.setSettings(partial);
+  try {
+    await api.setSettings(partial);
+  } catch (error) {
+    state.settings = previous;
+    renderPage();
+    showToast(error?.message || "设置保存失败", true);
+  }
+}
+
+async function loadDisplays(showNotice = false) {
+  try {
+    state.displays = (await api.getDisplays()) || [];
+    if (showNotice) showToast(`已发现 ${state.displays.length} 台显示器`);
+    if (state.activeTab === "general") renderPage();
+  } catch (error) {
+    if (showNotice) showToast(error?.message || "无法读取显示器列表", true);
+  }
+}
+
+async function loadCodexPets() {
+  try {
+    state.codexPets = (await api.getCodexPets?.()) || [];
+  } catch {
+    state.codexPets = [];
+  }
 }
 
 function generalPage() {
@@ -89,9 +114,49 @@ function generalPage() {
   );
 
   const display = section("显示", "选择 Island 所在屏幕与信息密度。");
-  const displaySelect = select(state.settings.displayPreference || "primary", [["primary", "主显示器"], ["active", "当前活跃显示器"]], v => save({ displayPreference: v }), "显示器");
+  // "auto" tracks the screen containing the current frontmost app. A display
+  // id is a pinned screen and is the reliable choice for an external monitor.
+  const displayOptions = [["primary", "主显示器", "主显示器"], ["auto", "当前活跃显示器", ""]];
+  const displayPreference = state.settings.displayPreference === "active"
+    ? "auto"
+    : (state.settings.displayPreference || "primary");
+  const currentDisplay = displayPreference === "primary"
+    ? state.displays.find(d => d.isMain)
+    : state.displays.find(d => String(d.displayId) === String(displayPreference));
+  if (state.displays && state.displays.length > 0) {
+    for (const d of state.displays) {
+      const label = d.label || `显示器 ${d.displayId}`;
+      const tag = d.isMain ? "内置主屏" : "外接显示器";
+      displayOptions.push([String(d.displayId), `${label} · ${tag}`, label]);
+    }
+  }
+  // Keep an unplugged pinned display visible so the setting explains why the
+  // app has fallen back to the primary screen instead of silently changing it.
+  if (displayPreference !== "primary" && displayPreference !== "auto" && !currentDisplay) {
+    displayOptions.push([
+      String(displayPreference),
+      `${state.settings.displayPreferenceLabel || "已保存的显示器"} · 当前不可用`,
+      state.settings.displayPreferenceLabel || ""
+    ]);
+  }
+  const displaySelect = select(displayPreference, displayOptions, v => {
+    const selected = displayOptions.find(o => o[0] === v);
+    save({
+      displayPreference: v,
+      displayPreferenceLabel: selected?.[2] || ""
+    });
+  }, "显示器");
+  const displayControl = el("div", "inline-controls");
+  displayControl.append(displaySelect, button("刷新", () => loadDisplays(true)));
+  const displayDescription = displayPreference === "primary"
+    ? "使用 macOS 主显示器"
+    : currentDisplay
+    ? `${currentDisplay.label || "已连接显示器"} · ${currentDisplay.isMain ? "内置主屏" : "外接显示器"}`
+    : displayPreference === "auto"
+      ? "跟随当前正在使用的应用所在显示器"
+      : "当前选择的显示器未连接，将暂时使用主显示器";
   display.append(
-    row("显示器", "外接屏幕也可在应用运行时自动识别。", displaySelect),
+    row("显示器", `${displayDescription}。外接屏插入后点击“刷新”即可选择。`, displayControl),
     row("显示额度信息", "在面板顶部展示本地可读取的额度数据。", toggle(state.settings.showUsageQuota, v => save({ showUsageQuota: v }), "显示额度")),
     row("触感反馈", "执行审批等关键操作时提供轻微触感。", toggle(state.settings.hapticFeedback, v => save({ hapticFeedback: v }), "触感反馈"))
   );
@@ -176,6 +241,22 @@ function agentsPage() {
 function appearancePage() {
   const root = document.createDocumentFragment();
   const pet = section("桌宠", "桌宠与 Island 使用同一套会话状态，切换不会中断监控。");
+  const configuredSprite = state.settings.petSprite || "orca.png";
+  const spriteOptions = [["orca.png", "Orca · 内置"]];
+  for (const codexPet of state.codexPets) {
+    spriteOptions.push([codexPet.value, `${codexPet.displayName} · Codex V2`]);
+  }
+  if (!spriteOptions.some(([value]) => value === configuredSprite)) {
+    spriteOptions.push([configuredSprite, `${configuredSprite} · 当前设置`]);
+  }
+  const spriteSelect = select(configuredSprite, spriteOptions, value => save({ petSprite: value }), "Codex 桌宠");
+  const sprite = document.createElement("input");
+  sprite.type = "text";
+  sprite.className = "text-input";
+  sprite.value = configuredSprite;
+  sprite.placeholder = "orca.png 或 codex:qianxue";
+  sprite.setAttribute("aria-label", "桌宠精灵素材标识");
+  sprite.addEventListener("change", () => save({ petSprite: sprite.value.trim() || "orca.png" }));
   const scale = document.createElement("input");
   scale.type = "range"; scale.min = "0.6"; scale.max = "2"; scale.step = "0.1"; scale.value = state.settings.petScale || 1;
   const scaleValue = el("span", "range-value", `${Number(scale.value).toFixed(1)}×`);
@@ -183,7 +264,10 @@ function appearancePage() {
   scale.addEventListener("change", () => save({ petScale: Number(scale.value) }));
   const scaleControl = el("div", "range-control"); scaleControl.append(scale, scaleValue);
   pet.append(
+    row("桌宠预览", "在当前显示器中央显示桌宠；再次点击可收起。", button("显示 / 隐藏桌宠", () => api.togglePet?.())),
     row("桌宠缩放", "调整桌宠在屏幕上的显示尺寸。", scaleControl),
+    row("Codex 桌宠", "选择本机 ~/.codex/pets 中的 V2 桌宠；切换后运行中的桌宠会实时换图。", spriteSelect),
+    row("自定义素材标识", "默认使用 orca.png；也可填写本地 pet-sprites 目录中的 PNG/WebP 文件名。", sprite),
     row("精灵素材", "打开目录后可替换 PNG 桌宠素材。", button("打开目录", () => api.openSpritesDir()))
   );
   const panel = section("面板", "限制展开面板的高度，避免遮挡主要工作区。");
@@ -245,13 +329,15 @@ function showToast(message, error = false) {
 async function start() {
   if (!api) throw new Error("settingsApi unavailable");
   state.settings = await api.getSettings();
+  await loadDisplays();
+  await loadCodexPets();
   document.querySelectorAll(".nav-item").forEach(item => item.addEventListener("click", () => {
     state.activeTab = item.dataset.tab;
     renderPage();
     if (state.activeTab === "agents") refreshAgents().catch(error => showToast(error.message, true));
   }));
   api.onNavigateToTab?.(tab => {
-    const aliases = { hooks: "agents", pet: "appearance" };
+    const aliases = { hooks: "agents", pet: "appearance", display: "general" };
     const next = aliases[tab] || tab;
     if (PAGES[next]) { state.activeTab = next; renderPage(); }
   });

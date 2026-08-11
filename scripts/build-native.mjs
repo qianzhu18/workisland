@@ -2,8 +2,11 @@ import { existsSync, mkdirSync, copyFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
+import { fileURLToPath } from "node:url";
 
-const root = resolve(new URL("..", import.meta.url).pathname);
+// URL.pathname leaves spaces percent-encoded (e.g. "qianzhu%20Vault"),
+// which makes clang unable to find the native source on this workspace path.
+const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 if (process.platform !== "darwin") {
   console.log("Native panel module is macOS-only; skipping build.");
   process.exit(0);

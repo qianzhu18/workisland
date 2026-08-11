@@ -4,6 +4,10 @@ const electron = require("electron");
 const log = require("electron-log");
 const { EventEmitter } = require("node:events");
 
+function normalizeDisplayPreference(preference) {
+  return preference === "active" ? "auto" : preference;
+}
+
 function createDisplayManagerClass({
   getAllScreensInfo,
   getFrontmostAppDisplayId,
@@ -82,7 +86,8 @@ function createDisplayManagerClass({
     };
     constructor(preference, preferenceLabel) {
       super();
-      this.preference = preference;
+      // 归一化历史遗留值 "active" → "auto"
+      this.preference = normalizeDisplayPreference(preference);
       this.preferenceLabel = preferenceLabel;
       const initial = this.resolve();
       if (initial) {
@@ -93,7 +98,7 @@ function createDisplayManagerClass({
         }
         this.currentTarget = initial.target;
       }
-      if (preference === "auto") this.startFrontmostTracking();
+      if (this.preference === "auto") this.startFrontmostTracking();
       this.setupDisplayEvents();
       this.startScreenParamsTracking();
     }
@@ -108,6 +113,8 @@ function createDisplayManagerClass({
     }
     /** Update preference (called when user changes the setting). */
     setPreference(pref, label) {
+      // 归一化历史遗留值 "active" → "auto"（两者语义相同：跟踪当前活跃显示器）
+      pref = normalizeDisplayPreference(pref);
       const wasAuto = this.preference === "auto";
       const isAuto = pref === "auto";
       this.preference = pref;
@@ -273,4 +280,4 @@ function createDisplayManagerClass({
   return DisplayManager;
 }
 
-module.exports = { createDisplayManagerClass };
+module.exports = { createDisplayManagerClass, normalizeDisplayPreference };

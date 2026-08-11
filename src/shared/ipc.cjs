@@ -46,6 +46,7 @@ const IPC = Object.freeze({
   PET_TODAY_BURN_UPDATE: "pet:today-burn-update",
   PET_GET_SPRITE_PATH: "pet:get-sprite-path",
   PET_OPEN_SPRITES_DIR: "pet:open-sprites-dir",
+  PET_TOGGLE: "pet:toggle",
 
   WELCOME_GET_STARTED: "welcome:get-started",
   WELCOME_GET_FIRST_LAUNCH_AT: "welcome:get-first-launch-at",
@@ -70,6 +71,7 @@ const IPC = Object.freeze({
   SETTINGS_UNINSTALL_HOOK: "settings:uninstall-hook",
   SETTINGS_UNINSTALL_ALL_HOOKS: "settings:uninstall-all-hooks",
   SETTINGS_GET_DISPLAYS: "settings:get-displays",
+  SETTINGS_GET_CODEX_PETS: "settings:get-codex-pets",
   SETTINGS_PREVIEW_SOUND: "settings:preview-sound",
   SETTINGS_OPEN_SOUNDS_DIR: "settings:open-sounds-dir",
   SETTINGS_GET_CUSTOM_ICON: "settings:get-custom-icon",

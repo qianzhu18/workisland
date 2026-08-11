@@ -146,6 +146,50 @@ function StatusIcon({ icon, badgeColor, title, onClick }) {
   };
   return /* @__PURE__ */ React.createElement("span", { className: "status-icon-wrapper", onClick: handleClick, title, style: { cursor: "pointer" } }, /* @__PURE__ */ React.createElement("img", { src: icon, width: 16, height: 16 }), /* @__PURE__ */ React.createElement("span", { className: "status-icon-badge", style: { background: badgeColor } }));
 }
+function PetButtonIcon() {
+  const [sprite, setSprite] = reactExports.useState(null);
+  reactExports.useEffect(() => {
+    let cancelled = false;
+    const loadSprite = async () => {
+      try {
+        const result = await window.islandBridge?.getPetSpritePath?.();
+        const dataUrl = typeof result === "string" ? result : result?.dataUrl;
+        if (!dataUrl || cancelled) return;
+        const image = new Image();
+        image.onload = () => {
+          if (cancelled) return;
+          const isCodexPet = result?.protocol === "codex-v2" || (image.naturalWidth === 1536 && image.naturalHeight === 2288);
+          const cellWidth = isCodexPet ? 192 : Math.max(1, Math.round(image.naturalHeight / 7));
+          const cellHeight = isCodexPet ? 208 : cellWidth;
+          const scale = 18 / Math.max(cellWidth, cellHeight);
+          setSprite({
+            dataUrl,
+            backgroundSize: `${Math.round(image.naturalWidth * scale)}px ${Math.round(image.naturalHeight * scale)}px`
+          });
+        };
+        image.onerror = () => {
+          if (!cancelled) setSprite(null);
+        };
+        image.src = dataUrl;
+      } catch {
+        if (!cancelled) setSprite(null);
+      }
+    };
+    void loadSprite();
+    const unsubscribe = window.islandBridge?.onSettingsChanged?.(() => {
+      setSprite(null);
+      void loadSprite();
+    });
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+    };
+  }, []);
+  if (!sprite) {
+    return /* @__PURE__ */ React.createElement("img", { className: "pet-button-icon-fallback", src: defaultIcon, alt: "桌宠" });
+  }
+  return /* @__PURE__ */ React.createElement("span", { className: "pet-button-icon", role: "img", "aria-label": "桌宠", style: { backgroundImage: `url(${sprite.dataUrl})`, backgroundSize: sprite.backgroundSize } });
+}
 function AgentUsageRow({
   agentQuotas,
   notchHeight,
@@ -153,6 +197,7 @@ function AgentUsageRow({
   tokenBurnTotal,
   visibleSessionIds,
   pillFirstRow,
+  showUsageQuota = true,
   onOpenSettings,
   onOpenAbout,
   onOpenPet
@@ -172,11 +217,12 @@ function AgentUsageRow({
   const handleClearSessions = () => {
     window.islandBridge?.deleteSessions(visibleSessionIds);
   };
-  return /* @__PURE__ */ React.createElement("div", { className: "usage-row", style: { minHeight: notchHeight } }, /* @__PURE__ */ React.createElement("div", { className: "usage-row-agents" }, agentsWithQuota.filter((tool) => {
+  const quotaCells = agentsWithQuota.filter((tool) => {
     if (tool === "claude" && !pillFirstRow.claudeSubscription) return false;
     if (tool === "codex" && !pillFirstRow.codexSubscription) return false;
     return true;
-  }).map((tool, idx, arr) => /* @__PURE__ */ React.createElement(React.Fragment, { key: tool }, /* @__PURE__ */ React.createElement(AgentQuotaCell, { tool, quota: agentQuotas[tool] }), idx < arr.length - 1 && /* @__PURE__ */ React.createElement("span", { className: "usage-cell-divider" }, "|")))), /* @__PURE__ */ React.createElement("div", { className: "usage-row-actions" }, visibleSessionIds.length > 0 && /* @__PURE__ */ React.createElement("button", { className: "panel-btn", onClick: handleClearSessions, title: i18n.k1005723937({}, "清理会话") }, /* @__PURE__ */ React.createElement("img", { src: cleanIcon, alt: "clean sessions", width: 16, height: 16 })), pillFirstRow.upgradeButton && hasUpdate && /* @__PURE__ */ React.createElement(StatusIcon, { icon: updateIcon, badgeColor: "#4A90D9", title: i18n.k3734051999({}, "有新版本可用"), onClick: onOpenAbout }), pillFirstRow.tokenCount && /* @__PURE__ */ React.createElement(TokenUsage, { tokenCount: tokenBurnTotal, onClick: () => onOpenSettings("statistics") }), pillFirstRow.soundIcon && /* @__PURE__ */ React.createElement("button", { className: "panel-btn", onClick: handleToggleSound, title: muted ? "Unmute" : "Mute" }, /* @__PURE__ */ React.createElement("img", { src: muted ? voiceMuteIcon : voiceIcon, alt: muted ? "muted" : "sound" })), /* @__PURE__ */ React.createElement("button", { className: "panel-btn panel-pet-button", type: "button", onClick: onOpenPet, title: "打开或关闭桌宠", "aria-label": "打开或关闭桌宠" }, "🐋"), /* @__PURE__ */ React.createElement("button", { className: "panel-btn", onClick: () => onOpenSettings("display"), title: "Settings" }, /* @__PURE__ */ React.createElement("img", { src: settingIcon, alt: "settings" }))));
+  }).map((tool, idx, arr) => /* @__PURE__ */ React.createElement(React.Fragment, { key: tool }, /* @__PURE__ */ React.createElement(AgentQuotaCell, { tool, quota: agentQuotas[tool] }), idx < arr.length - 1 && /* @__PURE__ */ React.createElement("span", { className: "usage-cell-divider" }, "|")));
+  return /* @__PURE__ */ React.createElement("div", { className: "usage-row", style: { minHeight: notchHeight } }, showUsageQuota && /* @__PURE__ */ React.createElement("div", { className: "usage-row-agents" }, quotaCells), /* @__PURE__ */ React.createElement("div", { className: "usage-row-actions" }, visibleSessionIds.length > 0 && /* @__PURE__ */ React.createElement("button", { className: "panel-btn", onClick: handleClearSessions, title: i18n.k1005723937({}, "清理会话") }, /* @__PURE__ */ React.createElement("img", { src: cleanIcon, alt: "clean sessions", width: 16, height: 16 })), pillFirstRow.upgradeButton && hasUpdate && /* @__PURE__ */ React.createElement(StatusIcon, { icon: updateIcon, badgeColor: "#4A90D9", title: i18n.k3734051999({}, "有新版本可用"), onClick: onOpenAbout }), pillFirstRow.tokenCount && /* @__PURE__ */ React.createElement(TokenUsage, { tokenCount: tokenBurnTotal, onClick: () => onOpenSettings("statistics") }), pillFirstRow.soundIcon && /* @__PURE__ */ React.createElement("button", { className: "panel-btn", onClick: handleToggleSound, title: muted ? "Unmute" : "Mute" }, /* @__PURE__ */ React.createElement("img", { src: muted ? voiceMuteIcon : voiceIcon, alt: muted ? "muted" : "sound" })), /* @__PURE__ */ React.createElement("button", { className: "panel-btn panel-pet-button", type: "button", onClick: onOpenPet, title: "打开或关闭桌宠", "aria-label": "打开或关闭桌宠" }, /* @__PURE__ */ React.createElement(PetButtonIcon)), /* @__PURE__ */ React.createElement("button", { className: "panel-btn", onClick: () => onOpenSettings("display"), title: "Settings" }, /* @__PURE__ */ React.createElement("img", { src: settingIcon, alt: "settings" }))));
 }
 const TOOL_BADGE_COLORS = {
   claude: "#DA7250",

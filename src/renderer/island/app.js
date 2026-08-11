@@ -153,6 +153,9 @@ function IslandApp() {
   }, []);
   const [panelMaxHeightPx, setPanelMaxHeightPx] = reactExports.useState(ISLAND_PANEL_MAX_HEIGHT_DEFAULT_PX);
   const [pillFirstRow, setPillFirstRow] = reactExports.useState(DEFAULT_SETTINGS.pillFirstRow);
+  const [hoverToOpen, setHoverToOpen] = reactExports.useState(DEFAULT_SETTINGS.hoverToOpen);
+  const [autoCollapseOnMouseLeave, setAutoCollapseOnMouseLeave] = reactExports.useState(DEFAULT_SETTINGS.autoCollapseOnMouseLeave);
+  const [showUsageQuota, setShowUsageQuota] = reactExports.useState(DEFAULT_SETTINGS.showUsageQuota);
   const hasUpdate = false;
   const [tokenBurnTotal, setTokenBurnTotal] = reactExports.useState(0);
   const [autoCollapseDurationMs, setAutoCollapseDurationMs] = reactExports.useState(
@@ -170,10 +173,16 @@ function IslandApp() {
     window.islandBridge?.getSettings().then((s) => {
       setAutoCollapseDurationMs(s.completionPopupDurationSec * 1e3);
       setPillFirstRow(s.pillFirstRow);
+      setHoverToOpen(s.hoverToOpen);
+      setAutoCollapseOnMouseLeave(s.autoCollapseOnMouseLeave);
+      setShowUsageQuota(s.showUsageQuota);
     });
     const offSettings = window.islandBridge?.onSettingsChanged((s) => {
       setAutoCollapseDurationMs(s.completionPopupDurationSec * 1e3);
       setPillFirstRow(s.pillFirstRow);
+      setHoverToOpen(s.hoverToOpen);
+      setAutoCollapseOnMouseLeave(s.autoCollapseOnMouseLeave);
+      setShowUsageQuota(s.showUsageQuota);
     });
     return () => {
       offBurn?.();
@@ -485,21 +494,21 @@ function IslandApp() {
       resizeWindowTimerRef.current = null;
     }
     window.islandBridge?.enterIsland();
-    if (notchStatus === "closed") {
+    if (hoverToOpen && notchStatus === "closed") {
       window.islandBridge?.triggerHaptic();
       hoverOpenTimer.current = setTimeout(() => {
         if (!surface) presentSurface({ type: "sessionList" }, "hover");
         open();
       }, HOVER_OPEN_DELAY_MS);
     }
-  }, [notchStatus, open, presentSurface, surface]);
+  }, [hoverToOpen, notchStatus, open, presentSurface, surface]);
   const handleMouseLeave = reactExports.useCallback(() => {
     if (hoverOpenTimer.current) {
       clearTimeout(hoverOpenTimer.current);
       hoverOpenTimer.current = null;
     }
     window.islandBridge?.leaveIsland();
-    if (!isOpen) return;
+    if (!autoCollapseOnMouseLeave || !isOpen) return;
     const isFollowUpFocused = isFollowUpActiveRef.current && document.hasFocus() && document.activeElement?.closest("[data-follow-up-input]");
     if (isFollowUpFocused) {
       pendingFollowUpDismissRef.current = true;
@@ -510,7 +519,7 @@ function IslandApp() {
       clearSurface();
       window.islandBridge?.surfaceDismissed();
     }, MOUSE_LEAVE_CLOSE_DELAY_MS);
-  }, [isOpen, close, clearSurface]);
+  }, [autoCollapseOnMouseLeave, isOpen, close, clearSurface]);
   const handlePillClick = reactExports.useCallback(() => {
     if (hoverOpenTimer.current) {
       clearTimeout(hoverOpenTimer.current);
@@ -641,6 +650,7 @@ function IslandApp() {
             hasUpdate,
             tokenBurnTotal,
             pillFirstRow,
+            showUsageQuota,
             onSessionRowClick: handleSessionRowClick,
             onOpenSettings: handleOpenSettings,
             onOpenAbout: handleOpenAbout,

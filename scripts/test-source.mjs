@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { derivePetBubble, derivePetStatus, statusToIntervalMs, statusToRow } from "../src/renderer/pet/model.mjs";
@@ -25,23 +25,51 @@ const {
 const { createHooksCliCommand, quoteShellArgument } = require("../src/main/hooks-cli-command.cjs");
 const { SettingsRepository } = require("../src/main/settings-repository.cjs");
 const { PetModeController } = require("../src/main/pet-mode-controller.cjs");
+const { normalizeDisplayPreference } = require("../src/main/display-manager.cjs");
+const { listCodexPets, resolveCodexPet } = require("../src/main/codex-pet.cjs");
 const { buildPermissionDirective } = require("../src/main/permission-directives.cjs");
 const { createNativePlatformService, DEFAULT_FULLSCREEN_STATE } = require("../src/main/native-platform-service.cjs");
 const { formatDailyLogName, isSafeStreamError } = require("../src/main/log-lifecycle.cjs");
 const { isAllowedExternalUrl } = require("../src/main/external-url-policy.cjs");
 const mainSessionPolicy = require("../src/main/session-policy.cjs");
 
-assert.equal(Object.keys(IPC).length, 85, "IPC contract changed; review both main and preload consumers");
+assert.equal(Object.keys(IPC).length, 87, "IPC contract changed; review both main and preload consumers");
 assert.equal(new Set(Object.values(IPC)).size, Object.keys(IPC).length, "IPC channels must be unique");
 assert.ok(Object.isFrozen(IPC), "IPC contract must be immutable");
 assert.equal(IPC.PET_DRAG_TO_ISLAND, "pet:drag-to-island");
 assert.equal(IPC.SETTINGS_GET_CUSTOM_ICON, "settings:get-custom-icon");
+assert.equal(IPC.PET_TOGGLE, "pet:toggle");
+assert.equal(IPC.SETTINGS_GET_CODEX_PETS, "settings:get-codex-pets");
+assert.equal(normalizeDisplayPreference("active"), "auto", "legacy active display mode must migrate to auto");
+assert.equal(normalizeDisplayPreference("primary"), "primary");
+assert.equal(DEFAULT_SETTINGS.petSprite, "orca.png", "pet sprite must have a stable bundled fallback");
+const nativePanelSource = readFileSync(new URL("../native/panel-fix/src/panel_fix.mm", import.meta.url), "utf8");
+assert.match(nativePanelSource, /napi_typeof\(env, value, &type\)/, "native display IDs must accept numeric Electron IDs");
+assert.match(nativePanelSource, /NSMaxY\(frame\) - NSMaxY\(visible\)/, "menu bar height must exclude the Dock area");
+const islandAppSource = readFileSync(new URL("../src/renderer/island/app.js", import.meta.url), "utf8");
+const islandPanelSource = readFileSync(new URL("../src/renderer/island/components/IslandPanel.js", import.meta.url), "utf8");
+const islandPreloadSource = readFileSync(new URL("../src/preload/island.js", import.meta.url), "utf8");
+const islandAppCssSource = readFileSync(new URL("../src/renderer/island/app.css", import.meta.url), "utf8");
+const petAppSource = readFileSync(new URL("../src/renderer/pet/app.js", import.meta.url), "utf8");
+const petIpcSource = readFileSync(new URL("../src/main/ipc-services.cjs", import.meta.url), "utf8");
+assert.match(islandAppSource, /hoverToOpen/, "hover-to-open setting must reach Island runtime behavior");
+assert.match(islandAppSource, /autoCollapseOnMouseLeave/, "mouse-leave collapse setting must reach Island runtime behavior");
+assert.match(islandPanelSource, /showUsageQuota/, "usage quota visibility setting must reach the panel renderer");
+assert.match(islandPreloadSource, /getPetSpritePath/, "Island preload must expose the current pet sprite");
+assert.match(islandPanelSource, /PetButtonIcon/, "Island pet button must render the current pet logo");
+assert.match(islandAppCssSource, /pet-button-icon/, "pet logo needs dedicated styling");
+assert.match(petAppSource, /onSettingsChanged/, "pet renderer must react to live sprite setting changes");
+assert.match(petAppSource, /CODEX_V2_CELL_WIDTH/, "pet renderer must use the Codex V2 cell geometry");
+assert.match(petIpcSource, /SETTINGS_GET_CODEX_PETS/, "settings IPC must expose Codex pet discovery");
 
 assert.equal(derivePetStatus([{ phase: "running" }]), "running");
 assert.equal(derivePetStatus([{ phase: "completed" }, { phase: "waitingForApproval" }]), "attention");
 assert.deepEqual(derivePetBubble("running", 1), { text: "WORKING", size: "md", color: "#1C1D1E" });
 assert.equal(derivePetBubble("idle", 0), null);
 assert.equal(statusToRow("drag"), 6);
+assert.equal(statusToRow("running", { protocol: "codex-v2" }), 7);
+assert.equal(statusToRow("complete", { protocol: "codex-v2" }), 8);
+assert.equal(statusToRow("drag", { protocol: "codex-v2" }), 1);
 assert.equal(statusToIntervalMs("running"), 120);
 
 const visibleSession = { id: "visible", isHookManaged: true, latestUserPrompt: "hello", updatedAt: 2 };
@@ -123,6 +151,39 @@ try {
   assert.equal(JSON.parse(readFileSync(settingsPath, "utf8")).locale, "zh");
 } finally {
   rmSync(settingsTestDirectory, { recursive: true, force: true });
+}
+
+const codexPetTestDirectory = mkdtempSync(join(tmpdir(), "flux-codex-pets-"));
+try {
+  const codexHome = join(codexPetTestDirectory, ".codex");
+  const petDirectory = join(codexHome, "pets", "qianxue");
+  const legacyDirectory = join(codexHome, "pets", "legacy");
+  mkdirSync(petDirectory, { recursive: true });
+  mkdirSync(legacyDirectory, { recursive: true });
+  writeFileSync(join(petDirectory, "spritesheet.webp"), "fake-webp");
+  writeFileSync(join(petDirectory, "pet.json"), JSON.stringify({
+    id: "qianxue",
+    displayName: "千雪",
+    description: "test pet",
+    spriteVersionNumber: 2,
+    spritesheetPath: "spritesheet.webp"
+  }));
+  writeFileSync(join(legacyDirectory, "pet.json"), JSON.stringify({
+    id: "legacy",
+    spriteVersionNumber: 1,
+    spritesheetPath: "spritesheet.webp"
+  }));
+  assert.deepEqual(listCodexPets({ CODEX_HOME: codexHome }, "/tmp/test-home"), [{
+    id: "qianxue",
+    displayName: "千雪",
+    description: "test pet",
+    spriteVersionNumber: 2,
+    value: "codex:qianxue"
+  }]);
+  assert.equal(resolveCodexPet("qianxue", { CODEX_HOME: codexHome }, "/tmp/test-home").spritePath, join(petDirectory, "spritesheet.webp"));
+  assert.throws(() => resolveCodexPet("../qianxue", { CODEX_HOME: codexHome }, "/tmp/test-home"), /Invalid Codex pet id/);
+} finally {
+  rmSync(codexPetTestDirectory, { recursive: true, force: true });
 }
 
 let petReady;
