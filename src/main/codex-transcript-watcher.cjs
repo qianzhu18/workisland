@@ -111,13 +111,26 @@ class CodexTranscriptWatcher extends EventEmitter {
   /**
    * 供 AppCoordinator.startReconciliation 调用：对 state 中不存在的新 session
    * 合成 sessionStarted 事件，让没装 hook 的机器也能在灵动岛看到 session。
+   *
+   * 重要：只注册"当前活跃"的 session（turnRunning === true），不注册历史已完成的。
+   * 否则会把 24h 内所有历史会话都塞进 state，既不可见（无 latestUserPrompt）又会
+   * 被 removeInvisibleSessions 删掉，导致 discover → prune → discover 死循环。
    */
   discoverActiveSessions(knownSessionIds) {
     const known = new Set(knownSessionIds || []);
     const discovered = [];
     for (const f of this.files.values()) {
       if (known.has(f.sessionId)) continue;
-      discovered.push(this.buildEvent(f, "sessionStarted", { ts: f.startedAt }));
+      // 只补登记当前正在跑的 root turn；历史已完成的不该出现在灵动岛
+      if (!f.turnRunning || f.isSubagent) continue;
+      discovered.push(
+        this.buildEvent(f, "sessionStarted", {
+          ts: f.lastEventAt || f.startedAt,
+          title: f.title,
+          summary: f.lastPrompt,
+          latestUserPrompt: f.lastPrompt
+        })
+      );
     }
     return discovered;
   }
@@ -139,7 +152,12 @@ class CodexTranscriptWatcher extends EventEmitter {
           // 运行中发现新文件：真·新会话，立即发 sessionStarted
           this.emit(
             "event",
-            this.buildEvent(f, "sessionStarted", { ts: f.startedAt })
+            this.buildEvent(f, "sessionStarted", {
+              ts: f.startedAt,
+              title: f.title,
+              summary: f.lastPrompt,
+              latestUserPrompt: f.lastPrompt
+            })
           );
           this.readIncrement(f);
         }
@@ -271,6 +289,9 @@ class CodexTranscriptWatcher extends EventEmitter {
           "event",
           this.buildEvent(file, "sessionStarted", {
             ts: file.lastEventAt,
+            title: file.title,
+            summary: file.lastPrompt,
+            latestUserPrompt: file.lastPrompt,
             replayed: true
           })
         );
@@ -364,7 +385,8 @@ class CodexTranscriptWatcher extends EventEmitter {
             this.buildEvent(file, "sessionStarted", {
               ts,
               title: file.title,
-              summary: file.lastPrompt
+              summary: file.lastPrompt,
+              latestUserPrompt: file.lastPrompt
             })
           );
         }
@@ -385,14 +407,18 @@ class CodexTranscriptWatcher extends EventEmitter {
             file.turnRunning = true;
             file.activeTurnId = undefined;
             file.lastTurnCompleted = false;
-            emit(
-              this.buildEvent(file, "sessionStarted", {
-                ts,
-                title: file.title,
-                summary: file.lastPrompt
-              })
-            );
           }
+          // 总是补发 sessionStarted 携带最新 prompt：即使 task_started 已经先发过，
+          // 这里更新 prompt 让灵动岛 session 可见（isVisibleInIsland 需要 latestUserPrompt）。
+          // sessionStarted 是幂等事件（reducer 用 ?? merge），重复发无副作用。
+          emit(
+            this.buildEvent(file, "sessionStarted", {
+              ts,
+              title: file.title,
+              summary: file.lastPrompt,
+              latestUserPrompt: file.lastPrompt
+            })
+          );
         }
         break;
       }

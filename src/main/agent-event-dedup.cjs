@@ -25,11 +25,26 @@ const CAPACITY = 1024;
  * 计算事件的去重 key。
  * 同 session 同 turnId 的同类型事件视为重复。
  * 对 sessionCompleted，进一步区分 isInterrupt（成功完成 vs 中断）。
+ *
+ * 重要：sessionStarted / turnStarted / activityUpdated / jumpTargetUpdated 等
+ * "信息补全"事件不做去重——它们是幂等的（reducer 用 ?? merge），且两个通道
+ * 携带的信息互补（hook 带 prompt/jumpTarget，transcript 也可能带），去重会
+ * 导致后到的信息被丢弃。只对"一次性通知"事件（sessionCompleted/toolUse*）
+ * 去重，避免双重通知。
  */
 function eventDedupKey(event) {
   const type = event.type || "";
   const sessionId = event.sessionId || "";
   const turnId = event.turnId || "";
+  // 信息补全类事件：不去重（返回唯一 key）
+  if (
+    type === "sessionStarted" ||
+    type === "turnStarted" ||
+    type === "activityUpdated" ||
+    type === "jumpTargetUpdated"
+  ) {
+    return `${type}:${sessionId}:${turnId}:${event.detectionSource || "hook"}:${Date.now()}`;
+  }
   if (type === "sessionCompleted") {
     // 区分成功完成与中断：两者不应互相去重
     const variant = event.isInterrupt ? "interrupt" : "complete";
