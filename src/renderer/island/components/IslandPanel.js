@@ -1030,7 +1030,7 @@ function continuePromptErrorMessage(result) {
   switch (result.reason) {
     case "automation-denied":
       return {
-        text: i18n.k1905081417({}, "需要允许 Orca 控制 Terminal/iTerm，才能继续会话。"),
+        text: i18n.k1905081417({}, "需要允许 WorkIsland 控制 Terminal/iTerm，才能继续会话。"),
         showSettings: true
       };
     case "terminal-session-not-found":

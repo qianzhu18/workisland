@@ -5,7 +5,7 @@ const fireLowIcon = new URL("./fire-low.png", import.meta.url).href;
 function cleanAppName(appName) {
   if (appName.toLowerCase() === "trae cn") return "TRAE CN";
   if (appName.toLowerCase() === "trae") return "TRAE";
-  if (["flux", "orca"].includes(appName.toLowerCase())) return "Orca";
+  if (["flux", "orca", "workisland"].includes(appName.toLowerCase())) return "WorkIsland";
   return appName.endsWith(".app") ? appName.slice(0, -4) : appName;
 }
 function sanitizeAgentDisplayText(raw) {

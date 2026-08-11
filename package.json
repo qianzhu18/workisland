@@ -1,11 +1,11 @@
 {
-  "name": "orca",
-  "productName": "Orca",
-  "version": "0.1.19",
-  "description": "Local macOS island for monitoring and approving coding agents",
+  "name": "workisland",
+  "productName": "WorkIsland",
+  "version": "0.1.0",
+  "description": "macOS 本地 AI 编程任务监控与注意力路由器",
   "private": true,
   "main": "./src/main/index.cjs",
-  "author": "Orca contributors",
+  "author": "WorkIsland contributors",
   "license": "MIT",
   "keywords": [
     "electron",
@@ -47,8 +47,8 @@
     "ws": "^8.21.2"
   },
   "build": {
-    "appId": "app.orca.desktop",
-    "productName": "Orca",
+    "appId": "app.workisland.desktop",
+    "productName": "WorkIsland",
     "artifactName": "${productName}-${version}-${arch}.${ext}",
     "directories": {
       "output": "release"
@@ -98,7 +98,7 @@
       "icon": "resources/icon.icns"
     },
     "dmg": {
-      "title": "Orca"
+      "title": "WorkIsland"
     }
   }
 }

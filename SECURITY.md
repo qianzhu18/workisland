@@ -11,6 +11,6 @@ Include the affected version, reproduction steps, impact, and any suggested
 mitigation. Do not include real prompts, transcripts, tokens, usernames, or
 filesystem paths in a report.
 
-Orca processes local Agent events and approval requests. Treat any issue
+WorkIsland processes local Agent events and approval requests. Treat any issue
 that can bypass approval, open an unsafe URL, expose transcript content, or
 escape the context-isolated renderer boundary as security-sensitive.

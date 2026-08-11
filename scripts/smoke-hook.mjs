@@ -22,7 +22,7 @@ const commands = [
       hook_event_name: "UserPromptSubmit",
       session_id: sessionId,
       cwd: root,
-      prompt: "Orca source smoke test"
+      prompt: "WorkIsland source smoke test"
     }
   },
   {

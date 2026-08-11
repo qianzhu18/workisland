@@ -7,7 +7,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const require = createRequire(import.meta.url);
 const issues = [];
 
-if (process.platform !== "darwin") issues.push("Orca's desktop window integration requires macOS.");
+if (process.platform !== "darwin") issues.push("WorkIsland's desktop window integration requires macOS.");
 if (process.arch !== "arm64") issues.push("The bundled native window module currently requires Apple Silicon.");
 try {
   require.resolve("electron");

@@ -1,13 +1,13 @@
 # Third-party notices
 
-Orca includes browser-ready copies of the following open-source libraries under
+WorkIsland includes browser-ready copies of the following open-source libraries under
 `src/renderer/vendor/`:
 
 - React and React DOM, Copyright Meta Platforms, Inc. and affiliates (MIT)
 - React Markdown and the unified/remark ecosystem, Copyright their respective contributors (MIT)
 - Zustand store bindings, Copyright their respective contributors (MIT)
 
-The vendored files contain runtime code only; Orca-specific UI and product logic
+The vendored files contain runtime code only; WorkIsland-specific UI and product logic
 lives outside `src/renderer/vendor/`. Upstream project names and copyrights are
 retained for attribution. Each project is distributed under the MIT License:
 

@@ -11,6 +11,6 @@ export async function requireRunningBridge(socketPath, startCommand, timeoutMs =
     }
   }
   throw new Error(
-    `Orca bridge is not running at ${socketPath}. Start it first with: ${startCommand}`
+    `WorkIsland bridge is not running at ${socketPath}. Start it first with: ${startCommand}`
   );
 }

@@ -27,7 +27,7 @@ function WelcomeApp() {
         React.createElement("span", { className: "welcome-whale" }, "🐋")
       ),
       React.createElement("p", { className: "welcome-eyebrow" }, "LOCAL AGENTS · ONE ISLAND"),
-      React.createElement("h1", null, "Orca"),
+      React.createElement("h1", null, "WorkIsland"),
       React.createElement(
         "p",
         { className: "welcome-description" },
@@ -47,7 +47,7 @@ function WelcomeApp() {
       React.createElement(
         "button",
         { className: "welcome-btn", type: "button", onClick: start, disabled: starting },
-        starting ? "正在启动…" : "进入 Orca"
+        starting ? "正在启动…" : "进入 WorkIsland"
       ),
       React.createElement("p", { className: "welcome-hint" }, "进入后，灵动岛会显示在屏幕顶部刘海区域。")
     )

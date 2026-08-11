@@ -59,7 +59,7 @@ function derivePillDisplay(sessions, visibleCount, hasNotch) {
   if (hasNotch) {
     label = null;
   } else if (visibleCount === 0) {
-    label = "Orca";
+    label = "WorkIsland";
   }
   return { status, icon, label };
 }

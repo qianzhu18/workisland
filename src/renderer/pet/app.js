@@ -8,6 +8,8 @@ import {
   SLEEP_TIMEOUT_MS,
   STATUS_ROWS,
   TOTAL_ROWS,
+  CODEX_V2_TOTAL_ROWS,
+  isCodexV2Sprite,
   derivePetBubble,
   derivePetStatus,
   statusToIntervalMs,
@@ -43,7 +45,9 @@ function PetApp() {
   const [isCompleteExpired, setIsCompleteExpired] = reactExports.useState(false);
   const [sheetReady, setSheetReady] = reactExports.useState(false);
   const [frameSize, setFrameSize] = reactExports.useState(120);
+  const [frameWidth, setFrameWidth] = reactExports.useState(120);
   const [frameCountMap, setFrameCountMap] = reactExports.useState({});
+  const [spriteMeta, setSpriteMeta] = reactExports.useState(null);
   const [displaySize, setDisplaySize] = reactExports.useState(BASE_DISPLAY_SIZE);
   const [petSize, setPetSize] = reactExports.useState(BASE_PET_SIZE);
   const [panelState, setPanelState] = reactExports.useState({ open: false, direction: "up" });
@@ -92,24 +96,36 @@ function PetApp() {
     };
     img.onload = () => {
       if (cancelled) return;
-      const totalRows = TOTAL_ROWS;
-      const calculatedFrameSize = Math.round(img.naturalHeight / totalRows);
-      const maxFrameCount = Math.floor(img.naturalWidth / calculatedFrameSize);
+      // 检测 Codex V2 协议（1536×2288，11 行）。否则用默认 orca 格式（7 行）。
+      const codexV2 = isCodexV2Sprite(img.naturalWidth, img.naturalHeight);
+      const meta = codexV2 ? { protocol: "codex-v2" } : null;
+      const totalRows = codexV2 ? CODEX_V2_TOTAL_ROWS : TOTAL_ROWS;
+      // codex V2 cell 是 192×208（非正方形），默认协议 cell 是正方形
+      const cellHeight = Math.round(img.naturalHeight / totalRows);
+      const cellWidth = codexV2 ? 192 : cellHeight;
+      const maxFrameCount = Math.floor(img.naturalWidth / cellWidth);
       const offscreen = document.createElement("canvas");
       offscreen.width = img.naturalWidth;
       offscreen.height = img.naturalHeight;
       const ctx = offscreen.getContext("2d", { willReadFrequently: true });
       ctx.drawImage(img, 0, 0);
       sheetRef.current = offscreen;
+      // 根据协议选择状态→行映射表
+      const rowsMap = codexV2
+        ? {
+            idle: 0, play: 4, sleep: 0, running: 7,
+            attention: 6, complete: 8, drag: 1
+          }
+        : STATUS_ROWS;
       const actualFrameCounts = {};
-      for (const [status2, row] of Object.entries(STATUS_ROWS)) {
+      for (const [status2, row] of Object.entries(rowsMap)) {
         let validFrames = 0;
         for (let col = 0; col < maxFrameCount; col++) {
           const imageData = ctx.getImageData(
-            col * calculatedFrameSize,
-            row * calculatedFrameSize,
-            calculatedFrameSize,
-            calculatedFrameSize
+            col * cellWidth,
+            row * cellHeight,
+            cellWidth,
+            cellHeight
           );
           let isEmpty = true;
           for (let i = 3; i < imageData.data.length; i += 16) {
@@ -126,8 +142,10 @@ function PetApp() {
         }
         actualFrameCounts[status2] = Math.max(1, validFrames);
       }
-      setFrameSize(calculatedFrameSize);
+      setFrameSize(cellHeight);
+      setFrameWidth(cellWidth);
       setFrameCountMap(actualFrameCounts);
+      setSpriteMeta(meta);
       setSheetReady(true);
     };
     return () => {
@@ -194,11 +212,11 @@ function PetApp() {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, dw, dh);
     ctx.imageSmoothingEnabled = true;
-    const row = statusToRow(status);
-    const sx = frame * frameSize;
+    const row = statusToRow(status, spriteMeta);
+    const sx = frame * frameWidth;
     const sy = row * frameSize;
-    ctx.drawImage(sheet, sx, sy, frameSize, frameSize, 0, 0, dw, dh);
-  }, [status, displaySize, frameSize]);
+    ctx.drawImage(sheet, sx, sy, frameWidth, frameSize, 0, 0, dw, dh);
+  }, [status, displaySize, frameSize, frameWidth, spriteMeta]);
   reactExports.useEffect(() => {
     if (!sheetReady) return;
     frameRef.current = 0;

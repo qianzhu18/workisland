@@ -35,7 +35,7 @@ jobs:
         run: shasum -a 256 release/*.dmg > release/SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: Orca-macOS-arm64
+          name: WorkIsland-macOS-arm64
           path: |
             release/*.dmg
             release/SHA256SUMS.txt

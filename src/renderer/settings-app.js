@@ -79,7 +79,7 @@ function generalPage() {
   const root = document.createDocumentFragment();
   const behavior = section("Island 行为", "控制灵动岛何时出现以及如何收起。");
   behavior.append(
-    row("登录时启动", "开机登录后自动启动 Orca。", toggle(state.settings.launchAtLogin, v => save({ launchAtLogin: v }), "登录时启动")),
+    row("登录时启动", "开机登录后自动启动 WorkIsland。", toggle(state.settings.launchAtLogin, v => save({ launchAtLogin: v }), "登录时启动")),
     row("悬停展开", "鼠标停留在 Island 上时展开面板。", toggle(state.settings.hoverToOpen, v => save({ hoverToOpen: v }), "悬停展开")),
     row("失去焦点后收起", "鼠标离开后自动恢复静默状态。", toggle(state.settings.autoCollapseOnMouseLeave, v => save({ autoCollapseOnMouseLeave: v }), "自动收起")),
     row("全屏时隐藏", "全屏应用位于当前屏幕时隐藏 Island。", toggle(state.settings.hideWhenFullscreen, v => save({ hideWhenFullscreen: v }), "全屏时隐藏")),
@@ -214,10 +214,10 @@ function soundPage() {
 
 function aboutPage() {
   const root = document.createDocumentFragment();
-  const about = section("关于 Orca", "本地优先的 macOS Agent 会话监控与审批界面。");
+  const about = section("关于 WorkIsland", "本地优先的 macOS Agent 会话监控与审批界面。");
   const version = el("div", "about-card");
-  version.append(el("div", "app-mark", "O"), el("div", "about-copy", "Orca\n正在读取版本…"));
-  api.getAppVersion().then(v => version.querySelector(".about-copy").textContent = `Orca\n版本 ${v}`).catch(() => {});
+  version.append(el("div", "app-mark", "O"), el("div", "about-copy", "WorkIsland\n正在读取版本…"));
+  api.getAppVersion().then(v => version.querySelector(".about-copy").textContent = `WorkIsland\n版本 ${v}`).catch(() => {});
   about.append(version);
   const actions = el("div", "section-actions");
   actions.append(button("导出诊断日志", async () => { const path = await api.collectLogs(); showToast(path ? "日志已导出" : "日志导出完成"); }), button("退出应用", () => api.quitApp(), "danger"));

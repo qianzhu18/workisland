@@ -111,6 +111,11 @@ function drawOrca(surface, cx, cy, scale, pose = {}) {
   if (pose.alert) polygon([[cx + 41 * scale, cy - 23 * scale], [cx + 48 * scale, cy - 34 * scale], [cx + 52 * scale, cy - 20 * scale]], coral);
 }
 
+// 应用图标由设计师提供的 logo 生成（resources/icon.png + icon.icns），
+// 不再由代码绘制覆盖。如需重新生成，删除 resources/icon.* 后运行
+// GENERATE_ICON=1 npm run build:assets。
+const GENERATE_ICON = process.env.GENERATE_ICON === "1";
+if (GENERATE_ICON) {
 savePng(join(root, "resources/icon.png"), 1024, 1024, (s) => {
   const { roundedRect, ellipse } = s;
   roundedRect(64, 64, 896, 896, 210, [13, 18, 28, 255]);
@@ -118,8 +123,9 @@ savePng(join(root, "resources/icon.png"), 1024, 1024, (s) => {
   ellipse(760, 190, 120, 120, [13, 18, 28, 255]);
   drawOrca(s, 520, 535, 6.4);
 });
+}
 
-if (process.platform === "darwin") {
+if (process.platform === "darwin" && GENERATE_ICON) {
   const iconDir = mkdtempSync(join(tmpdir(), "orca-icon-"));
   const source = join(root, "resources", "icon.png");
   const parts = [];
@@ -193,4 +199,4 @@ const sounds = {
 };
 for (const [name, tones] of Object.entries(sounds)) wav(join(root, "resources/sounds", `${name}.wav`), tones.map(([frequency, start]) => ({ frequency, start, duration: 0.25 })));
 
-console.log("Generated Orca icon, pet sprite, usage indicators, and sounds.");
+console.log("Generated WorkIsland assets (icon preserved from logo, pet sprite, usage indicators, sounds).");

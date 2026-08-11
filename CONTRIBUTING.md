@@ -1,10 +1,10 @@
 # Contributing
 
-Thank you for helping improve Orca.
+Thank you for helping improve WorkIsland.
 
 ## Local setup
 
-Orca requires macOS and Node.js 22 or newer. Use the isolated mode for
+WorkIsland requires macOS and Node.js 22 or newer. Use the isolated mode for
 routine development so Agent configuration in your real home directory is not
 modified.
 

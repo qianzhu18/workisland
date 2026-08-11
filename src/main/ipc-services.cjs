@@ -3,6 +3,7 @@
 const electron = require("electron");
 const fs = require("node:fs");
 const path = require("node:path");
+const os = require("node:os");
 const child_process = require("node:child_process");
 const promises = require("node:fs/promises");
 const { IPC } = require("../shared/ipc.cjs");
@@ -89,14 +90,38 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl }) {
   function getUserSpritesDir() {
     return path.join(electron.app.getPath("userData"), "pet-sprites");
   }
+  /**
+   * 解析桌宠 sprite 文件路径。
+   *
+   * 支持三种格式：
+   *   1. 默认（null/空）→ DEFAULT_SPRITE（orca.png）
+   *   2. 文件名（xxx.png / xxx.webp）→ 在 user/default sprites 目录查找
+   *   3. "codex:<pet-name>" → 解析 ~/.codex/pets/<pet-name>/spritesheet.webp
+   *      （兼容 Codex V2 桌宠协议，pet.json 描述布局）
+   */
   function resolveSpritePath(fileName) {
     const raw = fileName || DEFAULT_SPRITE;
+    // Codex pet 协议：codex:<pet-name>
+    if (raw.startsWith("codex:")) {
+      const petName = raw.slice("codex:".length);
+      if (!petName || petName.includes("/") || petName.includes("..") || petName.includes("\\")) {
+        throw new Error("Invalid codex pet name");
+      }
+      const codexPetsDir = path.join(os.homedir(), ".codex", "pets");
+      const webpPath = path.join(codexPetsDir, petName, "spritesheet.webp");
+      if (fs.existsSync(webpPath)) return webpPath;
+      const pngPath = path.join(codexPetsDir, petName, "spritesheet.png");
+      if (fs.existsSync(pngPath)) return pngPath;
+      throw new Error(`Codex pet not found: ${petName}`);
+    }
+    // 普通文件名：接受 .png 和 .webp
     const safe = path.basename(raw);
     if (safe !== raw || safe.includes("..")) {
       throw new Error("Invalid sprite filename");
     }
-    if (!safe.toLowerCase().endsWith(".png")) {
-      throw new Error("Only .png is allowed");
+    const lower = safe.toLowerCase();
+    if (!lower.endsWith(".png") && !lower.endsWith(".webp")) {
+      throw new Error("Only .png and .webp are allowed");
     }
     const userPath = path.join(getUserSpritesDir(), safe);
     if (fs.existsSync(userPath)) return userPath;
@@ -300,7 +325,9 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl }) {
         throw new Error("Sprite file too large");
       }
       const buf = await promises.readFile(filePath);
-      return `data:image/png;base64,${buf.toString("base64")}`;
+      const ext = path.extname(filePath).toLowerCase();
+      const mime = ext === ".webp" ? "image/webp" : "image/png";
+      return `data:${mime};base64,${buf.toString("base64")}`;
     });
     electron.ipcMain.handle(IPC.COLLECT_LOGS, async () => {
       const scriptPath = electron.app.isPackaged ? path__namespace.join(process.resourcesPath, "scripts", "collect-logs.sh") : path__namespace.join(electron.app.getAppPath(), "scripts", "collect-logs.sh");
