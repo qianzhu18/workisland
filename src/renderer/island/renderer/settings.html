@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Orca Settings</title>
+    <link rel="stylesheet" href="../../settings-app.css">
+    <script defer src="../../settings-app.js"></script>
+  </head>
+  <body>
+    <main class="window">
+      <aside class="sidebar">
+      <div class="brand"><span class="brand-mark">O</span><span>Orca</span></div>
+        <nav class="nav" aria-label="设置分类">
+          <button class="nav-item active" data-tab="general"><span class="nav-icon">◉</span>通用</button>
+          <button class="nav-item" data-tab="agents"><span class="nav-icon">⌘</span>Agents</button>
+          <button class="nav-item" data-tab="appearance"><span class="nav-icon">◆</span>外观与桌宠</button>
+          <button class="nav-item" data-tab="sound"><span class="nav-icon">♪</span>声音</button>
+          <button class="nav-item" data-tab="about"><span class="nav-icon">ⓘ</span>关于</button>
+        </nav>
+      </aside>
+      <div id="content" class="content"></div>
+    </main>
+    <div id="toast" class="toast" role="status"></div>
+  </body>
+</html>

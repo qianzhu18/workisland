@@ -1,0 +1,8 @@
+#!/bin/sh
+set -eu
+
+script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+app_executable="$script_dir/../../MacOS/Orca"
+hooks_cli="$script_dir/../app.asar/src/island/hooks-cli/index.cjs"
+
+ELECTRON_RUN_AS_NODE=1 exec "$app_executable" "$hooks_cli" "$@"

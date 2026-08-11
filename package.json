@@ -1,0 +1,104 @@
+{
+  "name": "orca",
+  "productName": "Orca",
+  "version": "0.1.19",
+  "description": "Local macOS island for monitoring and approving coding agents",
+  "private": true,
+  "main": "./src/main/index.cjs",
+  "author": "Orca contributors",
+  "license": "MIT",
+  "keywords": [
+    "electron",
+    "macos",
+    "coding-agent",
+    "dynamic-island"
+  ],
+  "scripts": {
+    "setup": "npm install && npm run build:assets && npm run build:native",
+    "build:renderer": "node ./scripts/build-renderer.mjs",
+    "build:assets": "node ./scripts/generate-assets.mjs",
+    "dev": "npm run build:renderer && node ./scripts/dev.mjs --full",
+    "dev:isolated": "npm run build:renderer && node ./scripts/dev.mjs",
+    "dev:full": "npm run build:renderer && node ./scripts/dev.mjs --full",
+    "start": "npm run dev",
+    "setup:electron": "npm install --prefix ./.tools/electron-shell --no-save electron@43.3.0 --cache ./.npm-cache",
+    "build:native": "node ./scripts/build-native.mjs",
+    "package:mac": "npm run build:assets && npm run build:native && npm run check && electron-builder --mac --arm64",
+    "check": "npm run build:renderer && node ./scripts/check.mjs && node ./scripts/test-source.mjs",
+    "smoke:hook": "node ./scripts/smoke-hook.mjs",
+    "smoke:hook:isolated": "node ./scripts/smoke-hook.mjs --isolated",
+    "smoke:approval:isolated": "node ./scripts/smoke-approval.mjs",
+    "smoke:ui": "node ./scripts/smoke-ui.mjs",
+    "doctor": "node ./scripts/doctor.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "npm@11.11.1",
+  "dependencies": {
+    "@electron-toolkit/utils": "4.0.0",
+    "@iarna/toml": "2.2.5",
+    "electron-log": "5.4.4",
+    "js-yaml": "4.3.1"
+  },
+  "devDependencies": {
+    "electron": "43.3.0",
+    "electron-builder": "^26.15.3",
+    "ws": "^8.21.2"
+  },
+  "build": {
+    "appId": "app.orca.desktop",
+    "productName": "Orca",
+    "artifactName": "${productName}-${version}-${arch}.${ext}",
+    "directories": {
+      "output": "release"
+    },
+    "asar": true,
+    "asarUnpack": [
+      "resources/bin/panel_fix.node"
+    ],
+    "files": [
+      "src/**/*",
+      "resources/**/*",
+      "package.json",
+      "LICENSE",
+      "README.md",
+      "SECURITY.md",
+      "THIRD_PARTY_NOTICES.md"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/sounds",
+        "to": "sounds"
+      },
+      {
+        "from": "resources/pet-sprites",
+        "to": "pet-sprites"
+      },
+      {
+        "from": "resources/bin/flux-hooks",
+        "to": "bin/flux-hooks"
+      },
+      {
+        "from": "resources/scripts/collect-logs.sh",
+        "to": "scripts/collect-logs.sh"
+      }
+    ],
+    "afterPack": "scripts/after-pack.cjs",
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.developer-tools",
+      "icon": "resources/icon.icns"
+    },
+    "dmg": {
+      "title": "Orca"
+    }
+  }
+}

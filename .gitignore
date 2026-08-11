@@ -1,0 +1,20 @@
+.DS_Store
+.local-data/
+.local-home/
+.local-logs/
+*.log
+
+node_modules/
+out/
+dist/
+release/
+.native-build/
+resources/bin/panel_fix.node
+
+# Package-manager and editor noise
+.npm/
+.npm-cache/
+.pnpm-store/
+.tools/
+.idea/
+.vscode/

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Orca Debug</title>
+    <script type="module" src="../../debug-app.js"></script>
+    <link rel="stylesheet" href="../../debug-app.css">
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Orca Debug</h1>
+        <div class="actions">
+          <button id="refresh" type="button">Refresh</button>
+          <button id="reset-onboarding" type="button">Reset onboarding</button>
+        </div>
+      </header>
+      <div id="status" role="status">Loading...</div>
+      <div class="grid">
+        <section><h2>Sessions</h2><pre id="sessions">[]</pre></section>
+        <section><h2>Hook reports</h2><pre id="hooks">[]</pre></section>
+      </div>
+    </main>
+  </body>
+</html>

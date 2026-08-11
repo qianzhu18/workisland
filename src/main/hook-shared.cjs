@@ -1,0 +1,64 @@
+"use strict";
+
+const electron = require("electron");
+const fs = require("node:fs");
+const path = require("node:path");
+const os = require("node:os");
+const { createHooksCliCommand } = require("./hooks-cli-command.cjs");
+
+const REGISTRY_PATH = path.join(os.homedir(), ".flux", "sessions.json");
+const MAX_SESSIONS = 50;
+const MAX_AGE_MS$1 = 24 * 60 * 60 * 1e3;
+function saveSessions(sessions) {
+  try {
+    const dir = path.dirname(REGISTRY_PATH);
+    fs.mkdirSync(dir, { recursive: true });
+    const recent = sessions.filter((s) => s.updatedAt > Date.now() - MAX_AGE_MS$1).sort((a, b) => b.updatedAt - a.updatedAt).slice(0, MAX_SESSIONS);
+    fs.writeFileSync(REGISTRY_PATH, JSON.stringify(recent, null, 2));
+  } catch {
+  }
+}
+function shellQuote(p) {
+  return `'${p}'`;
+}
+function buildDevHooksCliCommand(source) {
+  return createHooksCliCommand({
+    appPath: electron.app.getAppPath(),
+    source,
+    nodePath: process.env.FLUX_HOOK_NODE || process.execPath,
+    electronNodePath: process.execPath
+  });
+}
+function wrapWithInstallCheck(guardPath, command) {
+  return `[ -e ${shellQuote(guardPath)} ] || exit 0; ${command}`;
+}
+// Migration-only marker: installers remove obsolete private reporting hooks
+// from existing Agent configs and never add them back.
+const BITS_REPORT_BIN_MARKER = "flux-bits-report";
+function isBitsCommand(command) {
+  return typeof command === "string" && command.includes(BITS_REPORT_BIN_MARKER);
+}
+function isClaudeBitsHookGroup(group) {
+  return Array.isArray(group?.hooks) && group.hooks.some((e) => isBitsCommand(e?.command));
+}
+function isCodexBitsHookGroup(group) {
+  return Array.isArray(group?.hooks) && group.hooks.some((e) => isBitsCommand(e?.command));
+}
+function isCursorBitsEntry(entry) {
+  return isBitsCommand(entry?.command);
+}
+function isKimiBitsEntry(entry) {
+  return !!entry.command && isBitsCommand(entry.command);
+}
+const OPENCODE_BITS_PLUGIN_FILENAME = "ai-code-report.plugin.js";
+module.exports = {
+  saveSessions,
+  shellQuote,
+  buildDevHooksCliCommand,
+  wrapWithInstallCheck,
+  isClaudeBitsHookGroup,
+  isCodexBitsHookGroup,
+  isCursorBitsEntry,
+  isKimiBitsEntry,
+  OPENCODE_BITS_PLUGIN_FILENAME
+};

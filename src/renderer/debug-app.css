@@ -1,0 +1,74 @@
+:root {
+  color-scheme: dark;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+  background: #151618;
+  color: #f4f5f7;
+}
+
+* { box-sizing: border-box; }
+
+body { margin: 0; }
+
+main {
+  width: min(1040px, 100%);
+  margin: 0 auto;
+  padding: 24px;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+h1 { margin: 0; font-size: 20px; letter-spacing: 0; }
+h2 { margin: 0 0 10px; font-size: 14px; letter-spacing: 0; }
+
+.actions { display: flex; gap: 8px; }
+
+button {
+  min-height: 32px;
+  border: 1px solid #41444a;
+  border-radius: 6px;
+  padding: 0 12px;
+  background: #25272b;
+  color: inherit;
+  cursor: pointer;
+}
+
+button:hover { background: #303238; }
+button:disabled { opacity: 0.55; cursor: wait; }
+
+#status { color: #a9adb5; font-size: 13px; margin-bottom: 16px; }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+section {
+  min-width: 0;
+  border: 1px solid #34363b;
+  border-radius: 8px;
+  padding: 14px;
+  background: #1d1f22;
+}
+
+pre {
+  min-height: 220px;
+  max-height: calc(100vh - 170px);
+  margin: 0;
+  overflow: auto;
+  color: #d9dce2;
+  font: 12px/1.5 "SFMono-Regular", Consolas, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 720px) {
+  header { align-items: flex-start; flex-direction: column; }
+  .grid { grid-template-columns: 1fr; }
+}
