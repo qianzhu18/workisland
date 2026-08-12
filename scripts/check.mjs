@@ -48,6 +48,7 @@ const required = [
   "native/panel-fix/src/panel_fix.mm",
   "resources/bin/flux-hooks",
   "resources/pet-sprites/orca.png",
+  "resources/pet-sprites/qianxue.webp",
   "resources/icon.png",
   "resources/icon.icns",
   "resources/scripts/collect-logs.sh"

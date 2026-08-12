@@ -65,10 +65,12 @@ body {
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
 }
 
-.welcome-whale {
-  font-size: 45px;
-  line-height: 1;
-  filter: saturate(0.85);
+.welcome-logo {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  object-fit: cover;
+  -webkit-user-drag: none;
 }
 
 .welcome-eyebrow {

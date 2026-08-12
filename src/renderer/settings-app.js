@@ -11,6 +11,7 @@ const AGENTS = [
 ];
 
 const APPROVAL_AGENTS = new Set(["codex", "coco", "copilot-cli", "traex"]);
+const DEFAULT_PET_SPRITE = "codex:qianxue";
 const state = { settings: null, statuses: new Map(), plugins: [], displays: [], codexPets: [], activeTab: "general", busy: new Set() };
 
 function el(tag, className, text) {
@@ -241,10 +242,12 @@ function agentsPage() {
 function appearancePage() {
   const root = document.createDocumentFragment();
   const pet = section("桌宠", "桌宠与 Island 使用同一套会话状态，切换不会中断监控。");
-  const configuredSprite = state.settings.petSprite || "orca.png";
-  const spriteOptions = [["orca.png", "Orca · 内置"]];
+  const configuredSprite = state.settings.petSprite || DEFAULT_PET_SPRITE;
+  const spriteOptions = [[DEFAULT_PET_SPRITE, "千雪 · 内置 Codex V2"], ["orca.png", "Orca · 兼容素材"]];
   for (const codexPet of state.codexPets) {
-    spriteOptions.push([codexPet.value, `${codexPet.displayName} · Codex V2`]);
+    if (!spriteOptions.some(([value]) => value === codexPet.value)) {
+      spriteOptions.push([codexPet.value, `${codexPet.displayName} · Codex V2`]);
+    }
   }
   if (!spriteOptions.some(([value]) => value === configuredSprite)) {
     spriteOptions.push([configuredSprite, `${configuredSprite} · 当前设置`]);
@@ -254,9 +257,9 @@ function appearancePage() {
   sprite.type = "text";
   sprite.className = "text-input";
   sprite.value = configuredSprite;
-  sprite.placeholder = "orca.png 或 codex:qianxue";
+  sprite.placeholder = "codex:qianxue、orca.png 或其他 PNG/WebP";
   sprite.setAttribute("aria-label", "桌宠精灵素材标识");
-  sprite.addEventListener("change", () => save({ petSprite: sprite.value.trim() || "orca.png" }));
+  sprite.addEventListener("change", () => save({ petSprite: sprite.value.trim() || DEFAULT_PET_SPRITE }));
   const scale = document.createElement("input");
   scale.type = "range"; scale.min = "0.6"; scale.max = "2"; scale.step = "0.1"; scale.value = state.settings.petScale || 1;
   const scaleValue = el("span", "range-value", `${Number(scale.value).toFixed(1)}×`);
@@ -266,8 +269,8 @@ function appearancePage() {
   pet.append(
     row("桌宠预览", "在当前显示器中央显示桌宠；再次点击可收起。", button("显示 / 隐藏桌宠", () => api.togglePet?.())),
     row("桌宠缩放", "调整桌宠在屏幕上的显示尺寸。", scaleControl),
-    row("Codex 桌宠", "选择本机 ~/.codex/pets 中的 V2 桌宠；切换后运行中的桌宠会实时换图。", spriteSelect),
-    row("自定义素材标识", "默认使用 orca.png；也可填写本地 pet-sprites 目录中的 PNG/WebP 文件名。", sprite),
+    row("Codex 桌宠", "默认使用内置千雪；也可切换本机 ~/.codex/pets 中的其他 V2 桌宠，运行中的桌宠会实时换图。", spriteSelect),
+    row("自定义素材标识", "支持 codex:<名称>，或填写本地 pet-sprites 目录中的 PNG/WebP 文件名。", sprite),
     row("精灵素材", "打开目录后可替换 PNG 桌宠素材。", button("打开目录", () => api.openSpritesDir()))
   );
   const panel = section("面板", "限制展开面板的高度，避免遮挡主要工作区。");
