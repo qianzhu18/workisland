@@ -17,4 +17,4 @@ const hooksCli = path.resolve(
   "index.cjs"
 );
 
-require(hooksCli);
+require(hooksCli).run();

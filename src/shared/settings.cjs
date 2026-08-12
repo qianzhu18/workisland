@@ -119,7 +119,16 @@ function mergeSettings(parsed = {}) {
     merged.petSprite = DEFAULT_SETTINGS.petSprite;
   }
 
-  if (parsed.sound) merged.sound = { ...DEFAULT_SETTINGS.sound, ...parsed.sound };
+  if (parsed.sound) {
+    merged.sound = {
+      ...DEFAULT_SETTINGS.sound,
+      ...parsed.sound,
+      events: {
+        ...DEFAULT_SETTINGS.sound.events,
+        ...(parsed.sound.events && typeof parsed.sound.events === "object" ? parsed.sound.events : {})
+      }
+    };
+  }
   if (parsed.hookToggles) merged.hookToggles = { ...DEFAULT_SETTINGS.hookToggles, ...parsed.hookToggles };
   merged.approvalModes = normalizeApprovalModes(parsed.approvalModes);
   if (parsed.pillFirstRow) merged.pillFirstRow = { ...DEFAULT_SETTINGS.pillFirstRow, ...parsed.pillFirstRow };

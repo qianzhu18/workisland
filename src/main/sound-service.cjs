@@ -3,74 +3,121 @@
 const electron = require("electron");
 const fs = require("node:fs");
 const path = require("node:path");
-const child_process = require("node:child_process");
+const childProcess = require("node:child_process");
 
-const SOUND_FILES = {
+const SOUND_FILES = Object.freeze({
   appLaunch: "app_launch.wav",
   sessionStart: "session_start.wav",
   taskComplete: "task_complete.wav",
   taskError: "task_error.wav",
   approvalNeeded: "approval_needed.wav"
-};
-function getDefaultSoundsDir() {
-  if (electron.app.isPackaged) {
-    return path.resolve(process.resourcesPath, "sounds");
-  }
-  return path.resolve(electron.app.getAppPath(), "resources", "sounds");
+});
+
+function clampVolume(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 0.5;
+  return Math.max(0, Math.min(1, numeric / 100));
 }
-function getUserSoundsDir() {
-  return path.join(electron.app.getPath("userData"), "sounds");
-}
-function resolveSoundFile(fileName) {
-  const userPath = path.join(getUserSoundsDir(), fileName);
-  if (fs.existsSync(userPath)) return userPath;
-  return path.join(getDefaultSoundsDir(), fileName);
-}
-let soundDirsInitialized = false;
-function initSoundDirs() {
-  if (soundDirsInitialized) return;
-  soundDirsInitialized = true;
-  const userDir = getUserSoundsDir();
-  const defaultDir = getDefaultSoundsDir();
-  try {
-    if (!fs.existsSync(userDir)) {
-      fs.mkdirSync(userDir, { recursive: true });
+
+/**
+ * Create the sound service with injectable platform dependencies.
+ * Dependency injection keeps playback deterministic in unit tests while the
+ * default export continues to use Electron, the local filesystem, and afplay.
+ */
+function createSoundService({
+  electronApi = electron,
+  fsApi = fs,
+  pathApi = path,
+  execFile = childProcess.execFile,
+  logger = console
+} = {}) {
+  let soundDirsInitialized = false;
+
+  function getDefaultSoundsDir() {
+    if (electronApi.app?.isPackaged) {
+      return pathApi.resolve(electronApi.processResourcesPath ?? process.resourcesPath, "sounds");
     }
-    const allFiles = Object.values(SOUND_FILES);
-    for (const file of allFiles) {
-      const dest = path.join(userDir, file);
-      if (!fs.existsSync(dest)) {
-        const src = path.join(defaultDir, file);
-        if (fs.existsSync(src)) {
-          fs.copyFileSync(src, dest);
+    return pathApi.resolve(electronApi.app.getAppPath(), "resources", "sounds");
+  }
+
+  function getUserSoundsDir() {
+    return pathApi.join(electronApi.app.getPath("userData"), "sounds");
+  }
+
+  function resolveSoundFile(fileName) {
+    const safeName = pathApi.basename(String(fileName));
+    const userPath = pathApi.join(getUserSoundsDir(), safeName);
+    if (fsApi.existsSync(userPath)) return userPath;
+    return pathApi.join(getDefaultSoundsDir(), safeName);
+  }
+
+  function initSoundDirs() {
+    if (soundDirsInitialized) return;
+    const userDir = getUserSoundsDir();
+    const defaultDir = getDefaultSoundsDir();
+    try {
+      fsApi.mkdirSync(userDir, { recursive: true });
+      for (const file of Object.values(SOUND_FILES)) {
+        const dest = pathApi.join(userDir, file);
+        const src = pathApi.join(defaultDir, file);
+        if (!fsApi.existsSync(dest) && fsApi.existsSync(src)) {
+          fsApi.copyFileSync(src, dest);
         }
       }
+      soundDirsInitialized = true;
+    } catch (error) {
+      logger.error?.("[SoundService] failed to initialize sound assets:", error);
     }
-  } catch (err) {
-    console.error("[SoundService] failed to init user sounds dir:", err);
   }
-}
-function playSoundEvent(eventId, settings) {
-  const sound = settings.sound;
-  if (!sound.enabled) return;
-  if (sound.events[eventId]?.enabled === false) return;
-  const fileName = SOUND_FILES[eventId];
-  if (!fileName) return;
-  const filePath = resolveSoundFile(fileName);
-  const volume = Math.round(sound.volume) / 100;
-  child_process.execFile("afplay", [filePath, "-v", String(volume)], (err) => {
-    if (err) {
-      console.error(`[SoundService] failed to play ${eventId}:`, err.message);
+
+  function playFile(filePath, volume, label) {
+    if (!fsApi.existsSync(filePath)) {
+      logger.warn?.(`[SoundService] sound asset is missing for ${label}: ${filePath}`);
+      return false;
     }
-  });
-}
-function previewSound(filename, volume) {
-  const filePath = resolveSoundFile(filename);
-  const clampedVolume = Math.max(0, Math.min(1, volume / 100));
-  child_process.execFile("afplay", [filePath, "-v", String(clampedVolume)], (err) => {
-    if (err) {
-      console.error(`[SoundService] failed to preview ${filename}:`, err.message);
+    // afplay accepts options before or after the file, but keeping options
+    // first avoids ambiguous parsing when a custom path starts with a dash.
+    execFile("afplay", ["-v", String(volume), filePath], { windowsHide: true }, (error) => {
+      if (error) logger.error?.(`[SoundService] failed to play ${label}:`, error.message);
+    });
+    return true;
+  }
+
+  function playSoundEvent(eventId, settings = {}) {
+    const sound = settings.sound ?? {};
+    if (sound.enabled === false) return false;
+    if (sound.events?.[eventId]?.enabled === false) return false;
+    const fileName = SOUND_FILES[eventId];
+    if (!fileName) {
+      logger.warn?.(`[SoundService] unknown sound event: ${eventId}`);
+      return false;
     }
-  });
+    return playFile(resolveSoundFile(fileName), clampVolume(sound.volume), eventId);
+  }
+
+  function previewSound(filename, volume) {
+    const safeName = pathApi.basename(String(filename));
+    if (!Object.values(SOUND_FILES).includes(safeName)) {
+      logger.warn?.(`[SoundService] refusing to preview unknown sound asset: ${safeName}`);
+      return false;
+    }
+    return playFile(resolveSoundFile(safeName), clampVolume(volume), `preview:${safeName}`);
+  }
+
+  return {
+    initSoundDirs,
+    getUserSoundsDir,
+    playSoundEvent,
+    previewSound,
+    resolveSoundFile
+  };
 }
-module.exports = { initSoundDirs, getUserSoundsDir, playSoundEvent, previewSound };
+
+const defaultService = createSoundService();
+
+module.exports = {
+  SOUND_FILES,
+  clampVolume,
+  createSoundService,
+  ...defaultService
+};
