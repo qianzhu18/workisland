@@ -55,7 +55,7 @@ xattr -c "/Applications/WorkIsland.app"
 xattr -dr com.apple.quarantine "/Applications/WorkIsland.app"
 ```
 
-以上命令只用于本机测试未签名构建；正式签名和公证包应优先按系统提示直接打开。若下载后的 DMG 本身被隔离，也可以先对 DMG 执行 `xattr -c "/path/to/WorkIsland-0.2.0-arm64.dmg"`，再重新挂载。
+以上命令只用于本机测试未签名构建；正式签名和公证包应优先按系统提示直接打开。若下载后的 DMG 本身被隔离，也可以先对 DMG 执行 `xattr -c "/path/to/WorkIsland-0.2.2-arm64.dmg"`，再重新挂载。
 
 ## 仓库边界
 
@@ -91,7 +91,7 @@ npm ci
 npm run package:mac
 ```
 
-产物位于 `release/WorkIsland-<version>-arm64.dmg`。GitHub Actions 的 `release` 工作流支持手动运行；推送与 `package.json` 版本一致的标签（例如 `v0.2.0`）时，会自动创建 GitHub Release 并上传 DMG 与 SHA-256 校验文件。
+产物位于 `release/WorkIsland-<version>-arm64.dmg`。GitHub Actions 的 `release` 工作流支持手动运行；推送与 `package.json` 版本一致的标签（例如 `v0.2.2`）时，会自动创建 GitHub Release 并上传 DMG 与 SHA-256 校验文件。
 
 没有 Apple Developer 证书时仍可生成未签名 DMG，但用户首次打开需要在系统设置中确认。正式公开分发建议在 GitHub 仓库 Actions Secrets 中配置：
 
