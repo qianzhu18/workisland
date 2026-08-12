@@ -30,7 +30,15 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         run: test "${GITHUB_REF_NAME#v}" = "$(node -p "require('./package.json').version")"
       - run: npm ci
-      - run: npm run package:mac
+      - name: Package macOS DMG
+        # An unset CSC_LINK must stay unset. electron-builder treats an empty
+        # CSC_LINK as the project directory and then reports "not a file".
+        run: |
+          if [ -n "${CSC_LINK:-}" ]; then
+            npm run package:mac
+          else
+            env -u CSC_LINK npm run package:mac
+          fi
       - name: Generate checksums
         run: shasum -a 256 release/*.dmg > release/SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
