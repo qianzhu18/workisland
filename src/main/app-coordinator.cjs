@@ -17,8 +17,10 @@ const { CocoHookManager, CursorHookManager, TraeHookManager, TraeCnHookManager }
 const { OpenCodePluginManager, SaraPluginManager, KimiHookManager, GeminiHookManager, CopilotCliHookManager } = require("./hooks-plugins.cjs");
 const { HermesHookManager, AidenHookManager, TraexCliHookManager } = require("./hooks-extended.cjs");
 const { PluginHookManager } = require("./hooks-custom.cjs");
+const { ZCodeHookManager, WorkBuddyHookManager } = require("./hooks-work-agents.cjs");
 const { initSoundDirs, playSoundEvent } = require("./sound-service.cjs");
 const { reportTokenUsage, getHermesCumulativeTokens, diffHermesCumulativeTokens } = require("./adapters-extended.cjs");
+const { getAgentDescriptor, validateAgentWiring } = require("../shared/agent-catalog.cjs");
 
 function createAppCoordinatorClass({
   BridgeServer,
@@ -26,6 +28,7 @@ function createAppCoordinatorClass({
   CodexTranscriptWatcher,
   AgentEventDedup,
   AGENT_PLUGINS,
+  adapterAgentIds,
   TOOL_JUMP_HANDLERS,
   createInitialState,
   apply,
@@ -150,6 +153,8 @@ function createAppCoordinatorClass({
         ["trae", new TraeHookManager()],
         ["trae-cn", new TraeCnHookManager()],
         ["cursor", new CursorHookManager()],
+        ["zcode", new ZCodeHookManager()],
+        ["workbuddy", new WorkBuddyHookManager()],
         ["opencode", new OpenCodePluginManager()],
         ["sara", new SaraPluginManager()],
         ["kimi", new KimiHookManager()],
@@ -162,6 +167,7 @@ function createAppCoordinatorClass({
       for (const plugin of AGENT_PLUGINS) {
         this.hookManagers.set(`plugin:${plugin.id}`, new PluginHookManager(plugin));
       }
+      validateAgentWiring({ managerIds: this.hookManagers.keys(), adapterIds: adapterAgentIds });
       saveSessions([]);
       this.bridge.setSessionTitleProvider((sessionId) => this.state.sessions.get(sessionId)?.title);
       this.bridge.setApprovalModeProvider((tool) => resolveApprovalMode(this.settings, tool));
@@ -526,19 +532,7 @@ function createAppCoordinatorClass({
      * Plugin 走 hookToggles[`plugin:<id>`]，未填时取 plugin 声明的 defaultHookEnabled（默认 false）。
      */
     shouldAcceptHookSource(source) {
-      if (source === "trae" && !this.isHookToolEnabled(source)) {
-        return false;
-      }
-      if (source === "trae-cn" && !this.isHookToolEnabled(source)) {
-        return false;
-      }
-      if (source === "hermes" && !this.isHookToolEnabled(source)) {
-        return false;
-      }
-      if (isPluginAgentTool(source)) {
-        return this.isHookToolEnabled(source);
-      }
-      return true;
+      return this.isHookToolEnabled(source);
     }
     getSnapTotalTokens(snapshot) {
       return snapshot.totalInputTokens + snapshot.totalOutputTokens + snapshot.totalCacheReadTokens + snapshot.totalCacheCreationTokens;
@@ -792,12 +786,36 @@ function createAppCoordinatorClass({
     }
     async getHookStatus() {
       const reports = [];
-      for (const manager of this.hookManagers.values()) {
+      for (const [agentId, manager] of this.hookManagers) {
         try {
-          reports.push(await manager.checkHealth());
-        } catch (err) {
+          const health = await manager.checkHealth();
+          const descriptor = getAgentDescriptor(agentId);
+          const plugin = isPluginAgentTool(agentId)
+            ? AGENT_PLUGINS.find((entry) => `plugin:${entry.id}` === agentId)
+            : null;
           reports.push({
-            agentId: manager.agentId,
+            label: descriptor?.label ?? plugin?.label ?? agentId,
+            badgeColor: descriptor?.badgeColor ?? plugin?.badgeColor,
+            description: descriptor?.description ?? `通过本地插件捕获 ${plugin?.label ?? agentId} 的会话和工具活动。`,
+            capabilities: descriptor?.capabilities ?? {
+              liveStatus: true,
+              toolActivity: true,
+              completion: "native",
+              approval: plugin?.permissionApprovalMode === "bridge" ? "bridge" : "observe",
+              question: "observe",
+              jump: "app"
+            },
+            ...health,
+            agentId
+          });
+        } catch (err) {
+          const descriptor = getAgentDescriptor(agentId);
+          reports.push({
+            agentId,
+            label: descriptor?.label ?? agentId,
+            badgeColor: descriptor?.badgeColor,
+            description: descriptor?.description ?? "本地 Agent 连接器。",
+            capabilities: descriptor?.capabilities,
             installed: false,
             issues: [`Health check error: ${err instanceof Error ? err.message : String(err)}`],
             manifestPath: ""

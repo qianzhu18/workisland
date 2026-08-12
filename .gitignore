@@ -19,3 +19,4 @@ resources/bin/panel_fix.node
 .idea/
 .vscode/
 native/panel-fix/build/
+.gstack/

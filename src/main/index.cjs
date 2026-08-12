@@ -237,7 +237,9 @@ const {
 const SOURCE_TO_TERMINAL_APP = {
   cursor: "Cursor",
   trae: "Trae",
-  "trae-cn": "Trae CN"
+  "trae-cn": "Trae CN",
+  zcode: "ZCode",
+  workbuddy: "WorkBuddy"
 };
 const GENERIC_VSCODE_APPS = /* @__PURE__ */ new Set([
   "vs code",
@@ -574,6 +576,7 @@ const AppCoordinator = createAppCoordinatorClass({
   AgentEventDedup,
   ProcessMonitor,
   AGENT_PLUGINS,
+  adapterAgentIds: new Set(adapterRegistry.keys()),
   TOOL_JUMP_HANDLERS,
   createInitialState,
   apply,
