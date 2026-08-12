@@ -36,12 +36,13 @@ function createWindowClasses(dependencies) {
     handleIslandLeave = () => {
       if (this.win.isDestroyed()) return;
       if (this._isFullscreenHidden || this._isFocusHidden) {
-        if (this.isPanelExpanded) {
-          this.shouldConcealAfterCloseAnimation = true;
-          this.win.setIgnoreMouseEvents(true, { forward: true });
-        } else {
-          this.applyClosedWindowTarget("hidden-hotspot");
-        }
+        // 处于隐藏态（全屏隐藏或焦点丢失隐藏）时，鼠标一旦离开就立即收敛到
+        // 透明 hotspot。不再"等关闭动画"——旧逻辑在 panel 展开时只置
+        // shouldConcealAfterCloseAnimation 并转发鼠标，窗口本体仍可见（黑胶囊），
+        // 且若关闭动画迟迟不来就长时间滞留。隐身必须是确定性的。
+        this.isPanelExpanded = false;
+        this.shouldConcealAfterCloseAnimation = false;
+        this.applyClosedWindowTarget("hidden-hotspot");
       } else {
         this.win.setIgnoreMouseEvents(true, { forward: true });
       }
@@ -325,10 +326,15 @@ function createWindowClasses(dependencies) {
       const closedHeight = this.getClosedHeight();
       this.requestedHeight = closedHeight;
       if (target === "hidden-hotspot") {
+        // 透明热区：opacity 0（用户看不见），但窗口保持胶囊高度并**接收鼠标事件**
+        // （不能 forward——forward 会把鼠标事件转给下方应用，窗口自己收不到
+        // mouseenter，hover 就永远唤不回 island）。高度用 closedHeight（无刘海屏
+        // 即菜单栏高度），保证鼠标扫过屏幕顶部能命中热区。这是"完全隐身 + 可 hover
+        // 唤出"的关键：窗口透明地占据顶部一条，鼠标进入即 revealForHover。
         this.isHoverRevealedWhileFullscreenHidden = false;
-        this.win.setSize(width, 1);
+        this.win.setSize(width, closedHeight);
         this.win.setOpacity(0);
-        this.win.setIgnoreMouseEvents(true, { forward: true });
+        this.win.setIgnoreMouseEvents(false);
         return;
       }
       this.win.setSize(width, closedHeight);

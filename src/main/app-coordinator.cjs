@@ -495,7 +495,12 @@ function createAppCoordinatorClass({
       this.islandWindow.webContents.send(IPC.ISLAND_COLLAPSE);
     }
     hideIslandForFocusLoss() {
-      if (!this.settings.autoCollapseOnMouseLeave || !this.islandWin) return;
+      if (!this.islandWin) return;
+      // 注意：这里刻意不判断 settings.autoCollapseOnMouseLeave。该开关的语义只管
+      // "鼠标离开 island 时是否收起"，不应阻断"通知提醒后自动消失"。renderer 在
+      // 通知 surface 到期后会显式调用 hideForFocusLoss()，需要主进程真正把窗口
+      // 落到透明 hotspot（opacity 0 / height 1px / 转发鼠标），否则只会留下可见的
+      // "黑色胶囊"占据屏幕顶部。
       this.islandWin.setFocusHidden(true);
     }
     switchSession(direction) {
@@ -934,8 +939,17 @@ function createAppCoordinatorClass({
       this.onJumpStateChangeCallback?.(has);
     }
     maybePresentSurface(event) {
-      const actionableTypes = ["permissionRequested", "questionAsked", "sessionCompleted"];
+      // sessionStarted（任务发出）和 sessionCompleted（任务结束）是用户明确要的
+      // 两个提醒节点，必须弹 surface 显示 5 秒。permissionRequested/questionAsked
+      // 是中间过程，保留原有门控。
+      const actionableTypes = ["sessionStarted", "permissionRequested", "questionAsked", "sessionCompleted"];
       if (!actionableTypes.includes(event.type)) return;
+      if (event.type === "sessionStarted") {
+        if (!this.settings.expandOnSessionComplete) return;
+        // 合成的发现事件（transcript watcher 补的 sessionStarted）不弹通知，
+        // 避免与真实 hook 事件重复。
+        if (event.isSynthetic) return;
+      }
       if (event.type === "sessionCompleted") {
         if (!this.settings.expandOnSessionComplete) return;
         if (event.isInterrupt) return;
@@ -944,7 +958,11 @@ function createAppCoordinatorClass({
       }
       if ((event.type === "permissionRequested" || event.type === "questionAsked") && !this.settings.expandOnActionRequired)
         return;
-      if (this.settings.suppressNotificationWhenFocused) {
+      // sessionStarted / sessionCompleted 跳过"聚焦时抑制"——用户要求这两个节点
+      // 无条件提醒，即便正聚焦在发起任务的 app 里也要弹。仅 permission/question
+      // 保留 suppress（中间过程，聚焦时不必打扰）。
+      const skipSuppress = event.type === "sessionStarted" || event.type === "sessionCompleted";
+      if (!skipSuppress && this.settings.suppressNotificationWhenFocused) {
         const session = this.state.sessions.get(event.sessionId);
         const sessionBundleIds = session ? getSessionBundleIds(session) : [];
         const frontmostBundleId = getFrontmostAppBundleId();
@@ -1003,6 +1021,10 @@ function createAppCoordinatorClass({
         this.syncIslandHidden();
         this.fullscreenOverrideForNotification = true;
       }
+      // A background completion can arrive while focus-loss hiding has put the
+      // Island into the transparent hotspot. Notifications must restore the
+      // surface before asking the renderer to expand it.
+      this.islandWin?.setFocusHidden(false);
       this.islandWindow.webContents.send(IPC.ISLAND_PRESENT_SURFACE, payload);
     }
     appendSuppressLog(entry) {
