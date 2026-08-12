@@ -1,8 +1,20 @@
-#!/bin/sh
-set -eu
+#!/usr/bin/env node
+"use strict";
 
-script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-app_executable="$script_dir/../../MacOS/Orca"
-hooks_cli="$script_dir/../app.asar/src/island/hooks-cli/index.cjs"
+// This file is launched by Codex as:
+//   ELECTRON_RUN_AS_NODE=1 WorkIsland .../Resources/bin/flux-hooks
+// Keep it JavaScript: Electron's Node mode parses the target file directly;
+// a shell wrapper here would fail with a SyntaxError before the bridge starts.
+const path = require("node:path");
 
-ELECTRON_RUN_AS_NODE=1 exec "$app_executable" "$hooks_cli" "$@"
+const hooksCli = path.resolve(
+  __dirname,
+  "..",
+  "app.asar",
+  "src",
+  "island",
+  "hooks-cli",
+  "index.cjs"
+);
+
+require(hooksCli);

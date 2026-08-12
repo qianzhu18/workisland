@@ -23,6 +23,7 @@ const {
   resolveApprovalMode
 } = require("../src/shared/approval-policy.cjs");
 const { createHooksCliCommand, quoteShellArgument } = require("../src/main/hooks-cli-command.cjs");
+const { CodexAdapter } = require("../src/main/adapters-cli.cjs");
 const { SettingsRepository } = require("../src/main/settings-repository.cjs");
 const { PetModeController } = require("../src/main/pet-mode-controller.cjs");
 const { normalizeDisplayPreference } = require("../src/main/display-manager.cjs");
@@ -43,6 +44,37 @@ const {
   verifyHookGroups,
   getWorkBuddyConfigPaths
 } = require("../src/main/hooks-work-agents.cjs");
+
+const fluxHooksSource = readFileSync(new URL("../resources/bin/flux-hooks", import.meta.url), "utf8");
+assert.match(fluxHooksSource, /require\(hooksCli\)/, "packaged hook launcher must execute the Node hook CLI");
+assert.doesNotMatch(fluxHooksSource, /MacOS\/Orca|#!\/bin\/sh/, "packaged hook launcher must not be parsed as a shell script by Electron");
+
+const codexEvents = [];
+const codexAdapter = new CodexAdapter();
+const codexContext = {
+  emitEvent: (event) => codexEvents.push(event),
+  sendResponse: () => {},
+  updateJumpTarget: () => {},
+  playSoundEvent: () => {},
+  getApprovalMode: () => "terminalNative",
+  clearStalePendingInteraction: () => {},
+  detachClaudeTranscriptWatcher: () => {}
+};
+codexAdapter.handleHook("codex-test", {
+  hook_event_name: "UserPromptSubmit",
+  session_id: "codex-regression-session",
+  cwd: "/tmp/workisland",
+  prompt: "检测真实 Codex 对话"
+}, codexContext);
+codexAdapter.handleHook("codex-test", {
+  hook_event_name: "Stop",
+  session_id: "codex-regression-session",
+  cwd: "/tmp/workisland",
+  is_interrupt: false
+}, codexContext);
+assert.ok(codexEvents.some((event) => event.type === "sessionStarted" && event.latestUserPrompt === "检测真实 Codex 对话"));
+assert.ok(codexEvents.some((event) => event.type === "activityUpdated" && event.activity === "Prompt: 检测真实 Codex 对话"));
+assert.ok(codexEvents.some((event) => event.type === "sessionCompleted" && event.sessionId === "codex-regression-session"));
 
 assert.equal(Object.keys(IPC).length, 87, "IPC contract changed; review both main and preload consumers");
 assert.equal(new Set(Object.values(IPC)).size, Object.keys(IPC).length, "IPC channels must be unique");
