@@ -28,6 +28,8 @@ const required = [
   "src/renderer/island/assets/status/running.svg",
   "src/renderer/island/assets/status/approval.svg",
   "src/renderer/island/assets/status/complete.svg",
+  "src/renderer/island/assets/status/error.svg",
+  "src/renderer/island/assets/status/xiaoyu-keeper-sprites.svg",
   "src/renderer/island/renderer/settings.html",
   "src/renderer/settings-app.js",
   "src/renderer/settings-app.css",
