@@ -4,9 +4,11 @@ WorkIsland 是一款面向 macOS 的本地桌面效率工具：在灵动岛区�
 
 ## 当前版本
 
-最新公开版本：**v0.2.4**
+最新公开版本：**v0.2.5**
 
-v0.2.4 修复了提醒声音播放链路，并改进了 Warp 内 Claude Code 的会话识别与回源信息；同时包含 Codex Hook 启动入口修复。更新后重启 WorkIsland，并在设置页重新安装一次对应 Agent Hook。
+v0.2.5 修复了灵动岛失去窗口焦点后无法自动收起的问题，并保留 v0.2.4
+带来的提醒声音、Warp 内 Claude Code 会话识别与 Codex Hook 启动入口修复。
+更新后请退出旧版本并重新启动 WorkIsland；如 Agent Hook 未刷新，请在设置页重新安装一次对应 Hook。
 
 - [下载 macOS Apple Silicon 安装包](https://github.com/qianzhu18/workisland/releases/latest)
 - [查看所有 Releases](https://github.com/qianzhu18/workisland/releases)
@@ -37,7 +39,7 @@ xattr -dr com.apple.quarantine "/Applications/WorkIsland.app"
 如果 DMG 文件本身被隔离，也可以先执行：
 
 ```bash
-xattr -c "/path/to/WorkIsland-0.2.4-arm64.dmg"
+xattr -c "/path/to/WorkIsland-0.2.5-arm64.dmg"
 ```
 
 以上命令仅用于本机测试未签名安装包。正式签名和公证版本应优先按 macOS 系统提示打开。
@@ -47,7 +49,7 @@ xattr -c "/path/to/WorkIsland-0.2.4-arm64.dmg"
 Release 同时提供 `SHA256SUMS.txt`。下载 DMG 后，可在终端运行：
 
 ```bash
-shasum -a 256 WorkIsland-0.2.4-arm64.dmg
+shasum -a 256 WorkIsland-0.2.5-arm64.dmg
 ```
 
 将结果与校验文件中的值进行比对。
