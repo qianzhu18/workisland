@@ -254,6 +254,13 @@ function buildQuestionPrompt$2(payload, sessionId) {
   });
   return { id: crypto.randomUUID(), sessionId, questions };
 }
+
+const CLAUDE_ATTENTION_NOTIFICATIONS = new Set([
+  "permission_prompt",
+  "elicitation_dialog",
+  "idle_prompt"
+]);
+
 class ClaudeAdapter {
   agentId = "claude";
   knownSessions = /* @__PURE__ */ new Set();
@@ -268,6 +275,15 @@ class ClaudeAdapter {
    * SubagentStart 补发（见 handleHook 中 SubagentStart 分支）。
    */
   pendingSubagentToolLine = /* @__PURE__ */ new Map();
+  /** Avoid duplicate audio when Claude emits Stop and idle_prompt for one turn. */
+  recentSoundBySession = /* @__PURE__ */ new Map();
+  playSoundOnce(sessionId, eventId, ctx, timestamp) {
+    const key = `${sessionId}:${eventId}`;
+    const previous = this.recentSoundBySession.get(key) ?? 0;
+    if (timestamp - previous < 1500) return;
+    this.recentSoundBySession.set(key, timestamp);
+    ctx.playSoundEvent(eventId);
+  }
   handleHook(clientId, payload, ctx) {
     const tool = this.agentId;
     const sessionId = payload.session_id;
@@ -356,7 +372,7 @@ class ClaudeAdapter {
           summary: isNew ? prompt?.slice(0, 120) : void 0
         });
         ctx.updateJumpTarget(sessionId, tool);
-        ctx.playSoundEvent("sessionStart");
+        this.playSoundOnce(sessionId, "sessionStart", ctx, now);
         ctx.emitEvent({
           type: "activityUpdated",
           sessionId,
@@ -411,7 +427,7 @@ class ClaudeAdapter {
         if (reqToolName === "AskUserQuestion") {
           const questionPrompt = buildQuestionPrompt$2(payload, sessionId);
           if (questionPrompt) {
-            ctx.playSoundEvent("approvalNeeded");
+            this.playSoundOnce(sessionId, "approvalNeeded", ctx, now);
             ctx.emitEvent({
               type: "questionAsked",
               sessionId,
@@ -444,7 +460,7 @@ class ClaudeAdapter {
             permissionSuggestions
           }
         };
-        ctx.playSoundEvent("approvalNeeded");
+        this.playSoundOnce(sessionId, "approvalNeeded", ctx, now);
         ctx.emitEvent({
           type: "permissionRequested",
           sessionId,
@@ -512,13 +528,18 @@ class ClaudeAdapter {
         break;
       }
       case "Notification": {
+        const notificationType = String(payload.notification_type ?? "").toLowerCase();
         log.info(
           "[ClaudeAdapter] Notification session=%s type=%s title=%s message=%s",
           sessionId,
-          payload.notification_type ?? "",
+          notificationType,
           payload.title ?? "",
           payload.message ?? ""
         );
+        if (CLAUDE_ATTENTION_NOTIFICATIONS.has(notificationType)) {
+          const soundEvent = notificationType === "idle_prompt" ? "taskComplete" : "approvalNeeded";
+          this.playSoundOnce(sessionId, soundEvent, ctx, now);
+        }
         ctx.sendResponse(clientId, ACK$d);
         break;
       }
@@ -594,7 +615,7 @@ class ClaudeAdapter {
         });
         ctx.detachClaudeTranscriptWatcher(sessionId);
         if (!ralphLoopState) {
-          ctx.playSoundEvent("taskComplete");
+          this.playSoundOnce(sessionId, "taskComplete", ctx, now);
         }
         ctx.sendResponse(clientId, ACK$d);
         break;
@@ -619,7 +640,7 @@ class ClaudeAdapter {
           errorDetail: payload.error_details
         });
         ctx.detachClaudeTranscriptWatcher(sessionId);
-        ctx.playSoundEvent("taskError");
+        this.playSoundOnce(sessionId, "taskError", ctx, now);
         ctx.sendResponse(clientId, ACK$d);
         break;
       }
@@ -643,6 +664,9 @@ class ClaudeAdapter {
         ctx.detachClaudeTranscriptWatcher(sessionId);
         this.latestPromptBySession.delete(sessionId);
         this.pendingAgentDescriptions.delete(sessionId);
+        for (const key of this.recentSoundBySession.keys()) {
+          if (key.startsWith(`${sessionId}:`)) this.recentSoundBySession.delete(key);
+        }
         for (const [subId, parentId] of this.subagentParentByAgentId) {
           if (parentId === sessionId) {
             this.subagentParentByAgentId.delete(subId);

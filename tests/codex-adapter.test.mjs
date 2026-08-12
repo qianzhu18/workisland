@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { test } from "node:test";
 
 const require = createRequire(import.meta.url);
-const { CodexAdapter } = require("../src/main/adapters-cli.cjs");
+const { ClaudeAdapter, CodexAdapter } = require("../src/main/adapters-cli.cjs");
 
 test("Codex prompt and stop hooks produce visible lifecycle events", () => {
   const events = [];
@@ -34,3 +34,17 @@ test("Codex prompt and stop hooks produce visible lifecycle events", () => {
   assert.ok(events.some((event) => event.type === "sessionCompleted" && event.sessionId === "codex-regression-session"));
 });
 
+test("Claude attention notifications trigger one reminder sound per turn", () => {
+  const sounds = [];
+  const adapter = new ClaudeAdapter();
+  const context = {
+    emitEvent: () => {},
+    sendResponse: () => {},
+    playSoundEvent: (eventId) => sounds.push(eventId)
+  };
+  const base = { session_id: "claude-warp-session", hook_event_name: "Notification" };
+  adapter.handleHook("claude-test", { ...base, notification_type: "permission_prompt" }, context);
+  adapter.handleHook("claude-test", { ...base, notification_type: "permission_prompt" }, context);
+  adapter.handleHook("claude-test", { ...base, notification_type: "idle_prompt" }, context);
+  assert.deepEqual(sounds, ["approvalNeeded", "taskComplete"]);
+});
