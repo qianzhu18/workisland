@@ -20,12 +20,13 @@ function createWindowClasses(dependencies) {
     win;
     currentTarget;
     _isFullscreenHidden = false;
+    _isFocusHidden = false;
     isHoverRevealedWhileFullscreenHidden = false;
     isPanelExpanded = false;
     shouldConcealAfterCloseAnimation = false;
     requestedHeight = ISLAND_HEIGHT;
     handleIslandEnter = () => {
-      if (this._isFullscreenHidden) {
+      if (this.shouldStayConcealed) {
         this.shouldConcealAfterCloseAnimation = false;
         this.revealForHover();
       } else if (!this.win.isDestroyed()) {
@@ -34,7 +35,7 @@ function createWindowClasses(dependencies) {
     };
     handleIslandLeave = () => {
       if (this.win.isDestroyed()) return;
-      if (this._isFullscreenHidden) {
+      if (this._isFullscreenHidden || this._isFocusHidden) {
         if (this.isPanelExpanded) {
           this.shouldConcealAfterCloseAnimation = true;
           this.win.setIgnoreMouseEvents(true, { forward: true });
@@ -127,7 +128,9 @@ function createWindowClasses(dependencies) {
         if (utils.is.dev && this.win.webContents.isDevToolsOpened()) return;
         // A native blur event covers focus changes that do not produce a DOM
         // mouseleave event, especially when switching to another application.
-        if (this.isPanelExpanded) options.onBlur?.(this.win);
+        // Focus changes can happen while the renderer shows either the
+        // expanded panel or the closed pill; both states must be hideable.
+        options.onBlur?.(this);
       });
       this.win.on("closed", () => {
         electron.ipcMain.removeListener(IPC.ISLAND_ENTER, this.handleIslandEnter);
@@ -184,6 +187,10 @@ function createWindowClasses(dependencies) {
         this.isPanelExpanded = false;
         this.applyClosedWindowTarget("hidden-hotspot");
       } else {
+        if (this._isFocusHidden) {
+          this.applyClosedWindowTarget("hidden-hotspot");
+          return;
+        }
         // 从全屏隐藏恢复时，菜单栏可见性可能已变化（全屏→桌面），
         // 重新 fixPanel 让无刘海屏的窗口重新对齐菜单栏高度。
         const { display } = this.currentTarget;
@@ -192,6 +199,27 @@ function createWindowClasses(dependencies) {
         this.win.setOpacity(1);
         this.win.setIgnoreMouseEvents(true, { forward: true });
       }
+    }
+    /** Hide the Island after focus leaves the WorkIsland surface. */
+    setFocusHidden(hidden) {
+      if (this.win.isDestroyed()) return;
+      const next = Boolean(hidden);
+      if (this._isFocusHidden === next && (!next || this.shouldStayConcealed)) return;
+      this._isFocusHidden = next;
+      this.shouldConcealAfterCloseAnimation = false;
+      if (next) {
+        this.isPanelExpanded = false;
+        this.applyClosedWindowTarget("hidden-hotspot");
+        return;
+      }
+      if (this.shouldStayConcealed) {
+        this.applyClosedWindowTarget("hidden-hotspot");
+        return;
+      }
+      this.isHoverRevealedWhileFullscreenHidden = false;
+      this.applyRequestedHeight(this.getClosedHeight());
+      this.win.setOpacity(1);
+      this.win.setIgnoreMouseEvents(true, { forward: true });
     }
     /** Broadcast a typed payload to the island renderer. */
     send(channel, payload) {
@@ -261,7 +289,7 @@ function createWindowClasses(dependencies) {
      * 多处状态收敛逻辑都依赖该判定，集中到 getter 避免散落的 `_isFullscreenHidden && !isHoverRevealed` 漏判。
      */
     get shouldStayConcealed() {
-      return this._isFullscreenHidden && !this.isHoverRevealedWhileFullscreenHidden;
+      return (this._isFullscreenHidden || this._isFocusHidden) && !this.isHoverRevealedWhileFullscreenHidden;
     }
     /** renderer 关闭动画完成后由 IPC 触发：把窗口收敛到当前状态对应的目标态。 */
     landClosedWindow() {

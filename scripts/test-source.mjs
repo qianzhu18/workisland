@@ -44,7 +44,7 @@ const {
   getWorkBuddyConfigPaths
 } = require("../src/main/hooks-work-agents.cjs");
 
-assert.equal(Object.keys(IPC).length, 88, "IPC contract changed; review both main and preload consumers");
+assert.equal(Object.keys(IPC).length, 89, "IPC contract changed; review both main and preload consumers");
 assert.equal(new Set(Object.values(IPC)).size, Object.keys(IPC).length, "IPC channels must be unique");
 assert.ok(Object.isFrozen(IPC), "IPC contract must be immutable");
 assert.equal(IPC.PET_DRAG_TO_ISLAND, "pet:drag-to-island");
@@ -81,6 +81,7 @@ assert.match(islandAppSource, /autoCollapseOnMouseLeave/, "mouse-leave collapse 
 assert.match(islandPanelSource, /showUsageQuota/, "usage quota visibility setting must reach the panel renderer");
 assert.match(islandPreloadSource, /getPetSpritePath/, "Island preload must expose the current pet sprite");
 assert.match(islandPreloadSource, /onWindowBlur/, "Island preload must forward native window blur events");
+assert.match(islandPreloadSource, /hideForFocusLoss/, "Island preload must expose focus-loss hiding");
 assert.match(islandAppSource, /shouldCollapseOnFocusLoss/, "Island renderer must apply focus-loss collapse policy");
 assert.match(islandPanelSource, /PetButtonIcon/, "Island pet button must render the current pet logo");
 assert.match(islandAppCssSource, /pet-button-icon/, "pet logo needs dedicated styling");
@@ -417,6 +418,8 @@ const windowClasses = createWindowClasses({
   isVisibleInIsland() { return true; },
   getIsQuitting() { return false; }
 });
+const islandWindowSource = readFileSync(new URL("../src/main/windows.cjs", import.meta.url), "utf8");
+assert.match(islandWindowSource, /setFocusHidden/, "Island window must support focus-loss hiding");
 assert.deepEqual(Object.keys(windowClasses).sort(), [
   "DebugWindow",
   "IslandWindow",

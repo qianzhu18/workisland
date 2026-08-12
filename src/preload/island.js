@@ -71,6 +71,9 @@ electron.contextBridge.exposeInMainWorld("islandBridge", {
   panelCollapsed() {
     electron.ipcRenderer.send(ipc.IPC.ISLAND_PANEL_COLLAPSED);
   },
+  hideForFocusLoss() {
+    electron.ipcRenderer.send(ipc.IPC.ISLAND_FOCUS_LOSS_HIDE);
+  },
   syncClosedWindow() {
     electron.ipcRenderer.send(ipc.IPC.ISLAND_SYNC_CLOSED_WINDOW);
   },

@@ -264,7 +264,7 @@ function IslandApp() {
       const followUpFocused = isFollowUpActiveRef.current
         && document.activeElement?.closest?.("[data-follow-up-input]");
       const shouldCollapse = shouldCollapseOnFocusLoss({
-        isOpen: notchStatus === "opened",
+        isVisible: mounted,
         enabled: autoCollapseOnMouseLeave,
         followUpFocused
       });
@@ -280,6 +280,7 @@ function IslandApp() {
       pendingFollowUpDismissRef.current = false;
       close();
       clearSurface();
+      window.islandBridge?.hideForFocusLoss?.();
       window.islandBridge?.surfaceDismissed();
     };
     const handleWindowFocus = () => {
@@ -293,7 +294,7 @@ function IslandApp() {
       window.removeEventListener("workisland-window-blur", handleWindowBlur);
       window.removeEventListener("focus", handleWindowFocus);
     };
-  }, [autoCollapseOnMouseLeave, close, clearSurface, notchStatus]);
+  }, [autoCollapseOnMouseLeave, close, clearSurface, mounted]);
   const collapsePanelToPill = reactExports.useCallback(() => {
     if (mouseLeaveCloseTimer.current) {
       clearTimeout(mouseLeaveCloseTimer.current);
@@ -546,6 +547,7 @@ function IslandApp() {
     mouseLeaveCloseTimer.current = setTimeout(() => {
       close();
       clearSurface();
+      window.islandBridge?.hideForFocusLoss?.();
       window.islandBridge?.surfaceDismissed();
     }, MOUSE_LEAVE_CLOSE_DELAY_MS);
   }, [autoCollapseOnMouseLeave, isOpen, close, clearSurface]);

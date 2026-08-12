@@ -312,6 +312,9 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl }) {
     electron.ipcMain.on(IPC.ISLAND_SURFACE_DISMISSED, () => {
       coordinator.handleSurfaceDismissed();
     });
+    electron.ipcMain.on(IPC.ISLAND_FOCUS_LOSS_HIDE, () => {
+      coordinator.hideIslandForFocusLoss();
+    });
     electron.ipcMain.on(IPC.ISLAND_TOGGLE_SOUND, () => {
       coordinator.toggleSound();
     });

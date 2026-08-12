@@ -494,6 +494,10 @@ function createAppCoordinatorClass({
       if (!this.islandWindow || this.islandWindow.isDestroyed()) return;
       this.islandWindow.webContents.send(IPC.ISLAND_COLLAPSE);
     }
+    hideIslandForFocusLoss() {
+      if (!this.settings.autoCollapseOnMouseLeave || !this.islandWin) return;
+      this.islandWin.setFocusHidden(true);
+    }
     switchSession(direction) {
       if (!this.islandWindow || this.islandWindow.isDestroyed()) return;
       this.islandWindow.webContents.send(IPC.ISLAND_SWITCH_SESSION, { direction });
@@ -561,6 +565,9 @@ function createAppCoordinatorClass({
       // 桌宠窗口独立于 Island 渲染进程；把设置广播过去，保证切换 Codex
       // pet 后无需关闭/重新打开桌宠即可重新加载 sprite。
       this.petMode.send(IPC.SETTINGS_DID_CHANGE, this.settings);
+      if ("autoCollapseOnMouseLeave" in partial && !this.settings.autoCollapseOnMouseLeave) {
+        this.islandWin?.setFocusHidden(false);
+      }
       if ("hideWhenFullscreen" in partial || "alwaysHide" in partial || "hideWhenNoActiveSessions" in partial) {
         this.evaluateFullscreenVisibility();
       }

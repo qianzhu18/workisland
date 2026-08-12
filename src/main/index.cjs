@@ -789,7 +789,8 @@ async function runIslandApp() {
     log.info("[main] creating IslandWindow...");
     try {
       const iw = new IslandWindow(target, {
-        onBlur: (browserWindow) => {
+        onBlur: (islandWindow) => {
+          const browserWindow = islandWindow.browserWindow;
           if (browserWindow.isDestroyed() || browserWindow.webContents.isDestroyed()) return;
           browserWindow.webContents.send(IPC.ISLAND_WINDOW_BLUR);
         }
