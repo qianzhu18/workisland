@@ -2,17 +2,8 @@
 
 const api = window.settingsApi;
 
-const AGENTS = [
-  ["claude", "Claude Code"], ["codex", "Codex"], ["coco", "Coco"],
-  ["cursor", "Cursor"], ["trae", "Trae"], ["trae-cn", "Trae CN"],
-  ["opencode", "OpenCode"], ["sara", "Sara"], ["kimi", "Kimi"],
-  ["gemini", "Gemini CLI"], ["copilot-cli", "GitHub Copilot CLI"],
-  ["hermes", "Hermes"], ["aiden", "Aiden"], ["traex", "TraeX"]
-];
-
-const APPROVAL_AGENTS = new Set(["codex", "coco", "copilot-cli", "traex"]);
 const DEFAULT_PET_SPRITE = "codex:qianxue";
-const state = { settings: null, statuses: new Map(), plugins: [], displays: [], codexPets: [], activeTab: "general", busy: new Set() };
+const state = { settings: null, statuses: new Map(), displays: [], codexPets: [], activeTab: "general", busy: new Set() };
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -167,13 +158,14 @@ function generalPage() {
 
 function statusBadge(report) {
   const installed = Boolean(report?.installed);
-  return el("span", `status ${installed ? "installed" : "missing"}`, installed ? "已连接" : "未连接");
+  const unavailable = report?.available === false;
+  const text = installed ? "已连接" : unavailable ? "未检测" : "未连接";
+  return el("span", `status ${installed ? "installed" : "missing"}`, text);
 }
 
 async function refreshAgents() {
-  const [reports, plugins] = await Promise.all([api.getHookStatus(), api.getPluginAgentMeta()]);
+  const reports = await api.getHookStatus();
   state.statuses = new Map((reports || []).map(report => [report.agentId, report]));
-  state.plugins = plugins || [];
   if (state.activeTab === "agents") renderPage();
 }
 
@@ -195,8 +187,21 @@ async function setAgentInstalled(agentId, install, actionButton) {
   }
 }
 
-function agentCard(agentId, label, color) {
-  const report = state.statuses.get(agentId);
+function capabilitySummary(capabilities = {}) {
+  const items = [];
+  if (capabilities.liveStatus) items.push("实时状态");
+  if (capabilities.completion === "native") items.push("完成提醒");
+  else if (capabilities.completion === "inferred") items.push("推断完成");
+  if (capabilities.approval === "bridge") items.push("Island 审批");
+  else if (capabilities.approval === "observe") items.push("审批观察");
+  if (capabilities.jump === "session") items.push("会话回源");
+  else if (capabilities.jump === "workspace") items.push("工作区回源");
+  else if (capabilities.jump === "app") items.push("打开应用");
+  return items.join(" · ");
+}
+
+function agentCard(report) {
+  const { agentId, label, badgeColor: color } = report;
   const card = el("div", "agent-card");
   const icon = el("div", "agent-icon", label.slice(0, 1).toUpperCase());
   if (color) icon.style.background = color;
@@ -205,9 +210,14 @@ function agentCard(agentId, label, color) {
   heading.append(el("strong", "", label), statusBadge(report));
   content.append(heading);
   const issues = report?.issues?.filter(Boolean) || [];
-  content.append(el("div", "agent-detail", issues.length ? issues[0] : "通过本地 Hook 捕获会话、工具调用和审批请求。"));
+  const detail = report.available === false && !report.installed
+    ? `未检测到 ${label}，安装后即可连接。`
+    : issues.length ? issues[0] : report.description;
+  content.append(el("div", "agent-detail", detail));
+  const capabilities = capabilitySummary(report.capabilities);
+  if (capabilities) content.append(el("div", "agent-detail", capabilities));
 
-  if (APPROVAL_AGENTS.has(agentId)) {
+  if (report.capabilities?.approvalConfigurable) {
     const approval = select(state.settings.approvalModes?.[agentId] || "bridge", [["bridge", "Island 审批"], ["terminalNative", "终端审批"]], async value => {
       await save({ approvalModes: { ...(state.settings.approvalModes || {}), [agentId]: value } });
       showToast("审批方式已保存，Hook 将自动刷新");
@@ -218,6 +228,10 @@ function agentCard(agentId, label, color) {
 
   const installed = Boolean(report?.installed);
   const action = button(installed ? "移除" : "连接", () => setAgentInstalled(agentId, !installed, action), installed ? "secondary" : "primary");
+  if (report.available === false && !installed) {
+    action.disabled = true;
+    action.textContent = "未安装";
+  }
   card.append(icon, content, action);
   return card;
 }
@@ -226,8 +240,7 @@ function agentsPage() {
   const root = document.createDocumentFragment();
   const hooks = section("本地 Agent", "连接只会修改对应 Agent 的本地 Hook 配置，不依赖云端服务。");
   const grid = el("div", "agent-list");
-  const all = [...AGENTS, ...state.plugins.map(p => [p.tool, p.label, p.badgeColor])];
-  for (const [id, label, color] of all) grid.append(agentCard(id, label, color));
+  for (const report of state.statuses.values()) grid.append(agentCard(report));
   hooks.append(grid);
   const tools = el("div", "section-actions");
   tools.append(

@@ -151,7 +151,9 @@ function createTerminalNavigation({ isPluginAgentTool, PLUGIN_BY_TOOL }) {
     antigravity: ANTIGRAVITY_BUNDLE_ID,
     cursor: CURSOR_BUNDLE_ID,
     codex: CODEX_APP_BUNDLE_ID,
-    opencode: "com.opencode.app"
+    opencode: "com.opencode.app",
+    zcode: "dev.zcode.app",
+    workbuddy: "com.workbuddy.workbuddy"
   };
   function getSessionBundleIds(session) {
     const ids = [];
@@ -199,6 +201,12 @@ function createTerminalNavigation({ isPluginAgentTool, PLUGIN_BY_TOOL }) {
         break;
       case "opencode":
         ids.push("com.opencode.app", "com.opencode.desktop", "ai.opencode.desktop");
+        break;
+      case "zcode":
+        ids.push("dev.zcode.app");
+        break;
+      case "workbuddy":
+        ids.push("com.workbuddy.workbuddy");
         break;
       default:
         if (isPluginAgentTool(session.tool)) {

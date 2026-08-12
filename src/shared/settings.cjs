@@ -10,6 +10,8 @@ const DEFAULT_HOOK_TOGGLES = {
   "trae-cn": true,
   opencode: true,
   cursor: true,
+  zcode: true,
+  workbuddy: true,
   kimi: true,
   hermes: true,
   gemini: true,
