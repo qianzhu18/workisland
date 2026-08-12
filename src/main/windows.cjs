@@ -65,7 +65,7 @@ function createWindowClasses(dependencies) {
       if (event.sender !== this.win.webContents) return;
       this.isPanelExpanded = false;
     };
-    constructor(target) {
+    constructor(target, options = {}) {
       this.currentTarget = target;
       const { display, screenInfo } = target;
       const winX = display.bounds.x + Math.round((display.bounds.width - ISLAND_WIDTH) / 2);
@@ -122,6 +122,12 @@ function createWindowClasses(dependencies) {
       });
       this.win.webContents.on("render-process-gone", (_event, details) => {
         log.error("[IslandWindow] render-process-gone:", details);
+      });
+      this.win.on("blur", () => {
+        if (utils.is.dev && this.win.webContents.isDevToolsOpened()) return;
+        // A native blur event covers focus changes that do not produce a DOM
+        // mouseleave event, especially when switching to another application.
+        if (this.isPanelExpanded) options.onBlur?.(this.win);
       });
       this.win.on("closed", () => {
         electron.ipcMain.removeListener(IPC.ISLAND_ENTER, this.handleIslandEnter);

@@ -53,6 +53,11 @@ electron.contextBridge.exposeInMainWorld("islandBridge", {
       electron.ipcRenderer.off(ipc.IPC.ISLAND_TODAY_BURN_UPDATE, handler);
     };
   },
+  onWindowBlur(cb) {
+    const handler = () => cb();
+    electron.ipcRenderer.on(ipc.IPC.ISLAND_WINDOW_BLUR, handler);
+    return () => electron.ipcRenderer.off(ipc.IPC.ISLAND_WINDOW_BLUR, handler);
+  },
   // ── Renderer → main ────────────────────────────────────────────────────────
   enterIsland() {
     electron.ipcRenderer.send(ipc.IPC.ISLAND_ENTER);

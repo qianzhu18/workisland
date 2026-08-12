@@ -5,6 +5,7 @@ import { D as DEFAULT_NOTCH_INFO, r as requiresAttention, d as dominantPhase, I 
 import { c as create } from "../vendor/store.js";
 import { I as IslandPanel } from "./components/IslandPanel.js";
 import { isVisibleInIsland } from "./session-model.mjs";
+import { shouldCollapseOnFocusLoss } from "./focus-policy.mjs";
 function shouldAutoDismiss(surface, sessionPhase, sessionTool) {
   if (surface.type !== "sessionList") return false;
   if (!surface.actionableSessionId) return false;
@@ -70,6 +71,9 @@ function useIslandState() {
     });
     bridge.onCollapse?.(() => {
       useSessionStore.getState().requestCollapse();
+    });
+    bridge.onWindowBlur?.(() => {
+      window.dispatchEvent(new Event("workisland-window-blur"));
     });
     bridge.onSwitchSession?.((direction) => {
       useSessionStore.getState().requestSwitchSession(direction);
@@ -144,6 +148,7 @@ function IslandApp() {
   );
   const isFollowUpActiveRef = reactExports.useRef(false);
   const pendingFollowUpDismissRef = reactExports.useRef(false);
+  const focusLossHandledRef = reactExports.useRef(false);
   const handleFollowUpChange = reactExports.useCallback((active) => {
     isFollowUpActiveRef.current = active;
     if (active && autoCollapseTimer.current) {
@@ -256,15 +261,39 @@ function IslandApp() {
   }, []);
   reactExports.useEffect(() => {
     const handleWindowBlur = () => {
-      if (!pendingFollowUpDismissRef.current) return;
+      const followUpFocused = isFollowUpActiveRef.current
+        && document.activeElement?.closest?.("[data-follow-up-input]");
+      const shouldCollapse = shouldCollapseOnFocusLoss({
+        isOpen: notchStatus === "opened",
+        enabled: autoCollapseOnMouseLeave,
+        followUpFocused
+      });
+      if (!shouldCollapse) {
+        focusLossHandledRef.current = false;
+        if (followUpFocused) pendingFollowUpDismissRef.current = true;
+        return;
+      }
+      // Electron's native blur and the DOM blur can arrive for the same focus
+      // transition; collapse once to avoid duplicate surface acknowledgements.
+      if (focusLossHandledRef.current) return;
+      focusLossHandledRef.current = true;
       pendingFollowUpDismissRef.current = false;
       close();
       clearSurface();
       window.islandBridge?.surfaceDismissed();
     };
+    const handleWindowFocus = () => {
+      focusLossHandledRef.current = false;
+    };
     window.addEventListener("blur", handleWindowBlur);
-    return () => window.removeEventListener("blur", handleWindowBlur);
-  }, [close, clearSurface]);
+    window.addEventListener("workisland-window-blur", handleWindowBlur);
+    window.addEventListener("focus", handleWindowFocus);
+    return () => {
+      window.removeEventListener("blur", handleWindowBlur);
+      window.removeEventListener("workisland-window-blur", handleWindowBlur);
+      window.removeEventListener("focus", handleWindowFocus);
+    };
+  }, [autoCollapseOnMouseLeave, close, clearSurface, notchStatus]);
   const collapsePanelToPill = reactExports.useCallback(() => {
     if (mouseLeaveCloseTimer.current) {
       clearTimeout(mouseLeaveCloseTimer.current);

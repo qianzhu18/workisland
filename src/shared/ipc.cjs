@@ -21,6 +21,7 @@ const IPC = Object.freeze({
   ISLAND_SURFACE_DISMISSED: "island:surface-dismissed",
   ISLAND_PANEL_EXPANDED: "island:panel-expanded",
   ISLAND_PANEL_COLLAPSED: "island:panel-collapsed",
+  ISLAND_WINDOW_BLUR: "island:window-blur",
   ISLAND_SYNC_CLOSED_WINDOW: "island:sync-closed-window",
   ISLAND_DRAG_TO_PET: "island:drag-to-pet",
   ISLAND_TODAY_BURN_UPDATE: "island:today-burn-update",
