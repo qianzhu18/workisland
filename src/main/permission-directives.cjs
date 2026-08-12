@@ -11,6 +11,16 @@ function wrapPermissionRequestDecision(decision) {
   return { hookSpecificOutput: { hookEventName: "PermissionRequest", decision } };
 }
 
+function wrapWorkBuddyPermissionDecision(allowed, message, updatedInput) {
+  const output = {
+    hookEventName: "PermissionRequest",
+    permissionDecision: allowed ? "allow" : "deny"
+  };
+  if (!allowed && message) output.permissionDecisionReason = message;
+  if (allowed && updatedInput !== undefined) output.updatedInput = updatedInput;
+  return { hookSpecificOutput: output };
+}
+
 function isExitPlanMode(pending) {
   return pending.permissionPayload?.tool_name === "ExitPlanMode";
 }
@@ -41,6 +51,10 @@ function buildPermissionDirective(pending, resolution) {
       }
       return wrapPermissionRequestDecision(decision);
     }
+    case "workbuddy":
+      return wrapWorkBuddyPermissionDecision(allowed, resolution.message);
+    case "zcode":
+      return wrapPermissionRequestDecision(createHookDecision(allowed, resolution.message));
     case "coco":
       return wrapPermissionRequestDecision(
         createHookDecision(allowed, resolution.message, { interrupt: true })
@@ -72,4 +86,4 @@ function buildPermissionDirective(pending, resolution) {
   }
 }
 
-module.exports = { buildPermissionDirective };
+module.exports = { buildPermissionDirective, wrapWorkBuddyPermissionDecision };

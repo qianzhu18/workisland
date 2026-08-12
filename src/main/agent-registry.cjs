@@ -5,6 +5,7 @@ const crypto$1 = require("node:crypto");
 const { ClaudeAdapter, CodexAdapter } = require("./adapters-cli.cjs");
 const { CocoAdapter, CursorAdapter, OpenCodeAdapter, SaraAdapter, TraeHookAdapter, KimiAdapter, CopilotCliAdapter } = require("./adapters-ide.cjs");
 const { GeminiAdapter, HermesAdapter, AidenAdapter, TraexCliAdapter } = require("./adapters-extended.cjs");
+const { ZCodeAdapter, WorkBuddyAdapter } = require("./adapters-work-agents.cjs");
 
 function createLocalHookAdapterRegistry() {
   const trae = new TraeHookAdapter();
@@ -13,6 +14,8 @@ function createLocalHookAdapterRegistry() {
     new CodexAdapter(),
     new CocoAdapter(),
     new CursorAdapter(),
+    new ZCodeAdapter(),
+    new WorkBuddyAdapter(),
     new OpenCodeAdapter(),
     new SaraAdapter(),
     trae,

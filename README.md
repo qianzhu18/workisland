@@ -14,6 +14,12 @@ WorkIsland 是一个 macOS 本地桌面应用：在刘海灵动岛区域展示 C
 - **声音通知**：任务开始、完成、失败、需要审批时播放提示音
 - **用量统计**：Token 燃烧追踪
 
+## Agent 兼容
+
+设置页的 Agent 清单来自主进程连接器注册表，不再维护一份可能失真的静态名单。应用启动时会校验每个核心 Agent 都同时具备 Hook manager、事件 adapter 和能力描述，缺少任一环节都会直接暴露为开发错误，而不是显示一个无法连接的按钮。
+
+当前核心连接器包括 Claude Code、Codex、Coco、Cursor、TRAE / TRAE CN、ZCode、WorkBuddy / CodeBuddy、OpenCode、Sara、Kimi Code、Gemini CLI、GitHub Copilot CLI、Hermes、Aiden 和 TraeX。ZCode 使用 `~/.zcode/cli/config.json` 原生 Hook；WorkBuddy 同时兼容 `~/.workbuddy/settings.json` 与 `~/.codebuddy/settings.json`，安装和移除都会保留用户已有 Hook。
+
 ## 开发
 
 要求 Apple Silicon macOS、Node.js 22 或更高版本。

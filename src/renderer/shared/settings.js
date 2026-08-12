@@ -128,7 +128,7 @@ const DEFAULT_SETTINGS = {
   approvalModes: { ...DEFAULT_APPROVAL_MODES },
   showDebugWindow: false,
   petScale: 1,
-  petSprite: "orca.png",
+  petSprite: "codex:qianxue",
   hapticFeedback: true,
   hasCompletedOnboarding: false,
   firstLaunchAt: 0,

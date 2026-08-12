@@ -37,6 +37,8 @@ const TokenCount = ({ tokenCount, onClick }) => {
     }
   ), tokenCount !== 0 && /* @__PURE__ */ React.createElement("span", { className: "token-count-text" }, displayCount));
 };
+// The main process resolves the packaged Codex V2 default (`codex:qianxue`)
+// through IPC. Orca remains an embedded v1 fallback for damaged/custom input.
 const orcaSprite = new URL("./orca.png", import.meta.url).href;
 function PetApp() {
   const [sessions, setSessions] = reactExports.useState([]);
@@ -109,7 +111,7 @@ function PetApp() {
     };
     img.onload = () => {
       if (cancelled) return;
-      // 检测 Codex V2 协议（1536×2288，11 行）。否则用默认 orca 格式（7 行）。
+      // 检测 Codex V2 协议（1536×2288，11 行）。否则使用兼容的 Orca 格式（7 行）。
       const codexV2 = isCodexV2Sprite(img.naturalWidth, img.naturalHeight);
       const meta = codexV2 ? { protocol: "codex-v2" } : null;
       const totalRows = codexV2 ? CODEX_V2_TOTAL_ROWS : TOTAL_ROWS;

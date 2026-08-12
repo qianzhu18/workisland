@@ -2,16 +2,8 @@
 
 const api = window.settingsApi;
 
-const AGENTS = [
-  ["claude", "Claude Code"], ["codex", "Codex"], ["coco", "Coco"],
-  ["cursor", "Cursor"], ["trae", "Trae"], ["trae-cn", "Trae CN"],
-  ["opencode", "OpenCode"], ["sara", "Sara"], ["kimi", "Kimi"],
-  ["gemini", "Gemini CLI"], ["copilot-cli", "GitHub Copilot CLI"],
-  ["hermes", "Hermes"], ["aiden", "Aiden"], ["traex", "TraeX"]
-];
-
-const APPROVAL_AGENTS = new Set(["codex", "coco", "copilot-cli", "traex"]);
-const state = { settings: null, statuses: new Map(), plugins: [], displays: [], codexPets: [], activeTab: "general", busy: new Set() };
+const DEFAULT_PET_SPRITE = "codex:qianxue";
+const state = { settings: null, statuses: new Map(), displays: [], codexPets: [], activeTab: "general", busy: new Set() };
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -166,13 +158,14 @@ function generalPage() {
 
 function statusBadge(report) {
   const installed = Boolean(report?.installed);
-  return el("span", `status ${installed ? "installed" : "missing"}`, installed ? "已连接" : "未连接");
+  const unavailable = report?.available === false;
+  const text = installed ? "已连接" : unavailable ? "未检测" : "未连接";
+  return el("span", `status ${installed ? "installed" : "missing"}`, text);
 }
 
 async function refreshAgents() {
-  const [reports, plugins] = await Promise.all([api.getHookStatus(), api.getPluginAgentMeta()]);
+  const reports = await api.getHookStatus();
   state.statuses = new Map((reports || []).map(report => [report.agentId, report]));
-  state.plugins = plugins || [];
   if (state.activeTab === "agents") renderPage();
 }
 
@@ -194,8 +187,21 @@ async function setAgentInstalled(agentId, install, actionButton) {
   }
 }
 
-function agentCard(agentId, label, color) {
-  const report = state.statuses.get(agentId);
+function capabilitySummary(capabilities = {}) {
+  const items = [];
+  if (capabilities.liveStatus) items.push("实时状态");
+  if (capabilities.completion === "native") items.push("完成提醒");
+  else if (capabilities.completion === "inferred") items.push("推断完成");
+  if (capabilities.approval === "bridge") items.push("Island 审批");
+  else if (capabilities.approval === "observe") items.push("审批观察");
+  if (capabilities.jump === "session") items.push("会话回源");
+  else if (capabilities.jump === "workspace") items.push("工作区回源");
+  else if (capabilities.jump === "app") items.push("打开应用");
+  return items.join(" · ");
+}
+
+function agentCard(report) {
+  const { agentId, label, badgeColor: color } = report;
   const card = el("div", "agent-card");
   const icon = el("div", "agent-icon", label.slice(0, 1).toUpperCase());
   if (color) icon.style.background = color;
@@ -204,9 +210,14 @@ function agentCard(agentId, label, color) {
   heading.append(el("strong", "", label), statusBadge(report));
   content.append(heading);
   const issues = report?.issues?.filter(Boolean) || [];
-  content.append(el("div", "agent-detail", issues.length ? issues[0] : "通过本地 Hook 捕获会话、工具调用和审批请求。"));
+  const detail = report.available === false && !report.installed
+    ? `未检测到 ${label}，安装后即可连接。`
+    : issues.length ? issues[0] : report.description;
+  content.append(el("div", "agent-detail", detail));
+  const capabilities = capabilitySummary(report.capabilities);
+  if (capabilities) content.append(el("div", "agent-detail", capabilities));
 
-  if (APPROVAL_AGENTS.has(agentId)) {
+  if (report.capabilities?.approvalConfigurable) {
     const approval = select(state.settings.approvalModes?.[agentId] || "bridge", [["bridge", "Island 审批"], ["terminalNative", "终端审批"]], async value => {
       await save({ approvalModes: { ...(state.settings.approvalModes || {}), [agentId]: value } });
       showToast("审批方式已保存，Hook 将自动刷新");
@@ -217,6 +228,10 @@ function agentCard(agentId, label, color) {
 
   const installed = Boolean(report?.installed);
   const action = button(installed ? "移除" : "连接", () => setAgentInstalled(agentId, !installed, action), installed ? "secondary" : "primary");
+  if (report.available === false && !installed) {
+    action.disabled = true;
+    action.textContent = "未安装";
+  }
   card.append(icon, content, action);
   return card;
 }
@@ -225,8 +240,7 @@ function agentsPage() {
   const root = document.createDocumentFragment();
   const hooks = section("本地 Agent", "连接只会修改对应 Agent 的本地 Hook 配置，不依赖云端服务。");
   const grid = el("div", "agent-list");
-  const all = [...AGENTS, ...state.plugins.map(p => [p.tool, p.label, p.badgeColor])];
-  for (const [id, label, color] of all) grid.append(agentCard(id, label, color));
+  for (const report of state.statuses.values()) grid.append(agentCard(report));
   hooks.append(grid);
   const tools = el("div", "section-actions");
   tools.append(
@@ -241,10 +255,12 @@ function agentsPage() {
 function appearancePage() {
   const root = document.createDocumentFragment();
   const pet = section("桌宠", "桌宠与 Island 使用同一套会话状态，切换不会中断监控。");
-  const configuredSprite = state.settings.petSprite || "orca.png";
-  const spriteOptions = [["orca.png", "Orca · 内置"]];
+  const configuredSprite = state.settings.petSprite || DEFAULT_PET_SPRITE;
+  const spriteOptions = [[DEFAULT_PET_SPRITE, "千雪 · 内置 Codex V2"], ["orca.png", "Orca · 兼容素材"]];
   for (const codexPet of state.codexPets) {
-    spriteOptions.push([codexPet.value, `${codexPet.displayName} · Codex V2`]);
+    if (!spriteOptions.some(([value]) => value === codexPet.value)) {
+      spriteOptions.push([codexPet.value, `${codexPet.displayName} · Codex V2`]);
+    }
   }
   if (!spriteOptions.some(([value]) => value === configuredSprite)) {
     spriteOptions.push([configuredSprite, `${configuredSprite} · 当前设置`]);
@@ -254,9 +270,9 @@ function appearancePage() {
   sprite.type = "text";
   sprite.className = "text-input";
   sprite.value = configuredSprite;
-  sprite.placeholder = "orca.png 或 codex:qianxue";
+  sprite.placeholder = "codex:qianxue、orca.png 或其他 PNG/WebP";
   sprite.setAttribute("aria-label", "桌宠精灵素材标识");
-  sprite.addEventListener("change", () => save({ petSprite: sprite.value.trim() || "orca.png" }));
+  sprite.addEventListener("change", () => save({ petSprite: sprite.value.trim() || DEFAULT_PET_SPRITE }));
   const scale = document.createElement("input");
   scale.type = "range"; scale.min = "0.6"; scale.max = "2"; scale.step = "0.1"; scale.value = state.settings.petScale || 1;
   const scaleValue = el("span", "range-value", `${Number(scale.value).toFixed(1)}×`);
@@ -266,8 +282,8 @@ function appearancePage() {
   pet.append(
     row("桌宠预览", "在当前显示器中央显示桌宠；再次点击可收起。", button("显示 / 隐藏桌宠", () => api.togglePet?.())),
     row("桌宠缩放", "调整桌宠在屏幕上的显示尺寸。", scaleControl),
-    row("Codex 桌宠", "选择本机 ~/.codex/pets 中的 V2 桌宠；切换后运行中的桌宠会实时换图。", spriteSelect),
-    row("自定义素材标识", "默认使用 orca.png；也可填写本地 pet-sprites 目录中的 PNG/WebP 文件名。", sprite),
+    row("Codex 桌宠", "默认使用内置千雪；也可切换本机 ~/.codex/pets 中的其他 V2 桌宠，运行中的桌宠会实时换图。", spriteSelect),
+    row("自定义素材标识", "支持 codex:<名称>，或填写本地 pet-sprites 目录中的 PNG/WebP 文件名。", sprite),
     row("精灵素材", "打开目录后可替换 PNG 桌宠素材。", button("打开目录", () => api.openSpritesDir()))
   );
   const panel = section("面板", "限制展开面板的高度，避免遮挡主要工作区。");

@@ -28,10 +28,21 @@ const { PetModeController } = require("../src/main/pet-mode-controller.cjs");
 const { normalizeDisplayPreference } = require("../src/main/display-manager.cjs");
 const { listCodexPets, resolveCodexPet } = require("../src/main/codex-pet.cjs");
 const { buildPermissionDirective } = require("../src/main/permission-directives.cjs");
+const { createBridgeServerClass } = require("../src/main/bridge-server.cjs");
+const { ZCodeAdapter, WorkBuddyAdapter } = require("../src/main/adapters-work-agents.cjs");
 const { createNativePlatformService, DEFAULT_FULLSCREEN_STATE } = require("../src/main/native-platform-service.cjs");
 const { formatDailyLogName, isSafeStreamError } = require("../src/main/log-lifecycle.cjs");
 const { isAllowedExternalUrl } = require("../src/main/external-url-policy.cjs");
 const mainSessionPolicy = require("../src/main/session-policy.cjs");
+const { listCoreAgentDescriptors, validateAgentWiring } = require("../src/shared/agent-catalog.cjs");
+const {
+  ZCODE_EVENTS,
+  WORKBUDDY_EVENTS,
+  mergeHookGroups,
+  removeHookGroups,
+  verifyHookGroups,
+  getWorkBuddyConfigPaths
+} = require("../src/main/hooks-work-agents.cjs");
 
 assert.equal(Object.keys(IPC).length, 87, "IPC contract changed; review both main and preload consumers");
 assert.equal(new Set(Object.values(IPC)).size, Object.keys(IPC).length, "IPC channels must be unique");
@@ -40,9 +51,22 @@ assert.equal(IPC.PET_DRAG_TO_ISLAND, "pet:drag-to-island");
 assert.equal(IPC.SETTINGS_GET_CUSTOM_ICON, "settings:get-custom-icon");
 assert.equal(IPC.PET_TOGGLE, "pet:toggle");
 assert.equal(IPC.SETTINGS_GET_CODEX_PETS, "settings:get-codex-pets");
+const coreAgentIds = listCoreAgentDescriptors().map(({ agentId }) => agentId);
+assert.ok(coreAgentIds.includes("zcode"));
+assert.ok(coreAgentIds.includes("workbuddy"));
+validateAgentWiring({ managerIds: coreAgentIds, adapterIds: coreAgentIds });
+assert.throws(
+  () => validateAgentWiring({ managerIds: coreAgentIds, adapterIds: coreAgentIds.filter((id) => id !== "zcode") }),
+  /manager without adapter: zcode/
+);
+assert.throws(
+  () => validateAgentWiring({ managerIds: coreAgentIds.filter((id) => id !== "zcode"), adapterIds: coreAgentIds.filter((id) => id !== "zcode") }),
+  /catalog without manager: zcode/
+);
 assert.equal(normalizeDisplayPreference("active"), "auto", "legacy active display mode must migrate to auto");
 assert.equal(normalizeDisplayPreference("primary"), "primary");
-assert.equal(DEFAULT_SETTINGS.petSprite, "orca.png", "pet sprite must have a stable bundled fallback");
+assert.equal(DEFAULT_SETTINGS.petSprite, "codex:qianxue", "pet sprite must default to the bundled Codex V2 pet");
+assert.equal(mergeSettings({ petSprite: "orca.png" }).petSprite, "codex:qianxue", "legacy Orca default must migrate to Codex qianxue");
 const nativePanelSource = readFileSync(new URL("../native/panel-fix/src/panel_fix.mm", import.meta.url), "utf8");
 assert.match(nativePanelSource, /napi_typeof\(env, value, &type\)/, "native display IDs must accept numeric Electron IDs");
 assert.match(nativePanelSource, /NSMaxY\(frame\) - NSMaxY\(visible\)/, "menu bar height must exclude the Dock area");
@@ -138,6 +162,30 @@ assert.equal(
   `'/usr/bin/node' '/tmp/Flux App/src/island/hooks-cli/index.cjs' --source 'codex'`
 );
 
+const zcodeCommand = "node flux-hooks --source zcode";
+const mergedZCodeHooks = mergeHookGroups({
+  metadata: { owner: "user" },
+  Stop: [
+    { hooks: [{ type: "command", command: "echo keep" }] },
+    { hooks: [{ type: "command", command: "echo --source zcode" }] }
+  ]
+}, ZCODE_EVENTS, zcodeCommand, "zcode");
+assert.equal(mergedZCodeHooks.Stop.length, 3, "ZCode install must preserve existing hooks");
+assert.equal(verifyHookGroups(mergedZCodeHooks, ZCODE_EVENTS, zcodeCommand, "zcode").length, 0);
+assert.deepEqual(removeHookGroups(mergedZCodeHooks, "zcode"), {
+  metadata: { owner: "user" },
+  Stop: [
+    { hooks: [{ type: "command", command: "echo keep" }] },
+    { hooks: [{ type: "command", command: "echo --source zcode" }] }
+  ]
+});
+assert.ok(WORKBUDDY_EVENTS.some(({ event }) => event === "PermissionRequest"));
+assert.ok(WORKBUDDY_EVENTS.some(({ event }) => event === "StopFailure"));
+assert.deepEqual(
+  getWorkBuddyConfigPaths("/tmp/workisland-no-workbuddy", { workBuddyInstalled: false }),
+  ["/tmp/workisland-no-workbuddy/.codebuddy/settings.json"]
+);
+
 const settingsTestDirectory = mkdtempSync(join(tmpdir(), "flux-settings-"));
 try {
   const settingsPath = join(settingsTestDirectory, "settings.json");
@@ -228,6 +276,89 @@ assert.deepEqual(
 assert.deepEqual(
   buildPermissionDirective({ tool: "traex" }, { action: "allowOnce" }),
   { hookSpecificOutput: { hookEventName: "PermissionRequest", decision: { behavior: "allow" } } }
+);
+assert.deepEqual(
+  buildPermissionDirective({ tool: "zcode" }, { action: "deny", message: "unsafe" }),
+  { hookSpecificOutput: { hookEventName: "PermissionRequest", decision: { behavior: "deny", message: "unsafe" } } }
+);
+assert.deepEqual(
+  buildPermissionDirective({ tool: "workbuddy" }, { action: "allowOnce" }),
+  { hookSpecificOutput: { hookEventName: "PermissionRequest", permissionDecision: "allow" } }
+);
+
+const zcodeEvents = [];
+const zcodeResponses = [];
+const zcodeJumpTargets = [];
+const zcodeAdapter = new ZCodeAdapter();
+zcodeAdapter.handleHook("zcode-client", {
+  hook_event_name: "SessionStart",
+  session_id: "zcode-session",
+  cwd: "/tmp/zcode-project"
+}, {
+  emitEvent: (event) => zcodeEvents.push(event),
+  sendResponse: (_clientId, response) => zcodeResponses.push(response),
+  updateJumpTarget: (_sessionId, _tool, target) => zcodeJumpTargets.push(target)
+});
+assert.equal(zcodeEvents[0].tool, "zcode");
+assert.equal(zcodeJumpTargets[0].terminal_app, "ZCode");
+assert.deepEqual(zcodeResponses, [{ type: "acknowledged" }]);
+zcodeAdapter.handleHook("zcode-question", {
+  hook_event_name: "PermissionRequest",
+  session_id: "zcode-session",
+  tool_name: "AskUserQuestion"
+}, {
+  sendResponse: (_clientId, response) => zcodeResponses.push(response)
+});
+assert.deepEqual(zcodeResponses.at(-1), { type: "acknowledged" });
+
+const workBuddyEvents = [];
+let workBuddyPendingPermission = null;
+const workBuddyAdapter = new WorkBuddyAdapter();
+workBuddyAdapter.handleHook("workbuddy-client", {
+  hook_event_name: "PermissionRequest",
+  session_id: "workbuddy-session",
+  tool_name: "Bash",
+  tool_input: { command: "pwd" }
+}, {
+  clearStalePendingInteraction: () => {},
+  emitEvent: (event) => workBuddyEvents.push(event),
+  playSoundEvent: () => {},
+  setPendingPermission: (...args) => { workBuddyPendingPermission = args; }
+});
+assert.equal(workBuddyEvents[0].tool, "workbuddy");
+assert.equal(workBuddyPendingPermission[2], "workbuddy");
+
+class TestPluginAdapter {}
+class TestTranscriptWatcher { constructor() {} }
+const TestBridgeServer = createBridgeServerClass({
+  adapterRegistry: new Map(),
+  PluginAdapter: TestPluginAdapter,
+  ClaudeTranscriptWatcher: TestTranscriptWatcher,
+  createHookPayloadRecorder: () => null,
+  isPluginAgentTool: () => false,
+  normalizeAgentPid: () => undefined,
+  normalizeIdeWorkspace: () => undefined,
+  normalizeTerminalAppForHookSource: () => undefined,
+  parseTokenUsagePayload: () => undefined,
+  getOriginalQuestions: () => [{ question: "Continue?" }],
+  getStructuredOriginalQuestions: () => [{ question: "Continue?" }],
+  mapStructuredAnswersToClaude: () => ({ "Continue?": "Yes" }),
+  mapStructuredAnswersToOpenCode: () => ({}),
+  renderAnswerSummary: () => "Yes"
+});
+const testBridge = new TestBridgeServer();
+assert.deepEqual(
+  testBridge.buildWorkBuddyAnswerDirective({ questionPayload: {} }, { entries: [] }),
+  {
+    hookSpecificOutput: {
+      hookEventName: "PermissionRequest",
+      permissionDecision: "allow",
+      updatedInput: {
+        questions: [{ question: "Continue?" }],
+        answers: { "Continue?": "Yes" }
+      }
+    }
+  }
 );
 
 const merged = mergeSettings({

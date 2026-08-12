@@ -80,7 +80,18 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl }) {
     broadcastCustomIcon(null);
     return null;
   }
-  const DEFAULT_SPRITE = "orca.png";
+  const DEFAULT_SPRITE = "codex:qianxue";
+  const LEGACY_DEFAULT_SPRITE = "orca.png";
+  const BUILT_IN_CODEX_PETS = Object.freeze({
+    qianxue: Object.freeze({
+      id: "qianxue",
+      displayName: "千雪",
+      description: "WorkIsland 内置 Codex V2 桌宠。",
+      spriteVersionNumber: 2,
+      spriteFile: "qianxue.webp",
+      value: "codex:qianxue"
+    })
+  });
   function getDefaultSpritesDir() {
     if (electron.app.isPackaged) {
       return path.resolve(process.resourcesPath, "pet-sprites");
@@ -94,7 +105,7 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl }) {
    * 解析桌宠 sprite 文件路径。
    *
    * 支持三种格式：
-   *   1. 默认（null/空）→ DEFAULT_SPRITE（orca.png）
+   *   1. 默认（null/空）→ DEFAULT_SPRITE（内置 codex:qianxue）
    *   2. 文件名（xxx.png / xxx.webp）→ 在 user/default sprites 目录查找
    *   3. "codex:<pet-name>" → 解析 ~/.codex/pets/<pet-name>/spritesheet.webp
    *      （兼容 Codex V2 桌宠协议，pet.json 描述布局）
@@ -104,6 +115,18 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl }) {
     // Codex pet 协议：codex:<pet-name>
     if (raw.startsWith("codex:")) {
       const petName = raw.slice("codex:".length);
+      const builtInPet = BUILT_IN_CODEX_PETS[petName];
+      if (builtInPet) {
+        const filePath = path.join(getDefaultSpritesDir(), builtInPet.spriteFile);
+        if (!fs.existsSync(filePath)) {
+          throw new Error(`Bundled Codex pet spritesheet not found: ${filePath}`);
+        }
+        return {
+          filePath,
+          protocol: "codex-v2",
+          pet: { ...builtInPet, spritePath: filePath }
+        };
+      }
       const pet = resolveCodexPet(petName);
       return { filePath: pet.spritePath, protocol: "codex-v2", pet };
     }
@@ -129,9 +152,11 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl }) {
       if (!fs.existsSync(userDir)) {
         fs.mkdirSync(userDir, { recursive: true });
       }
-      const dest = path.join(userDir, DEFAULT_SPRITE);
+      // Keep the legacy Orca asset available for custom/compatibility use.
+      // The built-in Codex V2 pet is read directly from packaged resources.
+      const dest = path.join(userDir, LEGACY_DEFAULT_SPRITE);
       if (!fs.existsSync(dest)) {
-        const src = path.join(defaultDir, DEFAULT_SPRITE);
+        const src = path.join(defaultDir, LEGACY_DEFAULT_SPRITE);
         if (fs.existsSync(src)) {
           fs.copyFileSync(src, dest);
         }
@@ -157,11 +182,18 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl }) {
     });
     electron.ipcMain.handle(IPC.SETTINGS_SET, (_event, partial) => {
       if (typeof partial?.petSprite === "string" && partial.petSprite.startsWith("codex:")) {
-        resolveCodexPet(partial.petSprite.slice("codex:".length));
+        // Validate both bundled and user-installed Codex V2 pets through the
+        // same resolver used by the renderer, so the packaged default works
+        // even when ~/.codex/pets/qianxue is absent.
+        resolveSpriteSelection(partial.petSprite);
       }
       coordinator.updateSettings(partial, "settings");
     });
-    electron.ipcMain.handle(IPC.SETTINGS_GET_CODEX_PETS, () => listCodexPets());
+    electron.ipcMain.handle(IPC.SETTINGS_GET_CODEX_PETS, () => {
+      const bundled = Object.values(BUILT_IN_CODEX_PETS).map(({ spriteFile, ...pet }) => pet);
+      const discovered = listCodexPets().filter((pet) => !BUILT_IN_CODEX_PETS[pet.id]);
+      return [...bundled, ...discovered];
+    });
     electron.ipcMain.handle(IPC.SETTINGS_GET_CUSTOM_ICON, () => {
       return getCustomIconDataUrl();
     });

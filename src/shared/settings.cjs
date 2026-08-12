@@ -10,6 +10,8 @@ const DEFAULT_HOOK_TOGGLES = {
   "trae-cn": true,
   opencode: true,
   cursor: true,
+  zcode: true,
+  workbuddy: true,
   kimi: true,
   hermes: true,
   gemini: true,
@@ -81,7 +83,9 @@ const DEFAULT_SETTINGS = {
   approvalModes: { ...DEFAULT_APPROVAL_MODES },
   showDebugWindow: false,
   petScale: 1,
-  petSprite: "orca.png",
+  // Ship the Codex V2 千雪 pet as the deterministic first-run default. The
+  // legacy Orca sprite remains available as a custom compatibility option.
+  petSprite: "codex:qianxue",
   hapticFeedback: true,
   hasCompletedOnboarding: false,
   firstLaunchAt: 0,
@@ -107,6 +111,13 @@ function createDefaultSettings() {
 
 function mergeSettings(parsed = {}) {
   const merged = { ...createDefaultSettings(), ...parsed };
+
+  // Settings written by pre-Codex-V2 builds used Orca as the implicit default.
+  // Migrate that legacy value, but leave every other explicit custom selection
+  // untouched.
+  if (!parsed.petSprite || parsed.petSprite === "orca.png") {
+    merged.petSprite = DEFAULT_SETTINGS.petSprite;
+  }
 
   if (parsed.sound) merged.sound = { ...DEFAULT_SETTINGS.sound, ...parsed.sound };
   if (parsed.hookToggles) merged.hookToggles = { ...DEFAULT_SETTINGS.hookToggles, ...parsed.hookToggles };

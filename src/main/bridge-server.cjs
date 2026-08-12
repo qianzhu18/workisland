@@ -6,7 +6,7 @@ const crypto = require("node:crypto");
 const log = require("electron-log");
 const { EventEmitter } = require("node:events");
 const { encodeLine, decodeLines, getSocketPath, ensureSocketDir, cleanupSocket } = require("./bridge-protocol.cjs");
-const { buildPermissionDirective } = require("./permission-directives.cjs");
+const { buildPermissionDirective, wrapWorkBuddyPermissionDecision } = require("./permission-directives.cjs");
 
 function createBridgeServerClass({
   adapterRegistry,
@@ -505,6 +505,8 @@ function createBridgeServerClass({
               decision: { behavior: "deny", message }
             }
           };
+        case "workbuddy":
+          return wrapWorkBuddyPermissionDecision(false, message);
         case "opencode":
         case "sara":
           return { type: "deny", reason: message };
@@ -523,6 +525,9 @@ function createBridgeServerClass({
       }
       if (pending.tool === "claude" && pending.questionPayload) {
         return this.buildClaudeAnswerDirective(pending, payload);
+      }
+      if (pending.tool === "workbuddy" && pending.questionPayload) {
+        return this.buildWorkBuddyAnswerDirective(pending, payload);
       }
       if (pending.tool === "copilot-cli") {
         return this.buildCopilotCliAnswerDirective(pending, payload);
@@ -586,6 +591,15 @@ function createBridgeServerClass({
         }
       };
     }
+    buildWorkBuddyAnswerDirective(pending, payload) {
+      const originalQuestions = getOriginalQuestions(pending) ?? [];
+      const structured = getStructuredOriginalQuestions(pending) ?? [];
+      const answers = mapStructuredAnswersToClaude(structured, payload);
+      return wrapWorkBuddyPermissionDecision(true, undefined, {
+        questions: originalQuestions,
+        answers
+      });
+    }
     /**
      * 按 Agent 分发构建"取消 / 退出 AskUserQuestion"的 hook directive。
      *
@@ -597,6 +611,8 @@ function createBridgeServerClass({
       switch (pending.tool) {
         case "claude":
           return this.buildClaudeQuestionCancelDirective();
+        case "workbuddy":
+          return wrapWorkBuddyPermissionDecision(false, _cancel.message ?? "User cancelled");
         case "opencode":
         case "sara":
           return this.buildOpenCodeAnswerDirective(pending, { entries: [] });
