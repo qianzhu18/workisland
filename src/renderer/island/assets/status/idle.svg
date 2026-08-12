@@ -1,0 +1,9 @@
+<svg width="56" height="56" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+  <style>.ink{fill:#181b22}.deep{fill:#292e38}.cloth{fill:#667080}.cloth2{fill:#9299a5}.face{fill:#f0e7d6}.green{fill:#31d58b}.glow{fill:#baf5d3}</style>
+  <rect class="ink" x="9" y="30" width="17" height="1"/><rect class="deep" x="12" y="29" width="11" height="1"/>
+  <rect class="ink" x="3" y="13" width="6" height="4"/><rect class="cloth" x="4" y="13" width="5" height="2"/><rect class="green" x="2" y="12" width="2" height="3"/>
+  <path class="ink" d="M10 2h11v2h3v3h2v11h-2v4h-3v3H10v-3H7v-4H5V8h2V5h3z"/><path class="cloth" d="M11 4h9v2h3v3h1v8h-2v3h-2v2h-9v-2H9v-3H7V9h2V6h2z"/>
+  <rect class="cloth2" x="10" y="5" width="9" height="1"/><rect class="cloth2" x="8" y="8" width="2" height="7"/><path class="ink" d="M11 8h10v1h2v7h-2v2H11v-2H9V9h2z"/><path class="face" d="M12 9h8v1h2v5h-2v2h-8v-2h-2v-5h2z"/><path class="deep" d="M11 9h10v2h-2v1h-3v-1h-5z"/>
+  <rect class="ink" x="13" y="12" width="1" height="2"/><rect class="ink" x="19" y="12" width="1" height="2"/><rect class="cloth2" x="16" y="15" width="2" height="1"/><path class="ink" d="M10 20h12v3h2v6h-6v-3h-4v3H8v-6h2z"/><path class="cloth" d="M11 21h10v3h1v3h-4v-3h-4v3h-4v-3h1z"/><rect class="cloth2" x="11" y="21" width="3" height="4"/>
+  <rect class="ink" x="24" y="16" width="6" height="9"/><rect class="deep" x="25" y="15" width="4" height="2"/><rect class="green" x="26" y="18" width="2" height="4"/><rect class="glow" x="26" y="18" width="1" height="1"/>
+</svg>
