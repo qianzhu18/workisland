@@ -73,6 +73,7 @@ assert.match(nativePanelSource, /NSMaxY\(frame\) - NSMaxY\(visible\)/, "menu bar
 const islandAppSource = readFileSync(new URL("../src/renderer/island/app.js", import.meta.url), "utf8");
 const islandPanelSource = readFileSync(new URL("../src/renderer/island/components/IslandPanel.js", import.meta.url), "utf8");
 const islandPreloadSource = readFileSync(new URL("../src/preload/island.js", import.meta.url), "utf8");
+const appCoordinatorSource = readFileSync(new URL("../src/main/app-coordinator.cjs", import.meta.url), "utf8");
 const islandAppCssSource = readFileSync(new URL("../src/renderer/island/app.css", import.meta.url), "utf8");
 const petAppSource = readFileSync(new URL("../src/renderer/pet/app.js", import.meta.url), "utf8");
 const petIpcSource = readFileSync(new URL("../src/main/ipc-services.cjs", import.meta.url), "utf8");
@@ -83,6 +84,7 @@ assert.match(islandPreloadSource, /getPetSpritePath/, "Island preload must expos
 assert.match(islandPreloadSource, /onWindowBlur/, "Island preload must forward native window blur events");
 assert.match(islandPreloadSource, /hideForFocusLoss/, "Island preload must expose focus-loss hiding");
 assert.match(islandAppSource, /shouldCollapseOnFocusLoss/, "Island renderer must apply focus-loss collapse policy");
+assert.match(appCoordinatorSource, /islandWin\?\.setFocusHidden\(false\)/, "notification surfaces must restore an Island hidden by focus loss");
 assert.match(islandPanelSource, /PetButtonIcon/, "Island pet button must render the current pet logo");
 assert.match(islandAppCssSource, /pet-button-icon/, "pet logo needs dedicated styling");
 assert.match(petAppSource, /onSettingsChanged/, "pet renderer must react to live sprite setting changes");

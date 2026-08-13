@@ -5,6 +5,7 @@ import { test } from "node:test";
 
 const require = createRequire(import.meta.url);
 const { canonicalTerminalApp, enrichPayload, enrichTerminalContext } = require("../src/island/hooks-cli/index.cjs");
+const { createTerminalNavigation } = require("../src/main/terminal-navigation.cjs");
 
 test("Warp TERM_PROGRAM is normalized for Claude Code hook payloads", () => {
   const payload = enrichTerminalContext({ cwd: "/tmp/workisland" }, {
@@ -46,9 +47,27 @@ test("enrichPayload keeps the agent PID fallback and Warp context", () => {
   }
 });
 
+test("Claude Code and Codex resolve Warp and Terminal bundle IDs for source jump", () => {
+  const navigation = createTerminalNavigation({
+    isPluginAgentTool: () => false,
+    PLUGIN_BY_TOOL: new Map()
+  });
+  assert.ok(navigation.getSessionBundleIds({
+    tool: "claude",
+    jumpTarget: { app: "Warp" }
+  }).includes("dev.warp.Warp-Stable"));
+  assert.ok(navigation.getSessionBundleIds({
+    tool: "codex",
+    jumpTarget: { app: "Terminal" }
+  }).includes("com.apple.Terminal"));
+  assert.ok(navigation.getSessionBundleIds({
+    tool: "claude",
+    jumpTarget: { app: "iTerm2" }
+  }).includes("com.googlecode.iterm2"));
+});
+
 test("packaged launcher remains a JavaScript entrypoint for Electron Node mode", () => {
   const source = readFileSync(new URL("../resources/bin/flux-hooks", import.meta.url), "utf8");
   assert.match(source, /require\(hooksCli\)\.run\(\)/);
   assert.doesNotMatch(source, /MacOS\/Orca|#!\/bin\/sh/);
 });
-
