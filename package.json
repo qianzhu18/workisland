@@ -1,7 +1,7 @@
 {
   "name": "workisland",
   "productName": "WorkIsland",
-  "version": "0.2.2",
+  "version": "0.2.7",
   "description": "macOS 本地 Work Agent 工作状态与注意力路由器",
   "private": true,
   "main": "./src/main/index.cjs",
@@ -24,7 +24,8 @@
     "setup:electron": "npm install --prefix ./.tools/electron-shell --no-save electron@43.3.0 --cache ./.npm-cache",
     "build:native": "node ./scripts/build-native.mjs",
     "package:mac": "npm run build:assets && npm run build:native && npm run check && electron-builder --mac --arm64 --publish never",
-    "check": "npm run build:renderer && node ./scripts/check.mjs && node ./scripts/test-source.mjs",
+    "check": "npm run build:renderer && node ./scripts/check.mjs && node ./scripts/test-source.mjs && npm run test:unit",
+    "test:unit": "node --test tests/*.test.mjs",
     "smoke:hook": "node ./scripts/smoke-hook.mjs",
     "smoke:hook:isolated": "node ./scripts/smoke-hook.mjs --isolated",
     "smoke:approval:isolated": "node ./scripts/smoke-approval.mjs",

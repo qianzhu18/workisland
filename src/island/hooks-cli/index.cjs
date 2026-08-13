@@ -5,6 +5,54 @@ const net = require("node:net");
 const os = require("node:os");
 const path = require("node:path");
 
+const TERMINAL_APP_ALIASES = Object.freeze({
+  apple_terminal: "Terminal",
+  "iterm.app": "iTerm",
+  iterm: "iTerm",
+  warp: "Warp",
+  warpterminal: "Warp",
+  vscode: "VS Code",
+  "vs code": "VS Code",
+  ghostty: "Ghostty",
+  wezterm: "WezTerm",
+  alacritty: "Alacritty",
+  kitty: "kitty",
+  cmux: "cmux"
+});
+
+function canonicalTerminalApp(value) {
+  if (typeof value !== "string" || !value.trim()) return undefined;
+  const normalized = value.trim().toLowerCase();
+  return TERMINAL_APP_ALIASES[normalized] || value.trim();
+}
+
+/**
+ * Add terminal context that Claude Code and Codex do not include in hook JSON.
+ * Warp exposes TERM_PROGRAM=WarpTerminal; keeping this metadata on the hook
+ * lets WorkIsland retain a reliable jump target even when no TTY is attached.
+ */
+function enrichTerminalContext(payload, env = process.env) {
+  const next = payload;
+  const terminalApp = canonicalTerminalApp(next.terminal_app)
+    || canonicalTerminalApp(env.TERM_PROGRAM)
+    || (env.WARP_CLI_AGENT_PROTOCOL_VERSION ? "Warp" : undefined);
+  if (terminalApp && !next.terminal_app) next.terminal_app = terminalApp;
+
+  const sessionId = env.WARP_SESSION_ID
+    || env.WARP_TAB_ID
+    || env.WARP_TERMINAL_SESSION_ID
+    || env.ITERM_SESSION_ID
+    || env.TERM_SESSION_ID
+    || env.CMUX_SURFACE_ID
+    || env.KITTY_WINDOW_ID;
+  if (sessionId && !next.terminal_session_id) next.terminal_session_id = sessionId;
+
+  const paneId = env.WARP_PANE_UUID || env.WARP_PANE_ID;
+  if (paneId && !next.warp_pane_uuid) next.warp_pane_uuid = paneId;
+  if (env.TMUX_PANE && !next.tmux_target) next.tmux_target = env.TMUX_PANE;
+  return next;
+}
+
 function readArg(name) {
   const index = process.argv.indexOf(name);
   return index >= 0 ? process.argv[index + 1] : undefined;
@@ -34,13 +82,13 @@ function enrichPayload(payload, eventName) {
   next._hostname ??= os.hostname();
   next._username ??= os.userInfo().username;
   next._ipAddrs ??= [];
-  // 注入 agent 进程 pid（hooks-cli 的父进程），让 AppCoordinator 的 PidWatcher
-  // 能在 agent 退出时作为兜底完成信号。修复原本 pid 永远 undefined 的问题。
+  // The hook CLI is a short-lived child of the agent. Tracking the parent PID
+  // gives AppCoordinator's PidWatcher a safe completion fallback.
   if (next.pid == null && typeof process.ppid === "number") {
     next.pid = process.ppid;
   }
   if (process.env.SSH_CONNECTION) next._sshClient ??= process.env.SSH_CONNECTION;
-  return next;
+  return enrichTerminalContext(next);
 }
 
 function sendHook(socketPath, source, payload) {
@@ -96,10 +144,16 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  if (process.env.FLUX_HOOKS_DEBUG === "1") {
-    process.stderr.write(`[flux-hooks] ${error.message}\n`);
-  }
-  // Hook transport failures must not block the agent's own workflow.
-  process.exitCode = 0;
-});
+async function run() {
+  return main().catch((error) => {
+    if (process.env.FLUX_HOOKS_DEBUG === "1") {
+      process.stderr.write(`[flux-hooks] ${error.message}\n`);
+    }
+    // Hook transport failures must not block the agent's own workflow.
+    process.exitCode = 0;
+  });
+}
+
+if (require.main === module) void run();
+
+module.exports = { canonicalTerminalApp, enrichTerminalContext, enrichPayload, run };

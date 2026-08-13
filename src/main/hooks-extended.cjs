@@ -682,6 +682,10 @@ async function uninstallTraexCliHook(homeDir) {
   }
 }
 const FLUX_MARKERS = ["flux-hooks", "hooks-cli/index."];
+const TRAEX_SOURCE_MARKER = /--source\s+(?:'traex'|"traex"|traex)(?:\s|$)/;
+function hasTraexSourceMarker(text) {
+  return typeof text === "string" && TRAEX_SOURCE_MARKER.test(text);
+}
 function containsFluxMarker(text) {
   return FLUX_MARKERS.some((m) => text.includes(m));
 }
@@ -754,9 +758,8 @@ class TraexCliHookManager {
       issues.push("Hooks not installed in Traex CLI config (~/.trae/traecli.toml)");
       return { agentId: "traex", installed: false, issues, manifestPath };
     }
-    const marker = "--source traex";
-    if (!raw.includes(marker)) {
-      issues.push(`Stale hook command: expected ${marker}`);
+    if (!hasTraexSourceMarker(raw)) {
+      issues.push("Stale hook command: expected --source traex");
       return { agentId: "traex", installed: false, issues, manifestPath };
     }
     for (const { event } of TRAEX_EVENTS) {
@@ -767,4 +770,4 @@ class TraexCliHookManager {
     return { agentId: "traex", installed: issues.length === 0, issues, manifestPath };
   }
 }
-module.exports = { HermesHookManager, AidenHookManager, TraexCliHookManager };
+module.exports = { HermesHookManager, AidenHookManager, TraexCliHookManager, hasTraexSourceMarker };

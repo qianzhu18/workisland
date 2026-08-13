@@ -53,6 +53,11 @@ electron.contextBridge.exposeInMainWorld("islandBridge", {
       electron.ipcRenderer.off(ipc.IPC.ISLAND_TODAY_BURN_UPDATE, handler);
     };
   },
+  onWindowBlur(cb) {
+    const handler = () => cb();
+    electron.ipcRenderer.on(ipc.IPC.ISLAND_WINDOW_BLUR, handler);
+    return () => electron.ipcRenderer.off(ipc.IPC.ISLAND_WINDOW_BLUR, handler);
+  },
   // ── Renderer → main ────────────────────────────────────────────────────────
   enterIsland() {
     electron.ipcRenderer.send(ipc.IPC.ISLAND_ENTER);
@@ -65,6 +70,9 @@ electron.contextBridge.exposeInMainWorld("islandBridge", {
   },
   panelCollapsed() {
     electron.ipcRenderer.send(ipc.IPC.ISLAND_PANEL_COLLAPSED);
+  },
+  hideForFocusLoss() {
+    electron.ipcRenderer.send(ipc.IPC.ISLAND_FOCUS_LOSS_HIDE);
   },
   syncClosedWindow() {
     electron.ipcRenderer.send(ipc.IPC.ISLAND_SYNC_CLOSED_WINDOW);
