@@ -20,3 +20,10 @@ resources/bin/panel_fix.node
 .vscode/
 native/panel-fix/build/
 .gstack/
+
+# Internal docs - not for public release
+doc/
+docs/
+CLAUDE.md
+DESIGN.md
+SHA256SUMS.txt
