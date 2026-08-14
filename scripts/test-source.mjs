@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { derivePetBubble, derivePetStatus, statusToIntervalMs, statusToRow } from "../src/renderer/pet/model.mjs";
+import { deriveDragDirection, derivePetBubble, derivePetStatus, statusToIntervalMs, statusToRow } from "../src/renderer/pet/model.mjs";
 import { canContinueSessionViaTerminalPrompt, isVisibleInIsland, sortVisibleSessions } from "../src/renderer/island/session-model.mjs";
 
 const require = createRequire(import.meta.url);
@@ -99,6 +99,11 @@ assert.equal(statusToRow("drag"), 6);
 assert.equal(statusToRow("running", { protocol: "codex-v2" }), 7);
 assert.equal(statusToRow("complete", { protocol: "codex-v2" }), 8);
 assert.equal(statusToRow("drag", { protocol: "codex-v2" }), 1);
+assert.equal(statusToRow("drag", { protocol: "codex-v2" }, "right"), 1);
+assert.equal(statusToRow("drag", { protocol: "codex-v2" }, "left"), 2);
+assert.equal(deriveDragDirection(4, "left"), "right");
+assert.equal(deriveDragDirection(-4, "right"), "left");
+assert.equal(deriveDragDirection(0, "left"), "left");
 assert.equal(statusToIntervalMs("running"), 120);
 
 const visibleSession = { id: "visible", isHookManaged: true, latestUserPrompt: "hello", updatedAt: 2 };
