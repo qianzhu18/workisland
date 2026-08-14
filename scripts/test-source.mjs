@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { deriveDragDirection, derivePetBubble, derivePetStatus, statusToIntervalMs, statusToRow } from "../src/renderer/pet/model.mjs";
@@ -90,6 +90,8 @@ assert.match(islandAppCssSource, /pet-button-icon/, "pet logo needs dedicated st
 assert.match(petAppSource, /onSettingsChanged/, "pet renderer must react to live sprite setting changes");
 assert.match(petAppSource, /CODEX_V2_CELL_WIDTH/, "pet renderer must use the Codex V2 cell geometry");
 assert.match(petIpcSource, /SETTINGS_GET_CODEX_PETS/, "settings IPC must expose Codex pet discovery");
+assert.match(petIpcSource, /codex-buddy/, "Skyler must be registered as a bundled Codex V2 pet");
+assert.ok(existsSync(new URL("../resources/pet-sprites/codex-buddy.webp", import.meta.url)), "Skyler bundled spritesheet must ship with the app");
 
 assert.equal(derivePetStatus([{ phase: "running" }]), "running");
 assert.equal(derivePetStatus([{ phase: "completed" }, { phase: "waitingForApproval" }]), "attention");
