@@ -29,8 +29,7 @@ const {
   canContinueSessionViaTerminalPrompt,
   isPluginAgentTool,
   isVisibleInIsland,
-  requiresAttention,
-  shouldAutoDismiss
+  requiresAttention
 } = require("./session-policy.cjs");
 function _interopNamespaceDefault(e) {
   const n = Object.create(null, { [Symbol.toStringTag]: { value: "Module" } });
@@ -594,7 +593,6 @@ const AppCoordinator = createAppCoordinatorClass({
   unwatchActiveSpace,
   requiresAttention,
   canContinueSessionViaTerminalPrompt,
-  shouldAutoDismiss,
   findLatestCodexInterrupt,
   getSessionBundleIds,
   jumpToTarget,

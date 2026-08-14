@@ -11,6 +11,7 @@ const useSessionStore = create((set) => ({
   notchInfo: window.islandBridge?.__initialNotchInfo ?? DEFAULT_NOTCH_INFO,
   surface: null,
   openReason: null,
+  notificationAutoDismiss: false,
   agentQuotas: {},
   onboardingExpand: false,
   toggleExpandTick: 0,
@@ -20,8 +21,8 @@ const useSessionStore = create((set) => ({
   confirmSessionTick: 0,
   setSessions: (sessions) => set({ sessions }),
   setNotchInfo: (notchInfo) => set({ notchInfo }),
-  presentSurface: (surface, openReason) => set({ surface, openReason }),
-  clearSurface: () => set({ surface: null, openReason: null }),
+  presentSurface: (surface, openReason, notificationAutoDismiss = false) => set({ surface, openReason, notificationAutoDismiss }),
+  clearSurface: () => set({ surface: null, openReason: null, notificationAutoDismiss: false }),
   setAgentQuotas: (agentQuotas) => set({ agentQuotas }),
   setOnboardingExpand: (onboardingExpand) => set({ onboardingExpand }),
   requestToggleExpand: () => set((state) => ({ toggleExpandTick: state.toggleExpandTick + 1 })),
@@ -43,8 +44,8 @@ function useIslandState() {
     bridge.onSessionUpdate((sessions) => {
       setSessions(sessions);
     });
-    bridge.onPresentSurface(({ surface, reason }) => {
-      presentSurface(surface, reason);
+    bridge.onPresentSurface(({ surface, reason, autoDismiss }) => {
+      presentSurface(surface, reason, autoDismiss);
     });
     bridge.onQuotaUpdate((quotas) => setAgentQuotas(quotas));
     void bridge.getQuotaMap().then((quotas) => {
@@ -104,6 +105,7 @@ function IslandApp() {
     notchInfo,
     surface,
     openReason,
+    notificationAutoDismiss,
     clearSurface,
     presentSurface,
     agentQuotas
@@ -387,7 +389,7 @@ function IslandApp() {
   // "时间抓不住"。现在 surface 一旦弹出就稳定倒数 autoCollapseDurationMs。
   reactExports.useEffect(() => {
     if (!surface) return;
-    if (openReason !== "notification") return;
+    if (openReason !== "notification" || !notificationAutoDismiss) return;
     if (isFollowUpActiveRef.current) return;
     if (autoCollapseTimer.current) clearTimeout(autoCollapseTimer.current);
     autoCollapseTimer.current = setTimeout(() => {
@@ -399,7 +401,7 @@ function IslandApp() {
     return () => {
       if (autoCollapseTimer.current) clearTimeout(autoCollapseTimer.current);
     };
-  }, [surface, openReason, autoCollapseDurationMs, close, clearSurface]);
+  }, [surface, openReason, notificationAutoDismiss, autoCollapseDurationMs, close, clearSurface]);
   reactExports.useEffect(() => {
     if (!onboardingExpand) return;
     setOnboardingExpand(false);

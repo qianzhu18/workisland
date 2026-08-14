@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 const require = createRequire(import.meta.url);
-const { selectAutomaticSurface } = require("../src/main/presentation-policy.cjs");
+const { selectAutomaticSurface, createPresentationRequest } = require("../src/main/presentation-policy.cjs");
 const coordinatorSource = readFileSync(new URL("../src/main/app-coordinator.cjs", import.meta.url), "utf8");
 const islandPanelSource = readFileSync(new URL("../src/renderer/island/components/IslandPanel.js", import.meta.url), "utf8");
 const islandPanelCss = readFileSync(new URL("../src/renderer/island/components/IslandPanel.css", import.meta.url), "utf8");
@@ -18,10 +18,15 @@ test("a normal session start does not open a surface", () => {
   assert.equal(selectAutomaticSurface({ type: "sessionStarted", sessionId: "a" }, settings), null);
 });
 
-test("a completion opens only a compact surface for its session", () => {
+test("a completion opens the hover-equivalent panel filtered to its session", () => {
   assert.deepEqual(
-    selectAutomaticSurface({ type: "sessionCompleted", sessionId: "completed-session" }, settings),
-    { type: "completion", actionableSessionId: "completed-session" }
+    createPresentationRequest({ type: "sessionCompleted", sessionId: "completed-session" }, settings),
+    {
+      surface: { type: "sessionList", actionableSessionId: "completed-session", visibleSessionIds: ["completed-session"] },
+      priority: "completion",
+      autoDismiss: true,
+      suppressWhenFocused: true
+    }
   );
 });
 
@@ -47,14 +52,18 @@ test("disabled notification settings suppress their respective automatic surface
   );
 });
 
-test("completion notifications are also routed to an active desktop pet", () => {
-  assert.doesNotMatch(
-    coordinatorSource,
-    /petMode\.isActive\s*&&\s*payload\.surface\.type\s*!==\s*["']completion["']/
-  );
+test("action-required and error requests remain visible", () => {
+  assert.equal(createPresentationRequest({ type: "permissionRequested", sessionId: "approval-session" }, settings).autoDismiss, false);
+  assert.equal(createPresentationRequest({ type: "permissionRequested", sessionId: "approval-session" }, settings).suppressWhenFocused, false);
+  assert.equal(createPresentationRequest({ type: "sessionCompleted", sessionId: "failed-session", error: "failed" }, settings).autoDismiss, false);
 });
 
-test("compact completion content reserves the hardware-notch safe area", () => {
-  assert.match(islandPanelSource, /--island-safe-top-inset/);
-  assert.match(islandPanelCss, /\.completion-notification[\s\S]*padding-top:\s*var\(--island-safe-top-inset/);
+test("an active desktop pet is the exclusive automatic-notification surface", () => {
+  assert.match(coordinatorSource, /this\.petMode\.isActive[\s\S]*?this\.petMode\.presentSurface[\s\S]*?return;/);
+});
+
+test("completion notifications use the regular hover panel, not a compact card", () => {
+  assert.match(islandPanelSource, /AgentUsageRow/);
+  assert.doesNotMatch(islandPanelSource, /completion-notification/);
+  assert.doesNotMatch(islandPanelCss, /\.completion-notification/);
 });

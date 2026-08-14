@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { deriveDragDirection, derivePetBubble, derivePetStatus, statusToIntervalMs, statusToRow } from "../src/renderer/pet/model.mjs";
-import { canContinueSessionViaTerminalPrompt, isVisibleInIsland, sortVisibleSessions } from "../src/renderer/island/session-model.mjs";
+import { canContinueSessionViaTerminalPrompt, filterSurfaceSessions, isVisibleInIsland, sortVisibleSessions } from "../src/renderer/island/session-model.mjs";
 
 const require = createRequire(import.meta.url);
 const { IPC } = require("../src/shared/ipc.cjs");
@@ -110,6 +110,8 @@ const visibleSession = { id: "visible", isHookManaged: true, latestUserPrompt: "
 assert.equal(isVisibleInIsland(visibleSession), true);
 assert.equal(isVisibleInIsland({ parentSessionId: "parent", phase: "waitingForApproval" }), false);
 assert.deepEqual(sortVisibleSessions([{ ...visibleSession, id: "old", updatedAt: 1 }, visibleSession]).map(({ id }) => id), ["visible", "old"]);
+assert.deepEqual(filterSurfaceSessions([{ id: "a" }, { id: "b" }], { visibleSessionIds: ["b"] }).map(({ id }) => id), ["b"]);
+assert.deepEqual(filterSurfaceSessions([{ id: "a" }], null).map(({ id }) => id), ["a"]);
 assert.equal(canContinueSessionViaTerminalPrompt({ phase: "completed", tool: "codex", jumpTarget: { app: "Terminal", tty: "/dev/ttys001" } }), true);
 assert.equal(canContinueSessionViaTerminalPrompt({ phase: "completed", tool: "codex", jumpTarget: { app: "Terminal", tty: "/dev/ttys001", remote: true } }), false);
 assert.equal(mainSessionPolicy.canContinueSessionViaTerminalPrompt({ phase: "completed", tool: "codex", jumpTarget: { app: "Terminal", tty: "/dev/ttys001", remote: true } }), false);

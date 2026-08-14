@@ -29,3 +29,9 @@ export function canContinueSessionViaTerminalPrompt(session) {
 export function sortVisibleSessions(sessions) {
   return sessions.filter(isVisibleInIsland).sort((left, right) => right.updatedAt - left.updatedAt);
 }
+
+export function filterSurfaceSessions(sessions, surface) {
+  const ids = surface?.visibleSessionIds;
+  if (!Array.isArray(ids)) return sessions;
+  return sessions.filter((session) => ids.includes(session.id));
+}

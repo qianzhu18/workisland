@@ -3,7 +3,7 @@ import { A as AGENT_TOOL_LABELS, j as isPluginAgentTool, g as getPluginColor, h 
 import { g as getFireIconByTokenCount, s as sanitizeAgentDisplayText, c as cleanAppName, b as buildApproveAlwaysTooltip } from "../../shared/formatters.js";
 import { f as formatTokenCount } from "../../shared/tokens.js";
 import { M as Markdown, r as remarkGfm } from "../../vendor/markdown.js";
-import { canContinueSessionViaTerminalPrompt, sortVisibleSessions } from "../session-model.mjs";
+import { canContinueSessionViaTerminalPrompt, filterSurfaceSessions, sortVisibleSessions } from "../session-model.mjs";
 const defaultIcon = new URL("../assets/status/idle.svg", import.meta.url).href;
 const runningIcon = new URL("../assets/status/running.svg", import.meta.url).href;
 const approvalIcon = new URL("../assets/status/approval.svg", import.meta.url).href;
@@ -20,8 +20,8 @@ function useActionable(sessions, surface, options) {
     return () => cancelAnimationFrame(frame);
   }, [actionableId, options?.disableScroll]);
   const visibleSessions = reactExports.useMemo(
-    () => sortVisibleSessions(sessions),
-    [sessions]
+    () => sortVisibleSessions(filterSurfaceSessions(sessions, surface)),
+    [sessions, surface]
   );
   return { actionableId, actionableRef, visibleSessions };
 }
@@ -1313,18 +1313,6 @@ function IslandPanel({
     });
     return () => cancelAnimationFrame(frame);
   }, [followUpSessionId]);
-  if (surface?.type === "completion") {
-    const completedSession = sessions.find((session) => session.id === actionableId);
-    if (!completedSession || completedSession.phase !== "completed") return null;
-    return /* @__PURE__ */ React.createElement("div", { className: "panel completion-notification", style: panelStyle }, /* @__PURE__ */ React.createElement(
-      CompletionCard,
-      {
-        session: completedSession,
-        isFollowUpOpen: false,
-        onCollapse
-      }
-    ));
-  }
   return /* @__PURE__ */ React.createElement("div", { className: "panel", style: panelStyle }, /* @__PURE__ */ React.createElement(
     AgentUsageRow,
     {

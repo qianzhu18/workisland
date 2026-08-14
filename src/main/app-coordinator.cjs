@@ -21,7 +21,7 @@ const { ZCodeHookManager, WorkBuddyHookManager } = require("./hooks-work-agents.
 const { initSoundDirs, playSoundEvent } = require("./sound-service.cjs");
 const { reportTokenUsage, getHermesCumulativeTokens, diffHermesCumulativeTokens } = require("./adapters-extended.cjs");
 const { getAgentDescriptor, validateAgentWiring } = require("../shared/agent-catalog.cjs");
-const { selectAutomaticSurface } = require("./presentation-policy.cjs");
+const { createPresentationRequest } = require("./presentation-policy.cjs");
 
 function createAppCoordinatorClass({
   BridgeServer,
@@ -47,7 +47,6 @@ function createAppCoordinatorClass({
   unwatchActiveSpace,
   requiresAttention,
   canContinueSessionViaTerminalPrompt,
-  shouldAutoDismiss,
   findLatestCodexInterrupt,
   getSessionBundleIds,
   jumpToTarget,
@@ -940,14 +939,10 @@ function createAppCoordinatorClass({
       this.onJumpStateChangeCallback?.(has);
     }
     maybePresentSurface(event) {
-      const surface = selectAutomaticSurface(event, this.settings);
-      if (!surface) return;
-      // sessionStarted / sessionCompleted 跳过"聚焦时抑制"——用户要求这两个节点
-      // 无条件提醒，即便正聚焦在发起任务的 app 里也要弹。仅 permission/question
-      // 保留 suppress（中间过程，聚焦时不必打扰）。
-      const skipSuppress = event.type === "sessionCompleted";
-      if (!skipSuppress && this.settings.suppressNotificationWhenFocused) {
-        const session = this.state.sessions.get(event.sessionId);
+      const session = this.state.sessions.get(event.sessionId);
+      const request = createPresentationRequest({ ...event, error: event.error ?? session?.error }, this.settings);
+      if (!request) return;
+      if (request.suppressWhenFocused && this.settings.suppressNotificationWhenFocused) {
         const sessionBundleIds = session ? getSessionBundleIds(session) : [];
         const frontmostBundleId = getFrontmostAppBundleId();
         const appMatches = !!frontmostBundleId && sessionBundleIds.length > 0 && sessionBundleIds.includes(frontmostBundleId);
@@ -982,23 +977,20 @@ function createAppCoordinatorClass({
         if (hasBlockingSession) return;
       }
       this.broadcastSurface({
-        surface,
-        reason: "notification"
+        surface: request.surface,
+        reason: "notification",
+        autoDismiss: request.autoDismiss
       });
     }
     broadcastSurface(payload) {
       if (this.petMode.isActive) {
-        const session = (payload.surface.type === "sessionList" || payload.surface.type === "completion")
-          && payload.surface.actionableSessionId
-          ? this.state.sessions.get(payload.surface.actionableSessionId)
-          : void 0;
-        const shouldCollapse = shouldAutoDismiss(payload.surface, session?.phase)
-          && payload.reason === "notification"
-          && !Array.from(this.state.sessions.values()).some((s) => requiresAttention(s.phase));
         this.petMode.presentSurface(
           payload.surface,
-          shouldCollapse ? this.settings.completionPopupDurationSec * 1e3 : null
+          payload.autoDismiss ? this.settings.completionPopupDurationSec * 1e3 : null
         );
+        // A pet is the user's chosen primary surface. Keep the Island passive
+        // so one event never creates two competing full-screen interruptions.
+        return;
       }
       if (!this.islandWindow || this.islandWindow.isDestroyed()) return;
       if (this.islandHiddenForFullscreen && this.islandWin) {
