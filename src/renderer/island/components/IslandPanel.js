@@ -10,7 +10,7 @@ const approvalIcon = new URL("../assets/status/approval.svg", import.meta.url).h
 const completeIcon = new URL("../assets/status/complete.svg", import.meta.url).href;
 const errorIcon = new URL("../assets/status/error.svg", import.meta.url).href;
 function useActionable(sessions, surface, options) {
-  const actionableId = surface?.type === "sessionList" ? surface.actionableSessionId : void 0;
+  const actionableId = surface?.type === "sessionList" || surface?.type === "completion" ? surface.actionableSessionId : void 0;
   const actionableRef = reactExports.useRef(null);
   reactExports.useEffect(() => {
     if (!actionableId || options?.disableScroll) return;
@@ -1312,6 +1312,18 @@ function IslandPanel({
     });
     return () => cancelAnimationFrame(frame);
   }, [followUpSessionId]);
+  if (surface?.type === "completion") {
+    const completedSession = sessions.find((session) => session.id === actionableId);
+    if (!completedSession || completedSession.phase !== "completed") return null;
+    return /* @__PURE__ */ React.createElement("div", { className: "panel completion-notification", style: panelStyle }, /* @__PURE__ */ React.createElement(
+      CompletionCard,
+      {
+        session: completedSession,
+        isFollowUpOpen: false,
+        onCollapse
+      }
+    ));
+  }
   return /* @__PURE__ */ React.createElement("div", { className: "panel", style: panelStyle }, /* @__PURE__ */ React.createElement(
     AgentUsageRow,
     {

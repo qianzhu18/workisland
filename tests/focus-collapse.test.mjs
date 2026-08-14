@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { shouldCollapseOnFocusLoss } from "../src/renderer/island/focus-policy.mjs";
+import { resolveFocusLossPresentation, shouldCollapseOnFocusLoss } from "../src/renderer/island/focus-policy.mjs";
 
 test("a visible Island hides when focus moves away and the setting is enabled", () => {
   assert.equal(shouldCollapseOnFocusLoss({ isVisible: true, enabled: true, followUpFocused: false }), true);
@@ -13,4 +13,12 @@ test("closed or disabled surfaces stay unchanged", () => {
 
 test("focused follow-up input is not dismissed by a transient focus transition", () => {
   assert.equal(shouldCollapseOnFocusLoss({ isVisible: true, enabled: true, followUpFocused: true }), false);
+});
+
+test("ordinary focus loss keeps the default character visible in the collapsed pill", () => {
+  assert.equal(resolveFocusLossPresentation({ isVisible: true, followUpFocused: false }), "pill");
+});
+
+test("focus loss leaves an active follow-up unchanged", () => {
+  assert.equal(resolveFocusLossPresentation({ isVisible: true, followUpFocused: true }), "unchanged");
 });

@@ -21,6 +21,7 @@ const { ZCodeHookManager, WorkBuddyHookManager } = require("./hooks-work-agents.
 const { initSoundDirs, playSoundEvent } = require("./sound-service.cjs");
 const { reportTokenUsage, getHermesCumulativeTokens, diffHermesCumulativeTokens } = require("./adapters-extended.cjs");
 const { getAgentDescriptor, validateAgentWiring } = require("../shared/agent-catalog.cjs");
+const { selectAutomaticSurface } = require("./presentation-policy.cjs");
 
 function createAppCoordinatorClass({
   BridgeServer,
@@ -939,29 +940,12 @@ function createAppCoordinatorClass({
       this.onJumpStateChangeCallback?.(has);
     }
     maybePresentSurface(event) {
-      // sessionStarted（任务发出）和 sessionCompleted（任务结束）是用户明确要的
-      // 两个提醒节点，必须弹 surface 显示 5 秒。permissionRequested/questionAsked
-      // 是中间过程，保留原有门控。
-      const actionableTypes = ["sessionStarted", "permissionRequested", "questionAsked", "sessionCompleted"];
-      if (!actionableTypes.includes(event.type)) return;
-      if (event.type === "sessionStarted") {
-        if (!this.settings.expandOnSessionComplete) return;
-        // 合成的发现事件（transcript watcher 补的 sessionStarted）不弹通知，
-        // 避免与真实 hook 事件重复。
-        if (event.isSynthetic) return;
-      }
-      if (event.type === "sessionCompleted") {
-        if (!this.settings.expandOnSessionComplete) return;
-        if (event.isInterrupt) return;
-        if (event.isSessionEnd) return;
-        if (event.isRalphLoopIteration) return;
-      }
-      if ((event.type === "permissionRequested" || event.type === "questionAsked") && !this.settings.expandOnActionRequired)
-        return;
+      const surface = selectAutomaticSurface(event, this.settings);
+      if (!surface) return;
       // sessionStarted / sessionCompleted 跳过"聚焦时抑制"——用户要求这两个节点
       // 无条件提醒，即便正聚焦在发起任务的 app 里也要弹。仅 permission/question
       // 保留 suppress（中间过程，聚焦时不必打扰）。
-      const skipSuppress = event.type === "sessionStarted" || event.type === "sessionCompleted";
+      const skipSuppress = event.type === "sessionCompleted";
       if (!skipSuppress && this.settings.suppressNotificationWhenFocused) {
         const session = this.state.sessions.get(event.sessionId);
         const sessionBundleIds = session ? getSessionBundleIds(session) : [];
@@ -997,15 +981,13 @@ function createAppCoordinatorClass({
         );
         if (hasBlockingSession) return;
       }
-      if (event.type === "sessionCompleted") {
-      }
       this.broadcastSurface({
-        surface: { type: "sessionList", actionableSessionId: event.sessionId },
+        surface,
         reason: "notification"
       });
     }
     broadcastSurface(payload) {
-      if (this.petMode.isActive) {
+      if (this.petMode.isActive && payload.surface.type !== "completion") {
         const session = payload.surface.type === "sessionList" && payload.surface.actionableSessionId ? this.state.sessions.get(payload.surface.actionableSessionId) : void 0;
         const shouldCollapse = shouldAutoDismiss(payload.surface, session?.phase)
           && payload.reason === "notification"
