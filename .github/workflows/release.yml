@@ -9,10 +9,6 @@ on:
 permissions:
   contents: write
 
-concurrency:
-  group: workisland-release-${{ github.ref }}
-  cancel-in-progress: false
-
 jobs:
   macos-arm64:
     runs-on: macos-14
@@ -21,22 +17,22 @@ jobs:
       CSC_LINK: ${{ secrets.CSC_LINK }}
       CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
       CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.CSC_LINK != '' && 'true' || 'false' }}
-      APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY }}
-      APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
-      APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+      - name: Verify release version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: test "${GITHUB_REF_NAME#v}" = "$(node -p "require('./package.json').version")"
       - run: npm ci
-      - name: Verify release metadata
-        env:
-          RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
-        run: npm run release:check
       - name: Require release credentials
         if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
         run: |
           test -n "${CSC_LINK:-}"
           test -n "${CSC_KEY_PASSWORD:-}"
@@ -45,11 +41,14 @@ jobs:
           test -n "${APPLE_API_ISSUER:-}"
       - name: Prepare notarization key
         if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
         run: |
           notary_key_path="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY_ID}.p8"
           printf '%s' "$APPLE_API_KEY_CONTENT" > "$notary_key_path"
           chmod 600 "$notary_key_path"
-          echo "APPLE_API_KEY=$notary_key_path" >> "$GITHUB_ENV"
+          echo "NOTARY_KEY_PATH=$notary_key_path" >> "$GITHUB_ENV"
       - name: Package macOS DMG
         # An unset CSC_LINK must stay unset. electron-builder treats an empty
         # CSC_LINK as the project directory and then reports "not a file".
@@ -61,11 +60,14 @@ jobs:
           fi
       - name: Notarize and staple tagged release
         if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
         run: |
-          xcrun notarytool submit release/*.dmg --key "$APPLE_API_KEY" --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER" --wait
+          xcrun notarytool submit release/*.dmg --key "$NOTARY_KEY_PATH" --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER" --wait
           xcrun stapler staple release/*.dmg
           xcrun stapler validate release/*.dmg
-          rm -f "$APPLE_API_KEY"
+          rm -f "$NOTARY_KEY_PATH"
       - name: Verify signed release artifact
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
