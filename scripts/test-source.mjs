@@ -93,7 +93,7 @@ assert.match(petIpcSource, /SETTINGS_GET_CODEX_PETS/, "settings IPC must expose 
 
 assert.equal(derivePetStatus([{ phase: "running" }]), "running");
 assert.equal(derivePetStatus([{ phase: "completed" }, { phase: "waitingForApproval" }]), "attention");
-assert.deepEqual(derivePetBubble("running", 1), { text: "WORKING", size: "md", color: "#1C1D1E" });
+assert.equal(derivePetBubble("running", 1), null, "running state relies on the pet animation instead of a redundant WORKING bubble");
 assert.equal(derivePetBubble("idle", 0), null);
 assert.equal(statusToRow("drag"), 6);
 assert.equal(statusToRow("running", { protocol: "codex-v2" }), 7);

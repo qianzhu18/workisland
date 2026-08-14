@@ -106,7 +106,8 @@ export function derivePetBubble(status, visibleCount) {
   if (status === "idle" || status === "sleep") {
     return visibleCount > 0 ? { text: String(visibleCount), size: "sm", color: "#1C1D1E" } : null;
   }
-  if (status === "running") return { text: "WORKING", size: "md", color: "#1C1D1E" };
+  // running 不再弹 WORKING 气泡：动画本身已表达工作状态，像素气泡图反而突兀
+  if (status === "running") return null;
   if (status === "attention") return { text: "ATTENTION", size: "lg", color: "#E77800" };
   if (status === "complete") return { text: "DONE", size: "sm", color: "#13A913" };
   return null;
