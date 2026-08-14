@@ -1,3 +1,30 @@
+/* ── Echo 令牌层 ──────────────────────────────────────────────────────────
+ * 抽取前：205 处硬编码颜色 / 103 个不同色值，且存在三类重复：
+ *   · 大小写重复      #9599A6 与 #9599a6
+ *   · 肉眼无差重复    #d1d3db 与 #d1d3dd（蓝通道差 2）
+ *   · 同角色多基色    浅色叠加层同时用了 rgb(224,226,242) / (224,230,242)
+ *                     / (221,230,244) / (255,255,255) 四种基色，4%-16% 透明度下
+ *                     根本分辨不出，却让换肤无从下手
+ * 现统一到 Echo 的宣纸暖调（#F8F2E6）。岛体本身保持纯黑 —— 那是为了和刘海
+ * 无缝融合，不能换成墨色。 */
+:root {
+  --isl-fg: #F2ECDE;          /* 主文字   ← #d1d3db #d1d3dd #EEEEEE */
+  --isl-fg-strong: #FFFFFF;   /* 最强对比 ← #ffffff */
+  --isl-fg-2: #A79E90;        /* 次级     ← #9599a6 */
+  --isl-fg-3: #6E6559;        /* 三级     ← #646b77 */
+
+  /* 叠加层：单一基色 + 五档透明度，替代原来的四种基色混用 */
+  --isl-layer-1: rgba(248, 242, 230, 0.04);
+  --isl-layer-2: rgba(248, 242, 230, 0.06);
+  --isl-layer-3: rgba(248, 242, 230, 0.10);
+  --isl-layer-4: rgba(248, 242, 230, 0.14);
+  --isl-layer-5: rgba(248, 242, 230, 0.16);
+
+  --isl-accent: #C4452D;      /* 朱砂 ← #387bff。仅用于链接/聚焦/accent-color，
+                                 不涉及批准按钮，所以换成红色没有语义风险 */
+  --isl-ok: #42E86B;
+}
+
 /* island.css — Dynamic Island layout, shape morphing, and animations.
  *
  * Shape transitions use CSS clip-path: inset() so the black pill/panel shape
@@ -10,12 +37,12 @@
  *
  * Color palette (mirrors Swift IslandPanelView):
  *   Background:   #000
- *   Text primary:    rgba(255,255,255,0.9)
- *   Text secondary:  rgba(255,255,255,0.55)
- *   Text tertiary:   rgba(255,255,255,0.28)
- *   Border:          rgba(255,255,255,0.07)  (open)  / rgba(255,255,255,0.04) (closed)
+ *   Text primary:    rgba(248, 242, 230, 0.9)
+ *   Text secondary:  rgba(248, 242, 230, 0.55)
+ *   Text tertiary:   rgba(248, 242, 230, 0.28)
+ *   Border:          rgba(248, 242, 230, 0.07)  (open)  / var(--isl-layer-1) (closed)
  *   Phase-running:   #6E9FFF  (blue)
- *   Phase-active:    #42E86B  (green)
+ *   Phase-active:    var(--isl-ok)  (green)
  *   Phase-attention: #FF9F0A  (orange)
  *   Phase-question:  #FFD60A  (yellow)
  *   Badge bg:        #232326
@@ -45,7 +72,7 @@ body {
 
 /* 与 Trae 参考一致：卡片顶栏比内容区更深一层，全岛统一 */
 html {
-  --island-card-header-bg: rgba(221, 230, 244, 0.04);
+  --island-card-header-bg: var(--isl-layer-1);
 }
 
 body {
@@ -67,12 +94,36 @@ body {
  * automatically follows the island shape during clip-path animation.
  * Adjust blur/spread/color to taste. */
 .island-pop-wrapper {
-  filter: drop-shadow(0 0 0 1px rgba(255, 255, 255, 0.1));
-  transition: filter 0.3s ease-out;
+  filter: drop-shadow(0 0 0 1px var(--isl-layer-3));
 }
 
 .island-pop-wrapper.is-open {
   filter: drop-shadow(0 8px 8px rgba(0, 0, 0, 0.35)) drop-shadow(0 0 0 rgba(0, 0, 0, 0.23));
+}
+
+/* 形变期间摘掉 filter。
+ * 这个 wrapper 是 position:fixed; inset:0，铺满整个窗口；filter 会强制 Chromium
+ * 把整棵子树栅格化成纹理再做模糊，而子树里的 clip-path 每帧都在变 —— 于是每帧
+ * 都要按「展开后的完整窗口尺寸」重来一次。这是 hover 展开卡顿的主要来源。
+ * 原来还额外挂了 transition: filter 0.3s，等于把这份开销再单独跑一遍。 */
+.island-pop-wrapper.is-morphing {
+  filter: none;
+}
+
+/* 隐形唤醒热区：透明、不可见，只负责接住鼠标。
+ * 放在 .island 之前，z 序在其下方，所以不会抢走胶囊本体的点击。
+ *
+ * 宽度只比胶囊本体宽出两侧余量，不铺满整个岛窗口 —— 铺满时热区约占屏宽一半，
+ * 鼠标沿菜单栏移动几乎必然触发，胶囊会毫无理由地冒出来挡住菜单栏。
+ * 收窄不会让胶囊变难点：.island 自身就是 pointer-events:auto，命中它的可见轮廓
+ * 照样唤醒，热区只是轮廓周围的容错余量。 */
+.island-hotspot {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  background: transparent;
+  pointer-events: auto;
 }
 
 /* ── Island — the morphing black shape ────────────────────────────────────── */
@@ -154,7 +205,7 @@ body {
   flex: 1;
   font-size: 12px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(248, 242, 230, 0.9);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -166,7 +217,7 @@ body {
 }
 
 .pill-label-completed {
-  color: #42e86b;
+  color: var(--isl-ok);
 }
 
 .pill-label-idle {
@@ -190,7 +241,7 @@ body {
   flex-shrink: 0;
   border: 0;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(248, 242, 230, 0.08);
   color: #fff;
   font-size: 14px;
   line-height: 1;
@@ -217,7 +268,7 @@ body {
 }
 
 .panel-btn.panel-pet-button:hover {
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(248, 242, 230, 0.18);
   transform: scale(1.06);
 }
 
@@ -264,7 +315,7 @@ body {
 .pill-count {
   font-size: 12px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(248, 242, 230, 0.9);
   letter-spacing: -0.2px;
 }
 
@@ -293,7 +344,7 @@ body {
 .panel-title {
   font-size: 13px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(248, 242, 230, 0.9);
   letter-spacing: -0.2px;
 }
 
@@ -308,7 +359,7 @@ body {
   border: none;
   display: flex;
   align-items: center;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(248, 242, 230, 0.5);
   cursor: pointer;
   border-radius: 6px;
   transition:
@@ -322,13 +373,13 @@ body {
   -webkit-user-drag: none;
 }
 .panel-btn:hover {
-  color: rgba(255, 255, 255, 0.85);
-  background: rgba(255, 255, 255, 0.08);
+  color: rgba(248, 242, 230, 0.85);
+  background: rgba(248, 242, 230, 0.08);
 }
 
 .panel-divider {
   height: 1px;
-  background: rgba(255, 255, 255, 0.07);
+  background: rgba(248, 242, 230, 0.07);
   margin: 0 18px;
   flex-shrink: 0;
 }
@@ -350,7 +401,7 @@ body {
   background: transparent;
 }
 .session-list::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(248, 242, 230, 0.2);
   border-radius: 2px;
 }
 
@@ -372,7 +423,7 @@ body {
 
 .session-list-empty-text {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(248, 242, 230, 0.9);
 }
 .session-row-container {
   display: flex;
@@ -399,7 +450,7 @@ body {
     sans-serif;
   font-size: 12px;
   font-weight: 400;
-  color: #d1d3db;
+  color: var(--isl-fg);
   line-height: 16px;
   overflow-wrap: break-word;
 }
@@ -432,13 +483,13 @@ body {
 }
 
 .island-markdown li::marker {
-  color: #d1d3db;
+  color: var(--isl-fg);
 }
 
 .island-markdown code {
   font-family: "SF Mono", Menlo, Monaco, monospace;
   font-size: 12px;
-  background: rgba(224, 230, 242, 0.1);
+  background: var(--isl-layer-3);
   padding: 1px 4px;
   border-radius: 3px;
 }
@@ -446,7 +497,7 @@ body {
 .island-markdown pre {
   padding: 8px;
   margin: 4px 0;
-  background: rgba(224, 230, 242, 0.06);
+  background: var(--isl-layer-2);
   border-radius: 4px;
   overflow-x: auto;
 }
@@ -462,11 +513,11 @@ body {
 
 .island-markdown strong {
   font-weight: 600;
-  color: #ffffff;
+  color: var(--isl-fg-strong);
 }
 
 .island-markdown a {
-  color: #387bff;
+  color: var(--isl-accent);
   text-decoration: none;
 }
 
@@ -478,7 +529,7 @@ body {
 .island-markdown h6 {
   margin: 4px 0 2px;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--isl-fg-strong);
   line-height: 1.3;
 }
 
@@ -506,16 +557,241 @@ body {
 .island-markdown th,
 .island-markdown td {
   padding: 4px 8px;
-  border: 1px solid rgba(224, 226, 242, 0.16);
+  border: 1px solid var(--isl-layer-5);
   text-align: left;
 }
 
 .island-markdown th {
   font-weight: 600;
-  color: #ffffff;
-  background: rgba(224, 230, 242, 0.08);
+  color: var(--isl-fg-strong);
+  background: rgba(248, 242, 230, 0.08);
 }
 
 .island-markdown td {
-  color: #d1d3db;
+  color: var(--isl-fg);
+}
+
+/* ── dock（贴边）落位 ──────────────────────────────────────────────────────
+ * 贴边态下窗口尺寸已经紧贴可见形状，所以一律不用 clip-path：
+ * 窗口和绘制形状同源，不会再出现「窗口缩了但裁切没跟上」的条状残影。 */
+.island.is-docked {
+  background: #000;
+  border-radius: 0;
+}
+
+/* 拖动中的小方块没有贴边关系，用普通圆角 */
+.island.is-dock-dragging {
+  clip-path: none !important;
+  border-radius: 14px;
+}
+
+/* 阴影只朝屏幕内侧投，不能往贴边那一侧糊。
+ * 四周均匀的大模糊阴影会在黑色形状外糊出一圈暗晕，浅色背景下看起来就像
+ * 四角都是圆的、而且和屏幕边缘之间还有条缝 —— 贴边那侧必须是干净的直边。 */
+.island.is-dock-dragging {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+/* 拖动中的小方块 */
+.island.is-dock-dragging {
+  border-radius: 14px;
+}
+
+
+
+
+
+/* 抓取区：只占贴边那一侧、宽度等于收起态竖条的那条带子。
+ *
+ * 不能盖住整个面板 —— 悬停就会展开，手一放上去面板已经是 380×620，
+ * 若整块都是抓取区，就等于「永远抓在面板上」，既拖不动也点不了面板内容。
+ * 收窄成边缘带子后：带子上按下 = 拖动，面板其余部分照常交互。 */
+.island-drag-handle {
+  position: absolute;
+  z-index: 5;
+  cursor: grab;
+}
+
+.island-drag-handle:active {
+  cursor: grabbing;
+}
+
+.island-drag-handle.is-dock-right {
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 40px;
+}
+
+.island-drag-handle.is-dock-left {
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 40px;
+}
+
+.island-drag-handle.is-dock-top {
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 46px;
+}
+
+/* 拖动中是小方块，整块都能拖 */
+.island-drag-handle.is-dragging {
+  inset: 0;
+  width: auto;
+  height: auto;
+}
+
+/* ── 竖条收起态内容：只留头像，整体居中 ─────────────────────────────────
+ * 竖条只有 40pt 宽，胶囊那排「头像 + 标题 + 计时 + 按钮」放不下。
+ * 定位由 JSX 按主进程下发的条几何内联给出，这里只管内容排布。 */
+/* 左右竖条：40pt 宽放不下整排胶囊内容 —— 竖向排布，头像 + 状态点。
+ * 顶部横条保留原本胶囊的标题与状态。 */
+
+/* 顶条：两端内凹弧线各占 14pt，形状主体比胶囊层窄一圈 ——
+ * 内边距必须让开，否则头像会悬在弧线外面。右侧再多留出状态点的位置。 */
+.island.is-dock-top.is-dock-strip .pill {
+  padding: 0 40px 0 26px;
+}
+
+.island.is-dock-top.is-dock-strip .pill-label {
+  display: none;
+}
+
+
+/* 两个方向的收起态内容完全镜像：头像(距起点 26) → 数量 → 状态点(距终点 18)。
+ * 文字一律不显示 —— 窄条里截断的文字只是噪音，数量 + 状态点已足够。 */
+.island.is-dock-left.is-dock-strip .pill,
+.island.is-dock-right.is-dock-strip .pill {
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  padding: 26px 0 0;
+  gap: 10px;
+}
+
+.island.is-dock-left.is-dock-strip .pill-label,
+.island.is-dock-right.is-dock-strip .pill-label {
+  display: none;
+}
+
+.island.is-dock-left.is-dock-strip .pill-right,
+.island.is-dock-right.is-dock-strip .pill-right {
+  margin-left: 0;
+}
+
+/* 拖动中的小方块同样只显示头像 */
+.island.is-dock-dragging .pill {
+  justify-content: center;
+  padding: 0;
+  gap: 0;
+}
+
+.island.is-dock-dragging .pill-label,
+.island.is-dock-dragging .pill-right {
+  display: none;
+}
+
+/* ── 侧边窄幅面板排版 ──────────────────────────────────────────────────────
+ * 面板层占满 380 宽的窗口，内部按窄幅重排。会话行自身已有 min-width:0 +
+ * ellipsis，会自适应；需要动的是那些按 680+ 宽度设计的横向排布。 */
+
+/* 顶栏：配额格子和按钮组允许换行，行高放开 */
+.island-panel-layer.is-side-dock .usage-row {
+  flex-wrap: wrap;
+  /* 左右各让开 20px：贴边侧顶端有 14px 的内凹弧线，12px 内边距会让
+   * 顶栏最外侧的按钮被弧线削掉一角 */
+  padding: 8px 20px;
+  row-gap: 4px;
+  min-height: 0 !important;
+  height: auto;
+}
+
+.island-panel-layer.is-side-dock .usage-row-agents {
+  flex-basis: 100%;
+  overflow-x: auto;
+}
+
+.island-panel-layer.is-side-dock .usage-row-actions {
+  margin-left: auto;
+}
+
+/* 会话行：标题与元信息改为上下两行，不再左右争宽度 */
+.island-panel-layer.is-side-dock .session-headline {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.island-panel-layer.is-side-dock .session-meta {
+  margin-left: 0;
+}
+
+/* 提示语与活动行给窄幅多留点行数 */
+.island-panel-layer.is-side-dock .session-prompt,
+.island-panel-layer.is-side-dock .session-activity {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* 审批按钮组窄幅下允许换行 */
+.island-panel-layer.is-side-dock .approval-actions {
+  flex-wrap: wrap;
+}
+
+
+/* ── 竖条状态点 ───────────────────────────────────────────────────────────
+ * 相位配色与面板一致：running 蓝 / completed 绿 / 待批准橙 / 待回答黄。
+ * 挂在胶囊层内、头像下方；待处理相位加呼吸提醒。 */
+.dock-status-dot {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #5c564b;
+  pointer-events: none;
+}
+
+.dock-status-dot.is-running {
+  background: #6E9FFF;
+}
+
+.dock-status-dot.is-completed {
+  background: var(--isl-ok);
+}
+
+.dock-status-dot.is-waitingForApproval {
+  background: #FF9F0A;
+}
+
+.dock-status-dot.is-waitingForAnswer {
+  background: #FFD60A;
+}
+
+/* 顶条的状态点靠右垂直居中（竖条则是底部水平居中） */
+.dock-status-dot.dock-dot-top {
+  left: auto;
+  right: 18px;
+  bottom: auto;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* 呼吸只动透明度：transform 由各方位的定位持有，动画不能覆盖它 */
+@keyframes dock-dot-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.dock-status-dot.is-waitingForApproval,
+.dock-status-dot.is-waitingForAnswer {
+  animation: dock-dot-pulse 1.2s ease-in-out infinite;
 }
