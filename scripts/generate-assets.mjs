@@ -111,17 +111,80 @@ function drawOrca(surface, cx, cy, scale, pose = {}) {
   if (pose.alert) polygon([[cx + 41 * scale, cy - 23 * scale], [cx + 48 * scale, cy - 34 * scale], [cx + 52 * scale, cy - 20 * scale]], coral);
 }
 
-// 应用图标使用 WorkIsland Orca 角色的简化版本（resources/icon.png + icon.icns）。
+function pixelRect(surface, x, y, width, height, color) {
+  for (let py = y; py < y + height; py++) for (let px = x; px < x + width; px++) surface.blend(px, py, color);
+}
+
+function drawPixelWorkIsland(surface) {
+  const { roundedRect } = surface;
+  const bg = [8, 16, 31, 255], shadow = [17, 24, 37, 255], navy = [24, 32, 47, 255];
+  const helmet = [74, 84, 101, 255], helmetLight = [137, 149, 166, 255], face = [241, 237, 218, 255];
+  const teal = [87, 226, 177, 255], coral = [255, 116, 100, 255], platform = [100, 112, 130, 255];
+
+  roundedRect(64, 64, 896, 896, 190, bg);
+  pixelRect(surface, 160, 256, 32, 32, [23, 44, 57, 255]);
+  pixelRect(surface, 800, 296, 32, 32, [23, 44, 57, 255]);
+  pixelRect(surface, 176, 288, 16, 16, teal);
+  pixelRect(surface, 816, 328, 16, 16, [36, 121, 105, 255]);
+
+  // The floating island is both a status pill and the WorkIsland wordmark's visual anchor.
+  pixelRect(surface, 280, 688, 464, 24, platform);
+  pixelRect(surface, 240, 712, 544, 32, shadow);
+  pixelRect(surface, 272, 744, 480, 48, navy);
+  pixelRect(surface, 320, 792, 384, 32, shadow);
+  pixelRect(surface, 368, 824, 288, 24, shadow);
+  pixelRect(surface, 304, 712, 416, 12, helmetLight);
+  pixelRect(surface, 704, 808, 32, 32, coral);
+  pixelRect(surface, 720, 808, 16, 16, [255, 159, 135, 255]);
+  pixelRect(surface, 288, 808, 32, 16, [37, 115, 112, 255]);
+
+  // A compact pixel worker, derived from the in-app no-session character.
+  pixelRect(surface, 408, 232, 208, 24, shadow);
+  pixelRect(surface, 376, 256, 272, 24, helmet);
+  pixelRect(surface, 344, 280, 336, 32, shadow);
+  pixelRect(surface, 328, 312, 368, 176, helmet);
+  pixelRect(surface, 352, 488, 320, 32, helmetLight);
+  pixelRect(surface, 376, 520, 272, 24, shadow);
+  pixelRect(surface, 408, 280, 208, 16, helmetLight);
+  pixelRect(surface, 392, 320, 240, 160, navy);
+  pixelRect(surface, 416, 344, 192, 120, face);
+  pixelRect(surface, 440, 344, 144, 16, [255, 249, 230, 255]);
+  pixelRect(surface, 448, 384, 24, 32, navy);
+  pixelRect(surface, 552, 384, 24, 32, navy);
+  pixelRect(surface, 488, 432, 40, 16, [149, 149, 142, 255]);
+  pixelRect(surface, 416, 464, 192, 16, [202, 197, 182, 255]);
+
+  // Side lights make the mark read as a live task indicator at small sizes.
+  pixelRect(surface, 304, 360, 24, 64, shadow);
+  pixelRect(surface, 288, 376, 16, 32, teal);
+  pixelRect(surface, 696, 360, 24, 64, shadow);
+  pixelRect(surface, 720, 376, 16, 32, teal);
+  pixelRect(surface, 304, 376, 8, 16, [163, 255, 211, 255]);
+  pixelRect(surface, 720, 376, 8, 16, [163, 255, 211, 255]);
+
+  pixelRect(surface, 392, 520, 240, 40, shadow);
+  pixelRect(surface, 416, 544, 192, 128, navy);
+  pixelRect(surface, 448, 568, 128, 72, shadow);
+  pixelRect(surface, 480, 584, 64, 24, teal);
+  pixelRect(surface, 496, 584, 32, 8, [171, 255, 213, 255]);
+  pixelRect(surface, 344, 536, 72, 40, shadow);
+  pixelRect(surface, 320, 568, 64, 80, shadow);
+  pixelRect(surface, 608, 536, 72, 40, shadow);
+  pixelRect(surface, 640, 568, 64, 80, shadow);
+  pixelRect(surface, 424, 648, 72, 64, shadow);
+  pixelRect(surface, 528, 648, 72, 64, shadow);
+  pixelRect(surface, 440, 648, 40, 24, helmetLight);
+  pixelRect(surface, 544, 648, 40, 24, helmetLight);
+}
+
+// 应用图标使用截图中的像素角色与 WorkIsland 浮岛状态条结合（resources/icon.png + icon.icns）。
 // 默认构建保留已提交的设计稿；需要刷新图标时显式运行 GENERATE_ICON=1。
 const GENERATE_ICON = process.env.GENERATE_ICON === "1";
 if (GENERATE_ICON) {
 savePng(join(root, "resources/icon.png"), 1024, 1024, (s) => {
-  const { roundedRect, ellipse } = s;
-  roundedRect(64, 64, 896, 896, 210, [13, 18, 28, 255]);
-  ellipse(780, 210, 120, 120, [255, 111, 97, 255]);
-  ellipse(760, 190, 120, 120, [13, 18, 28, 255]);
-  drawOrca(s, 520, 535, 6.4);
+  drawPixelWorkIsland(s);
 });
+copyFileSync(join(root, "resources/icon.png"), join(root, "website/icon.png"));
 }
 
 if (process.platform === "darwin" && GENERATE_ICON) {
