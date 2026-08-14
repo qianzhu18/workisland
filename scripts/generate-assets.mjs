@@ -177,26 +177,21 @@ function drawPixelWorkIsland(surface) {
   pixelRect(surface, 544, 648, 40, 24, helmetLight);
 }
 
-// 应用图标使用截图中的像素角色与 WorkIsland 浮岛状态条结合（resources/icon.png + icon.icns）。
-// 默认构建保留已提交的设计稿；需要刷新图标时显式运行 GENERATE_ICON=1。
-const GENERATE_ICON = process.env.GENERATE_ICON === "1";
-if (GENERATE_ICON) {
-savePng(join(root, "resources/icon.png"), 1024, 1024, (s) => {
-  drawPixelWorkIsland(s);
-});
-copyFileSync(join(root, "resources/icon.png"), join(root, "website/icon.png"));
-}
+// WorkIsland v2 的图标母版：深色圆角应用底座，四角透明；由它统一生成 PNG 与 ICNS。
+const iconSource = join(root, "resources", "icon-workisland-v2.png");
+const iconPng = join(root, "resources", "icon.png");
+copyFileSync(iconSource, iconPng);
+copyFileSync(iconSource, join(root, "website", "icon.png"));
 
-if (process.platform === "darwin" && GENERATE_ICON) {
+if (process.platform === "darwin") {
   const iconDir = mkdtempSync(join(tmpdir(), "orca-icon-"));
-  const source = join(root, "resources", "icon.png");
   const parts = [];
   for (const [type, size] of [
     ["icp4", 16], ["icp5", 32], ["icp6", 64], ["ic07", 128],
     ["ic08", 256], ["ic09", 512], ["ic10", 1024]
   ]) {
     const resized = join(iconDir, `${size}.png`);
-    execFileSync("sips", ["-z", String(size), String(size), source, "--out", resized], { stdio: "ignore" });
+    execFileSync("sips", ["-z", String(size), String(size), iconPng, "--out", resized], { stdio: "ignore" });
     const image = readFileSync(resized);
     const part = Buffer.alloc(8 + image.length);
     part.write(type, 0, 4, "ascii");
