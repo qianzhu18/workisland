@@ -103,6 +103,11 @@ npm run package:mac
 
 ## 许可证与分发
 
-当前公开渠道提供的是 WorkIsland 的闭源 macOS 二进制发行版；源码和内部
-工程文档不随 GitHub 仓库或 Release 发布。DMG 内附第三方运行时的许可说明，
-使用范围以随包附带的分发条款为准。
+WorkIsland 源代码采用 Apache License 2.0，详见 [LICENSE](./LICENSE) 和
+[NOTICE](./NOTICE)。
+
+WorkIsland 名称、商标和 Logo 不随 Apache-2.0 授权。第三方依赖、桌宠素材、
+图片、音频和字体继续遵循各自的许可证，详见 [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md)。
+
+GitHub Releases 提供适用于 Apple Silicon Mac 的 DMG。正式发布前请完成签名、
+公证和第三方许可声明核查。

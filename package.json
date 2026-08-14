@@ -6,7 +6,7 @@
   "private": true,
   "main": "./src/main/index.cjs",
   "author": "WorkIsland contributors",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "keywords": [
     "electron",
     "macos",
@@ -63,6 +63,7 @@
       "resources/**/*",
       "package.json",
       "LICENSE",
+      "NOTICE",
       "README.md",
       "SECURITY.md",
       "THIRD_PARTY_NOTICES.md"
