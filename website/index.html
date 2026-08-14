@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f7f9fc">
+    <meta name="description" content="WorkIsland 是一个本地优先的 macOS 多 Agent 编程任务助手。">
+    <meta property="og:title" content="WorkIsland — 让每个编码任务都在你的视线里">
+    <meta property="og:description" content="在 Mac 灵动岛里掌握 Coding Agent 的运行、审批与完成状态。">
+    <meta property="og:type" content="website">
+    <title>WorkIsland — 多 Agent 编程任务助手</title>
+    <link rel="icon" href="icon.png" type="image/png">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#main">跳到主要内容</a>
+
+    <header class="site-header">
+      <div class="container nav">
+        <a class="brand" href="./" aria-label="WorkIsland 首页">
+          <img src="icon.png" alt="" width="38" height="38">
+          <span>WorkIsland</span>
+        </a>
+        <nav class="nav-links" aria-label="主导航">
+          <a href="#features">能力</a>
+          <a href="#workflow">工作方式</a>
+          <a href="#faq">常见问题</a>
+          <a class="nav-download" href="https://github.com/qianzhu18/workisland/releases/latest" data-download-link>下载</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="hero container">
+        <div class="hero-copy">
+          <p class="eyebrow"><span class="eyebrow-dot"></span> LOCAL-FIRST · FOR MAC</p>
+          <h1>让每个编码任务，<em>都在你的视线里。</em></h1>
+          <p class="hero-lede">WorkIsland 把 Coding Agent 的运行、等待审批、完成和失败，放进 Mac 灵动岛。你不必在终端和 IDE 之间来回找。</p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="https://github.com/qianzhu18/workisland/releases/latest" data-download-link>
+              <span class="button-icon">↓</span>
+              <span>下载最新版本</span>
+            </a>
+            <a class="button button-quiet" href="https://github.com/qianzhu18/workisland" target="_blank" rel="noreferrer">查看 GitHub <span>↗</span></a>
+          </div>
+          <p class="platform-note"><span>Apple Silicon</span><span class="note-separator">·</span><span>macOS</span><span class="note-separator">·</span><span>本地运行</span></p>
+        </div>
+
+        <div class="hero-visual" aria-label="WorkIsland 灵动岛状态预览">
+          <div class="visual-glow visual-glow-one"></div>
+          <div class="visual-glow visual-glow-two"></div>
+          <div class="island-demo">
+            <div class="demo-menubar"><span></span><span></span><span></span></div>
+            <div class="demo-notch"><i></i><i></i></div>
+            <div class="demo-status">
+              <div class="status-orb"><img src="icon.png" alt="" width="50" height="50"></div>
+              <div class="status-copy"><strong>3 个任务正在运行</strong><span>Claude Code · Codex · Cursor</span></div>
+              <span class="status-pulse"></span>
+            </div>
+            <div class="demo-cards">
+              <div class="demo-card"><span class="card-dot cyan"></span><span>重构认证模块</span><small>运行中</small></div>
+              <div class="demo-card"><span class="card-dot coral"></span><span>需要你的确认</span><small>审批</small></div>
+              <div class="demo-card muted"><span class="card-dot lavender"></span><span>更新测试快照</span><small>完成</small></div>
+            </div>
+            <div class="demo-caption"><span>WORKISLAND</span><span>ATTENTION ROUTER</span></div>
+          </div>
+          <div class="floating-pet"><img src="icon.png" alt="WorkIsland Orca 角色" width="96" height="96"><span>专注在真正需要你的地方</span></div>
+        </div>
+      </section>
+
+      <section class="signal-strip" aria-label="产品特点">
+        <div class="container signal-grid">
+          <div><strong>LOCAL BY DEFAULT</strong><span>会话留在你的 Mac</span></div>
+          <div><strong>ONE GLANCE</strong><span>一眼看到所有任务</span></div>
+          <div><strong>PUBLIC REPO</strong><span>仓库与发布过程公开</span></div>
+        </div>
+      </section>
+
+      <section id="features" class="section container">
+        <div class="section-heading">
+          <p class="eyebrow">01 · 核心能力</p>
+          <h2>让注意力回到工作本身。</h2>
+          <p>WorkIsland 不替你做决定，只负责在恰当的时刻把信息递到你面前。</p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card feature-card-large">
+            <div class="feature-number">01</div>
+            <div class="feature-symbol feature-symbol-island">●</div>
+            <h3>灵动岛任务状态</h3>
+            <p>运行、等待回答、需要审批、完成和失败，都在屏幕顶部保持可见。多个 Agent 并行工作，也不会再漏掉关键状态。</p>
+            <div class="mini-island"><span></span><b>等待你的确认</b><i></i></div>
+          </article>
+          <article class="feature-card">
+            <div class="feature-number">02</div>
+            <div class="feature-symbol feature-symbol-route">↗</div>
+            <h3>审批与会话回源</h3>
+            <p>在灵动岛直接处理支持的审批请求，完成后回到正确的 Terminal、iTerm2、Ghostty、Warp 或 IDE 会话。</p>
+            <div class="route-line"><span>WorkIsland</span><i>→</i><span>源会话</span></div>
+          </article>
+          <article class="feature-card">
+            <div class="feature-number">03</div>
+            <div class="feature-symbol feature-symbol-pet">✦</div>
+            <h3>桌宠、声音与用量</h3>
+            <p>让 Orca 角色陪你工作，用轻量提示音提醒重要事件，还能查看本地 Token 消耗趋势。</p>
+            <div class="pet-row"><img src="icon.png" alt="" width="42" height="42"><span>保持专注，也保持一点可爱。</span></div>
+          </article>
+        </div>
+      </section>
+
+      <section id="workflow" class="section section-soft">
+        <div class="container workflow-grid">
+          <div class="workflow-copy">
+            <p class="eyebrow">02 · 工作方式</p>
+            <h2>像一个安静的注意力路由器。</h2>
+            <p>它不要求你把代码上传到云端，也不试图替代 Agent。WorkIsland 只观察本机已经发生的工作事件，再把真正需要你处理的那一刻标出来。</p>
+            <div class="workflow-list">
+              <div><span>01</span><p><strong>Agent 工作</strong><small>你可以继续写代码、看文档或切换项目。</small></p></div>
+              <div><span>02</span><p><strong>WorkIsland 监听</strong><small>本地 Hook 与会话事件汇聚成统一状态。</small></p></div>
+              <div><span>03</span><p><strong>你只在需要时介入</strong><small>审批、回答、回到原会话，动作都在手边完成。</small></p></div>
+            </div>
+          </div>
+          <div class="workflow-art">
+            <div class="art-grid"></div>
+            <div class="art-window">
+              <div class="art-window-top"><span></span><span></span><span></span><b>Agent attention</b></div>
+              <div class="art-window-content">
+                <div class="art-line wide"></div><div class="art-line"></div><div class="art-line short"></div>
+                <div class="art-divider"></div>
+                <div class="art-alert"><span class="alert-icon">!</span><div><b>Permission needed</b><small>Allow changes to auth.ts?</small></div><button>Review</button></div>
+                <div class="art-line"></div><div class="art-line wide"></div>
+              </div>
+            </div>
+            <div class="art-orca"><img src="icon.png" alt="" width="118" height="118"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="download" class="section container download-section">
+        <div class="download-panel">
+          <div class="download-copy">
+            <p class="eyebrow eyebrow-light">03 · 开始使用</p>
+            <h2>把你的任务带到岛上。</h2>
+            <p>下载适用于 Apple Silicon Mac 的最新稳定版。安装包来自 GitHub Releases，版本、校验和发布说明保持在同一处。</p>
+            <a class="button button-light" href="https://github.com/qianzhu18/workisland/releases/latest" data-download-link>
+              <span class="button-icon">↓</span><span data-download-label>下载 WorkIsland</span>
+            </a>
+            <p class="download-meta"><span data-version>正在读取最新版本…</span><span>·</span><span>Apple Silicon DMG</span><span>·</span><a href="https://github.com/qianzhu18/workisland/releases" target="_blank" rel="noreferrer">查看全部版本</a></p>
+          </div>
+          <div class="download-mark"><img src="icon.png" alt="WorkIsland Orca 图标" width="196" height="196"><span>STAY IN FLOW</span></div>
+        </div>
+      </section>
+
+      <section id="faq" class="section container faq-section">
+        <div class="section-heading compact-heading">
+          <p class="eyebrow">04 · 常见问题</p>
+          <h2>下载前，先了解这几件事。</h2>
+        </div>
+        <div class="faq-list">
+          <details open>
+            <summary>WorkIsland 支持哪些 Mac？</summary>
+            <p>当前安装包面向 Apple Silicon Mac（M 系列芯片）。应用依赖 macOS 的灵动岛区域与本地原生窗口能力。</p>
+          </details>
+          <details>
+            <summary>我的会话内容会被上传吗？</summary>
+            <p>不会。WorkIsland 是本地优先应用，不上传会话内容、项目内容或使用数据。官网只负责提供产品信息和 Release 下载入口。</p>
+          </details>
+          <details>
+            <summary>首次打开遇到系统提示怎么办？</summary>
+            <p>优先使用签名、公证后的正式包。测试版如果被 macOS 拦截，请查看仓库 README 中的本机测试说明，不要从第三方网站下载修改过的安装包。</p>
+          </details>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-grid">
+        <div class="footer-brand"><img src="icon.png" alt="" width="32" height="32"><span>WorkIsland</span></div>
+        <p>本地优先的多 Agent 编程任务助手。</p>
+        <div class="footer-links"><a href="https://github.com/qianzhu18/workisland" target="_blank" rel="noreferrer">GitHub</a><a href="https://github.com/qianzhu18/workisland/blob/main/LICENSE" target="_blank" rel="noreferrer">License</a><a href="https://github.com/qianzhu18/workisland/issues" target="_blank" rel="noreferrer">反馈问题</a></div>
+      </div>
+    </footer>
+
+    <script src="script.js" defer></script>
+  </body>
+</html>

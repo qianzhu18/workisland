@@ -60,6 +60,8 @@ const DEFAULT_SHORTCUTS = {
 
 const DEFAULT_SETTINGS = {
   launchAtLogin: false,
+  updateChecksEnabled: true,
+  lastUpdateCheckAt: 0,
   displayPreference: "primary",
   sound: {
     enabled: true,

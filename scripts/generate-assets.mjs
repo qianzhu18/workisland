@@ -111,9 +111,8 @@ function drawOrca(surface, cx, cy, scale, pose = {}) {
   if (pose.alert) polygon([[cx + 41 * scale, cy - 23 * scale], [cx + 48 * scale, cy - 34 * scale], [cx + 52 * scale, cy - 20 * scale]], coral);
 }
 
-// 应用图标由设计师提供的 logo 生成（resources/icon.png + icon.icns），
-// 不再由代码绘制覆盖。如需重新生成，删除 resources/icon.* 后运行
-// GENERATE_ICON=1 npm run build:assets。
+// 应用图标使用 WorkIsland Orca 角色的简化版本（resources/icon.png + icon.icns）。
+// 默认构建保留已提交的设计稿；需要刷新图标时显式运行 GENERATE_ICON=1。
 const GENERATE_ICON = process.env.GENERATE_ICON === "1";
 if (GENERATE_ICON) {
 savePng(join(root, "resources/icon.png"), 1024, 1024, (s) => {
@@ -199,4 +198,4 @@ const sounds = {
 };
 for (const [name, tones] of Object.entries(sounds)) wav(join(root, "resources/sounds", `${name}.wav`), tones.map(([frequency, start]) => ({ frequency, start, duration: 0.25 })));
 
-console.log("Generated WorkIsland assets (icon preserved from logo, pet sprite, usage indicators, sounds).");
+console.log("Generated WorkIsland assets (Orca app icon, pet sprite, usage indicators, sounds).");

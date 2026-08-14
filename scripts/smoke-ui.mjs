@@ -77,7 +77,7 @@ if (!authoredSettingsReady) {
 }
 const unavailableNavigationVisible = await evaluate(
   settings,
-  "['飞书', 'SSH 远程', 'CloudAgent', '检查更新'].some((label) => document.body.innerText.includes(label))"
+  "['飞书', 'SSH 远程', 'CloudAgent'].some((label) => document.body.innerText.includes(label))"
 );
 if (unavailableNavigationVisible) throw new Error("Unavailable private-service navigation is still visible");
 

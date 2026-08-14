@@ -41,6 +41,8 @@ npm run dev:isolated
 
 ## 下载与首次启动测试
 
+产品官网：[WorkIsland](https://qianzhu18.github.io/workisland/)。官网的下载按钮会指向最新稳定版 GitHub Release，GitHub Release 是安装包的唯一分发源。
+
 从 [GitHub Releases](https://github.com/qianzhu18/workisland/releases) 下载适用于 Apple Silicon Mac 的 DMG，拖动 `WorkIsland.app` 到“应用程序”后即可测试。应用保持本地运行，首次启动不需要配置云端账号。
 
 如果 macOS 因为测试包未签名而阻止打开，可以在应用已经复制到“应用程序”后清除隔离属性：

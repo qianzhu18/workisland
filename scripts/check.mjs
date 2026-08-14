@@ -110,7 +110,7 @@ for (const file of targets) {
 }
 
 const settingsApp = readFileSync(join(root, "src/renderer/settings-app.js"), "utf8");
-for (const unavailableFeature of ["feishuNotify", "getUpdateStatus", "remoteProfiles", "cloudAgentStatus"]) {
+for (const unavailableFeature of ["feishuNotify", "remoteProfiles", "cloudAgentStatus"]) {
   if (settingsApp.includes(unavailableFeature)) {
     console.error(`Unavailable settings feature returned: ${unavailableFeature}`);
     process.exit(1);
