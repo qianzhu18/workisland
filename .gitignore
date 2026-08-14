@@ -3,6 +3,7 @@
 .local-home/
 .local-logs/
 *.log
+demo/*.mov
 
 node_modules/
 out/
