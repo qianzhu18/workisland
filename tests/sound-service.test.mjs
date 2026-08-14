@@ -52,3 +52,7 @@ test("partial persisted sound settings retain every default event", () => {
   assert.equal(merged.sound.events.sessionStart.enabled, true);
   assert.equal(merged.sound.events.approvalNeeded.enabled, true);
 });
+
+test("completion notifications default to ten seconds when no user value exists", () => {
+  assert.equal(mergeSettings({}).completionPopupDurationSec, 10);
+});

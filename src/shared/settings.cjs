@@ -75,7 +75,7 @@ const DEFAULT_SETTINGS = {
   alwaysHide: false,
   hideWhenNoActiveSessions: false,
   autoCollapseOnMouseLeave: true,
-  completionPopupDurationSec: 5,
+  completionPopupDurationSec: 10,
   showUsageQuota: true,
   usageDisplayValue: "used",
   disableClaudeTerminalTitle: true,

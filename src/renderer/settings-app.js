@@ -102,7 +102,17 @@ function generalPage() {
     row("全屏时隐藏", "全屏应用位于当前屏幕时隐藏 Island。", toggle(state.settings.hideWhenFullscreen, v => save({ hideWhenFullscreen: v }), "全屏时隐藏")),
     row("没有会话时隐藏", "仅在 Agent 活动期间显示 Island。", toggle(state.settings.hideWhenNoActiveSessions, v => save({ hideWhenNoActiveSessions: v }), "无会话时隐藏")),
     row("需要操作时展开", "审批、提问或计划确认到来时自动展开。", toggle(state.settings.expandOnActionRequired, v => save({ expandOnActionRequired: v }), "操作时展开")),
-    row("任务完成时展开", "Agent 完成当前轮次时短暂展示结果。", toggle(state.settings.expandOnSessionComplete, v => save({ expandOnSessionComplete: v }), "完成时展开"))
+    row("任务完成时展开", "Agent 完成当前轮次时短暂展示结果。", toggle(state.settings.expandOnSessionComplete, v => save({ expandOnSessionComplete: v }), "完成时展开")),
+    row(
+      "完成通知停留时间",
+      "只影响任务完成通知；审批、提问和失败通知会保留到你处理为止。",
+      select(
+        state.settings.completionPopupDurationSec,
+        [["5", "5 秒"], ["10", "10 秒"], ["20", "20 秒"], ["30", "30 秒"]],
+        v => save({ completionPopupDurationSec: Number(v) }),
+        "完成通知停留时间"
+      )
+    )
   );
 
   const display = section("显示", "选择 Island 所在屏幕与信息密度。");
