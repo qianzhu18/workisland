@@ -14,6 +14,7 @@ const useSessionStore = create((set) => ({
   notificationAutoDismiss: false,
   agentQuotas: {},
   onboardingExpand: false,
+  hasUpdate: false,
   toggleExpandTick: 0,
   collapseTick: 0,
   switchSessionTick: 0,
@@ -25,13 +26,14 @@ const useSessionStore = create((set) => ({
   clearSurface: () => set({ surface: null, openReason: null, notificationAutoDismiss: false }),
   setAgentQuotas: (agentQuotas) => set({ agentQuotas }),
   setOnboardingExpand: (onboardingExpand) => set({ onboardingExpand }),
+  setHasUpdate: (hasUpdate) => set({ hasUpdate }),
   requestToggleExpand: () => set((state) => ({ toggleExpandTick: state.toggleExpandTick + 1 })),
   requestCollapse: () => set((state) => ({ collapseTick: state.collapseTick + 1 })),
   requestSwitchSession: (direction) => set((state) => ({ switchSessionTick: state.switchSessionTick + 1, switchSessionDirection: direction })),
   requestConfirmSession: () => set((state) => ({ confirmSessionTick: state.confirmSessionTick + 1 }))
 }));
 function useIslandState() {
-  const { setSessions, setNotchInfo, presentSurface, setAgentQuotas } = useSessionStore();
+  const { setSessions, setNotchInfo, presentSurface, setAgentQuotas, setHasUpdate } = useSessionStore();
   reactExports.useEffect(() => {
     const bridge = window.islandBridge;
     if (!bridge) {
@@ -48,6 +50,7 @@ function useIslandState() {
       presentSurface(surface, reason, autoDismiss);
     });
     bridge.onQuotaUpdate((quotas) => setAgentQuotas(quotas));
+    const offUpdate = bridge.onUpdateAvailable?.(() => setHasUpdate(true));
     void bridge.getQuotaMap().then((quotas) => {
       if (quotas && Object.keys(quotas).length > 0) setAgentQuotas(quotas);
     });
@@ -69,6 +72,7 @@ function useIslandState() {
     bridge.onConfirmSession?.(() => {
       useSessionStore.getState().requestConfirmSession();
     });
+    return () => offUpdate?.();
   }, []);
 }
 function useIslandAnimation() {
@@ -108,7 +112,8 @@ function IslandApp() {
     notificationAutoDismiss,
     clearSurface,
     presentSurface,
-    agentQuotas
+    agentQuotas,
+    hasUpdate
   } = useSessionStore();
   const onboardingExpand = useSessionStore((s) => s.onboardingExpand);
   const setOnboardingExpand = useSessionStore((s) => s.setOnboardingExpand);
@@ -150,7 +155,6 @@ function IslandApp() {
   const [hoverToOpen, setHoverToOpen] = reactExports.useState(DEFAULT_SETTINGS.hoverToOpen);
   const [autoCollapseOnMouseLeave, setAutoCollapseOnMouseLeave] = reactExports.useState(DEFAULT_SETTINGS.autoCollapseOnMouseLeave);
   const [showUsageQuota, setShowUsageQuota] = reactExports.useState(DEFAULT_SETTINGS.showUsageQuota);
-  const hasUpdate = false;
   const [tokenBurnTotal, setTokenBurnTotal] = reactExports.useState(0);
   const [autoCollapseDurationMs, setAutoCollapseDurationMs] = reactExports.useState(
     DEFAULT_SETTINGS.completionPopupDurationSec * 1e3

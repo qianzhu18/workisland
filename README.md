@@ -59,9 +59,9 @@ xattr -dr com.apple.quarantine "/Applications/WorkIsland.app"
 
 ## 仓库边界
 
-项目专注于本地功能。云端账号、远程开发机、遥测和自动更新不属于当前产品边界；应用不会向这些服务建立连接，也不会上传会话内容。
+项目专注于本地功能。应用不会连接云端账号、远程开发机或遥测服务，也不会上传会话内容。安装版会按设置每日请求一次 GitHub Release 版本信息，用于更新提醒；详细规则见 [发布与更新流程](./docs/RELEASE_PROCESS.md)。
 
-代码结构见 [架构说明](./docs/ARCHITECTURE.md)，不支持功能的完整原因见 [功能边界](./docs/UNAVAILABLE_FEATURES.md)，公开发布前请完成 [发布检查](./docs/RELEASE_CHECKLIST.md)。
+代码结构见 [架构说明](./docs/ARCHITECTURE.md)，不支持功能的完整原因见 [功能边界](./docs/UNAVAILABLE_FEATURES.md)，公开发布前请完成 [发布与更新流程](./docs/RELEASE_PROCESS.md)。
 
 应用图标、用量图标和提示音由仓库内 `npm run build:assets` 可重复生成（应用图标由设计师提供的 logo 生成，不会被覆盖）。刘海定位、窗口层级、圆角与触觉反馈模块的 Objective-C++ 源码位于 `native/panel-fix/`，可通过 `npm run build:native` 重建。
 
@@ -91,15 +91,15 @@ npm ci
 npm run package:mac
 ```
 
-产物位于 `release/WorkIsland-<version>-arm64.dmg`。GitHub Actions 的 `release` 工作流支持手动运行；推送与 `package.json` 版本一致的标签（例如 `v0.2.6`）时，会自动创建 GitHub Release 并上传 DMG 与 SHA-256 校验文件。
+产物位于 `release/WorkIsland-<version>-arm64.dmg`。GitHub Actions 的 `release` 工作流支持手动运行；推送与 `package.json` 版本一致的标签（例如 `v0.3.0`）时，会自动构建、签名、公证并创建 GitHub Release，随后上传 DMG 与 SHA-256 校验文件。完整步骤见 [发布与更新流程](./docs/RELEASE_PROCESS.md)。
 
-没有 Apple Developer 证书时仍可生成未签名 DMG，但用户首次打开需要在系统设置中确认。正式公开分发建议在 GitHub 仓库 Actions Secrets 中配置：
+正式 Tag 发布必须在 GitHub Actions Secrets 中配置：
 
 - `CSC_LINK`：Developer ID Application 证书的 Base64 或安全下载地址
 - `CSC_KEY_PASSWORD`：证书密码
 - `APPLE_API_KEY`、`APPLE_API_KEY_ID`、`APPLE_API_ISSUER`：App Store Connect API Key，用于公证
 
-这些 Secrets 都是可选的；未配置时工作流会跳过签名与公证。
+未配置这些 Secrets 时，Tag 发布会主动失败，避免把未签名安装包误作为正式版本公开。手动运行工作流仍可用于生成临时构建产物。
 
 ## 许可证与分发
 

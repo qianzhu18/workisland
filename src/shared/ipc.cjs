@@ -89,6 +89,8 @@ const IPC = Object.freeze({
   SET_LOCALE: "locale:set",
   APP_QUIT: "app:quit",
   APP_OPEN_EXTERNAL: "app:open-external",
+  APP_CHECK_FOR_UPDATES: "app:check-for-updates",
+  APP_UPDATE_AVAILABLE: "app:update-available",
   USAGE_GET_QUOTA: "usage:get-quota",
   USAGE_GET_QUOTA_MAP: "usage:get-quota-map",
   STATS_GET_SNAPSHOT: "stats:get-snapshot",

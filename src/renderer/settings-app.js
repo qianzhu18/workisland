@@ -3,7 +3,7 @@
 const api = window.settingsApi;
 
 const DEFAULT_PET_SPRITE = "codex:qianxue";
-const state = { settings: null, statuses: new Map(), displays: [], codexPets: [], activeTab: "general", busy: new Set() };
+const state = { settings: null, statuses: new Map(), displays: [], codexPets: [], activeTab: "general", busy: new Set(), latestUpdate: null };
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -324,10 +324,46 @@ function aboutPage() {
   version.append(el("div", "app-mark", "O"), el("div", "about-copy", "WorkIsland\n正在读取版本…"));
   api.getAppVersion().then(v => version.querySelector(".about-copy").textContent = `WorkIsland\n版本 ${v}`).catch(() => {});
   about.append(version);
+  const updates = section("更新", "仅请求官方版本信息，不上传会话内容或使用数据。");
+  const updateStatus = el("div", "update-status", state.latestUpdate ? `发现新版本 ${state.latestUpdate.latestVersion}` : "尚未检查");
+  let latestUrl = state.latestUpdate?.releaseUrl || "";
+  const openButton = button("打开下载页", () => {
+    if (latestUrl) api.openExternal(latestUrl);
+  });
+  openButton.hidden = !latestUrl;
+  const checkButton = button("检查更新", async () => {
+    checkButton.disabled = true;
+    updateStatus.textContent = "正在检查…";
+    try {
+      const result = await api.checkForUpdates();
+      if (result?.status === "update-available") {
+        state.latestUpdate = result;
+        latestUrl = result.releaseUrl || "";
+        openButton.hidden = !latestUrl;
+        updateStatus.textContent = `发现新版本 ${result.latestVersion}`;
+      } else if (result?.status === "up-to-date") {
+        updateStatus.textContent = `当前已是最新版本（${result.currentVersion}）`;
+      } else if (result?.status === "disabled") {
+        updateStatus.textContent = "开发模式下不执行更新检查";
+      } else {
+        updateStatus.textContent = result?.message || "暂时无法获取更新信息";
+      }
+    } catch (error) {
+      updateStatus.textContent = error?.message || "暂时无法获取更新信息";
+    } finally {
+      checkButton.disabled = false;
+    }
+  });
+  const updateControls = el("div", "inline-controls");
+  updateControls.append(updateStatus, checkButton, openButton);
+  updates.append(
+    row("自动检查更新", "安装版每天检查一次 GitHub Release；关闭后仍可手动检查。", toggle(state.settings.updateChecksEnabled, v => save({ updateChecksEnabled: v }), "自动检查更新")),
+    row("版本检查", "发现新版本后会提醒，并提供官方下载页。", updateControls)
+  );
   const actions = el("div", "section-actions");
   actions.append(button("导出诊断日志", async () => { const path = await api.collectLogs(); showToast(path ? "日志已导出" : "日志导出完成"); }), button("退出应用", () => api.quitApp(), "danger"));
   about.append(actions);
-  root.append(about);
+  root.append(about, updates);
   return root;
 }
 
@@ -361,6 +397,10 @@ async function start() {
     const aliases = { hooks: "agents", pet: "appearance", display: "general" };
     const next = aliases[tab] || tab;
     if (PAGES[next]) { state.activeTab = next; renderPage(); }
+  });
+  api.onUpdateAvailable?.(update => {
+    state.latestUpdate = update;
+    if (state.activeTab === "about") renderPage();
   });
   api.onSettingsChanged?.(settings => { state.settings = settings; renderPage(); });
   renderPage();

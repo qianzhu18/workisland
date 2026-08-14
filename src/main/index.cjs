@@ -25,6 +25,7 @@ const { buildPermissionDirective } = require("./permission-directives.cjs");
 const { createNativePlatformService } = require("./native-platform-service.cjs");
 const { configureLogTransport, createLogLifecycle } = require("./log-lifecycle.cjs");
 const { isAllowedExternalUrl } = require("./external-url-policy.cjs");
+const { createUpdateService } = require("./update-service.cjs");
 const {
   canContinueSessionViaTerminalPrompt,
   isPluginAgentTool,
@@ -608,9 +609,11 @@ const AppCoordinator = createAppCoordinatorClass({
   CODEX_IDLE_INTERRUPT_THRESHOLD_MS
 });
 const { createIpcServices } = require("./ipc-services.cjs");
+let updateService = null;
 const { registerIpcHandlers, getCustomIconDataUrl, applyDockIcon } = createIpcServices({
   performHapticFeedback,
-  isAllowedExternalUrl
+  isAllowedExternalUrl,
+  checkForUpdates: (options) => updateService?.check(options) ?? Promise.resolve({ status: "unavailable" })
 });
 const { createDisplayManagerClass, normalizeDisplayPreference } = require("./display-manager.cjs");
 const DisplayManager = createDisplayManagerClass({
@@ -697,6 +700,19 @@ async function runIslandApp() {
   } catch {
   }
   const coordinator = new AppCoordinator();
+  updateService = createUpdateService({
+    app: electron.app,
+    shell: electron.shell,
+    notificationClass: electron.Notification,
+    userDataPath: electron.app.getPath("userData"),
+    getSettings: () => coordinator.getSettings(),
+    onUpdateAvailable: (update) => {
+      for (const win of electron.BrowserWindow.getAllWindows()) {
+        if (!win.isDestroyed()) win.webContents.send(IPC.APP_UPDATE_AVAILABLE, update);
+      }
+    },
+    logger: log
+  });
   registerIpcHandlers(coordinator);
   if (!coordinator.getSettings().locale) {
     const languages = electron.app.getPreferredSystemLanguages();
@@ -728,6 +744,7 @@ async function runIslandApp() {
       quitWatchdog = null;
     }
     stopLogLifecycle();
+    updateService?.stop();
     coordinator.stop();
     displayManager?.dispose();
     electron.globalShortcut.unregisterAll();
@@ -736,8 +753,8 @@ async function runIslandApp() {
     } catch {
     }
   });
-  electron.app.setName("Orca");
-  utils.electronApp.setAppUserModelId("app.orca.desktop");
+  electron.app.setName("WorkIsland");
+  utils.electronApp.setAppUserModelId("app.workisland.desktop");
   if (process.platform === "darwin" && electron.app.dock) {
     applyDockIcon(getCustomIconDataUrl());
   }
@@ -949,6 +966,7 @@ async function runIslandApp() {
     });
   }
   coordinator.start();
+  updateService.start();
   log.info("[local-dev] session bridge, hooks, process monitor, pet, sound, and haptics enabled");
   child_process.execFile("lsof", ["-i", "TCP", "-P", "-n", "-a", "-p", String(process.pid)], {
     timeout: 3e3

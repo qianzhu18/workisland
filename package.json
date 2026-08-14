@@ -24,6 +24,7 @@
     "setup:electron": "npm install --prefix ./.tools/electron-shell --no-save electron@43.3.0 --cache ./.npm-cache",
     "build:native": "node ./scripts/build-native.mjs",
     "package:mac": "npm run build:assets && npm run build:native && npm run check && electron-builder --mac --arm64 --publish never",
+    "release:check": "node ./scripts/release-check.mjs",
     "check": "npm run build:renderer && node ./scripts/check.mjs && node ./scripts/test-source.mjs && npm run test:unit",
     "test:unit": "node --test tests/*.test.mjs",
     "smoke:hook": "node ./scripts/smoke-hook.mjs",

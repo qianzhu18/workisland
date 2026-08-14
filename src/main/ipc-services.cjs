@@ -11,7 +11,7 @@ const { listCodexPets, resolveCodexPet } = require("./codex-pet.cjs");
 const { previewSound, getUserSoundsDir } = require("./sound-service.cjs");
 const path__namespace = path;
 
-function createIpcServices({ performHapticFeedback, isAllowedExternalUrl }) {
+function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, checkForUpdates = async () => ({ status: "unavailable" }) }) {
   const CUSTOM_ICON_FILE = "custom-icon.png";
   const MAX_CUSTOM_ICON_BYTES = 10 * 1024 * 1024;
   function getBundledIconPath() {
@@ -182,6 +182,7 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl }) {
     electron.ipcMain.handle(IPC.SETTINGS_GET, () => {
       return coordinator.getSettings();
     });
+    electron.ipcMain.handle(IPC.APP_CHECK_FOR_UPDATES, () => checkForUpdates({ force: true, notify: false }));
     electron.ipcMain.handle(IPC.GET_LOCALE, () => {
       return coordinator.getSettings().locale ?? "zh";
     });
