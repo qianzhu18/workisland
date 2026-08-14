@@ -354,7 +354,13 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl }) {
       // The renderer may omit the argument; use the setting so custom files
       // and Codex V2 pets are actually reachable from the settings page.
       const configuredSprite = coordinator.getSettings()?.petSprite || DEFAULT_SPRITE;
-      const selection = resolveSpriteSelection(fileName || configuredSprite);
+      const requested = fileName || configuredSprite;
+      // echo:little 不是雪碧图文件，是渲染层的程序化模式标识。走文件解析必然
+      // 失败并落进 Orca 兜底 —— 用户看到的就是「选了 Echo 却出来一条鱼」。
+      if (requested === "echo:little") {
+        return { echoMode: true };
+      }
+      const selection = resolveSpriteSelection(requested);
       const filePath = selection.filePath;
       const { size } = await promises.stat(filePath);
       if (size > 10 * 1024 * 1024) {

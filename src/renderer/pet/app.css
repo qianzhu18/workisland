@@ -954,3 +954,29 @@ body {
   margin-top: 3px;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
 }
+
+/* ── Echo 程序化桌宠 ──────────────────────────────────────────────────────
+ * LittleEcho 画布比例 1034×432（横向），容器只定宽，高度按比例自适应；
+ * 指针事件穿透到 pet-container，拖动/点击行为与雪碧图模式一致。 */
+.pet-echo {
+  position: relative;
+  margin: 0 auto;
+  cursor: grab;
+}
+
+.pet-echo:active {
+  cursor: grabbing;
+}
+
+
+/* ── Echo 模式的外围元素落位 ──────────────────────────────────────────────
+ * Echo 盒子几乎占满容器，气泡和 token 计数按默认位置会直接压在身体上。
+ * 窗口比容器高，垂直方向有富余：气泡抬到头顶上方，token 计数沉到身体下方。 */
+.pet-root.is-echo .pet-speech-bubble {
+  top: calc(-34px * var(--pet-scale, 1));
+}
+
+.pet-root.is-echo .token-count-container {
+  left: 0;
+  bottom: calc(-24px * var(--pet-scale, 1));
+}
