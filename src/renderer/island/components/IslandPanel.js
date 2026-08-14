@@ -115,17 +115,31 @@ function usagePctColor(pct) {
   if (pct >= 50) return "#FFC224";
   return "#00F873";
 }
+function remainingPctColor(pct) {
+  // 余量越低越危险：≤20% 红，≤50% 黄，其余绿
+  if (pct <= 20) return "#FF304B";
+  if (pct <= 50) return "#FFC224";
+  return "#00F873";
+}
 function AgentQuotaCell({ tool, quota }) {
   const dailyValid = isValidPeriod(quota.daily);
   const weeklyValid = isValidPeriod(quota.weekly);
   const [showTooltip, setShowTooltip] = React.useState(false);
   const activePeriod = dailyValid ? quota.daily : weeklyValid ? quota.weekly : null;
+  // 灵动岛应以「剩余余量」展示：余量 = 100 − 已用。
+  // 之前直接展示 usedPct（已用%），导致 Codex 余量耗尽（剩余 0%）时数字显示成 100%，
+  // 与用户直觉（余量应为 0%）正好相反。
+  const remainingPct = activePeriod
+    ? Math.max(0, Math.min(100, 100 - activePeriod.usedPct))
+    : 0;
   const tooltipLines = [];
   if (dailyValid) {
-    tooltipLines.push(`${i18n.k296832979({ placeholder1: quota.daily.total, placeholder2: formatPct(quota.daily.usedPct), placeholder3: quota.daily.remaining }, "{placeholder1} 额度已用 {placeholder2}%, {placeholder3} 后重置")}`);
+    const r = Math.max(0, Math.min(100, 100 - quota.daily.usedPct));
+    tooltipLines.push(`${quota.daily.total} 余量 ${formatPct(r)}%, ${quota.daily.remaining} 后重置`);
   }
   if (weeklyValid) {
-    tooltipLines.push(`${i18n.k296832979({ placeholder1: quota.weekly.total, placeholder2: formatPct(quota.weekly.usedPct), placeholder3: quota.weekly.remaining }, "{placeholder1} 额度已用 {placeholder2}%, {placeholder3} 后重置")}`);
+    const r = Math.max(0, Math.min(100, 100 - quota.weekly.usedPct));
+    tooltipLines.push(`${quota.weekly.total} 余量 ${formatPct(r)}%, ${quota.weekly.remaining} 后重置`);
   }
   return /* @__PURE__ */ React.createElement(
     "div",
@@ -135,7 +149,7 @@ function AgentQuotaCell({ tool, quota }) {
       onMouseLeave: () => setShowTooltip(false)
     },
     /* @__PURE__ */ React.createElement("span", { className: "agent-monogram", title: AGENT_TOOL_LABELS[tool], style: { background: AGENT_BADGE_COLORS[tool] ?? "#7B8794" } }, String(AGENT_TOOL_LABELS[tool] ?? tool).slice(0, 1).toUpperCase()),
-    activePeriod && /* @__PURE__ */ React.createElement("span", { className: "usage-cell-text" }, /* @__PURE__ */ React.createElement("span", { className: "usage-period" }, activePeriod.total, " ", /* @__PURE__ */ React.createElement("span", { style: { color: usagePctColor(activePeriod.usedPct) } }, formatPct(activePeriod.usedPct), "%"), " ", activePeriod.remaining)),
+    activePeriod && /* @__PURE__ */ React.createElement("span", { className: "usage-cell-text" }, /* @__PURE__ */ React.createElement("span", { className: "usage-period" }, activePeriod.total, " ", /* @__PURE__ */ React.createElement("span", { style: { color: remainingPctColor(remainingPct) } }, "余量", formatPct(remainingPct), "%"), " ", activePeriod.remaining)),
     tooltipLines.length > 0 && showTooltip && /* @__PURE__ */ React.createElement("span", { className: "usage-cell-tooltip is-visible", role: "tooltip" }, tooltipLines.join("\n"))
   );
 }
