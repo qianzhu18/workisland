@@ -14,7 +14,9 @@ function createPresentationRequest(event, settings) {
       },
       priority: event.error ? "error" : "completion",
       autoDismiss: !event.error,
-      suppressWhenFocused: !event.error
+      // A completion is a user-visible outcome, not background progress. It
+      // must remain visible even when the originating Agent is frontmost.
+      suppressWhenFocused: false
     };
   }
 

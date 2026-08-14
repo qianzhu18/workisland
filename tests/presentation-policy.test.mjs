@@ -25,7 +25,7 @@ test("a completion opens the hover-equivalent panel filtered to its session", ()
       surface: { type: "sessionList", actionableSessionId: "completed-session", visibleSessionIds: ["completed-session"] },
       priority: "completion",
       autoDismiss: true,
-      suppressWhenFocused: true
+      suppressWhenFocused: false
     }
   );
 });
