@@ -32,6 +32,7 @@ button, select, input { font:inherit; }
 .switch input:checked + .switch-track::after { transform:translateX(16px); }
 select { min-width:142px; height:30px; padding:0 28px 0 9px; color:inherit; background:rgba(255,255,255,.68); border:1px solid var(--line); border-radius:7px; }
 .inline-controls { display:flex; align-items:center; gap:8px; flex:0 0 auto; }
+.update-status { color:var(--muted); font-size:12px; white-space:nowrap; }
 .inline-controls select { min-width:220px; }
 .text-input { width:230px; height:30px; padding:0 9px; color:inherit; background:rgba(255,255,255,.68); border:1px solid var(--line); border-radius:7px; }
 .compact-select { min-width:130px; height:27px; margin-top:7px; font-size:12px; }

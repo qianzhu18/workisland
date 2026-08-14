@@ -39,6 +39,11 @@ electron.contextBridge.exposeInMainWorld("islandBridge", {
   onQuotaUpdate(cb) {
     electron.ipcRenderer.on(ipc.IPC.ISLAND_QUOTA_UPDATE, (_event, quotas) => cb(quotas));
   },
+  onUpdateAvailable(cb) {
+    const handler = (_event, update) => cb(update);
+    electron.ipcRenderer.on(ipc.IPC.APP_UPDATE_AVAILABLE, handler);
+    return () => electron.ipcRenderer.removeListener(ipc.IPC.APP_UPDATE_AVAILABLE, handler);
+  },
   // 渲染挂载时主动拉一次当前快照，兜底"启动期间事件已错过"的场景。
   getQuotaMap() {
     return electron.ipcRenderer.invoke(ipc.IPC.USAGE_GET_QUOTA_MAP);

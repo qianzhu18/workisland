@@ -6,6 +6,8 @@ import { spawnSync } from "node:child_process";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const required = [
   "package.json",
+  "LICENSE",
+  "NOTICE",
   "THIRD_PARTY_NOTICES.md",
   "src/shared/ipc.cjs",
   "src/shared/settings.cjs",
@@ -14,6 +16,7 @@ const required = [
   "src/main/log-lifecycle.cjs",
   "src/main/session-policy.cjs",
   "src/main/external-url-policy.cjs",
+  "src/main/update-service.cjs",
   "src/main/index.cjs",
   "src/preload/island.js",
   "src/preload/settings.js",
@@ -82,7 +85,7 @@ if (packageJson.main !== "./src/main/index.cjs") {
   console.error("package.json must run from src/main/index.cjs.");
   process.exit(1);
 }
-if (packageJson.license !== "MIT" || !existsSync(join(root, "LICENSE"))) {
+if (packageJson.license !== "Apache-2.0" || !existsSync(join(root, "LICENSE")) || !existsSync(join(root, "NOTICE"))) {
   console.error("The source license metadata is incomplete.");
   process.exit(1);
 }

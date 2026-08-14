@@ -93,7 +93,8 @@ const DEFAULT_PILL_FIRST_ROW = {
   claudeSubscription: true,
   codexSubscription: true,
   tokenCount: true,
-  soundIcon: true
+  soundIcon: true,
+  upgradeButton: true
 };
 const DEFAULT_SHORTCUTS = {
   modifiers: ["Ctrl"],
@@ -124,6 +125,7 @@ const DEFAULT_SETTINGS = {
   expandOnSessionComplete: true,
   expandOnActionRequired: true,
   suppressNotificationWhenFocused: true,
+  updateChecksEnabled: true,
   hookToggles: { ...DEFAULT_HOOK_TOGGLES },
   approvalModes: { ...DEFAULT_APPROVAL_MODES },
   showDebugWindow: false,

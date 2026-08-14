@@ -814,7 +814,7 @@ function createWindowClasses(dependencies) {
         minimizable: true,
         maximizable: false,
         fullscreenable: false,
-        title: "Orca Settings",
+        title: "WorkIsland Settings",
         titleBarStyle: "hiddenInset",
         trafficLightPosition: { x: 14, y: 14 },
         transparent: true,
@@ -866,7 +866,7 @@ function createWindowClasses(dependencies) {
         minHeight: 600,
         show: false,
         resizable: true,
-        title: "Orca Debug Playground",
+        title: "WorkIsland Debug Playground",
         icon: path.join(__dirname, "../../resources/icon.png"),
         webPreferences: {
           preload: path.join(__dirname, "../preload/debug.js"),

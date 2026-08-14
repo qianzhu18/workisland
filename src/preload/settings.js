@@ -39,6 +39,12 @@ electron.contextBridge.exposeInMainWorld("settingsApi", {
   openExternal: (url) => {
     electron.ipcRenderer.send(ipc.IPC.APP_OPEN_EXTERNAL, url);
   },
+  checkForUpdates: () => electron.ipcRenderer.invoke(ipc.IPC.APP_CHECK_FOR_UPDATES),
+  onUpdateAvailable: (cb) => {
+    const handler = (_event, update) => cb(update);
+    electron.ipcRenderer.on(ipc.IPC.APP_UPDATE_AVAILABLE, handler);
+    return () => electron.ipcRenderer.removeListener(ipc.IPC.APP_UPDATE_AVAILABLE, handler);
+  },
   getAppVersion: () => electron.ipcRenderer.invoke(ipc.IPC.GET_APP_VERSION),
   onNavigateToTab: (cb) => {
     electron.ipcRenderer.on(ipc.IPC.SETTINGS_NAVIGATE_TO_TAB, (_event, tab) => cb(tab));
