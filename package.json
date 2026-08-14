@@ -1,7 +1,7 @@
 {
   "name": "workisland",
   "productName": "WorkIsland",
-  "version": "0.2.7",
+  "version": "0.2.8-beta.1",
   "description": "macOS 本地 Work Agent 工作状态与注意力路由器",
   "private": true,
   "main": "./src/main/index.cjs",
@@ -96,7 +96,14 @@
         }
       ],
       "category": "public.app-category.productivity",
-      "icon": "resources/icon.icns"
+      "icon": "resources/icon.icns",
+      "hardenedRuntime": true,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "signIgnore": [
+        "/Resources/.*\\.lproj/",
+        "\\.(pak|png|webp|wav|json|icns|dat|bin)$"
+      ]
     },
     "dmg": {
       "title": "WorkIsland"
