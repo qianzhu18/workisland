@@ -9,3 +9,8 @@
 export function shouldCollapseOnFocusLoss({ isVisible, enabled, followUpFocused }) {
   return Boolean(isVisible && enabled && !followUpFocused);
 }
+
+export function resolveFocusLossPresentation({ isVisible, followUpFocused }) {
+  if (!isVisible || followUpFocused) return "unchanged";
+  return "pill";
+}

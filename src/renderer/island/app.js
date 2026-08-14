@@ -5,12 +5,13 @@ import { D as DEFAULT_NOTCH_INFO, r as requiresAttention, d as dominantPhase, I 
 import { c as create } from "../vendor/store.js";
 import { I as IslandPanel } from "./components/IslandPanel.js";
 import { isVisibleInIsland } from "./session-model.mjs";
-import { shouldCollapseOnFocusLoss } from "./focus-policy.mjs";
+import { resolveFocusLossPresentation, shouldCollapseOnFocusLoss } from "./focus-policy.mjs";
 const useSessionStore = create((set) => ({
   sessions: [],
   notchInfo: window.islandBridge?.__initialNotchInfo ?? DEFAULT_NOTCH_INFO,
   surface: null,
   openReason: null,
+  notificationAutoDismiss: false,
   agentQuotas: {},
   onboardingExpand: false,
   toggleExpandTick: 0,
@@ -20,8 +21,8 @@ const useSessionStore = create((set) => ({
   confirmSessionTick: 0,
   setSessions: (sessions) => set({ sessions }),
   setNotchInfo: (notchInfo) => set({ notchInfo }),
-  presentSurface: (surface, openReason) => set({ surface, openReason }),
-  clearSurface: () => set({ surface: null, openReason: null }),
+  presentSurface: (surface, openReason, notificationAutoDismiss = false) => set({ surface, openReason, notificationAutoDismiss }),
+  clearSurface: () => set({ surface: null, openReason: null, notificationAutoDismiss: false }),
   setAgentQuotas: (agentQuotas) => set({ agentQuotas }),
   setOnboardingExpand: (onboardingExpand) => set({ onboardingExpand }),
   requestToggleExpand: () => set((state) => ({ toggleExpandTick: state.toggleExpandTick + 1 })),
@@ -43,8 +44,8 @@ function useIslandState() {
     bridge.onSessionUpdate((sessions) => {
       setSessions(sessions);
     });
-    bridge.onPresentSurface(({ surface, reason }) => {
-      presentSurface(surface, reason);
+    bridge.onPresentSurface(({ surface, reason, autoDismiss }) => {
+      presentSurface(surface, reason, autoDismiss);
     });
     bridge.onQuotaUpdate((quotas) => setAgentQuotas(quotas));
     void bridge.getQuotaMap().then((quotas) => {
@@ -104,6 +105,7 @@ function IslandApp() {
     notchInfo,
     surface,
     openReason,
+    notificationAutoDismiss,
     clearSurface,
     presentSurface,
     agentQuotas
@@ -122,11 +124,6 @@ function IslandApp() {
   const attentionNotifTimer = reactExports.useRef(null);
   const hoverOpenTimer = reactExports.useRef(null);
   const mouseLeaveCloseTimer = reactExports.useRef(
-    null
-  );
-  // 鼠标离开/失焦后，先收成可见胶囊，再经过 autoCollapseDurationMs 完全隐身。
-  // 这个 timer 负责第二阶段（胶囊→隐身 hotspot）。
-  const concealAfterCollapseTimer = reactExports.useRef(
     null
   );
   const warmupCloseTimerRef = reactExports.useRef(
@@ -206,21 +203,6 @@ function IslandApp() {
       unsubscribe?.();
     };
   }, []);
-  // 两阶段隐藏：先收成可见胶囊（close → visible-pill，opacity 1），停留
-  // autoCollapseDurationMs 后再 hideForFocusLoss（→ 透明 hotspot，opacity 0）。
-  // 这正是用户要的"光标拖出去后保持胶囊 5 秒再完全消失"。任一阶段鼠标回到
-  // 岛上（handleMouseEnter）都会清掉 concealAfterCollapseTimer 并重新展开。
-  // 定义在此处（settings effect 之后、blur effect 之前）以避免 const 暂时性死区。
-  const concealToHiddenAfterDelay = reactExports.useCallback(() => {
-    if (concealAfterCollapseTimer.current) {
-      clearTimeout(concealAfterCollapseTimer.current);
-      concealAfterCollapseTimer.current = null;
-    }
-    concealAfterCollapseTimer.current = setTimeout(() => {
-      concealAfterCollapseTimer.current = null;
-      window.islandBridge?.hideForFocusLoss?.();
-    }, autoCollapseDurationMs);
-  }, [autoCollapseDurationMs]);
   reactExports.useEffect(() => {
     setMounted(true);
   }, []);
@@ -264,8 +246,6 @@ function IslandApp() {
         clearTimeout(resizeWindowTimerRef.current);
       if (collapsePanelToPillTimerRef.current)
         clearTimeout(collapsePanelToPillTimerRef.current);
-      if (concealAfterCollapseTimer.current)
-        clearTimeout(concealAfterCollapseTimer.current);
     };
   }, []);
   reactExports.useEffect(() => {
@@ -290,11 +270,11 @@ function IslandApp() {
       if (focusLossHandledRef.current) return;
       focusLossHandledRef.current = true;
       pendingFollowUpDismissRef.current = false;
-      // 失焦也走两阶段：先收成胶囊，停留 5 秒后完全隐身。
+      if (resolveFocusLossPresentation({ isVisible: mounted, followUpFocused }) !== "pill") return;
+      // 普通失焦只收成默认胶囊，保持左侧角色可见。
       clearSurface();
       close();
       window.islandBridge?.surfaceDismissed();
-      concealToHiddenAfterDelay();
     };
     const handleWindowFocus = () => {
       focusLossHandledRef.current = false;
@@ -307,7 +287,7 @@ function IslandApp() {
       window.removeEventListener("workisland-window-blur", handleWindowBlur);
       window.removeEventListener("focus", handleWindowFocus);
     };
-  }, [close, clearSurface, mounted, concealToHiddenAfterDelay]);
+  }, [close, clearSurface, mounted]);
   const collapsePanelToPill = reactExports.useCallback(() => {
     if (mouseLeaveCloseTimer.current) {
       clearTimeout(mouseLeaveCloseTimer.current);
@@ -392,8 +372,8 @@ function IslandApp() {
       collapsePanelToPillTimerRef.current = null;
     }
     open();
-    const focusedSession = surface.type === "sessionList" && surface.actionableSessionId ? sessions.find((s) => s.id === surface.actionableSessionId) : void 0;
-    if (surface.type === "sessionList" && surface.actionableSessionId && !focusedSession) {
+    const focusedSession = (surface.type === "sessionList" || surface.type === "completion") && surface.actionableSessionId ? sessions.find((s) => s.id === surface.actionableSessionId) : void 0;
+    if ((surface.type === "sessionList" || surface.type === "completion") && surface.actionableSessionId && !focusedSession) {
       close();
       clearSurface();
       window.islandBridge?.surfaceDismissed();
@@ -409,7 +389,7 @@ function IslandApp() {
   // "时间抓不住"。现在 surface 一旦弹出就稳定倒数 autoCollapseDurationMs。
   reactExports.useEffect(() => {
     if (!surface) return;
-    if (openReason !== "notification") return;
+    if (openReason !== "notification" || !notificationAutoDismiss) return;
     if (isFollowUpActiveRef.current) return;
     if (autoCollapseTimer.current) clearTimeout(autoCollapseTimer.current);
     autoCollapseTimer.current = setTimeout(() => {
@@ -421,7 +401,7 @@ function IslandApp() {
     return () => {
       if (autoCollapseTimer.current) clearTimeout(autoCollapseTimer.current);
     };
-  }, [surface, openReason, autoCollapseDurationMs, close, clearSurface]);
+  }, [surface, openReason, notificationAutoDismiss, autoCollapseDurationMs, close, clearSurface]);
   reactExports.useEffect(() => {
     if (!onboardingExpand) return;
     setOnboardingExpand(false);
@@ -528,11 +508,6 @@ function IslandApp() {
       clearTimeout(mouseLeaveCloseTimer.current);
       mouseLeaveCloseTimer.current = null;
     }
-    // 鼠标回到岛上：取消"胶囊→隐身"的第二阶段，保持可见。
-    if (concealAfterCollapseTimer.current) {
-      clearTimeout(concealAfterCollapseTimer.current);
-      concealAfterCollapseTimer.current = null;
-    }
     pendingFollowUpDismissRef.current = false;
     if (autoCollapseTimer.current) clearTimeout(autoCollapseTimer.current);
     if (attentionNotifTimer.current) {
@@ -558,8 +533,7 @@ function IslandApp() {
       hoverOpenTimer.current = null;
     }
     window.islandBridge?.leaveIsland();
-    // 鼠标脱离后两阶段隐藏：先收成可见胶囊（黑胶囊），保持 autoCollapseDurationMs
-    // （默认 5 秒）后再完全隐身（透明 hotspot）。这期间鼠标回到岛上会取消隐身。
+    // 鼠标离开后收成默认胶囊，保持左侧角色可见。
     if (!isOpen) return;
     const isFollowUpFocused = isFollowUpActiveRef.current && document.hasFocus() && document.activeElement?.closest("[data-follow-up-input]");
     if (isFollowUpFocused) {
@@ -570,9 +544,8 @@ function IslandApp() {
       clearSurface();
       close();
       window.islandBridge?.surfaceDismissed();
-      concealToHiddenAfterDelay();
     }, MOUSE_LEAVE_CLOSE_DELAY_MS);
-  }, [isOpen, close, clearSurface, concealToHiddenAfterDelay]);
+  }, [isOpen, close, clearSurface]);
   const handlePillClick = reactExports.useCallback(() => {
     if (hoverOpenTimer.current) {
       clearTimeout(hoverOpenTimer.current);

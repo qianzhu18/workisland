@@ -21,6 +21,7 @@ const { ZCodeHookManager, WorkBuddyHookManager } = require("./hooks-work-agents.
 const { initSoundDirs, playSoundEvent } = require("./sound-service.cjs");
 const { reportTokenUsage, getHermesCumulativeTokens, diffHermesCumulativeTokens } = require("./adapters-extended.cjs");
 const { getAgentDescriptor, validateAgentWiring } = require("../shared/agent-catalog.cjs");
+const { createPresentationRequest } = require("./presentation-policy.cjs");
 
 function createAppCoordinatorClass({
   BridgeServer,
@@ -46,7 +47,6 @@ function createAppCoordinatorClass({
   unwatchActiveSpace,
   requiresAttention,
   canContinueSessionViaTerminalPrompt,
-  shouldAutoDismiss,
   findLatestCodexInterrupt,
   getSessionBundleIds,
   jumpToTarget,
@@ -939,31 +939,10 @@ function createAppCoordinatorClass({
       this.onJumpStateChangeCallback?.(has);
     }
     maybePresentSurface(event) {
-      // sessionStarted（任务发出）和 sessionCompleted（任务结束）是用户明确要的
-      // 两个提醒节点，必须弹 surface 显示 5 秒。permissionRequested/questionAsked
-      // 是中间过程，保留原有门控。
-      const actionableTypes = ["sessionStarted", "permissionRequested", "questionAsked", "sessionCompleted"];
-      if (!actionableTypes.includes(event.type)) return;
-      if (event.type === "sessionStarted") {
-        if (!this.settings.expandOnSessionComplete) return;
-        // 合成的发现事件（transcript watcher 补的 sessionStarted）不弹通知，
-        // 避免与真实 hook 事件重复。
-        if (event.isSynthetic) return;
-      }
-      if (event.type === "sessionCompleted") {
-        if (!this.settings.expandOnSessionComplete) return;
-        if (event.isInterrupt) return;
-        if (event.isSessionEnd) return;
-        if (event.isRalphLoopIteration) return;
-      }
-      if ((event.type === "permissionRequested" || event.type === "questionAsked") && !this.settings.expandOnActionRequired)
-        return;
-      // sessionStarted / sessionCompleted 跳过"聚焦时抑制"——用户要求这两个节点
-      // 无条件提醒，即便正聚焦在发起任务的 app 里也要弹。仅 permission/question
-      // 保留 suppress（中间过程，聚焦时不必打扰）。
-      const skipSuppress = event.type === "sessionStarted" || event.type === "sessionCompleted";
-      if (!skipSuppress && this.settings.suppressNotificationWhenFocused) {
-        const session = this.state.sessions.get(event.sessionId);
+      const session = this.state.sessions.get(event.sessionId);
+      const request = createPresentationRequest({ ...event, error: event.error ?? session?.error }, this.settings);
+      if (!request) return;
+      if (request.suppressWhenFocused && this.settings.suppressNotificationWhenFocused) {
         const sessionBundleIds = session ? getSessionBundleIds(session) : [];
         const frontmostBundleId = getFrontmostAppBundleId();
         const appMatches = !!frontmostBundleId && sessionBundleIds.length > 0 && sessionBundleIds.includes(frontmostBundleId);
@@ -997,23 +976,21 @@ function createAppCoordinatorClass({
         );
         if (hasBlockingSession) return;
       }
-      if (event.type === "sessionCompleted") {
-      }
       this.broadcastSurface({
-        surface: { type: "sessionList", actionableSessionId: event.sessionId },
-        reason: "notification"
+        surface: request.surface,
+        reason: "notification",
+        autoDismiss: request.autoDismiss
       });
     }
     broadcastSurface(payload) {
       if (this.petMode.isActive) {
-        const session = payload.surface.type === "sessionList" && payload.surface.actionableSessionId ? this.state.sessions.get(payload.surface.actionableSessionId) : void 0;
-        const shouldCollapse = shouldAutoDismiss(payload.surface, session?.phase)
-          && payload.reason === "notification"
-          && !Array.from(this.state.sessions.values()).some((s) => requiresAttention(s.phase));
         this.petMode.presentSurface(
           payload.surface,
-          shouldCollapse ? this.settings.completionPopupDurationSec * 1e3 : null
+          payload.autoDismiss ? this.settings.completionPopupDurationSec * 1e3 : null
         );
+        // A pet is the user's chosen primary surface. Keep the Island passive
+        // so one event never creates two competing full-screen interruptions.
+        return;
       }
       if (!this.islandWindow || this.islandWindow.isDestroyed()) return;
       if (this.islandHiddenForFullscreen && this.islandWin) {

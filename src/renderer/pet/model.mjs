@@ -42,7 +42,7 @@ export const CODEX_V2_CELL_HEIGHT = 208;
 
 /**
  * Codex V2 协议下，orca 内部状态 → codex sprite 行的映射。
- * codex 没有 sleep（复用 idle）、没有 drag（用 running-right）。
+ * codex 没有 sleep（复用 idle）；drag 的左右方向由 statusToRow 单独选择。
  */
 export const CODEX_V2_STATUS_TO_ROW = Object.freeze({
   idle: CODEX_V2_ROWS.idle,
@@ -62,11 +62,20 @@ export function isCodexV2Sprite(naturalWidth, naturalHeight) {
   return naturalHeight === CODEX_V2_HEIGHT && naturalWidth === CODEX_V2_WIDTH;
 }
 
-export function statusToRow(status, spriteMeta) {
+export function statusToRow(status, spriteMeta, dragDirection = "right") {
   if (spriteMeta && spriteMeta.protocol === "codex-v2") {
+    if (status === "drag") {
+      return dragDirection === "left" ? CODEX_V2_ROWS["running-left"] : CODEX_V2_ROWS["running-right"];
+    }
     return CODEX_V2_STATUS_TO_ROW[status] ?? CODEX_V2_ROWS.idle;
   }
   return STATUS_ROWS[status];
+}
+
+export function deriveDragDirection(deltaX, currentDirection = "right") {
+  if (deltaX > 0) return "right";
+  if (deltaX < 0) return "left";
+  return currentDirection;
 }
 
 export function statusToIntervalMs(status) {
