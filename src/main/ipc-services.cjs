@@ -90,6 +90,14 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl }) {
       spriteVersionNumber: 2,
       spriteFile: "qianxue.webp",
       value: "codex:qianxue"
+    }),
+    "codex-buddy": Object.freeze({
+      id: "codex-buddy",
+      displayName: "宝剑 Skyler",
+      description: "WorkIsland 内置 Codex V2 桌宠。",
+      spriteVersionNumber: 2,
+      spriteFile: "codex-buddy.webp",
+      value: "codex:codex-buddy"
     })
   });
   function getDefaultSpritesDir() {
