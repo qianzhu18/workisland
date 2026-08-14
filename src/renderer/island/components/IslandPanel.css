@@ -1250,6 +1250,12 @@
 .plan-confirmation-jump-btn:hover {
   background: rgba(255, 255, 255, 0.15);
 }
+.completion-notification {
+  /* The full panel has AgentUsageRow occupying this space; the compact
+   * completion card needs an explicit inset below the physical MacBook notch. */
+  padding-top: var(--island-safe-top-inset, 24px);
+}
+
 .completion-card {
   display: flex;
   flex-direction: column;

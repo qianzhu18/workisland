@@ -987,8 +987,11 @@ function createAppCoordinatorClass({
       });
     }
     broadcastSurface(payload) {
-      if (this.petMode.isActive && payload.surface.type !== "completion") {
-        const session = payload.surface.type === "sessionList" && payload.surface.actionableSessionId ? this.state.sessions.get(payload.surface.actionableSessionId) : void 0;
+      if (this.petMode.isActive) {
+        const session = (payload.surface.type === "sessionList" || payload.surface.type === "completion")
+          && payload.surface.actionableSessionId
+          ? this.state.sessions.get(payload.surface.actionableSessionId)
+          : void 0;
         const shouldCollapse = shouldAutoDismiss(payload.surface, session?.phase)
           && payload.reason === "notification"
           && !Array.from(this.state.sessions.values()).some((s) => requiresAttention(s.phase));

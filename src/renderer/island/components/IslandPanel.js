@@ -1277,7 +1277,8 @@ function IslandPanel({
   const sessionListRef = React.useRef(null);
   const followUpRef = React.useRef(null);
   const panelStyle = {
-    "--island-panel-max-height": `${panelMaxHeightPx}px`
+    "--island-panel-max-height": `${panelMaxHeightPx}px`,
+    "--island-safe-top-inset": `${Math.max(0, notchHeight)}px`
   };
   React.useEffect(() => {
     if (!followUpSessionId) return;
