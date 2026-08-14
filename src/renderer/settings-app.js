@@ -256,7 +256,7 @@ function appearancePage() {
   const root = document.createDocumentFragment();
   const pet = section("桌宠", "桌宠与 Island 使用同一套会话状态，切换不会中断监控。");
   const configuredSprite = state.settings.petSprite || DEFAULT_PET_SPRITE;
-  const spriteOptions = [[DEFAULT_PET_SPRITE, "千雪 · 内置 Codex V2"], ["orca.png", "Orca · 兼容素材"]];
+  const spriteOptions = [["echo:little", "Echo · 程序化动画"], [DEFAULT_PET_SPRITE, "千雪 · 内置 Codex V2"], ["orca.png", "Orca · 兼容素材"]];
   for (const codexPet of state.codexPets) {
     if (!spriteOptions.some(([value]) => value === codexPet.value)) {
       spriteOptions.push([codexPet.value, `${codexPet.displayName} · Codex V2`]);
