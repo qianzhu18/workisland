@@ -13,6 +13,7 @@ WorkIsland 是一个 macOS 本地桌面应用：在刘海灵动岛区域展示 C
 - **桌宠**：可拖拽的桌面伴侣，状态随任务变化，兼容 Codex V2 桌宠 sprite 协议
 - **声音通知**：任务开始、完成、失败、需要审批时播放提示音
 - **用量统计**：Token 燃烧追踪
+- **反馈与内测**：设置页与官网提供统一入口，内测群二维码由官网维护，可独立于 DMG 更新
 
 ## Agent 兼容
 
@@ -41,7 +42,7 @@ npm run dev:isolated
 
 ## 下载与首次启动测试
 
-产品官网：[WorkIsland](https://qianzhu18.github.io/workisland/)。官网的下载按钮会指向最新稳定版 GitHub Release，GitHub Release 是安装包的唯一分发源。
+产品官网：[WorkIsland](https://workisland.yanglaishe.cn/)。官网的下载按钮会指向最新稳定版 GitHub Release，GitHub Release 是安装包的唯一分发源。
 
 从 [GitHub Releases](https://github.com/qianzhu18/workisland/releases) 下载适用于 Apple Silicon Mac 的 DMG，拖动 `WorkIsland.app` 到“应用程序”后即可测试。应用保持本地运行，首次启动不需要配置云端账号。
 
