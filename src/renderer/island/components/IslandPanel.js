@@ -9,6 +9,7 @@ const runningIcon = new URL("../assets/status/running.svg", import.meta.url).hre
 const approvalIcon = new URL("../assets/status/approval.svg", import.meta.url).href;
 const completeIcon = new URL("../assets/status/complete.svg", import.meta.url).href;
 const errorIcon = new URL("../assets/status/error.svg", import.meta.url).href;
+const codexIcon = new URL("../assets/brands/codex.png", import.meta.url).href;
 function useActionable(sessions, surface, options) {
   const actionableId = surface?.type === "sessionList" || surface?.type === "completion" ? surface.actionableSessionId : void 0;
   const actionableRef = reactExports.useRef(null);
@@ -134,7 +135,17 @@ function AgentQuotaCell({ tool, quota }) {
       onMouseEnter: () => setShowTooltip(true),
       onMouseLeave: () => setShowTooltip(false)
     },
-    /* @__PURE__ */ React.createElement("span", { className: "agent-monogram", title: AGENT_TOOL_LABELS[tool], style: { background: AGENT_BADGE_COLORS[tool] ?? "#7B8794" } }, String(AGENT_TOOL_LABELS[tool] ?? tool).slice(0, 1).toUpperCase()),
+    /* @__PURE__ */ React.createElement(
+      "span",
+      {
+        className: "agent-monogram",
+        title: AGENT_TOOL_LABELS[tool],
+        style: { background: tool === "codex" ? "transparent" : AGENT_BADGE_COLORS[tool] ?? "#7B8794" }
+      },
+      tool === "codex"
+        ? /* @__PURE__ */ React.createElement("img", { className: "agent-monogram-image", src: codexIcon, alt: "", draggable: false })
+        : String(AGENT_TOOL_LABELS[tool] ?? tool).slice(0, 1).toUpperCase()
+    ),
     activePeriod && /* @__PURE__ */ React.createElement("span", { className: "usage-cell-text" }, /* @__PURE__ */ React.createElement("span", { className: "usage-period" }, activePeriod.total, " ", /* @__PURE__ */ React.createElement("span", { style: { color: usagePctColor(activePeriod.usedPct) } }, formatPct(activePeriod.usedPct), "%"), " ", activePeriod.remaining)),
     tooltipLines.length > 0 && showTooltip && /* @__PURE__ */ React.createElement("span", { className: "usage-cell-tooltip is-visible", role: "tooltip" }, tooltipLines.join("\n"))
   );
