@@ -137,6 +137,13 @@
   flex-shrink: 0;
 }
 
+.agent-monogram-image {
+  width: 16px;
+  height: 16px;
+  display: block;
+  object-fit: contain;
+}
+
 .usage-cell-divider {
   font-size: 12px;
   color: rgba(224, 226, 242, 0.25);

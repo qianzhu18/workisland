@@ -5,6 +5,8 @@ const api = window.settingsApi;
 const DEFAULT_PET_SPRITE = "codex:qianxue";
 const FEEDBACK_URL = "https://workisland.yanglaishe.cn/#feedback";
 const BETA_GROUP_URL = "https://workisland.yanglaishe.cn/#beta-group";
+const WORKISLAND_ICON_URL = "../assets/workisland-icon.png";
+const CODEX_ICON_URL = "../assets/brands/codex.png";
 const state = { settings: null, statuses: new Map(), displays: [], codexPets: [], activeTab: "general", busy: new Set(), latestUpdate: null };
 
 function el(tag, className, text) {
@@ -215,8 +217,15 @@ function capabilitySummary(capabilities = {}) {
 function agentCard(report) {
   const { agentId, label, badgeColor: color } = report;
   const card = el("div", "agent-card");
-  const icon = el("div", "agent-icon", label.slice(0, 1).toUpperCase());
-  if (color) icon.style.background = color;
+  const icon = agentId === "codex"
+    ? el("img", "agent-icon agent-icon-image")
+    : el("div", "agent-icon", label.slice(0, 1).toUpperCase());
+  if (agentId === "codex") {
+    icon.src = CODEX_ICON_URL;
+    icon.alt = "";
+  } else if (color) {
+    icon.style.background = color;
+  }
   const content = el("div", "agent-content");
   const heading = el("div", "agent-heading");
   heading.append(el("strong", "", label), statusBadge(report));
@@ -333,7 +342,10 @@ function aboutPage() {
   const root = document.createDocumentFragment();
   const about = section("关于 WorkIsland", "本地优先的 macOS Agent 会话监控与审批界面。");
   const version = el("div", "about-card");
-  version.append(el("div", "app-mark", "O"), el("div", "about-copy", "WorkIsland\n正在读取版本…"));
+  const appMark = el("img", "app-mark");
+  appMark.src = WORKISLAND_ICON_URL;
+  appMark.alt = "";
+  version.append(appMark, el("div", "about-copy", "WorkIsland\n正在读取版本…"));
   api.getAppVersion().then(v => version.querySelector(".about-copy").textContent = `WorkIsland\n版本 ${v}`).catch(() => {});
   about.append(version);
   const support = section("帮助与内测", "反馈渠道与内测群信息由 WorkIsland 官网统一维护，群码更新无需重新安装应用。");
