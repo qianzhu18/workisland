@@ -119,6 +119,7 @@ function usagePctColor(pct) {
 function AgentQuotaCell({ tool, quota }) {
   const dailyValid = isValidPeriod(quota.daily);
   const weeklyValid = isValidPeriod(quota.weekly);
+  const isCodex = tool === "codex";
   const [showTooltip, setShowTooltip] = React.useState(false);
   const activePeriod = dailyValid ? quota.daily : weeklyValid ? quota.weekly : null;
   const tooltipLines = [];
@@ -140,9 +141,9 @@ function AgentQuotaCell({ tool, quota }) {
       {
         className: "agent-monogram",
         title: AGENT_TOOL_LABELS[tool],
-        style: { background: tool === "codex" ? "transparent" : AGENT_BADGE_COLORS[tool] ?? "#7B8794" }
+        style: { background: isCodex ? "transparent" : AGENT_BADGE_COLORS[tool] ?? "#7B8794" }
       },
-      tool === "codex"
+      isCodex
         ? /* @__PURE__ */ React.createElement("img", { className: "agent-monogram-image", src: codexIcon, alt: "", draggable: false })
         : String(AGENT_TOOL_LABELS[tool] ?? tool).slice(0, 1).toUpperCase()
     ),

@@ -1,10 +1,12 @@
 "use strict";
 
 const fs = require("node:fs");
+const crypto = require("node:crypto");
 const os = require("node:os");
 const path = require("node:path");
 
 const SOCKET_NAME = "bridge.sock";
+const UNIX_SOCKET_PATH_LIMIT = 104;
 
 function encodeLine(envelope) {
   return Buffer.from(`${JSON.stringify(envelope)}\n`, "utf8");
@@ -35,6 +37,15 @@ function getSocketPath(env = process.env, homeDir = os.homedir()) {
   return env.FLUX_SOCKET_PATH || path.join(getSocketDir(homeDir), SOCKET_NAME);
 }
 
+function createDevelopmentSocketPath(identifier, tempDir = os.tmpdir()) {
+  const digest = crypto.createHash("sha256").update(String(identifier)).digest("hex").slice(0, 16);
+  const filename = `workisland-${digest}.sock`;
+  const candidate = path.join(tempDir, filename);
+  return Buffer.byteLength(candidate) < UNIX_SOCKET_PATH_LIMIT
+    ? candidate
+    : path.join("/tmp", filename);
+}
+
 function ensureSocketDir(homeDir = os.homedir()) {
   fs.mkdirSync(getSocketDir(homeDir), { recursive: true });
 }
@@ -53,6 +64,7 @@ module.exports = {
   decodeLines,
   getSocketDir,
   getSocketPath,
+  createDevelopmentSocketPath,
   ensureSocketDir,
   cleanupSocket
 };

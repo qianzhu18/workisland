@@ -5,8 +5,30 @@ const api = window.settingsApi;
 const DEFAULT_PET_SPRITE = "codex:qianxue";
 const FEEDBACK_URL = "https://workisland.yanglaishe.cn/#feedback";
 const BETA_GROUP_URL = "https://workisland.yanglaishe.cn/#beta-group";
+const FEEDBACK_EMAIL = "its.qianzhu@gmail.com";
+const FEEDBACK_EMAIL_URL = "mailto:its.qianzhu@gmail.com?subject=WorkIsland%20feedback";
 const WORKISLAND_ICON_URL = "../assets/workisland-icon.png";
-const CODEX_ICON_URL = "../assets/brands/codex.png";
+const DEFAULT_AGENT_ICON_URL = "../assets/brands/agent.svg";
+const AGENT_ICON_URLS = Object.freeze({
+  "claude": "../assets/brands/claude.svg",
+  "codex": "../assets/brands/codex.png",
+  "coco": "../assets/brands/trae.svg",
+  "cursor": "../assets/brands/cursor.svg",
+  "trae": "../assets/brands/trae.svg",
+  "trae-cn": "../assets/brands/trae.svg",
+  "zcode": "../assets/brands/zcode.svg",
+  "workbuddy": "../assets/brands/codebuddy.svg",
+  "opencode": "../assets/brands/opencode.svg",
+  "sara": "../assets/brands/sara.svg",
+  "kimi": "../assets/brands/kimi.svg",
+  "gemini": "../assets/brands/gemini.svg",
+  "copilot-cli": "../assets/brands/copilot.svg",
+  "hermes": "../assets/brands/hermes.svg",
+  "aiden": "../assets/brands/agent.svg",
+  "traex": "../assets/brands/trae.svg",
+  "plugin:omp": "../assets/brands/pi.svg",
+  "plugin:pi": "../assets/brands/pi.svg"
+});
 const state = { settings: null, statuses: new Map(), displays: [], codexPets: [], activeTab: "general", busy: new Set(), latestUpdate: null };
 
 function el(tag, className, text) {
@@ -215,17 +237,14 @@ function capabilitySummary(capabilities = {}) {
 }
 
 function agentCard(report) {
-  const { agentId, label, badgeColor: color } = report;
+  const { agentId, label } = report;
   const card = el("div", "agent-card");
-  const icon = agentId === "codex"
-    ? el("img", "agent-icon agent-icon-image")
-    : el("div", "agent-icon", label.slice(0, 1).toUpperCase());
-  if (agentId === "codex") {
-    icon.src = CODEX_ICON_URL;
-    icon.alt = "";
-  } else if (color) {
-    icon.style.background = color;
-  }
+  const iconFrame = el("div", "agent-icon");
+  const icon = el("img", "agent-icon-image");
+  icon.src = AGENT_ICON_URLS[agentId] || DEFAULT_AGENT_ICON_URL;
+  icon.alt = "";
+  icon.draggable = false;
+  iconFrame.append(icon);
   const content = el("div", "agent-content");
   const heading = el("div", "agent-heading");
   heading.append(el("strong", "", label), statusBadge(report));
@@ -253,7 +272,7 @@ function agentCard(report) {
     action.disabled = true;
     action.textContent = "未安装";
   }
-  card.append(icon, content, action);
+  card.append(iconFrame, content, action);
   return card;
 }
 
@@ -345,13 +364,15 @@ function aboutPage() {
   const appMark = el("img", "app-mark");
   appMark.src = WORKISLAND_ICON_URL;
   appMark.alt = "";
+  appMark.draggable = false;
   version.append(appMark, el("div", "about-copy", "WorkIsland\n正在读取版本…"));
   api.getAppVersion().then(v => version.querySelector(".about-copy").textContent = `WorkIsland\n版本 ${v}`).catch(() => {});
   about.append(version);
-  const support = section("帮助与内测", "反馈渠道与内测群信息由 WorkIsland 官网统一维护，群码更新无需重新安装应用。");
+  const support = section("帮助与内测", "可直接发送邮件，也可以通过官网提交公开问题或查看最新微信群码。");
   support.append(
-    row("提交反馈", "报告问题、提出建议或补充复现信息。", button("打开反馈入口", () => api.openExternal(FEEDBACK_URL), "primary")),
-    row("加入内测群", "查看最新 WorkIsland 微信内测群二维码。", button("查看群码", () => api.openExternal(BETA_GROUP_URL)))
+    row("邮件反馈", FEEDBACK_EMAIL, button("写邮件", () => api.openExternal(FEEDBACK_EMAIL_URL), "primary")),
+    row("提交反馈", "通过 GitHub Issue 报告问题、提出建议或补充复现信息。", button("打开反馈入口", () => api.openExternal(FEEDBACK_URL))),
+    row("微信联系作者 / 加入内测群", "作者在群内参与讨论；官网持续更新最新二维码。", button("查看群码", () => api.openExternal(BETA_GROUP_URL)))
   );
   const updates = section("更新", "仅请求官方版本信息，不上传会话内容或使用数据。");
   const updateStatus = el("div", "update-status", state.latestUpdate ? `发现新版本 ${state.latestUpdate.latestVersion}` : "尚未检查");

@@ -6,12 +6,12 @@ import { fileURLToPath } from "node:url";
 import { requireRunningBridge } from "./smoke-support.mjs";
 
 const require = createRequire(import.meta.url);
-const { encodeLine, decodeLines } = require("../src/main/bridge-protocol.cjs");
+const { encodeLine, decodeLines, createDevelopmentSocketPath } = require("../src/main/bridge-protocol.cjs");
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const isolated = process.argv.includes("--isolated");
 const socketPath = process.env.FLUX_SOCKET_PATH || (isolated
-  ? resolve(root, ".local-home", ".flux", "run", "bridge.sock")
+  ? createDevelopmentSocketPath(root)
   : resolve(os.homedir(), ".flux", "run", "bridge.sock"));
 const sessionId = `smoke-${Date.now()}`;
 const commands = [

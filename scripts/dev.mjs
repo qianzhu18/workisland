@@ -8,6 +8,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "..");
 const require = createRequire(import.meta.url);
 const { ENV } = require("../src/main/runtime-mode.cjs");
+const { createDevelopmentSocketPath } = require("../src/main/bridge-protocol.cjs");
 
 let electronBinary;
 try {
@@ -48,6 +49,8 @@ if (fullModeIndex >= 0) {
   childEnv.HOME = process.env.HOME;
   childEnv.USERPROFILE = process.env.USERPROFILE ?? process.env.HOME;
   console.warn("Integrated mode uses the real user home and may update local Agent hook configuration.");
+} else {
+  childEnv.FLUX_SOCKET_PATH = process.env.FLUX_SOCKET_PATH || createDevelopmentSocketPath(root);
 }
 
 const child = spawn(electronBinary, [root, ...electronArgs], {

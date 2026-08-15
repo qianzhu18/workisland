@@ -1,13 +1,16 @@
 import net from "node:net";
 import { hostname, userInfo } from "node:os";
+import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import WebSocket from "ws";
 import { requireRunningBridge } from "./smoke-support.mjs";
 
+const require = createRequire(import.meta.url);
+const { createDevelopmentSocketPath } = require("../src/main/bridge-protocol.cjs");
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const socketPath = process.env.FLUX_SOCKET_PATH
-  || resolve(root, ".local-home", ".flux", "run", "bridge.sock");
+  || createDevelopmentSocketPath(root);
 const debugPort = Number(process.env.FLUX_DEBUG_PORT || 9333);
 const sessionId = `approval-smoke-${Date.now()}`;
 

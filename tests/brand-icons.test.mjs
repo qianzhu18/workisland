@@ -11,10 +11,11 @@ const panelCss = readFileSync(new URL("../src/renderer/island/components/IslandP
 function readPngMetadata(url) {
   assert.equal(existsSync(url), true, `${url.pathname} must exist`);
   const png = readFileSync(url);
-  assert.equal(png.subarray(1, 4).toString("ascii"), "PNG");
+  assert.deepEqual([...png.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
   return {
     width: png.readUInt32BE(16),
     height: png.readUInt32BE(20),
+    bitDepth: png[24],
     colorType: png[25]
   };
 }
@@ -34,6 +35,7 @@ function readAlphaValues(url) {
   const stride = width * 4;
   const rows = [];
   let cursor = 0;
+  // Reconstruct each scanline so transparency checks inspect decoded pixels, not compressed bytes.
   for (let y = 0; y < height; y += 1) {
     const filter = data[cursor++];
     const row = Buffer.from(data.subarray(cursor, cursor + stride));
@@ -63,10 +65,11 @@ test("settings icon assets are compact square RGBA PNGs", () => {
     const metadata = readPngMetadata(url);
     assert.equal(metadata.width, metadata.height);
     assert.ok(metadata.width >= 128 && metadata.width <= 256);
+    assert.equal(metadata.bitDepth, 8);
     assert.equal(metadata.colorType, 6, "asset must carry a real alpha channel");
     const alpha = readAlphaValues(url);
-    assert.equal(Math.min(...alpha), 0, "asset must include transparent pixels");
-    assert.equal(Math.max(...alpha), 255, "asset must preserve opaque logo pixels");
+    assert.equal(alpha.includes(0), true, "asset must include transparent pixels");
+    assert.equal(alpha.includes(255), true, "asset must preserve opaque logo pixels");
   }
 });
 

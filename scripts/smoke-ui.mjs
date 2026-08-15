@@ -81,6 +81,33 @@ const unavailableNavigationVisible = await evaluate(
 );
 if (unavailableNavigationVisible) throw new Error("Unavailable private-service navigation is still visible");
 
+await evaluate(settings, "document.querySelector('[data-tab=agents]').click(); true");
+const agentIconsRendered = await evaluate(
+  settings,
+  `(async () => {
+    const deadline = Date.now() + 4000;
+    while (Date.now() < deadline) {
+      const cards = [...document.querySelectorAll('.agent-card')];
+      const icons = cards.map((card) => card.querySelector('.agent-icon-image'));
+      if (cards.length >= 16 && icons.every((icon) => icon?.complete && icon.naturalWidth > 0 && icon.naturalHeight > 0)) {
+        return { cardCount: cards.length, iconCount: icons.length };
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    return null;
+  })()`
+);
+if (!agentIconsRendered || agentIconsRendered.cardCount !== agentIconsRendered.iconCount) {
+  throw new Error("One or more Settings Agent icons failed to render");
+}
+
+await evaluate(settings, "document.querySelector('[data-tab=about]').click(); true");
+const supportChannelsRendered = await evaluate(
+  settings,
+  "document.body.innerText.includes('its.qianzhu@gmail.com') && document.body.innerText.includes('微信联系作者 / 加入内测群')"
+);
+if (!supportChannelsRendered) throw new Error("Settings feedback channels did not render");
+
 await evaluate(island, "document.querySelector('.pill').click(); true");
 const petButtonExists = await evaluate(island, "!!document.querySelector('.panel-pet-button')");
 if (!petButtonExists) throw new Error("The expanded island pet button is missing");
@@ -122,4 +149,4 @@ await evaluate(island, "document.querySelector('.panel-pet-button').click(); tru
 await waitForTargetGone("/pet.html");
 await waitForTarget("/island.html");
 
-console.log("UI smoke test passed: island, settings, pet, and pet panel.");
+console.log(`UI smoke test passed: island, ${agentIconsRendered.iconCount} Agent icons, support channels, pet, and pet panel.`);
