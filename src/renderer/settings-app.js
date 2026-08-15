@@ -3,6 +3,8 @@
 const api = window.settingsApi;
 
 const DEFAULT_PET_SPRITE = "codex:qianxue";
+const FEEDBACK_URL = "https://workisland.yanglaishe.cn/#feedback";
+const BETA_GROUP_URL = "https://workisland.yanglaishe.cn/#beta-group";
 const state = { settings: null, statuses: new Map(), displays: [], codexPets: [], activeTab: "general", busy: new Set(), latestUpdate: null };
 
 function el(tag, className, text) {
@@ -334,6 +336,11 @@ function aboutPage() {
   version.append(el("div", "app-mark", "O"), el("div", "about-copy", "WorkIsland\n正在读取版本…"));
   api.getAppVersion().then(v => version.querySelector(".about-copy").textContent = `WorkIsland\n版本 ${v}`).catch(() => {});
   about.append(version);
+  const support = section("帮助与内测", "反馈渠道与内测群信息由 WorkIsland 官网统一维护，群码更新无需重新安装应用。");
+  support.append(
+    row("提交反馈", "报告问题、提出建议或补充复现信息。", button("打开反馈入口", () => api.openExternal(FEEDBACK_URL), "primary")),
+    row("加入内测群", "查看最新 WorkIsland 微信内测群二维码。", button("查看群码", () => api.openExternal(BETA_GROUP_URL)))
+  );
   const updates = section("更新", "仅请求官方版本信息，不上传会话内容或使用数据。");
   const updateStatus = el("div", "update-status", state.latestUpdate ? `发现新版本 ${state.latestUpdate.latestVersion}` : "尚未检查");
   let latestUrl = state.latestUpdate?.releaseUrl || "";
@@ -373,7 +380,7 @@ function aboutPage() {
   const actions = el("div", "section-actions");
   actions.append(button("导出诊断日志", async () => { const path = await api.collectLogs(); showToast(path ? "日志已导出" : "日志导出完成"); }), button("退出应用", () => api.quitApp(), "danger"));
   about.append(actions);
-  root.append(about, updates);
+  root.append(about, support, updates);
   return root;
 }
 

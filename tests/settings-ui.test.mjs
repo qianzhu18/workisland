@@ -11,3 +11,11 @@ test("general settings expose all completion notification duration options", () 
   }
   assert.match(source, /save\(\{ completionPopupDurationSec: Number\(v\) \}\)/);
 });
+
+test("about settings route feedback and beta community through stable website anchors", () => {
+  assert.match(source, /帮助与内测/);
+  assert.match(source, /https:\/\/workisland\.yanglaishe\.cn\/#feedback/);
+  assert.match(source, /https:\/\/workisland\.yanglaishe\.cn\/#beta-group/);
+  assert.match(source, /提交反馈/);
+  assert.match(source, /加入内测群/);
+});
