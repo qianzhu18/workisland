@@ -22,6 +22,14 @@ test("website exposes one support hub for feedback and beta community", () => {
   assert.match(css, /\.vi-support/);
 });
 
+test("community QR layout uses a cache-busted stylesheet and bounded image sizes", () => {
+  assert.match(html, /href="styles\.css\?v=[^"]+"/);
+  assert.match(css, /\.vi-support-card \{ min-width: 0;/);
+  assert.match(css, /\.vi-support-card-group \{ display: grid; grid-template-columns: minmax\(0, \.8fr\) minmax\(0, 1\.2fr\);/);
+  assert.match(css, /\.vi-support-qr \{ display: block; width: min\(100%, 160px\); max-width: 160px;/);
+  assert.match(css, /\.vi-support-qr \{ width:min\(100%,180px\); max-width:180px; \}/);
+});
+
 test("website beta group image is a real PNG asset", () => {
   assert.equal(existsSync(qrUrl), true);
   const png = readFileSync(qrUrl);
