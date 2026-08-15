@@ -5,6 +5,8 @@
 - Delivery branch: `release/v0.2.8-beta.8`
 - Feature commit: `3e3a9009650beb7cfb7b7a6ac4f9673d89c37047`
 - Remote status: pushed to `origin/release/v0.2.8-beta.8`
+- Release tag: `v0.2.8-beta.8` will point to the final report commit and trigger the
+  signed, notarized GitHub Release workflow.
 - Updated: 2026-08-15
 
 ## Scope

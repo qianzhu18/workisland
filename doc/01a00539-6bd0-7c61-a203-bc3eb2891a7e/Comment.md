@@ -11,5 +11,5 @@
 ID 证书仅做 ad-hoc 签名，正式签名与公证由 GitHub Actions 完成。
 
 功能提交 `3e3a9009650beb7cfb7b7a6ac4f9673d89c37047` 已推送到
-`origin/release/v0.2.8-beta.8`。当前未创建 release tag，避免在未明确触发正式发布时启动
+`origin/release/v0.2.8-beta.8`。发布 Tag `v0.2.8-beta.8` 将指向本次最终报告提交，并启动
 签名、公证和公开 Release 工作流。

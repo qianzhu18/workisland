@@ -11,8 +11,9 @@ plus the latest author WeChat QR update.
 - Feature commit: `3e3a9009650beb7cfb7b7a6ac4f9673d89c37047`
 - Remote branch: `origin/release/v0.2.8-beta.8`
 - Remote verification: the branch reference resolved to the feature commit after push.
-- No release tag was created; tagging remains the explicit trigger for the signed and
-  notarized public GitHub Release workflow.
+- Release tag target: `v0.2.8-beta.8`. The tag is published after this final report
+  commit so the signed and notarized public GitHub Release workflow packages this exact
+  branch state.
 
 ## Changes
 
