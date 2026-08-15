@@ -1,0 +1,9 @@
+{
+  "scanned_at": "2026-08-15",
+  "target": "website",
+  "framework": "vanilla HTML, CSS, and JavaScript",
+  "fonts": ["Departure Mono", "JetBrains Mono", "Instrument Serif"],
+  "palette": "warm-black canvas, restrained orange signal, green/orange/blue product states",
+  "motion": "CSS keyframes, transitions, and IntersectionObserver; no motion library",
+  "spacing": "existing pixel rhythm; token layer added for the Hallmark pass"
+}

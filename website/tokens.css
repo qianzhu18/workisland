@@ -1,0 +1,42 @@
+:root {
+  /* Hallmark token layer — Midnight / atmospheric */
+  --color-paper: oklch(0.12 0.008 285);
+  --color-paper-raised: oklch(0.15 0.009 285);
+  --color-ink: oklch(0.92 0.006 85);
+  --color-muted: oklch(0.62 0.012 285);
+  --color-accent: oklch(0.69 0.12 42);
+  --color-line: oklch(0.92 0.006 85 / 0.08);
+  --color-running: oklch(0.76 0.16 151);
+  --color-attention: oklch(0.75 0.16 57);
+  --color-complete: oklch(0.71 0.14 252);
+  --color-action-surface: oklch(0.93 0.006 85);
+  --color-action-ink: oklch(0.16 0.009 285);
+  --color-ghost-surface: oklch(0.92 0.006 85 / 0.08);
+  --color-ghost-hover: oklch(0.92 0.006 85 / 0.14);
+
+  --font-display: "Departure Mono", "JetBrains Mono", ui-monospace, monospace;
+  --font-body: "JetBrains Mono", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", ui-monospace, monospace;
+  --font-wordmark: "Instrument Serif", Georgia, serif;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4.5rem;
+
+  --radius-sm: 0.5rem;
+  --radius-md: 0.875rem;
+  --radius-lg: 1.25rem;
+  --rule: 1px solid var(--color-line);
+  --ease-out: cubic-bezier(0.22, 0.65, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.45, 0.05, 0.55, 0.95);
+  --duration-fast: 160ms;
+  --duration-base: 380ms;
+  --duration-slow: 720ms;
+  --z-nav: 300;
+  --z-stage: 2;
+}

@@ -165,19 +165,6 @@ document.querySelectorAll("[data-tour-tab]").forEach((button) => {
   button.addEventListener("click", () => setTourScene(button.dataset.tourTab));
 });
 
-const tourVideo = document.querySelector(".vi-tour-video");
-const tourSimulation = document.querySelector(".vi-tour-simulation");
-if (tourVideo && tourSimulation) {
-  tourVideo.addEventListener("loadedmetadata", () => {
-    tourVideo.hidden = false;
-    tourSimulation.hidden = true;
-  });
-  tourVideo.addEventListener("error", () => {
-    tourVideo.hidden = true;
-    tourSimulation.hidden = false;
-  });
-}
-
 const revealObserver = "IntersectionObserver" in window
   ? new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
