@@ -3,6 +3,8 @@
 - Status: implementation and verification complete
 - Target release: `0.2.8-beta.8`
 - Delivery branch: `release/v0.2.8-beta.8`
+- Feature commit: `3e3a9009650beb7cfb7b7a6ac4f9673d89c37047`
+- Remote status: pushed to `origin/release/v0.2.8-beta.8`
 - Updated: 2026-08-15
 
 ## Scope

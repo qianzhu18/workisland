@@ -6,6 +6,14 @@ The cumulative bug-fix set is implemented on `release/v0.2.8-beta.8`. It include
 previously requested icon, feedback, community, runtime, test, and documentation work,
 plus the latest author WeChat QR update.
 
+## Delivery
+
+- Feature commit: `3e3a9009650beb7cfb7b7a6ac4f9673d89c37047`
+- Remote branch: `origin/release/v0.2.8-beta.8`
+- Remote verification: the branch reference resolved to the feature commit after push.
+- No release tag was created; tagging remains the explicit trigger for the signed and
+  notarized public GitHub Release workflow.
+
 ## Changes
 
 - Settings now uses the WorkIsland product icon in the sidebar and About view.

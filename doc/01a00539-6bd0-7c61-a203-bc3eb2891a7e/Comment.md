@@ -9,3 +9,7 @@
 测试、release 元数据检查和 DMG 校验均已通过。未产生 breaking change；仓库不是 Rust
 项目，Rust warning、dead_code 和 `#[cfg(test)]` 迁移项不适用。本地 DMG 因无 Developer
 ID 证书仅做 ad-hoc 签名，正式签名与公证由 GitHub Actions 完成。
+
+功能提交 `3e3a9009650beb7cfb7b7a6ac4f9673d89c37047` 已推送到
+`origin/release/v0.2.8-beta.8`。当前未创建 release tag，避免在未明确触发正式发布时启动
+签名、公证和公开 Release 工作流。
