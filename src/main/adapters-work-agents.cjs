@@ -21,7 +21,7 @@ class ClaudeCompatibleWorkAgentAdapter extends ClaudeAdapter {
       detachClaudeTranscriptWatcher: () => {},
       updateJumpTarget: (sessionId, tool, overrides = {}) => {
         const terminalApp = payload.terminal_app || overrides.terminal_app || this.defaultApp;
-        ctx.updateJumpTarget(sessionId, tool, {
+        ctx.updateJumpTarget?.(sessionId, tool, {
           ...overrides,
           terminal_app: terminalApp,
           cwd: overrides.cwd || payload.cwd

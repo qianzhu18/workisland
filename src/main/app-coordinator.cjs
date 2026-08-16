@@ -19,9 +19,8 @@ const { HermesHookManager, AidenHookManager, TraexCliHookManager } = require("./
 const { PluginHookManager } = require("./hooks-custom.cjs");
 const { ZCodeHookManager, WorkBuddyHookManager } = require("./hooks-work-agents.cjs");
 const { initSoundDirs, playSoundEvent } = require("./sound-service.cjs");
-const { reportTokenUsage, getHermesCumulativeTokens, diffHermesCumulativeTokens } = require("./adapters-extended.cjs");
+const { reportTokenUsage, getHermesCumulativeTokens, diffHermesCumulativeTokens, collectAndReportTokens } = require("./adapters-extended.cjs");
 const { getAgentDescriptor, validateAgentWiring } = require("../shared/agent-catalog.cjs");
-const { createPresentationRequest } = require("./presentation-policy.cjs");
 
 function createAppCoordinatorClass({
   BridgeServer,
@@ -47,6 +46,7 @@ function createAppCoordinatorClass({
   unwatchActiveSpace,
   requiresAttention,
   canContinueSessionViaTerminalPrompt,
+  shouldAutoDismiss,
   findLatestCodexInterrupt,
   getSessionBundleIds,
   jumpToTarget,
@@ -109,6 +109,8 @@ function createAppCoordinatorClass({
      * 用 5 秒窗口 dedup 让两条通道都跑但只放行第一个。
      */
     agentEventDedup = null;
+    // claude 会话的 transcript 路径（来自 hookProcessed），turn 结束时采集 token 用
+    claudeTranscriptPaths = new Map();
     /**
      * 记录每个 Hermes session 已经写入 Flux 统计的累计 token 基线。
      *
@@ -237,6 +239,24 @@ function createAppCoordinatorClass({
             }
           }
         }
+        if (event.type === "sessionCompleted" && (event.tool === "claude" || event.tool === "codex")) {
+          // turn 结束采集一次 token。挂在 sessionCompleted 而不是 hookProcessed：
+          // 后者每个 hook 都触发，反复整读大 transcript 太重。
+          // codex 的 transcript 路径复用 codexSessionMeta（sweep 机制已在维护）。
+          // codex：hook 的 transcript_path 经常缺席（codexSessionMeta 为空），
+          // 但 transcript watcher 本来就按 session id 跟踪着 rollout 文件，用它兜底。
+          const tp = event.tool === "claude"
+            ? this.claudeTranscriptPaths.get(event.sessionId)
+            : this.codexSessionMeta.get(event.sessionId)?.transcriptPath
+              ?? this.codexTranscriptWatcher?.getTranscriptPath(event.sessionId);
+          if (tp) {
+            collectAndReportTokens(event.tool, event.sessionId, tp).catch((err) => {
+              log.warn("[AppCoordinator] %s token collect failed:", event.tool, err?.message ?? err);
+            });
+          } else {
+            log.info("[TokenCollector] 跳过：%s/%s 无 transcript 路径可用", event.tool, event.sessionId);
+          }
+        }
         if (shouldRecordCompletedSessionStat(event)) {
           const session = getSession(this.state, event.sessionId);
           if (session) {
@@ -251,6 +271,9 @@ function createAppCoordinatorClass({
         "hookProcessed",
         (info) => {
           const session = info.sessionId ? getSession(this.state, info.sessionId) : void 0;
+          if (info.tool === "claude" && info.sessionId && info.transcriptPath) {
+            this.claudeTranscriptPaths.set(info.sessionId, info.transcriptPath);
+          }
           if (info.tool === "codex" && info.sessionId && info.transcriptPath) {
             const prev = this.codexSessionMeta.get(info.sessionId);
             const latestTurnId = info.turnId ?? prev?.latestTurnId;
@@ -286,6 +309,14 @@ function createAppCoordinatorClass({
       this.quotaService.start();
       this.processMonitor.start();
       this.startCodexTranscriptWatcher();
+      // 启动发现：WorkIsland 只靠 hook 被动感知会话，它启动之前就在跑的对话
+      // 要等下一个 hook 事件才会现身。这里主动扫一次正在运行的 claude CLI 进程，
+      // 从 transcript 补出会话，合成 sessionStarted 注入现有管线。
+      setTimeout(() => {
+        this.discoverRunningClaudeSessions().catch((err) => {
+          log.warn("[AppCoordinator] claude session discovery failed:", err?.message ?? err);
+        });
+      }, 2e3);
       this.startReconciliation();
       this.startFullscreenCheck();
       this.autoReInstallHooks();
@@ -313,11 +344,152 @@ function createAppCoordinatorClass({
         });
         this.codexTranscriptWatcher.start();
         log.info("[AppCoordinator] codex transcript watcher started");
+        // 启动回填：codex 可能几小时不完成一轮，若只挂在 sessionCompleted 上，
+        // 统计里会长期停在 0。watcher 扫的是 24h 内的 rollout，逐个采集一次；
+        // applyBaselineDiff 用累计值差分，重复回填不会重复计数。
+        setTimeout(() => {
+          const tracked = this.codexTranscriptWatcher?.listTracked() ?? [];
+          for (const f of tracked) {
+            collectAndReportTokens("codex", f.sessionId, f.path).catch((err) => {
+              log.warn("[AppCoordinator] codex token backfill failed:", err?.message ?? err);
+            });
+          }
+          if (tracked.length) log.info("[AppCoordinator] codex token backfill: %d file(s)", tracked.length);
+        }, 5e3);
       } catch (err) {
         // watcher 启动失败不应阻断 app 启动；hook 通道仍可工作
         log.warn("[AppCoordinator] codex transcript watcher failed to start:", err.message);
         this.codexTranscriptWatcher = null;
       }
+    }
+    /**
+     * 发现已在运行的 claude CLI 会话（WorkIsland 启动前就开始的那些）。
+     *
+     * 路线：ps 找 claude 进程 → lsof 拿各自 cwd → 映射到
+     * ~/.claude/projects/<转义后 cwd>/ 下最新的 transcript（文件名即 session id）
+     * → 读尾部抽出最近一条用户消息 → 合成 sessionStarted 注入 agentEvent 管线。
+     *
+     * latestUserPrompt 必须带上：isVisibleInIsland 对 hook 管理的 claude 会话
+     * 要求它非空，缺了就算注入成功也不会显示。
+     * jumpTarget 不合成 —— 它来自 hook 环境（tty/pid），猜出来的会跳错地方；
+     * 该会话的下一个 hook 事件会自然补上。
+     */
+    async discoverRunningClaudeSessions() {
+      const DISCOVERY_ACTIVE_WINDOW_MS = 3 * 6e4;
+      const cp = require("child_process");
+      const { promisify: pify } = require("util");
+      const run = pify(cp.execFile);
+      const fs = require("fs");
+      const path = require("path");
+      const os = require("os");
+      let stdout;
+      try {
+        // comm= 只输出可执行路径、不带参数 —— 不能用 command= 取第一个词：
+        // Claude Desktop 内嵌 CLI 的路径含空格（Application Support），
+        // 按空白切词会断在 "Application"，basename 永远匹配不上。
+        ({ stdout } = await run("/bin/ps", ["-axo", "pid=,comm="], { timeout: 2e3 }));
+      } catch {
+        return;
+      }
+      const pids = [];
+      for (const line of stdout.split("\n")) {
+        const m = line.match(/^\s*(\d+)\s+(.+)$/);
+        if (!m) continue;
+        const base = m[2].trim().split("/").pop();
+        if (base === "claude") pids.push(m[1]);
+      }
+      if (pids.length === 0) return;
+      // lsof 批量拿 cwd：-F pn 输出 pPID / n路径 成对出现
+      let cwdOut = "";
+      try {
+        ({ stdout: cwdOut } = await run(
+          "/usr/sbin/lsof",
+          ["-a", "-p", pids.join(","), "-d", "cwd", "-Fpn"],
+          { timeout: 3e3 }
+        ));
+      } catch {
+        return;
+      }
+      const cwds = new Map();
+      let curPid = null;
+      for (const line of cwdOut.split("\n")) {
+        if (line.startsWith("p")) curPid = line.slice(1);
+        else if (line.startsWith("n") && curPid) cwds.set(curPid, line.slice(1));
+      }
+      const projectsRoot = path.join(os.homedir(), ".claude", "projects");
+      const dirs = new Set(cwds.values());
+      let discovered = 0;
+      for (const cwd of dirs) {
+        const projDir = path.join(projectsRoot, cwd.replace(/[\/.]/g, "-"));
+        let files;
+        try {
+          files = fs.readdirSync(projDir)
+            .filter((f) => f.endsWith(".jsonl"))
+            .map((f) => ({ f, mtime: fs.statSync(path.join(projDir, f)).mtimeMs }))
+            .sort((a, b) => b.mtime - a.mtime);
+        } catch {
+          continue;
+        }
+        const now = Date.now();
+        // 每个目录只取最新一份对话；且只要「正在进行」的 —— 运行中的会话每隔
+        // 几秒就在写 transcript，几分钟没动的就是完成待命，不需要监管，不注入。
+        for (const { f, mtime } of files.slice(0, 1)) {
+          if (now - mtime > DISCOVERY_ACTIVE_WINDOW_MS) continue;
+          const sessionId = f.slice(0, -6);
+          if (this.state.sessions.has(sessionId)) continue;
+          const prompt = this.readLatestUserPrompt(path.join(projDir, f));
+          if (!prompt) continue;
+          this.bridge.emitEvent({
+            type: "sessionStarted",
+            sessionId,
+            tool: "claude",
+            timestamp: mtime,
+            latestUserPrompt: prompt,
+            title: prompt.length > 40 ? prompt.slice(0, 40) + "…" : prompt,
+            detectionSource: "discovery"
+          });
+          discovered++;
+        }
+      }
+      if (discovered > 0) {
+        log.info("[AppCoordinator] discovered %d running claude session(s)", discovered);
+      }
+    }
+    /** 从 transcript 尾部（最多 256KB）读最近一条用户消息的文本。 */
+    readLatestUserPrompt(file) {
+      const fs = require("fs");
+      try {
+        const size = fs.statSync(file).size;
+        const readLen = Math.min(size, 256 * 1024);
+        const buf = Buffer.alloc(readLen);
+        const fd = fs.openSync(file, "r");
+        try {
+          fs.readSync(fd, buf, 0, readLen, size - readLen);
+        } finally {
+          fs.closeSync(fd);
+        }
+        const lines = buf.toString("utf8").split("\n");
+        for (let i = lines.length - 1; i >= 0; i--) {
+          let rec;
+          try {
+            rec = JSON.parse(lines[i]);
+          } catch {
+            continue;
+          }
+          if (rec?.type !== "user" || rec.isMeta) continue;
+          const c = rec.message?.content;
+          const text = typeof c === "string"
+            ? c
+            : Array.isArray(c) ? c.find((b) => b?.type === "text")?.text : null;
+          // 工具结果也是 user 消息，没有 text 块，跳过继续往上找
+          if (typeof text === "string" && text.trim() && !text.startsWith("<")) {
+            return text.trim().slice(0, 200);
+          }
+        }
+      } catch {
+        // 读不出来就当没有，调用方会跳过该会话
+      }
+      return null;
     }
     async autoReInstallHooks() {
       const toggles = this.settings.hookToggles ?? {};
@@ -551,6 +723,13 @@ function createAppCoordinatorClass({
       const prevClaudeSubscriptionEnabled = this.settings.pillFirstRow.claudeSubscription;
       this.settings = { ...this.settings, ...partial };
       this.settingsRepository.scheduleSave(this.settings);
+      // 落位形态改了要立即生效，不能等重启。
+      if ("islandPlacement" in partial) {
+        this.islandWin?.setPlacement?.(
+          partial.islandPlacement,
+          this.settings.islandDock
+        );
+      }
       if ("launchAtLogin" in partial) {
         electron.app.setLoginItemSettings({
           openAtLogin: partial.launchAtLogin,
@@ -939,10 +1118,31 @@ function createAppCoordinatorClass({
       this.onJumpStateChangeCallback?.(has);
     }
     maybePresentSurface(event) {
-      const session = this.state.sessions.get(event.sessionId);
-      const request = createPresentationRequest({ ...event, error: event.error ?? session?.error }, this.settings);
-      if (!request) return;
-      if (request.suppressWhenFocused && this.settings.suppressNotificationWhenFocused) {
+      // sessionStarted（任务发出）和 sessionCompleted（任务结束）是用户明确要的
+      // 两个提醒节点，必须弹 surface 显示 5 秒。permissionRequested/questionAsked
+      // 是中间过程，保留原有门控。
+      const actionableTypes = ["sessionStarted", "permissionRequested", "questionAsked", "sessionCompleted"];
+      if (!actionableTypes.includes(event.type)) return;
+      if (event.type === "sessionStarted") {
+        if (!this.settings.expandOnSessionComplete) return;
+        // 合成的发现事件（transcript watcher 补的 sessionStarted）不弹通知，
+        // 避免与真实 hook 事件重复。
+        if (event.isSynthetic) return;
+      }
+      if (event.type === "sessionCompleted") {
+        if (!this.settings.expandOnSessionComplete) return;
+        if (event.isInterrupt) return;
+        if (event.isSessionEnd) return;
+        if (event.isRalphLoopIteration) return;
+      }
+      if ((event.type === "permissionRequested" || event.type === "questionAsked") && !this.settings.expandOnActionRequired)
+        return;
+      // sessionStarted / sessionCompleted 跳过"聚焦时抑制"——用户要求这两个节点
+      // 无条件提醒，即便正聚焦在发起任务的 app 里也要弹。仅 permission/question
+      // 保留 suppress（中间过程，聚焦时不必打扰）。
+      const skipSuppress = event.type === "sessionStarted" || event.type === "sessionCompleted";
+      if (!skipSuppress && this.settings.suppressNotificationWhenFocused) {
+        const session = this.state.sessions.get(event.sessionId);
         const sessionBundleIds = session ? getSessionBundleIds(session) : [];
         const frontmostBundleId = getFrontmostAppBundleId();
         const appMatches = !!frontmostBundleId && sessionBundleIds.length > 0 && sessionBundleIds.includes(frontmostBundleId);
@@ -976,21 +1176,23 @@ function createAppCoordinatorClass({
         );
         if (hasBlockingSession) return;
       }
+      if (event.type === "sessionCompleted") {
+      }
       this.broadcastSurface({
-        surface: request.surface,
-        reason: "notification",
-        autoDismiss: request.autoDismiss
+        surface: { type: "sessionList", actionableSessionId: event.sessionId },
+        reason: "notification"
       });
     }
     broadcastSurface(payload) {
       if (this.petMode.isActive) {
+        const session = payload.surface.type === "sessionList" && payload.surface.actionableSessionId ? this.state.sessions.get(payload.surface.actionableSessionId) : void 0;
+        const shouldCollapse = shouldAutoDismiss(payload.surface, session?.phase)
+          && payload.reason === "notification"
+          && !Array.from(this.state.sessions.values()).some((s) => requiresAttention(s.phase));
         this.petMode.presentSurface(
           payload.surface,
-          payload.autoDismiss ? this.settings.completionPopupDurationSec * 1e3 : null
+          shouldCollapse ? this.settings.completionPopupDurationSec * 1e3 : null
         );
-        // A pet is the user's chosen primary surface. Keep the Island passive
-        // so one event never creates two competing full-screen interruptions.
-        return;
       }
       if (!this.islandWindow || this.islandWindow.isDestroyed()) return;
       if (this.islandHiddenForFullscreen && this.islandWin) {

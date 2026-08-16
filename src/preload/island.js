@@ -39,11 +39,6 @@ electron.contextBridge.exposeInMainWorld("islandBridge", {
   onQuotaUpdate(cb) {
     electron.ipcRenderer.on(ipc.IPC.ISLAND_QUOTA_UPDATE, (_event, quotas) => cb(quotas));
   },
-  onUpdateAvailable(cb) {
-    const handler = (_event, update) => cb(update);
-    electron.ipcRenderer.on(ipc.IPC.APP_UPDATE_AVAILABLE, handler);
-    return () => electron.ipcRenderer.removeListener(ipc.IPC.APP_UPDATE_AVAILABLE, handler);
-  },
   // 渲染挂载时主动拉一次当前快照，兜底"启动期间事件已错过"的场景。
   getQuotaMap() {
     return electron.ipcRenderer.invoke(ipc.IPC.USAGE_GET_QUOTA_MAP);
@@ -64,6 +59,19 @@ electron.contextBridge.exposeInMainWorld("islandBridge", {
     return () => electron.ipcRenderer.off(ipc.IPC.ISLAND_WINDOW_BLUR, handler);
   },
   // ── Renderer → main ────────────────────────────────────────────────────────
+  // floating 拖动：按下/松手各发一次，中间由主进程轮询光标跟手。
+  dragStart() {
+    electron.ipcRenderer.send(ipc.IPC.ISLAND_DRAG_START);
+  },
+  dragEnd() {
+    electron.ipcRenderer.send(ipc.IPC.ISLAND_DRAG_END);
+  },
+  getPlacement() {
+    return electron.ipcRenderer.invoke(ipc.IPC.ISLAND_GET_PLACEMENT);
+  },
+  onPlacement(cb) {
+    electron.ipcRenderer.on(ipc.IPC.ISLAND_PLACEMENT, (_e, payload) => cb(payload));
+  },
   enterIsland() {
     electron.ipcRenderer.send(ipc.IPC.ISLAND_ENTER);
   },

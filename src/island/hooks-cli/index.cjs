@@ -26,6 +26,61 @@ function canonicalTerminalApp(value) {
   return TERMINAL_APP_ALIASES[normalized] || value.trim();
 }
 
+// 顺序有意义：先匹配到的先返回，所以更具体的放前面。
+const HOST_APP_MATCHERS = [
+  ["/claude.app/", "Claude"],
+  ["/cursor.app/", "Cursor"],
+  ["/windsurf.app/", "Windsurf"],
+  ["/trae cn.app/", "Trae CN"],
+  ["/trae.app/", "Trae"],
+  ["/ghostty.app/", "Ghostty"],
+  ["/iterm.app/", "iTerm"],
+  ["/terminal.app/", "Terminal"],
+  ["/warp.app/", "Warp"],
+  ["/wezterm.app/", "WezTerm"],
+  ["/alacritty.app/", "Alacritty"],
+  ["/kitty.app/", "kitty"],
+  ["/visual studio code.app/", "VS Code"],
+];
+
+/**
+ * 沿进程树上溯，找出承载本次会话的终端 / 宿主 App。
+ *
+ * 这是 TERM_PROGRAM 之外必需的兜底：Claude Code 跑在 Claude Desktop 里时
+ * TERM_PROGRAM 为空，此前 terminal_app 因此恒为 undefined，
+ * bridge-server 拿不到 app 就直接 return，jumpTarget 永远不会生成 ——
+ * 连带导致「点击无法跳转」和「进程结束后不自动停止」两个问题。
+ * hooks-plugins.cjs 早就有这个回退，CLI hook 这份漏了。
+ */
+function detectHostAppFromProcessTree() {
+  try {
+    const { execSync } = require("child_process");
+    const raw = execSync("/bin/ps -Ao pid=,ppid=,command=", {
+      timeout: 500,
+      stdio: ["pipe", "pipe", "pipe"]
+    }).toString();
+    const procs = new Map();
+    for (const line of raw.split("\n")) {
+      const m = line.trim().match(/^(\d+)\s+(\d+)\s+(.+)$/);
+      if (m) procs.set(m[1], { ppid: m[2], command: m[3] });
+    }
+    let pid = String(process.ppid);
+    const seen = new Set();
+    while (pid && pid !== "0" && pid !== "1" && !seen.has(pid)) {
+      seen.add(pid);
+      const p = procs.get(pid);
+      if (!p) break;
+      const low = p.command.toLowerCase();
+      for (const [needle, app] of HOST_APP_MATCHERS) {
+        if (low.includes(needle)) return app;
+      }
+      pid = p.ppid;
+    }
+  } catch {}
+  return undefined;
+}
+
+
 /**
  * Add terminal context that Claude Code and Codex do not include in hook JSON.
  * Warp exposes TERM_PROGRAM=WarpTerminal; keeping this metadata on the hook
@@ -35,7 +90,8 @@ function enrichTerminalContext(payload, env = process.env) {
   const next = payload;
   const terminalApp = canonicalTerminalApp(next.terminal_app)
     || canonicalTerminalApp(env.TERM_PROGRAM)
-    || (env.WARP_CLI_AGENT_PROTOCOL_VERSION ? "Warp" : undefined);
+    || (env.WARP_CLI_AGENT_PROTOCOL_VERSION ? "Warp" : undefined)
+    || detectHostAppFromProcessTree();
   if (terminalApp && !next.terminal_app) next.terminal_app = terminalApp;
 
   const sessionId = env.WARP_SESSION_ID

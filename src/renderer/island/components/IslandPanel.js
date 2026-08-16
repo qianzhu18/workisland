@@ -3,7 +3,7 @@ import { A as AGENT_TOOL_LABELS, j as isPluginAgentTool, g as getPluginColor, h 
 import { g as getFireIconByTokenCount, s as sanitizeAgentDisplayText, c as cleanAppName, b as buildApproveAlwaysTooltip } from "../../shared/formatters.js";
 import { f as formatTokenCount } from "../../shared/tokens.js";
 import { M as Markdown, r as remarkGfm } from "../../vendor/markdown.js";
-import { canContinueSessionViaTerminalPrompt, filterSurfaceSessions, sortVisibleSessions } from "../session-model.mjs";
+import { canContinueSessionViaTerminalPrompt, sortVisibleSessions } from "../session-model.mjs";
 const defaultIcon = new URL("../assets/status/idle.svg", import.meta.url).href;
 const runningIcon = new URL("../assets/status/running.svg", import.meta.url).href;
 const approvalIcon = new URL("../assets/status/approval.svg", import.meta.url).href;
@@ -11,7 +11,7 @@ const completeIcon = new URL("../assets/status/complete.svg", import.meta.url).h
 const errorIcon = new URL("../assets/status/error.svg", import.meta.url).href;
 const codexIcon = new URL("../assets/brands/codex.png", import.meta.url).href;
 function useActionable(sessions, surface, options) {
-  const actionableId = surface?.type === "sessionList" || surface?.type === "completion" ? surface.actionableSessionId : void 0;
+  const actionableId = surface?.type === "sessionList" ? surface.actionableSessionId : void 0;
   const actionableRef = reactExports.useRef(null);
   reactExports.useEffect(() => {
     if (!actionableId || options?.disableScroll) return;
@@ -21,22 +21,36 @@ function useActionable(sessions, surface, options) {
     return () => cancelAnimationFrame(frame);
   }, [actionableId, options?.disableScroll]);
   const visibleSessions = reactExports.useMemo(
-    () => sortVisibleSessions(filterSurfaceSessions(sessions, surface)),
-    [sessions, surface]
+    () => sortVisibleSessions(sessions),
+    [sessions]
   );
   return { actionableId, actionableRef, visibleSessions };
 }
+// 线性火苗。原来的位图是蓝青色渐变，在纯黑胶囊上非常突兀；
+// 换成描边 SVG，颜色跟岛的宣纸色阶走，用量越大越亮。
 const TokenBurnFire = ({ tokenCount }) => {
-  const iconSrc = reactExports.useMemo(() => {
-    return getFireIconByTokenCount(tokenCount);
+  const stroke = reactExports.useMemo(() => {
+    if (tokenCount === void 0 || typeof tokenCount === "string") return "#F2ECDE";
+    if (tokenCount <= 5e6) return "#6E6559";
+    if (tokenCount <= 5e7) return "#A79E90";
+    return "#F2ECDE";
   }, [tokenCount]);
   return /* @__PURE__ */ React.createElement(
-    "img",
-    {
-      src: iconSrc,
-      alt: "token burn fire",
-      style: { width: 16, height: 16, objectFit: "cover" }
-    }
+    "svg",
+    { width: 16, height: 16, viewBox: "0 0 16 16", fill: "none", "aria-label": "token burn" },
+    /* @__PURE__ */ React.createElement("path", {
+      d: "M8 1.8c1.9 2.3 4.3 4.4 4.3 7.2a4.3 4.3 0 0 1-8.6 0c0-1 .3-2 .9-2.9.5.9 1.2 1.5 2 1.8C6.4 5.6 7 3.6 8 1.8Z",
+      stroke,
+      strokeWidth: 1.4,
+      strokeLinejoin: "round"
+    }),
+    /* @__PURE__ */ React.createElement("path", {
+      d: "M8 13.2a2.2 2.2 0 0 1-2.2-2.2c0-.8.6-1.6 1.1-2.2.3.5.7.8 1.1 1 .3-.7.6-1.4 1-2 .7.9 1.2 2 1.2 3A2.2 2.2 0 0 1 8 13.2Z",
+      stroke,
+      strokeWidth: 1,
+      strokeLinejoin: "round",
+      opacity: 0.55
+    })
   );
 };
 const smallMaxWidth = 22;
@@ -1288,8 +1302,7 @@ function IslandPanel({
   const sessionListRef = React.useRef(null);
   const followUpRef = React.useRef(null);
   const panelStyle = {
-    "--island-panel-max-height": `${panelMaxHeightPx}px`,
-    "--island-safe-top-inset": `${Math.max(0, notchHeight)}px`
+    "--island-panel-max-height": `${panelMaxHeightPx}px`
   };
   React.useEffect(() => {
     if (!followUpSessionId) return;

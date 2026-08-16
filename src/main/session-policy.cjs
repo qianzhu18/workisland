@@ -33,7 +33,7 @@ function canContinueSessionViaTerminalPrompt(session) {
 }
 
 function shouldAutoDismiss(surface, sessionPhase) {
-  return (surface.type === "sessionList" || surface.type === "completion")
+  return surface.type === "sessionList"
     && Boolean(surface.actionableSessionId)
     && sessionPhase === "completed";
 }

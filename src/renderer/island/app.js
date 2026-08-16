@@ -5,16 +5,15 @@ import { D as DEFAULT_NOTCH_INFO, r as requiresAttention, d as dominantPhase, I 
 import { c as create } from "../vendor/store.js";
 import { I as IslandPanel } from "./components/IslandPanel.js";
 import { isVisibleInIsland } from "./session-model.mjs";
-import { resolveFocusLossPresentation, shouldCollapseOnFocusLoss } from "./focus-policy.mjs";
+import { shouldCollapseOnFocusLoss } from "./focus-policy.mjs";
+import { b as buildDockClipPath } from "./dock-shape.js";
 const useSessionStore = create((set) => ({
   sessions: [],
   notchInfo: window.islandBridge?.__initialNotchInfo ?? DEFAULT_NOTCH_INFO,
   surface: null,
   openReason: null,
-  notificationAutoDismiss: false,
   agentQuotas: {},
   onboardingExpand: false,
-  hasUpdate: false,
   toggleExpandTick: 0,
   collapseTick: 0,
   switchSessionTick: 0,
@@ -22,18 +21,17 @@ const useSessionStore = create((set) => ({
   confirmSessionTick: 0,
   setSessions: (sessions) => set({ sessions }),
   setNotchInfo: (notchInfo) => set({ notchInfo }),
-  presentSurface: (surface, openReason, notificationAutoDismiss = false) => set({ surface, openReason, notificationAutoDismiss }),
-  clearSurface: () => set({ surface: null, openReason: null, notificationAutoDismiss: false }),
+  presentSurface: (surface, openReason) => set({ surface, openReason }),
+  clearSurface: () => set({ surface: null, openReason: null }),
   setAgentQuotas: (agentQuotas) => set({ agentQuotas }),
   setOnboardingExpand: (onboardingExpand) => set({ onboardingExpand }),
-  setHasUpdate: (hasUpdate) => set({ hasUpdate }),
   requestToggleExpand: () => set((state) => ({ toggleExpandTick: state.toggleExpandTick + 1 })),
   requestCollapse: () => set((state) => ({ collapseTick: state.collapseTick + 1 })),
   requestSwitchSession: (direction) => set((state) => ({ switchSessionTick: state.switchSessionTick + 1, switchSessionDirection: direction })),
   requestConfirmSession: () => set((state) => ({ confirmSessionTick: state.confirmSessionTick + 1 }))
 }));
 function useIslandState() {
-  const { setSessions, setNotchInfo, presentSurface, setAgentQuotas, setHasUpdate } = useSessionStore();
+  const { setSessions, setNotchInfo, presentSurface, setAgentQuotas } = useSessionStore();
   reactExports.useEffect(() => {
     const bridge = window.islandBridge;
     if (!bridge) {
@@ -46,11 +44,10 @@ function useIslandState() {
     bridge.onSessionUpdate((sessions) => {
       setSessions(sessions);
     });
-    bridge.onPresentSurface(({ surface, reason, autoDismiss }) => {
-      presentSurface(surface, reason, autoDismiss);
+    bridge.onPresentSurface(({ surface, reason }) => {
+      presentSurface(surface, reason);
     });
     bridge.onQuotaUpdate((quotas) => setAgentQuotas(quotas));
-    const offUpdate = bridge.onUpdateAvailable?.(() => setHasUpdate(true));
     void bridge.getQuotaMap().then((quotas) => {
       if (quotas && Object.keys(quotas).length > 0) setAgentQuotas(quotas);
     });
@@ -72,7 +69,6 @@ function useIslandState() {
     bridge.onConfirmSession?.(() => {
       useSessionStore.getState().requestConfirmSession();
     });
-    return () => offUpdate?.();
   }, []);
 }
 function useIslandAnimation() {
@@ -101,7 +97,12 @@ const WINDOW_H = 750;
 const HOVER_OPEN_DELAY_MS = 200;
 const MOUSE_LEAVE_CLOSE_DELAY_MS = 300;
 const CLOSE_WINDOW_RESIZE_DELAY_MS = 300;
+// 唤醒热区在胶囊两侧各留的容错余量（pt）。
+const HOTSPOT_SIDE_PADDING_PX = 48;
 const OPEN_WINDOW_SHADOW_MARGIN_PX = 32;
+// 贴边轮廓：与屏幕边缘相接处的内凹半径，以及自由端的凸圆角半径。
+const DOCK_CONCAVE_R = 14;
+const DOCK_CONVEX_R = 14;
 function IslandApp() {
   useIslandState();
   const {
@@ -109,11 +110,9 @@ function IslandApp() {
     notchInfo,
     surface,
     openReason,
-    notificationAutoDismiss,
     clearSurface,
     presentSurface,
-    agentQuotas,
-    hasUpdate
+    agentQuotas
   } = useSessionStore();
   const onboardingExpand = useSessionStore((s) => s.onboardingExpand);
   const setOnboardingExpand = useSessionStore((s) => s.setOnboardingExpand);
@@ -124,11 +123,66 @@ function IslandApp() {
   const { notchStatus, transitionClass, isPopping, open, close } = useIslandAnimation();
   const panelLayerRef = reactExports.useRef(null);
   const [panelHeight, setPanelHeight] = reactExports.useState(300);
+  // dock 状态完全由主进程给定：{placement, edge, mode}。
+  // 渲染层不自行推断形状 —— 窗口尺寸和这里画的形状必须同源，
+  // 各算各的正是此前「看不见 / 长条 / 竖侧边栏」的共同成因。
+  const [dock, setDock] = reactExports.useState({ placement: "notch", edge: "right", mode: "notch" });
+  reactExports.useEffect(() => {
+    window.islandBridge?.onPlacement?.((d) => d && setDock(d));
+    // 主动拉一次：did-finish-load 的补发与 React 挂载之间仍有空隙，
+    // 落在空隙里的那一次推送会丢。
+    void window.islandBridge?.getPlacement?.().then((d) => d && setDock(d)).catch(() => {});
+  }, []);
+  const isDocked = dock.placement === "docked";
+  const isSideDock = isDocked && dock.edge !== "top";
+  const isDragging = isDocked && dock.mode === "dragging";
+  const [winSize, setWinSize] = reactExports.useState([window.innerWidth, window.innerHeight]);
+  reactExports.useEffect(() => {
+    const onResize = () => setWinSize([window.innerWidth, window.innerHeight]);
+    window.addEventListener("resize", onResize);
+    onResize();
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  // 主进程一旦进入拖动形态，渲染层必须同步收起：窗口已经缩成 56×56 小方块，
+  // 若渲染层还在画展开面板，就又回到了「窗口与形状不同源」的老问题。
+  // Command + 拖动 = 移动贴边岛。
+  // 用 window 捕获阶段监听，而不是铺一层覆盖 div：覆盖层会连带吃掉面板内部的
+  // 点击，正是前两版「拖不动又点不了」的成因。按住 Command 才拦截，其余情况
+  // 事件原样流向面板内容。
+  reactExports.useEffect(() => {
+    if (!isDocked) return;
+    const onDown = (e) => {
+      if (!e.metaKey) return;
+      e.preventDefault();
+      e.stopPropagation();
+      window.islandBridge?.dragStart?.();
+      const onUp = () => {
+        window.removeEventListener("mouseup", onUp, true);
+        window.islandBridge?.dragEnd?.();
+      };
+      window.addEventListener("mouseup", onUp, true);
+    };
+    window.addEventListener("mousedown", onDown, true);
+    return () => window.removeEventListener("mousedown", onDown, true);
+  }, [isDocked]);
+  reactExports.useEffect(() => {
+    if (!isDragging) return;
+    if (hoverOpenTimer.current) {
+      clearTimeout(hoverOpenTimer.current);
+      hoverOpenTimer.current = null;
+    }
+    useSessionStore.getState().requestCollapse();
+  }, [isDragging]);
   const [mounted, setMounted] = reactExports.useState(false);
   const autoCollapseTimer = reactExports.useRef(null);
   const attentionNotifTimer = reactExports.useRef(null);
   const hoverOpenTimer = reactExports.useRef(null);
   const mouseLeaveCloseTimer = reactExports.useRef(
+    null
+  );
+  // 鼠标离开/失焦后，先收成可见胶囊，再经过 autoCollapseDurationMs 完全隐身。
+  // 这个 timer 负责第二阶段（胶囊→隐身 hotspot）。
+  const concealAfterCollapseTimer = reactExports.useRef(
     null
   );
   const warmupCloseTimerRef = reactExports.useRef(
@@ -155,6 +209,7 @@ function IslandApp() {
   const [hoverToOpen, setHoverToOpen] = reactExports.useState(DEFAULT_SETTINGS.hoverToOpen);
   const [autoCollapseOnMouseLeave, setAutoCollapseOnMouseLeave] = reactExports.useState(DEFAULT_SETTINGS.autoCollapseOnMouseLeave);
   const [showUsageQuota, setShowUsageQuota] = reactExports.useState(DEFAULT_SETTINGS.showUsageQuota);
+  const hasUpdate = false;
   const [tokenBurnTotal, setTokenBurnTotal] = reactExports.useState(0);
   const [autoCollapseDurationMs, setAutoCollapseDurationMs] = reactExports.useState(
     DEFAULT_SETTINGS.completionPopupDurationSec * 1e3
@@ -207,6 +262,21 @@ function IslandApp() {
       unsubscribe?.();
     };
   }, []);
+  // 两阶段隐藏：先收成可见胶囊（close → visible-pill，opacity 1），停留
+  // autoCollapseDurationMs 后再 hideForFocusLoss（→ 透明 hotspot，opacity 0）。
+  // 这正是用户要的"光标拖出去后保持胶囊 5 秒再完全消失"。任一阶段鼠标回到
+  // 岛上（handleMouseEnter）都会清掉 concealAfterCollapseTimer 并重新展开。
+  // 定义在此处（settings effect 之后、blur effect 之前）以避免 const 暂时性死区。
+  const concealToHiddenAfterDelay = reactExports.useCallback(() => {
+    if (concealAfterCollapseTimer.current) {
+      clearTimeout(concealAfterCollapseTimer.current);
+      concealAfterCollapseTimer.current = null;
+    }
+    concealAfterCollapseTimer.current = setTimeout(() => {
+      concealAfterCollapseTimer.current = null;
+      window.islandBridge?.hideForFocusLoss?.();
+    }, autoCollapseDurationMs);
+  }, [autoCollapseDurationMs]);
   reactExports.useEffect(() => {
     setMounted(true);
   }, []);
@@ -250,6 +320,8 @@ function IslandApp() {
         clearTimeout(resizeWindowTimerRef.current);
       if (collapsePanelToPillTimerRef.current)
         clearTimeout(collapsePanelToPillTimerRef.current);
+      if (concealAfterCollapseTimer.current)
+        clearTimeout(concealAfterCollapseTimer.current);
     };
   }, []);
   reactExports.useEffect(() => {
@@ -274,11 +346,11 @@ function IslandApp() {
       if (focusLossHandledRef.current) return;
       focusLossHandledRef.current = true;
       pendingFollowUpDismissRef.current = false;
-      if (resolveFocusLossPresentation({ isVisible: mounted, followUpFocused }) !== "pill") return;
-      // 普通失焦只收成默认胶囊，保持左侧角色可见。
+      // 失焦也走两阶段：先收成胶囊，停留 5 秒后完全隐身。
       clearSurface();
       close();
       window.islandBridge?.surfaceDismissed();
+      concealToHiddenAfterDelay();
     };
     const handleWindowFocus = () => {
       focusLossHandledRef.current = false;
@@ -291,7 +363,7 @@ function IslandApp() {
       window.removeEventListener("workisland-window-blur", handleWindowBlur);
       window.removeEventListener("focus", handleWindowFocus);
     };
-  }, [close, clearSurface, mounted]);
+  }, [close, clearSurface, mounted, concealToHiddenAfterDelay]);
   const collapsePanelToPill = reactExports.useCallback(() => {
     if (mouseLeaveCloseTimer.current) {
       clearTimeout(mouseLeaveCloseTimer.current);
@@ -376,8 +448,8 @@ function IslandApp() {
       collapsePanelToPillTimerRef.current = null;
     }
     open();
-    const focusedSession = (surface.type === "sessionList" || surface.type === "completion") && surface.actionableSessionId ? sessions.find((s) => s.id === surface.actionableSessionId) : void 0;
-    if ((surface.type === "sessionList" || surface.type === "completion") && surface.actionableSessionId && !focusedSession) {
+    const focusedSession = surface.type === "sessionList" && surface.actionableSessionId ? sessions.find((s) => s.id === surface.actionableSessionId) : void 0;
+    if (surface.type === "sessionList" && surface.actionableSessionId && !focusedSession) {
       close();
       clearSurface();
       window.islandBridge?.surfaceDismissed();
@@ -393,7 +465,7 @@ function IslandApp() {
   // "时间抓不住"。现在 surface 一旦弹出就稳定倒数 autoCollapseDurationMs。
   reactExports.useEffect(() => {
     if (!surface) return;
-    if (openReason !== "notification" || !notificationAutoDismiss) return;
+    if (openReason !== "notification") return;
     if (isFollowUpActiveRef.current) return;
     if (autoCollapseTimer.current) clearTimeout(autoCollapseTimer.current);
     autoCollapseTimer.current = setTimeout(() => {
@@ -405,7 +477,7 @@ function IslandApp() {
     return () => {
       if (autoCollapseTimer.current) clearTimeout(autoCollapseTimer.current);
     };
-  }, [surface, openReason, notificationAutoDismiss, autoCollapseDurationMs, close, clearSurface]);
+  }, [surface, openReason, autoCollapseDurationMs, close, clearSurface]);
   reactExports.useEffect(() => {
     if (!onboardingExpand) return;
     setOnboardingExpand(false);
@@ -476,7 +548,13 @@ function IslandApp() {
     }
     if (notchStatus === "opened" || transitionClass === "is-opening") {
       bridge.resizeWindow(maxExpandedWindowHeight);
-      return void 0;
+      // 兜底：展开动画结束后再确认一次高度。
+      // 若有迟到的收起同步在 PANEL_EXPANDED 之前把窗口压矮了，这里会把它拉回来；
+      // 否则本 effect 在面板稳定展开后不再重跑，窗口会一直卡在收起高度上。
+      const confirm = setTimeout(() => {
+        bridge.resizeWindow(maxExpandedWindowHeight);
+      }, 340);
+      return () => clearTimeout(confirm);
     }
     const delay = transitionClass === "is-closing" ? CLOSE_WINDOW_RESIZE_DELAY_MS : 0;
     resizeWindowTimerRef.current = setTimeout(() => {
@@ -505,12 +583,70 @@ function IslandApp() {
     topRadius: openedTopR,
     windowWidth: WINDOW_W
   });
-  const clipPath = mounted ? isOpen ? openedShape.clipPath : closedShape.clipPath : closedShape.clipPath;
+  const notchClip = mounted ? isOpen ? openedShape.clipPath : closedShape.clipPath : closedShape.clipPath;
+  // 贴边态的两个形状：条形与面板形，同一（面板大小的）窗口坐标系下生成，
+  // 路径指令结构一致，CSS clip-path 过渡可以直接插值 —— 形变全在渲染层，
+  // 窗口 bounds 不动，这正是刘海模式丝滑的原因。
+  const dockClips = reactExports.useMemo(() => {
+    if (!isDocked || isDragging || !dock.strip) return null;
+    const [w, h] = winSize;
+    const top = dock.edge === "top";
+    const span = top ? w : h;
+    const strip = buildDockClipPath({
+      edge: dock.edge,
+      winW: w,
+      winH: h,
+      bodyLen: Math.max(0, dock.strip.len - 2 * DOCK_CONCAVE_R),
+      depth: dock.strip.depth,
+      concaveR: DOCK_CONCAVE_R,
+      convexR: DOCK_CONVEX_R,
+      spanStart: dock.strip.spanOffset
+    });
+    const panelDepth = top ? Math.min(actualPanelH + 8, h) : w;
+    // 侧边面板的纵向跨度跟随内容高度：内容短时不至于拖一大块空黑到屏幕下方。
+    const panelSpan = top ? span : Math.max(dock.strip.len, Math.min(panelHeight + 16, span));
+    const panel = buildDockClipPath({
+      edge: dock.edge,
+      winW: w,
+      winH: h,
+      bodyLen: Math.max(0, panelSpan - 2 * DOCK_CONCAVE_R),
+      depth: panelDepth,
+      concaveR: DOCK_CONCAVE_R,
+      convexR: DOCK_CONVEX_R,
+      spanStart: 0
+    });
+    return { strip, panel };
+  }, [isDocked, isDragging, dock, winSize, actualPanelH, panelHeight]);
+  const clipPath = isDocked
+    ? isDragging ? "none" : dockClips ? (mounted && isOpen ? dockClips.panel : dockClips.strip) : "none"
+    : notchClip;
   const transition = mounted ? transitionClass : "";
+  /**
+   * 全宽热区的进入处理：只负责「唤醒」，不负责「展开」。
+   *
+   * 两件事必须分开：唤醒是把隐身的胶囊显形，热区应该宽松；展开是打开整个面板，
+   * 必须精确命中胶囊本体。若热区复用 handleMouseEnter，它里面的 hoverToOpen 分支
+   * 会让鼠标扫过屏幕顶部就展开面板 —— 用菜单栏时会被反复误触发。
+   */
+  const handleHotspotEnter = reactExports.useCallback(() => {
+    if (concealAfterCollapseTimer.current) {
+      clearTimeout(concealAfterCollapseTimer.current);
+      concealAfterCollapseTimer.current = null;
+    }
+    window.islandBridge?.enterIsland();
+  }, []);
+  const handleHotspotLeave = reactExports.useCallback(() => {
+    window.islandBridge?.leaveIsland();
+  }, []);
   const handleMouseEnter = reactExports.useCallback((e) => {
     if (mouseLeaveCloseTimer.current) {
       clearTimeout(mouseLeaveCloseTimer.current);
       mouseLeaveCloseTimer.current = null;
+    }
+    // 鼠标回到岛上：取消"胶囊→隐身"的第二阶段，保持可见。
+    if (concealAfterCollapseTimer.current) {
+      clearTimeout(concealAfterCollapseTimer.current);
+      concealAfterCollapseTimer.current = null;
     }
     pendingFollowUpDismissRef.current = false;
     if (autoCollapseTimer.current) clearTimeout(autoCollapseTimer.current);
@@ -530,14 +666,15 @@ function IslandApp() {
         open();
       }, HOVER_OPEN_DELAY_MS);
     }
-  }, [hoverToOpen, notchStatus, open, presentSurface, surface]);
+  }, [hoverToOpen, notchStatus, open, presentSurface, surface, isDocked]);
   const handleMouseLeave = reactExports.useCallback(() => {
     if (hoverOpenTimer.current) {
       clearTimeout(hoverOpenTimer.current);
       hoverOpenTimer.current = null;
     }
     window.islandBridge?.leaveIsland();
-    // 鼠标离开后收成默认胶囊，保持左侧角色可见。
+    // 鼠标脱离后两阶段隐藏：先收成可见胶囊（黑胶囊），保持 autoCollapseDurationMs
+    // （默认 5 秒）后再完全隐身（透明 hotspot）。这期间鼠标回到岛上会取消隐身。
     if (!isOpen) return;
     const isFollowUpFocused = isFollowUpActiveRef.current && document.hasFocus() && document.activeElement?.closest("[data-follow-up-input]");
     if (isFollowUpFocused) {
@@ -548,8 +685,9 @@ function IslandApp() {
       clearSurface();
       close();
       window.islandBridge?.surfaceDismissed();
+      concealToHiddenAfterDelay();
     }, MOUSE_LEAVE_CLOSE_DELAY_MS);
-  }, [isOpen, close, clearSurface]);
+  }, [isOpen, close, clearSurface, concealToHiddenAfterDelay]);
   const handlePillClick = reactExports.useCallback(() => {
     if (hoverOpenTimer.current) {
       clearTimeout(hoverOpenTimer.current);
@@ -620,7 +758,9 @@ function IslandApp() {
   return /* @__PURE__ */ React.createElement(
     "div",
     {
-      className: `island-pop-wrapper${isPopping ? " is-popping" : ""}${isOpen || transitionClass === "is-opening" ? " is-open" : ""}`,
+      // is-morphing：形变进行中。用它在动画期间摘掉 wrapper 上的 drop-shadow，
+      // 否则每一帧 clip-path 变化都要把整个窗口大小的子树重新栅格化再模糊一次。
+      className: `island-pop-wrapper${isPopping ? " is-popping" : ""}${isOpen || transitionClass === "is-opening" ? " is-open" : ""}${transitionClass === "is-opening" || transitionClass === "is-closing" ? " is-morphing" : ""}`,
       style: { position: "fixed", inset: 0, pointerEvents: "none" }
     },
     /* @__PURE__ */ React.createElement(
@@ -634,10 +774,29 @@ function IslandApp() {
         }
       }
     ),
+    // 全宽隐形唤醒热区。
+    // 此前整个窗口里只有 .island 是 pointer-events:auto，而它被 clip-path 裁成了
+    // 胶囊轮廓 —— 于是唤醒热区恰好等于胶囊的可见轮廓，必须精确命中才有反应。
+    // 主进程那侧其实早就把窗口铺满屏幕宽度并 setIgnoreMouseEvents(false) 了，
+    // 缺的只是渲染层没有对应的可命中区域。展开后撤掉，避免挡住面板自身的交互。
+    // notch 下才需要顶部隐形唤醒热区；贴边态是常驻可见的，不需要。
+    !isDocked && !isOpen && /* @__PURE__ */ React.createElement(
+      "div",
+      {
+        className: "island-hotspot",
+        // 胶囊宽度 + 两侧各 48pt 容错。之前是铺满窗口（740pt，约占屏宽一半）。
+        style: {
+          width: pillWidth + HOTSPOT_SIDE_PADDING_PX * 2,
+          height: Math.max(notchH, 24)
+        },
+        onMouseEnter: handleHotspotEnter,
+        onMouseLeave: handleHotspotLeave
+      }
+    ),
     /* @__PURE__ */ React.createElement(
       "div",
       {
-        className: `island ${transition}`,
+        className: `island ${transition}${isDocked ? ` is-docked is-dock-${dock.edge} is-dock-${dock.mode}` : ""}`,
         style: { clipPath },
         onMouseEnter: handleMouseEnter,
         onMouseLeave: handleMouseLeave
@@ -646,8 +805,28 @@ function IslandApp() {
         "div",
         {
           className: `island-pill-layer${isOpen ? " is-hidden" : ""}`,
-          style: { width: pillWidth, height: notchH }
+          style: isDocked
+            ? isDragging
+              ? { left: 0, top: 0, transform: "none", width: "100%", height: "100%" }
+              : dock.edge === "top"
+                ? { left: dock.strip?.spanOffset ?? 0, top: 0, transform: "none", width: dock.strip?.len ?? 160, height: dock.strip?.depth ?? 44 }
+                : {
+                    left: dock.edge === "left" ? 0 : "auto",
+                    right: dock.edge === "right" ? 0 : "auto",
+                    top: dock.strip?.spanOffset ?? 0,
+                    transform: "none",
+                    width: dock.strip?.depth ?? 44,
+                    height: dock.strip?.len ?? 160
+                  }
+            : { width: pillWidth, height: notchH }
         },
+        isDocked && !isDragging && /* @__PURE__ */ React.createElement(
+          "div",
+          {
+            className: `dock-status-dot is-${phase ?? "idle"} dock-dot-${dock.edge}`,
+            title: phase ?? "idle"
+          }
+        ),
         /* @__PURE__ */ React.createElement(
           IslandPill,
           {
@@ -666,8 +845,10 @@ function IslandApp() {
         "div",
         {
           ref: panelLayerRef,
-          className: `island-panel-layer${isOpen ? "" : " is-hidden"}`,
-          style: { width: panelWidth }
+          className: `island-panel-layer${isOpen ? "" : " is-hidden"}${isSideDock ? " is-side-dock" : ""}`,
+          style: isSideDock
+            ? { left: 0, transform: "none", width: winSize[0] }
+            : { width: panelWidth }
         },
         /* @__PURE__ */ React.createElement(
           IslandPanel,

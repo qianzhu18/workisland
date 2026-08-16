@@ -147,12 +147,19 @@ const { getStatsService } = require("./stats-service.cjs");
 const lastReportedAt = /* @__PURE__ */ new Map();
 const accountedTokens = /* @__PURE__ */ new Map();
 function applyBaselineDiff(dedupeKey, cumulative) {
-  const baseline = accountedTokens.get(dedupeKey) ?? { input: 0, output: 0 };
+  const baseline = accountedTokens.get(dedupeKey) ?? { input: 0, output: 0, cacheRead: 0, cacheCreation: 0 };
   const deltaInput = Math.max(0, cumulative.inputTokens - baseline.input);
   const deltaOutput = Math.max(0, cumulative.outputTokens - baseline.output);
-  accountedTokens.set(dedupeKey, { input: cumulative.inputTokens, output: cumulative.outputTokens });
+  const deltaCacheRead = Math.max(0, (cumulative.cacheReadTokens ?? 0) - (baseline.cacheRead ?? 0));
+  const deltaCacheCreation = Math.max(0, (cumulative.cacheCreationTokens ?? 0) - (baseline.cacheCreation ?? 0));
+  accountedTokens.set(dedupeKey, {
+    input: cumulative.inputTokens,
+    output: cumulative.outputTokens,
+    cacheRead: cumulative.cacheReadTokens ?? 0,
+    cacheCreation: cumulative.cacheCreationTokens ?? 0
+  });
   if (deltaInput === 0 && deltaOutput === 0) return null;
-  return { inputTokens: deltaInput, outputTokens: deltaOutput, totalTokens: deltaInput + deltaOutput, model: cumulative.model, isEstimated: cumulative.isEstimated };
+  return { inputTokens: deltaInput, outputTokens: deltaOutput, cacheReadTokens: deltaCacheRead, cacheCreationTokens: deltaCacheCreation, totalTokens: deltaInput + deltaOutput, model: cumulative.model, isEstimated: cumulative.isEstimated };
 }
 function reportTokenUsage(tool, sessionId, result, remote) {
   if (result.inputTokens === 0 && result.outputTokens === 0) {
@@ -203,6 +210,94 @@ function reportTokenUsage(tool, sessionId, result, remote) {
   );
   getStatsService().recordToken(tool, sessionId, result.inputTokens, result.outputTokens, result.cacheReadTokens ?? 0, result.cacheCreationTokens ?? 0, remote);
 }
+/**
+ * 从 Claude Code transcript 累加 token 用量。
+ * 每条 assistant 消息带 message.usage（input/output/cache_read/cache_creation），
+ * 全量累加得到会话累计值，交给 applyBaselineDiff 转成增量再入账。
+ */
+async function parseClaudeTokens(transcriptPath) {
+  let content;
+  try {
+    content = await promises.readFile(transcriptPath, "utf-8");
+  } catch (err) {
+    log.warn("[claudeTokens] readFile failed for %s:", transcriptPath, err);
+    return null;
+  }
+  let input = 0;
+  let output = 0;
+  let cacheRead = 0;
+  let cacheCreation = 0;
+  let model;
+  for (const line of content.split("\n")) {
+    if (!line) continue;
+    let item;
+    try {
+      item = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    const u = item?.message?.usage;
+    if (item?.type !== "assistant" || !u) continue;
+    input += u.input_tokens ?? 0;
+    output += u.output_tokens ?? 0;
+    cacheRead += u.cache_read_input_tokens ?? 0;
+    cacheCreation += u.cache_creation_input_tokens ?? 0;
+    if (item.message.model) model = item.message.model;
+  }
+  if (input === 0 && output === 0) return null;
+  return {
+    inputTokens: input,
+    outputTokens: output,
+    cacheReadTokens: cacheRead,
+    cacheCreationTokens: cacheCreation,
+    totalTokens: input + output,
+    model,
+    isEstimated: false
+  };
+}
+/**
+ * 从 Codex rollout transcript 取 token 累计。
+ * token_count 事件的 info.total_token_usage 是会话累计值，取最后一条即可；
+ * input_tokens 含缓存部分，拆开与其他工具的口径对齐。
+ */
+async function parseCodexTokens(transcriptPath) {
+  let content;
+  try {
+    content = await promises.readFile(transcriptPath, "utf-8");
+  } catch (err) {
+    log.warn("[codexTokens] readFile failed for %s:", transcriptPath, err);
+    return null;
+  }
+  let usage = null;
+  let model;
+  for (const line of content.split("\n")) {
+    if (!line) continue;
+    let item;
+    try {
+      item = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    const p = item?.payload;
+    if (!p) continue;
+    if (p.type === "token_count" && p.info?.total_token_usage) usage = p.info.total_token_usage;
+    if (p.type === "thread_settings_applied" && p.thread_settings?.model) model = p.thread_settings.model;
+  }
+  if (!usage) return null;
+  const cached = usage.cached_input_tokens ?? 0;
+  const input = Math.max(0, (usage.input_tokens ?? 0) - cached);
+  const output = usage.output_tokens ?? 0;
+  if (input === 0 && output === 0 && cached === 0) return null;
+  return {
+    inputTokens: input,
+    outputTokens: output,
+    cacheReadTokens: cached,
+    cacheCreationTokens: usage.cache_write_input_tokens ?? 0,
+    totalTokens: input + output,
+    model,
+    isEstimated: false
+  };
+}
 async function collectAndReportTokens(tool, sessionId, transcriptPath) {
   try {
     const dedupeKey = `${tool}:${sessionId}`;
@@ -226,6 +321,22 @@ async function collectAndReportTokens(tool, sessionId, transcriptPath) {
         break;
       case "hermes":
         result = getHermesCumulativeTokens(sessionId);
+        if (result) result = applyBaselineDiff(dedupeKey, result);
+        break;
+      case "claude":
+        if (!transcriptPath) {
+          log.info("[TokenCollector] 跳过：claude 缺少 transcriptPath");
+          return;
+        }
+        result = await parseClaudeTokens(transcriptPath);
+        if (result) result = applyBaselineDiff(dedupeKey, result);
+        break;
+      case "codex":
+        if (!transcriptPath) {
+          log.info("[TokenCollector] 跳过：codex 缺少 transcriptPath");
+          return;
+        }
+        result = await parseCodexTokens(transcriptPath);
         if (result) result = applyBaselineDiff(dedupeKey, result);
         break;
     }
@@ -2418,6 +2529,7 @@ function parseTraexPermissionMode(value) {
   return typeof value === "string" && TRAEX_PERMISSION_MODES.has(value) ? value : void 0;
 }
 module.exports = {
+  collectAndReportTokens,
   GeminiAdapter,
   HermesAdapter,
   AidenAdapter,

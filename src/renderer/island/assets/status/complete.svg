@@ -1,7 +1,32 @@
 <svg width="56" height="56" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
-  <style>.ink{fill:#181b22}.deep{fill:#292e38}.cloth{fill:#667080}.cloth2{fill:#9299a5}.face{fill:#f0e7d6}.green{fill:#31d58b}.glow{fill:#baf5d3}</style>
-  <rect class="ink" x="8" y="30" width="17" height="1"/><rect class="deep" x="11" y="29" width="11" height="1"/><rect class="green" x="4" y="6" width="2" height="2"/><rect class="green" x="6" y="4" width="2" height="2"/><rect class="glow" x="3" y="9" width="2" height="2"/>
-  <path class="ink" d="M10 2h11v2h3v3h2v11h-2v4h-3v3H10v-3H7v-4H5V8h2V5h3z"/><path class="cloth" d="M11 4h9v2h3v3h1v8h-2v3h-2v2h-9v-2H9v-3H7V9h2V6h2z"/><rect class="cloth2" x="10" y="5" width="9" height="1"/>
-  <path class="ink" d="M11 8h10v1h2v7h-2v2H11v-2H9V9h2z"/><path class="face" d="M12 9h8v1h2v5h-2v2h-8v-2h-2v-5h2z"/><path class="deep" d="M11 9h10v2h-2v1h-3v-1h-5z"/><rect class="ink" x="13" y="12" width="2" height="1"/><rect class="ink" x="18" y="12" width="2" height="1"/><rect class="ink" x="15" y="15" width="4" height="1"/>
-  <path class="ink" d="M10 20h12v3h2v7h-6v-4h-4v4H8v-7h2z"/><path class="cloth" d="M11 21h10v3h1v4h-3v-3h-6v3h-3v-4h1z"/><rect class="ink" x="13" y="20" width="7" height="7"/><rect class="green" x="15" y="21" width="3" height="4"/><rect class="glow" x="15" y="21" width="2" height="1"/><rect class="face" x="11" y="21" width="3" height="3"/><rect class="face" x="19" y="21" width="3" height="3"/>
+  <style>.ink{fill:#1F1B16}.lid{fill:#3C342C}.eye{fill:#F8F2E6}.dot{fill:#C4452D}.ground{fill:#ECDCBF}</style>
+  <rect class="ground" x="0" y="0" width="32" height="32" rx="7"/>
+  <rect class="dot" x="2" y="10" width="1" height="1"/>
+  <rect class="ink" x="8" y="11" width="1" height="1"/>
+  <rect class="lid" x="9" y="11" width="12" height="1"/>
+  <rect class="ink" x="21" y="11" width="2" height="1"/>
+  <rect class="dot" x="3" y="12" width="1" height="1"/>
+  <rect class="ink" x="7" y="12" width="1" height="1"/>
+  <rect class="lid" x="8" y="12" width="2" height="1"/>
+  <rect class="ink" x="10" y="12" width="13" height="1"/>
+  <rect class="lid" x="7" y="13" width="2" height="1"/>
+  <rect class="ink" x="9" y="13" width="15" height="1"/>
+  <rect class="ink" x="6" y="14" width="1" height="1"/>
+  <rect class="lid" x="7" y="14" width="1" height="1"/>
+  <rect class="ink" x="8" y="14" width="17" height="1"/>
+  <rect class="ink" x="5" y="15" width="2" height="1"/>
+  <rect class="lid" x="7" y="15" width="1" height="1"/>
+  <rect class="ink" x="8" y="15" width="3" height="1"/>
+  <rect class="ink" x="13" y="15" width="5" height="1"/>
+  <rect class="ink" x="20" y="15" width="6" height="1"/>
+  <rect class="ink" x="5" y="16" width="6" height="1"/>
+  <rect class="ink" x="13" y="16" width="5" height="1"/>
+  <rect class="ink" x="20" y="16" width="6" height="1"/>
+  <rect class="ink" x="6" y="17" width="19" height="1"/>
+  <rect class="dot" x="28" y="17" width="1" height="1"/>
+  <rect class="ink" x="7" y="18" width="17" height="1"/>
+  <rect class="dot" x="27" y="18" width="1" height="1"/>
+  <rect class="ink" x="7" y="19" width="16" height="1"/>
+  <rect class="ink" x="9" y="20" width="12" height="1"/>
+  <rect class="dot" x="23" y="20" width="1" height="1"/>
 </svg>

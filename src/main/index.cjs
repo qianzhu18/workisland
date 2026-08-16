@@ -30,7 +30,8 @@ const {
   canContinueSessionViaTerminalPrompt,
   isPluginAgentTool,
   isVisibleInIsland,
-  requiresAttention
+  requiresAttention,
+  shouldAutoDismiss
 } = require("./session-policy.cjs");
 function _interopNamespaceDefault(e) {
   const n = Object.create(null, { [Symbol.toStringTag]: { value: "Module" } });
@@ -594,6 +595,7 @@ const AppCoordinator = createAppCoordinatorClass({
   unwatchActiveSpace,
   requiresAttention,
   canContinueSessionViaTerminalPrompt,
+  shouldAutoDismiss,
   findLatestCodexInterrupt,
   getSessionBundleIds,
   jumpToTarget,
@@ -810,6 +812,22 @@ async function runIslandApp() {
           browserWindow.webContents.send(IPC.ISLAND_WINDOW_BLUR);
         }
       });
+      // floating 落位：读设置决定形态，拖动结束后把位置写回设置。
+      iw.onDockChange = (dock) => {
+        try {
+          coordinator.updateSettings({ islandDock: dock }, "island");
+        } catch (err) {
+          log.warn("[main] 保存贴边位置失败:", err);
+        }
+      };
+      try {
+        const s0 = coordinator.getSettings?.() ?? {};
+        if (s0.islandPlacement === "docked") {
+          iw.setPlacement("docked", s0.islandDock);
+        }
+      } catch (err) {
+        log.warn("[main] 应用初始落位失败:", err);
+      }
       coordinator.setIslandWindow(iw.browserWindow);
       coordinator.setIslandWin(iw);
       coordinator.setDisplayManager(displayManager);

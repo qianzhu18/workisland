@@ -24,6 +24,12 @@ const IPC = Object.freeze({
   ISLAND_WINDOW_BLUR: "island:window-blur",
   ISLAND_FOCUS_LOSS_HIDE: "island:focus-loss-hide",
   ISLAND_SYNC_CLOSED_WINDOW: "island:sync-closed-window",
+  // floating 模式拖动：渲染层按下并上报位移，主进程移动窗口；松手时贴边吸附。
+  ISLAND_DRAG_START: "island:drag-start",
+  ISLAND_DRAG_MOVE: "island:drag-move",
+  ISLAND_DRAG_END: "island:drag-end",
+  ISLAND_PLACEMENT: "island:placement",
+  ISLAND_GET_PLACEMENT: "island:get-placement",
   ISLAND_DRAG_TO_PET: "island:drag-to-pet",
   ISLAND_TODAY_BURN_UPDATE: "island:today-burn-update",
   ISLAND_RESIZE: "island:resize",

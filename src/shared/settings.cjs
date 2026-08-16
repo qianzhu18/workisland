@@ -41,8 +41,7 @@ const DEFAULT_PILL_FIRST_ROW = {
   claudeSubscription: true,
   codexSubscription: true,
   tokenCount: true,
-  soundIcon: true,
-  upgradeButton: true
+  soundIcon: true
 };
 
 const DEFAULT_SHORTCUTS = {
@@ -69,6 +68,10 @@ const DEFAULT_SETTINGS = {
     events: { ...DEFAULT_SOUND_EVENTS },
     autoDetectProbing: false
   },
+  // 灵动岛落位：notch = 顶部刘海居中（原有形态）；docked = 贴边（上/左/右）。
+  islandPlacement: "notch",
+  // 贴边状态：edge 为所贴的边，offset 是沿边位置的 0-1 比例（跨分辨率仍成立）。
+  islandDock: { edge: "right", offset: 0.25 },
   hoverToOpen: true,
   autoCollapseDelayMs: 4e3,
   hideWhenFullscreen: true,
@@ -82,7 +85,6 @@ const DEFAULT_SETTINGS = {
   expandOnSessionComplete: true,
   expandOnActionRequired: true,
   suppressNotificationWhenFocused: true,
-  updateChecksEnabled: true,
   hookToggles: { ...DEFAULT_HOOK_TOGGLES },
   approvalModes: { ...DEFAULT_APPROVAL_MODES },
   showDebugWindow: false,

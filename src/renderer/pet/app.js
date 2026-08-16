@@ -11,7 +11,6 @@ import {
   CODEX_V2_TOTAL_ROWS,
   CODEX_V2_CELL_WIDTH,
   isCodexV2Sprite,
-  deriveDragDirection,
   derivePetBubble,
   derivePetStatus,
   statusToIntervalMs,
@@ -36,7 +35,6 @@ const orcaSprite = new URL("./orca.png", import.meta.url).href;
 function PetApp() {
   const [sessions, setSessions] = reactExports.useState([]);
   const [isDragging, setIsDragging] = reactExports.useState(false);
-  const [dragDirection, setDragDirection] = reactExports.useState("right");
   const [isSleeping, setIsSleeping] = reactExports.useState(false);
   const [isPlaying, setIsPlaying] = reactExports.useState(false);
   const [isCompleteExpired, setIsCompleteExpired] = reactExports.useState(false);
@@ -246,11 +244,11 @@ function PetApp() {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, dw, dh);
     ctx.imageSmoothingEnabled = true;
-    const row = statusToRow(status, spriteMeta, dragDirection);
+    const row = statusToRow(status, spriteMeta);
     const sx = frame * frameWidth;
     const sy = row * frameSize;
     ctx.drawImage(sheet, sx, sy, frameWidth, frameSize, 0, 0, dw, dh);
-  }, [status, displaySize, frameSize, frameWidth, spriteMeta, dragDirection]);
+  }, [status, displaySize, frameSize, frameWidth, spriteMeta]);
   reactExports.useEffect(() => {
     if (!sheetReady) return;
     frameRef.current = 0;
@@ -313,7 +311,6 @@ function PetApp() {
       const dx = ev.screenX - dragOffset.current.x;
       const dy = ev.screenY - dragOffset.current.y;
       dragOffset.current = { x: ev.screenX, y: ev.screenY };
-      setDragDirection((current) => deriveDragDirection(dx, current));
       window.petBridge?.movePet(dx, dy);
     };
     const onUp = () => {

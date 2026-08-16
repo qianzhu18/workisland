@@ -4,7 +4,7 @@
   font-weight: 500;
   font-size: 12px;
   line-height: 18px;
-  color: #EEEEEE;
+  color: var(--isl-fg);
 }
 .token-usage-container {
   display: flex;
@@ -27,7 +27,7 @@
   font-weight: 400;
   font-size: 12px;
   line-height: 18px;
-  color: #9599A6;
+  color: var(--isl-fg-2);
   text-decoration: underline;
   cursor: pointer;
   text-decoration-line: underline;
@@ -61,7 +61,7 @@
 
 .usage-row-empty {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(248, 242, 230, 0.35);
 }
 
 .usage-row-actions {
@@ -106,7 +106,7 @@
   top: calc(100% + 4px);
   left: 0;
   background: rgba(40, 40, 40, 0.96);
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(248, 242, 230, 0.9);
   font-size: 11px;
   line-height: 1.6;
   padding: 6px 10px;
@@ -146,7 +146,7 @@
 
 .usage-cell-divider {
   font-size: 12px;
-  color: rgba(224, 226, 242, 0.25);
+  color: rgba(248, 242, 230, 0.25);
   flex-shrink: 0;
   user-select: none;
 }
@@ -158,7 +158,7 @@
   font-size: 12px;
   font-weight: 500;
   line-height: 1.5em;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(248, 242, 230, 0.7);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
@@ -170,7 +170,7 @@
 .usage-separator {
   font-size: 10px;
   line-height: 1.4em;
-  color: rgba(255, 255, 255, 0.25);
+  color: rgba(248, 242, 230, 0.25);
 }
 
 .status-icon-wrapper {
@@ -253,7 +253,7 @@
   font-size: 13px;
   font-weight: 500;
   line-height: 1.5em;
-  color: #FFFFFF;
+  color: var(--isl-fg-strong);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -265,15 +265,15 @@
   font-size: 10px;
   font-weight: 400;
   line-height: 1.4em;
-  color: #9599A6;
-  background: rgba(224, 230, 242, 0.06);
+  color: var(--isl-fg-2);
+  background: var(--isl-layer-2);
   padding: 0 4px;
   border-radius: 4px;
   white-space: nowrap;
 }
 
 .session-title-sep {
-  color: rgba(255, 255, 255, 0.25);
+  color: rgba(248, 242, 230, 0.25);
   font-size: 13px;
   flex-shrink: 0;
 }
@@ -283,7 +283,7 @@
   font-size: 12px;
   font-weight: 400;
   line-height: 1.5em;
-  color: #FFFFFF;
+  color: var(--isl-fg-strong);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -301,8 +301,8 @@
   font-size: 12px;
   font-weight: 400;
   line-height: 1.4em;
-  color: #9599A6;
-  background: rgba(224, 230, 242, 0.06);
+  color: var(--isl-fg-2);
+  background: var(--isl-layer-2);
   padding: 0 4px;
   border-radius: 4px;
   white-space: nowrap;
@@ -312,8 +312,8 @@
   font-size: 12px;
   font-weight: 400;
   line-height: 1.4em;
-  color: #9599A6;
-  background: rgba(224, 230, 242, 0.06);
+  color: var(--isl-fg-2);
+  background: var(--isl-layer-2);
   padding: 0 4px;
   border-radius: 4px;
   white-space: nowrap;
@@ -328,8 +328,8 @@
   padding: 0 4px;
   border: none;
   border-radius: 4px;
-  background: rgba(224, 230, 242, 0.06);
-  color: #9599A6;
+  background: var(--isl-layer-2);
+  color: var(--isl-fg-2);
   cursor: pointer;
   font-family: 'PingFang SC', sans-serif;
   font-size: 12px;
@@ -339,22 +339,22 @@
 }
 
 .session-continue-btn:hover {
-  background: rgba(224, 230, 242, 0.1);
+  background: var(--isl-layer-3);
 }
 
 .session-continue-btn:active {
-  background: rgba(224, 230, 242, 0.14);
+  background: var(--isl-layer-4);
 }
 
 .session-continue-btn.is-active {
-  color: #D1D3DD;
-  background: rgba(224, 230, 242, 0.14);
+  color: var(--isl-fg);
+  background: var(--isl-layer-4);
 }
 
 .session-delete-btn {
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.3);
+  color: rgba(248, 242, 230, 0.3);
   cursor: pointer;
   padding: 2px;
   border-radius: 4px;
@@ -375,14 +375,14 @@
   opacity: 1;
 }
 .session-delete-btn:hover {
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(248, 242, 230, 0.7);
 }
 
 .session-activity {
   font-family: 'PingFang SC', sans-serif;
   font-size: 12px;
   font-weight: 400;
-  color: #646B77;
+  color: var(--isl-fg-3);
   line-height: 14px;
   white-space: nowrap;
   overflow: hidden;
@@ -390,17 +390,17 @@
   transition: color 0.15s ease;
 }
 .session-row:hover .session-activity {
-  color: #d1d3dd;
+  color: var(--isl-fg);
 }
 .session-row.is-active .session-activity {
-  color: #d1d3dd;
+  color: var(--isl-fg);
 }
 
 .session-prompt {
   font-family: 'PingFang SC', sans-serif;
   font-size: 12px;
   font-weight: 400;
-  color: #9599A6;
+  color: var(--isl-fg-2);
   line-height: 1.4em;
   white-space: nowrap;
   overflow: hidden;
@@ -408,10 +408,10 @@
   transition: color 0.15s ease;
 }
 .session-row:hover .session-prompt {
-  color: #d1d3dd;
+  color: var(--isl-fg);
 }
 .session-row.is-active .session-prompt {
-  color: #d1d3dd;
+  color: var(--isl-fg);
 }
 
 .session-response {
@@ -425,19 +425,19 @@
   transition: color 0.15s ease;
 }
 .session-row:hover .session-response {
-  color: #d1d3dd;
+  color: var(--isl-fg);
 }
 .session-row.is-active .session-response {
-  color: #d1d3dd;
+  color: var(--isl-fg);
 }
 /* ── SubagentList（与 ApprovalCard 同一套容器/顶栏 token，保证与审批块对齐） ── */
 .subagent-card {
   width: 100%;
   min-width: 0;
   align-self: stretch;
-  border: 1px solid rgba(224, 226, 242, 0.16);
+  border: 1px solid var(--isl-layer-5);
   border-radius: 4px;
-  background: rgba(224, 230, 242, 0.04);
+  background: var(--isl-layer-1);
   padding: 0;
   overflow: hidden;
   display: flex;
@@ -450,7 +450,7 @@
   gap: 8px;
   padding: 5px 8px;
   background: var(--island-card-header-bg);
-  border-bottom: 1px solid rgba(224, 226, 242, 0.1);
+  border-bottom: 1px solid var(--isl-layer-3);
 }
 .subagent-header-title {
   font-family:
@@ -461,16 +461,16 @@
     monospace;
   font-size: 12px;
   font-weight: 450;
-  color: #d1d3db;
+  color: var(--isl-fg);
   line-height: 1.5em;
 }
 .subagent-header-badge {
   font-size: 11px;
   font-weight: 500;
   line-height: 1.3;
-  color: #d1d3db;
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--isl-fg);
+  background: rgba(248, 242, 230, 0.07);
+  border: 1px solid var(--isl-layer-3);
   border-radius: 4px;
   padding: 1px 6px;
   min-width: 22px;
@@ -494,7 +494,7 @@
 .subagent-item + .subagent-item {
   margin-top: 8px;
   padding-top: 8px;
-  border-top: 1px solid rgba(224, 226, 242, 0.08);
+  border-top: 1px solid rgba(248, 242, 230, 0.08);
 }
 .subagent-primary {
   display: flex;
@@ -505,7 +505,7 @@
 .subagent-num {
   font-size: 12px;
   font-weight: 450;
-  color: #646b77;
+  color: var(--isl-fg-3);
   flex-shrink: 0;
   min-width: 1.35em;
   text-align: right;
@@ -535,7 +535,7 @@
 .subagent-primary-text {
   font-size: 12px;
   font-weight: 400;
-  color: rgba(245, 247, 255, 0.92);
+  color: rgba(248, 242, 230, 0.92);
   line-height: 1.45;
   min-width: 0;
   flex: 1;
@@ -547,7 +547,7 @@
 .subagent-elapsed {
   font-size: 12px;
   font-weight: 400;
-  color: #646b77;
+  color: var(--isl-fg-3);
   white-space: nowrap;
   flex-shrink: 0;
   line-height: 1.45;
@@ -561,14 +561,14 @@
 }
 .subagent-bullet {
   font-size: 12px;
-  color: #646b77;
+  color: var(--isl-fg-3);
   flex-shrink: 0;
   line-height: 1.45;
 }
 .subagent-secondary-text {
   font-size: 12px;
   font-weight: 400;
-  color: rgba(255, 255, 255, 0.48);
+  color: rgba(248, 242, 230, 0.48);
   line-height: 1.45;
   min-width: 0;
   overflow: hidden;
@@ -583,7 +583,7 @@
   margin-top: 2px;
   padding: 8px 0 0;
   border: none;
-  border-top: 1px solid rgba(224, 226, 242, 0.08);
+  border-top: 1px solid rgba(248, 242, 230, 0.08);
   background: none;
   font: inherit;
   font-size: 11px;
@@ -600,9 +600,9 @@
 .subagent-list-toggle:active {
   opacity: 0.85;
 }.code-diff {
-  border: 1px solid rgba(224, 226, 242, 0.16);
+  border: 1px solid var(--isl-layer-5);
   border-radius: 4px;
-  background: rgba(224, 230, 242, 0.04);
+  background: var(--isl-layer-1);
   overflow: hidden;
 }
 
@@ -615,10 +615,10 @@
     monospace;
   font-size: 12px;
   font-weight: 450;
-  color: #d1d3db;
+  color: var(--isl-fg);
   padding: 5px 8px;
   background: var(--island-card-header-bg);
-  border-bottom: 1px solid rgba(224, 226, 242, 0.1);
+  border-bottom: 1px solid var(--isl-layer-3);
   line-height: 1.5em;
 }
 
@@ -643,7 +643,7 @@
   min-width: 32px;
   padding: 0 4px;
   text-align: right;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(248, 242, 230, 0.35);
   user-select: none;
   flex-shrink: 0;
 }
@@ -702,14 +702,14 @@
 }
 
 .code-diff-content .diff-code {
-  color: #ffffff;
+  color: var(--isl-fg-strong);
   white-space: pre;
 }
 
 .code-diff-empty {
   padding: 8px;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(248, 242, 230, 0.45);
   text-align: center;
 }
 
@@ -722,12 +722,12 @@
 }
 
 .code-diff-content::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(248, 242, 230, 0.2);
   border-radius: 2px;
 }
 
 .code-diff-content::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(248, 242, 230, 0.3);
 }
 .approval-card {
   display: flex;
@@ -739,9 +739,9 @@
 }
 
 .approval-container {
-  border: 1px solid rgba(224, 226, 242, 0.16);
+  border: 1px solid var(--isl-layer-5);
   border-radius: 4px;
-  background: rgba(224, 230, 242, 0.04);
+  background: var(--isl-layer-1);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -756,10 +756,10 @@
     monospace;
   font-size: 12px;
   font-weight: 450;
-  color: #d1d3db;
+  color: var(--isl-fg);
   padding: 5px 8px;
-  background: rgba(221, 230, 244, 0.04);
-  border-bottom: 1px solid rgba(224, 226, 242, 0.1);
+  background: var(--isl-layer-1);
+  border-bottom: 1px solid var(--isl-layer-3);
   line-height: 1.5em;
 }
 
@@ -771,7 +771,7 @@
     Monaco,
     monospace;
   font-size: 12px;
-  color: #ffffff;
+  color: var(--isl-fg-strong);
   line-height: 16px;
   padding: 8px 8px;
   word-break: break-word;
@@ -842,7 +842,7 @@
   padding: 6px 8px;
   border-radius: 6px;
   background: rgba(78, 84, 96, 0.92);
-  color: rgba(255, 255, 255, 0.92);
+  color: rgba(248, 242, 230, 0.92);
   white-space: normal;
   overflow-wrap: anywhere;
   z-index: 9999;
@@ -868,8 +868,8 @@
 }
 
 .approval-btn.deny {
-  background: rgba(224, 230, 242, 0.08);
-  color: #d1d3db;
+  background: rgba(248, 242, 230, 0.08);
+  color: var(--isl-fg);
 }
 .approval-btn.allow {
   background: #dadde5;
@@ -898,7 +898,7 @@
   line-height: 1.2;
 }
 .approval-btn.deny .kbd {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--isl-layer-3);
 }
 .approval-btn:disabled {
   opacity: 0.45;
@@ -908,7 +908,7 @@
   opacity: 0.45;
 }
 .approval-btn.jump {
-  background: rgba(224, 230, 242, 0.14);
+  background: var(--isl-layer-4);
   color: #f5f7ff;
 }
 
@@ -924,9 +924,9 @@
 }
 
 .question-container {
-  border: 1px solid rgba(224, 226, 242, 0.16);
+  border: 1px solid var(--isl-layer-5);
   border-radius: 4px;
-  background: rgba(224, 230, 242, 0.04);
+  background: var(--isl-layer-1);
   overflow: hidden;
 }
 
@@ -936,21 +936,21 @@
   justify-content: space-between;
   padding: 5px 8px;
   background: var(--island-card-header-bg);
-  border-bottom: 1px solid rgba(224, 226, 242, 0.1);
+  border-bottom: 1px solid var(--isl-layer-3);
 }
 
 .question-header-title {
   font-size: 12px;
   font-weight: 400;
-  color: #d1d3db;
+  color: var(--isl-fg);
   line-height: 1.5;
 }
 
 .question-header-count {
   font-size: 12px;
-  color: #9599a6;
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--isl-fg-2);
+  background: rgba(248, 242, 230, 0.07);
+  border: 1px solid rgba(248, 242, 230, 0.08);
   padding: 0 4px;
   border-radius: 4px;
   font-weight: 400;
@@ -979,7 +979,7 @@
   gap: 8px;
   font-size: 12px;
   font-weight: 500;
-  color: #ffffff;
+  color: var(--isl-fg-strong);
   line-height: 1.4545454545454546;
 }
 
@@ -1025,19 +1025,19 @@
   width: 12px;
   height: 12px;
   cursor: pointer;
-  accent-color: #387bff;
+  accent-color: var(--isl-accent);
 }
 
 .question-option-label {
   font-size: 12px;
   font-weight: 400;
-  color: #d1d3db;
+  color: var(--isl-fg);
   line-height: 1.4545454545454546;
   transition: color 0.2s ease;
 }
 
 .question-option.is-selected .question-option-label {
-  color: #d1d3db;
+  color: var(--isl-fg);
 }
 
 .question-actions {
@@ -1063,9 +1063,9 @@
   width: 80px;
   height: 24px;
   border-radius: 6px;
-  border: 1px solid rgba(224, 226, 242, 0.16);
+  border: 1px solid var(--isl-layer-5);
   background: transparent;
-  color: #9599a6;
+  color: var(--isl-fg-2);
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
@@ -1074,9 +1074,9 @@
 }
 
 .question-cancel-btn:hover {
-  color: #d1d3db;
-  border-color: rgba(224, 226, 242, 0.32);
-  background: rgba(224, 230, 242, 0.06);
+  color: var(--isl-fg);
+  border-color: rgba(248, 242, 230, 0.32);
+  background: var(--isl-layer-2);
 }
 
 /* ── 自定义输入（选中「输入回答」后，整行展示） ── */
@@ -1087,9 +1087,9 @@
   width: 100%;
   height: 24px;
   border-radius: 4px;
-  border: 1px solid rgba(224, 226, 242, 0.16);
-  background: rgba(224, 230, 242, 0.06);
-  color: #d1d3db;
+  border: 1px solid var(--isl-layer-5);
+  background: var(--isl-layer-2);
+  color: var(--isl-fg);
   font-size: 12px;
   padding: 0 8px;
   outline: none;
@@ -1100,7 +1100,7 @@
 }
 
 .question-custom-input:focus {
-  border-color: #387bff;
+  border-color: var(--isl-accent);
 }
 
 .question-custom-input::placeholder {
@@ -1114,9 +1114,9 @@
   height: 18px;
   padding: 0 6px;
   border-radius: 4px;
-  border: 1px solid rgba(224, 226, 242, 0.16);
+  border: 1px solid var(--isl-layer-5);
   background: transparent;
-  color: #9599a6;
+  color: var(--isl-fg-2);
   font-size: 11px;
   font-weight: 400;
   line-height: 1;
@@ -1125,9 +1125,9 @@
 }
 
 .question-chat-about-btn:hover {
-  color: #d1d3db;
-  border-color: rgba(224, 226, 242, 0.32);
-  background: rgba(224, 230, 242, 0.06);
+  color: var(--isl-fg);
+  border-color: rgba(248, 242, 230, 0.32);
+  background: var(--isl-layer-2);
 }
 /* PlanConfirmationCard styles — mirrors QuestionCard structure */
 
@@ -1136,7 +1136,7 @@
   flex-direction: column;
   gap: 12px;
   padding: 12px;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(248, 242, 230, 0.05);
   border-radius: 8px;
   margin-top: 8px;
 }
@@ -1156,7 +1156,7 @@
 .plan-confirmation-header-title {
   font-size: 13px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(248, 242, 230, 0.9);
 }
 
 .plan-confirmation-content {
@@ -1168,7 +1168,7 @@
 .plan-confirmation-plan {
   font-size: 12px;
   line-height: 1.5;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(248, 242, 230, 0.7);
   background: rgba(0, 0, 0, 0.2);
   padding: 10px;
   border-radius: 6px;
@@ -1189,16 +1189,16 @@
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(248, 242, 230, 0.03);
+  border: 1px solid var(--isl-layer-3);
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .plan-confirmation-choice:hover {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: var(--isl-layer-2);
+  border-color: rgba(248, 242, 230, 0.2);
 }
 
 .plan-confirmation-choice.is-selected {
@@ -1213,7 +1213,7 @@
 
 .plan-confirmation-choice-label {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(248, 242, 230, 0.85);
   user-select: none;
 }
 
@@ -1250,12 +1250,12 @@
 }
 
 .plan-confirmation-jump-btn {
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.85);
+  background: var(--isl-layer-3);
+  color: rgba(248, 242, 230, 0.85);
 }
 
 .plan-confirmation-jump-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(248, 242, 230, 0.15);
 }
 .completion-card {
   display: flex;
@@ -1264,9 +1264,9 @@
 }
 
 .completion-container {
-  border: 1px solid rgba(224, 226, 242, 0.16);
+  border: 1px solid var(--isl-layer-5);
   border-radius: 6px;
-  background: rgba(224, 230, 242, 0.04);
+  background: var(--isl-layer-1);
   overflow: hidden;
 }
 
@@ -1276,7 +1276,7 @@
   justify-content: flex-start;
   padding: 5px 8px;
   background: var(--island-card-header-bg);
-  border-bottom: 1px solid rgba(224, 226, 242, 0.1);
+  border-bottom: 1px solid var(--isl-layer-3);
 }
 
 .completion-header-no-content {
@@ -1293,13 +1293,13 @@
     sans-serif;
   font-size: 12px;
   font-weight: 400;
-  color: #d1d3db;
+  color: var(--isl-fg);
   line-height: 18px;
 }
 
 .completion-prompt {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.42);
+  color: rgba(248, 242, 230, 0.42);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1324,7 +1324,7 @@
     sans-serif;
   font-size: 12px;
   font-weight: 400;
-  color: #ffffff;
+  color: var(--isl-fg-strong);
   line-height: 16px;
   margin-bottom: 0;
 }
@@ -1363,7 +1363,7 @@
   gap: 4px;
   font-size: 12px;
   font-weight: 600;
-  color: #42e86b;
+  color: var(--isl-ok);
   background: rgba(66, 232, 107, 0.12);
   padding: 3px 8px;
   border-radius: 6px;
@@ -1381,8 +1381,8 @@
 }
 
 .completion-jump-btn {
-  background: var(--bg-bg-overlay-l2, rgba(224, 230, 242, 0.09));
-  color: #EEEEEE;
+  background: var(--bg-bg-overlay-l2, rgba(248, 242, 230, 0.09));
+  color: var(--isl-fg);
 }
 
 .completion-follow-up-btn {
@@ -1404,7 +1404,7 @@
   padding: 4px;
   border: 1px solid #39393E;
   border-radius: 6px;
-  background: rgba(224, 230, 242, 0.04);
+  background: var(--isl-layer-1);
   box-sizing: border-box;
 }
 
@@ -1428,7 +1428,7 @@
   resize: none;
   overflow-y: hidden;
   background: transparent;
-  color: #EEEEEE;
+  color: var(--isl-fg);
   padding: 0;
   font-family:
     "SF Pro Text",
@@ -1446,7 +1446,7 @@
 }
 
 .continue-prompt-textarea::placeholder {
-  color: rgba(238, 238, 238, 0.42);
+  color: rgba(248, 242, 230, 0.42);
 }
 
 .continue-prompt-textarea:disabled {
@@ -1473,7 +1473,7 @@
 
 .continue-prompt-textarea::-webkit-scrollbar-thumb {
   border-radius: 99px;
-  background: rgba(224, 226, 242, 0.16);
+  background: var(--isl-layer-5);
 }
 
 .continue-prompt-footer {
@@ -1502,7 +1502,7 @@
 }
 
 .continue-prompt-cancel-btn:hover {
-  color: rgba(200, 203, 212, 1);
+  color: rgba(248, 242, 230, 1);
 }
 
 .continue-prompt-error {
@@ -1576,6 +1576,6 @@
 .continue-prompt-send-btn:disabled {
   cursor: default;
   opacity: 0.38;
-  background: rgba(224, 226, 242, 0.16);
-  color: rgba(238, 238, 238, 0.5);
+  background: var(--isl-layer-5);
+  color: rgba(248, 242, 230, 0.5);
 }

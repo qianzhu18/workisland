@@ -52,6 +52,63 @@ function createTerminalNavigation({ isPluginAgentTool, PLUGIN_BY_TOOL }) {
   const CURSOR_BUNDLE_ID = "com.todesktop.230313mzl4w4u92";
   const CODEX_APP_BUNDLE_ID = "com.openai.codex";
   const CLAUDE_DESKTOP_BUNDLE_ID = "com.anthropic.claudefordesktop";
+  // 与 Claude Desktop 自身对 resume 深链参数的校验保持一致
+  const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+  /**
+   * 在 Claude Desktop 的本地会话存储里，按 cliSessionId 反查桌面会话 id。
+   *
+   * 存储布局：~/Library/Application Support/Claude/claude-code-sessions/<org>/<account>/local_*.json
+   * 每条记录同时有 sessionId（记录自身，形如 local_<uuid>）和 cliSessionId
+   * （当前挂载的 CLI 会话）。两者的 uuid 通常不同 —— 桌面会话先建、之后才挂上
+   * CLI 会话，且 resume/fork 后 cliSessionId 还会变。
+   *
+   * 注意：这是读另一个应用的内部存储，格式随版本可能变化。所以整段都在 try 里，
+   * 任何异常都退回上层的兜底路径，不影响跳转本身可用。
+   */
+  // 反查结果的短缓存。桌面会话的 cliSessionId 会随 resume/fork 变化，
+  // 不能永久缓存；10s 只覆盖「连续点击」的场景，陈旧风险可忽略。
+  let claudeSessionScanCache = null;
+  function findClaudeDesktopSessionId(cliSessionId) {
+    const now = Date.now();
+    if (claudeSessionScanCache && now - claudeSessionScanCache.at < 1e4) {
+      return claudeSessionScanCache.map.get(cliSessionId) ?? null;
+    }
+    try {
+      const root = path__namespace.join(
+        os__namespace.homedir(),
+        "Library", "Application Support", "Claude", "claude-code-sessions"
+      );
+      if (!fs__namespace.existsSync(root)) return null;
+      const best = new Map();
+      for (const org of fs__namespace.readdirSync(root)) {
+        const orgDir = path__namespace.join(root, org);
+        if (!fs__namespace.statSync(orgDir).isDirectory()) continue;
+        for (const acct of fs__namespace.readdirSync(orgDir)) {
+          const acctDir = path__namespace.join(orgDir, acct);
+          if (!fs__namespace.statSync(acctDir).isDirectory()) continue;
+          for (const name of fs__namespace.readdirSync(acctDir)) {
+            if (!name.startsWith("local_") || !name.endsWith(".json")) continue;
+            let rec;
+            try {
+              rec = JSON.parse(fs__namespace.readFileSync(path__namespace.join(acctDir, name), "utf8"));
+            } catch { continue; }
+            if (!rec?.cliSessionId || rec.isArchived) continue;
+            // 同一个 cliSessionId 可能对应多条（例如之前误导入过），取最近活跃的那条
+            const prev = best.get(rec.cliSessionId);
+            if (!prev || (rec.lastActivityAt ?? 0) > (prev.lastActivityAt ?? 0)) best.set(rec.cliSessionId, rec);
+          }
+        }
+      }
+      const map = new Map();
+      for (const [k, v] of best) map.set(k, v.sessionId);
+      claudeSessionScanCache = { at: now, map };
+      return map.get(cliSessionId) ?? null;
+    } catch (err) {
+      log.debug("[TerminalJumpService] findClaudeDesktopSessionId failed:", err);
+      return null;
+    }
+  }
   const VSCODE_BUNDLE_ID = "com.microsoft.VSCode";
   const VSCODE_INSIDERS_BUNDLE_ID = "com.microsoft.VSCodeInsiders";
   const WINDSURF_BUNDLE_ID = "com.exafunction.windsurf";
@@ -969,6 +1026,56 @@ function createTerminalNavigation({ isPluginAgentTool, PLUGIN_BY_TOOL }) {
   }
   async function jumpClaudeAgentSession(target) {
     log.debug("[TerminalJumpService] jumpClaudeAgentSession:", target);
+    // Claude Desktop 是单窗口应用，会话都在侧边栏里 —— 按窗口标题匹配那套
+    // （jumpTraeAgentSession 用的办法）在这里根本无从下手，一共就一个窗口。
+    //
+    // 它自己注册了 claude:// 协议，其中 resume 分支的实现是：
+    //   claude://resume?session=<uuid>  →  importCliSession(uuid) 并导航过去
+    // 参数正是 Claude Code 的 session_id，我们在 hook 里本来就有。
+    // 走深链既准确又不需要辅助功能权限。
+    const sessionId = target.sessionId;
+    if (sessionId && UUID_RE.test(sessionId)) {
+      // 优先：本地已有对应的桌面会话记录，直接导航过去。
+      // 不能拿 CLI uuid 去走 resume —— importCliSession 是按 `local_${uuid}` 查表的，
+      // 而桌面会话有自己的 id（记录键是 local_<自身uuid>，cliSessionId 才是我们手上
+      // 这个 uuid），查不到就会新建一条，这正是「跳过去多出一个一模一样的对话」的成因。
+      // 先把窗口带到前台，深链并行送达。Claude Desktop 处理深链偏慢（大内存
+      // Electron 应用，常在换页），若等它处理完才激活，观感就是「点了没反应」。
+      // 并行后窗口立即前置，导航随后落位。应用未运行时两个 open 会被
+      // LaunchServices 合并成单实例启动，无副作用。
+      const activation = activateMacAppByBundle(CLAUDE_DESKTOP_BUNDLE_ID).catch((err) => {
+        log.debug("[TerminalJumpService] parallel activation failed:", err);
+      });
+      const desktopId = findClaudeDesktopSessionId(sessionId);
+      if (desktopId) {
+        try {
+          await execFileAsync$6(
+            "open",
+            [`claude://claude.ai/epitaxy/${encodeURIComponent(desktopId)}`],
+            { timeout: 5e3 }
+          );
+          await activation;
+          return;
+        } catch (err) {
+          log.debug("[TerminalJumpService] epitaxy deep link failed:", err);
+        }
+      } else {
+        // 没有桌面记录 = 纯终端起的 CLI 会话，此时 resume 的导入正是想要的行为，
+        // 且 local_<uuid> 与记录键一致，不会产生重复。
+        try {
+          await execFileAsync$6(
+            "open",
+            [`claude://resume?session=${encodeURIComponent(sessionId)}`],
+            { timeout: 5e3 }
+          );
+          await activation;
+          return;
+        } catch (err) {
+          log.debug("[TerminalJumpService] claude://resume failed:", err);
+        }
+      }
+    }
+    // 深链不可用时退回纯激活
     try {
       await activateMacAppByBundle(CLAUDE_DESKTOP_BUNDLE_ID);
     } catch (err) {

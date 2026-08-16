@@ -289,6 +289,11 @@ class ClaudeAdapter {
     const sessionId = payload.session_id;
     const now = Date.now();
     const hookEvent = payload.hook_event_name;
+    // 对齐 CodexAdapter.updateJumpTarget：每个事件都刷新 jumpTarget。
+    // 原先只在 SessionStart / UserPromptSubmit 时设置，一旦会话被 sweep 清掉、
+    // 再由后续工具事件重建，重建出来的会话就永远没有 jumpTarget —— 点击无法跳转，
+    // 且 PidWatcher 与桌面 App 存活探测都以 jumpTarget 为前提，会话也不会自动停止。
+    if (sessionId) ctx.updateJumpTarget?.(sessionId, tool);
     const subAgentId = resolveClaudeSubAgentId(payload);
     if (subAgentId && hookEvent !== "SubagentStart" && hookEvent !== "SubagentStop") {
       const parentId = this.subagentParentByAgentId.get(subAgentId) ?? sessionId;
