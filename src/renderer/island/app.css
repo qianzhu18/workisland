@@ -1,28 +1,16 @@
-/* ── Echo 令牌层 ──────────────────────────────────────────────────────────
- * 抽取前：205 处硬编码颜色 / 103 个不同色值，且存在三类重复：
- *   · 大小写重复      #9599A6 与 #9599a6
- *   · 肉眼无差重复    #d1d3db 与 #d1d3dd（蓝通道差 2）
- *   · 同角色多基色    浅色叠加层同时用了 rgb(224,226,242) / (224,230,242)
- *                     / (221,230,244) / (255,255,255) 四种基色，4%-16% 透明度下
- *                     根本分辨不出，却让换肤无从下手
- * 现统一到 Echo 的宣纸暖调（#F8F2E6）。岛体本身保持纯黑 —— 那是为了和刘海
- * 无缝融合，不能换成墨色。 */
+/* Local layout and interaction additions keep the upstream Island palette. */
 :root {
-  --isl-fg: #F2ECDE;          /* 主文字   ← #d1d3db #d1d3dd #EEEEEE */
-  --isl-fg-strong: #FFFFFF;   /* 最强对比 ← #ffffff */
-  --isl-fg-2: #A79E90;        /* 次级     ← #9599a6 */
-  --isl-fg-3: #6E6559;        /* 三级     ← #646b77 */
-
-  /* 叠加层：单一基色 + 五档透明度，替代原来的四种基色混用 */
-  --isl-layer-1: rgba(248, 242, 230, 0.04);
-  --isl-layer-2: rgba(248, 242, 230, 0.06);
-  --isl-layer-3: rgba(248, 242, 230, 0.10);
-  --isl-layer-4: rgba(248, 242, 230, 0.14);
-  --isl-layer-5: rgba(248, 242, 230, 0.16);
-
-  --isl-accent: #C4452D;      /* 朱砂 ← #387bff。仅用于链接/聚焦/accent-color，
-                                 不涉及批准按钮，所以换成红色没有语义风险 */
-  --isl-ok: #42E86B;
+  --isl-fg: #d1d3db;
+  --isl-fg-strong: #ffffff;
+  --isl-fg-2: #9599a6;
+  --isl-fg-3: #646b77;
+  --isl-layer-1: rgba(221, 230, 244, 0.04);
+  --isl-layer-2: rgba(224, 230, 242, 0.06);
+  --isl-layer-3: rgba(224, 230, 242, 0.10);
+  --isl-layer-4: rgba(224, 230, 242, 0.14);
+  --isl-layer-5: rgba(224, 230, 242, 0.16);
+  --isl-accent: #387bff;
+  --isl-ok: #42e86b;
 }
 
 /* island.css — Dynamic Island layout, shape morphing, and animations.

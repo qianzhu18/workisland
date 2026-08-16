@@ -1,7 +1,4 @@
-/* 取自 Echo 形象本身的色板：墨 #1F1B16 / 朱砂 #C4452D / 宣纸 #F8F2E6。
-   页底刻意比卡片深一档（对比度 1.19，原为 1.06）——原先白卡浮在白底上
-   分层根本立不住，只能靠发丝线硬撑，元素一多就糊成一片。 */
-:root { color-scheme: light dark; font: 13px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif; --accent:#C4452D; --danger:#8C2A1B; --text:#1F1B16; --muted:#6B6257; --line:rgba(31,27,22,.14); --sidebar:rgba(227,220,204,.82); --content:#EAE4D8; --card:#FBF8F2; }
+:root { color-scheme: light dark; font: 13px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif; --accent:#007aff; --danger:#ff3b30; --text:#1d1d1f; --muted:#6e6e73; --line:rgba(60,60,67,.17); --sidebar:rgba(239,239,243,.82); --content:rgba(248,248,250,.92); --card:rgba(255,255,255,.78); }
 * { box-sizing:border-box; }
 html, body { width:100%; height:100%; margin:0; overflow:hidden; color:var(--text); background:transparent; user-select:none; }
 button, select, input { font:inherit; }
@@ -84,4 +81,4 @@ input[type=range] { flex:1; accent-color:var(--accent); }
 .toast.visible { transform:translate(-50%,0); opacity:1; }
 .toast.error { background:rgba(190,35,35,.94); }
 @media (max-width:680px) { .window { grid-template-columns:170px 1fr; } .content { padding:30px 20px 48px; } .setting-row { align-items:flex-start; flex-direction:column; gap:10px; } .inline-controls { width:100%; } .inline-controls select { flex:1; min-width:0; } .text-input { width:100%; } }
-@media (prefers-color-scheme:dark) { :root { --accent:#E0654A; --danger:#F08A72; --text:#F8F2E6; --muted:#9A9186; --line:rgba(248,242,230,.13); --sidebar:rgba(19,17,13,.88); --content:#16130F; --card:#28221A; } select,.button,.text-input { background:rgba(248,242,230,.07); } }
+@media (prefers-color-scheme:dark) { :root { --accent:#007aff; --danger:#ff3b30; --text:#f5f5f7; --muted:#a1a1a6; --line:rgba(255,255,255,.12); --sidebar:rgba(31,31,34,.88); --content:rgba(38,38,41,.94); --card:rgba(255,255,255,.055); } select,.button,.text-input { background:rgba(255,255,255,.075); } }
