@@ -63,7 +63,9 @@ test("Codex recovery replays an unfinished turn even when its last event is old"
       lastTurnCompleted: false
     };
     watcher.readTail(tracked);
-    assert.ok(events.some((event) => event.type === "sessionStarted" && event.replayed));
+    const recovered = events.find((event) => event.type === "sessionStarted" && event.replayed);
+    assert.ok(recovered);
+    assert.ok(Date.now() - recovered.timestamp < 5_000, `recovery timestamp was stale: ${recovered.timestamp}`);
   } finally {
     fs.unlinkSync(file);
   }

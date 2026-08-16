@@ -129,7 +129,9 @@ class CodexTranscriptWatcher extends EventEmitter {
       if (!f.turnRunning || f.isSubagent) continue;
       discovered.push(
         this.buildEvent(f, "sessionStarted", {
-          ts: f.lastEventAt || f.startedAt,
+          // 这是重新登记到当前 WorkIsland state 的事件，不能沿用 transcript
+          // 的旧时间戳，否则 removeStaleSessions 会在启动后立即删掉它。
+          ts: Date.now(),
           title: f.title,
           summary: f.lastPrompt,
           latestUserPrompt: f.lastPrompt
@@ -290,7 +292,9 @@ class CodexTranscriptWatcher extends EventEmitter {
         this.emit(
           "event",
           this.buildEvent(file, "sessionStarted", {
-            ts: file.lastEventAt,
+            // replayed session 刚刚被当前进程恢复，时间基线应从现在开始；旧的
+            // transcript 时间会被 reconciliation 当作 stale session 清掉。
+            ts: Date.now(),
             title: file.title,
             summary: file.lastPrompt,
             latestUserPrompt: file.lastPrompt,
