@@ -44,6 +44,7 @@ function createSessionState({ isVisibleInIsland }) {
       isSessionEnded: false,
       isProcessAlive: false,
       isHookManaged: true,
+      recoveredFromTranscript: false,
       completionDismissed: false,
       isRemote: false
     };
@@ -68,6 +69,8 @@ function createSessionState({ isVisibleInIsland }) {
           isSessionEnded: false,
           completionDismissed: false,
           isPullColdCompleteSession: false,
+          recoveredFromTranscript: !!event.recoveredFromTranscript,
+          recoveryTranscriptPath: event.recoveryTranscriptPath ?? (event.recoveredFromTranscript ? prev.recoveryTranscriptPath : void 0),
           // 显式清 error / errorDetail：与 turnStarted 保持 parity —— 新一轮 = 干净状态。
           // sessionCompleted reducer 用 `event.error ?? prev.error` 透传，残留会让
           // 下一轮成功完成时仍渲染为错误完成卡。

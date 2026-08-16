@@ -29,7 +29,6 @@ const CODEX_SESSIONS_DIR = path.join(os.homedir(), ".codex", "sessions");
 const SCAN_INTERVAL_MS = 2000;
 const LOOKBACK_MS = 24 * 60 * 60 * 1000;
 const BOOTSTRAP_TAIL_BYTES = 64 * 1024;
-const ACTIVE_SESSION_MS = 5 * 60 * 1000;
 const MAX_TITLE_LEN = 60;
 const MAX_SUMMARY_LEN = 140;
 // Codex Desktop 会给复制的用户消息加 attachment 元信息头，需要剥掉
@@ -284,12 +283,10 @@ class CodexTranscriptWatcher extends EventEmitter {
       for (const line of lines) {
         this.processLine(file, line, false);
       }
-      // 启动只恢复仍在执行的根会话；绝不重放历史完成通知。
-      if (
-        file.turnRunning &&
-        !file.isSubagent &&
-        Date.now() - file.lastEventAt <= ACTIVE_SESSION_MS
-      ) {
+      // 启动只恢复 transcript 明确显示仍在执行的根会话；绝不重放历史完成通知。
+      // 不再用“最近 5 分钟”限制：长时间运行但暂时没有新输出的 turn 也必须在
+      // WorkIsland 重启后恢复，否则用户会丢失正在进行的任务。
+      if (file.turnRunning && !file.isSubagent) {
         this.emit(
           "event",
           this.buildEvent(file, "sessionStarted", {

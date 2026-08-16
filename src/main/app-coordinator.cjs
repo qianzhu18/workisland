@@ -21,6 +21,7 @@ const { ZCodeHookManager, WorkBuddyHookManager } = require("./hooks-work-agents.
 const { initSoundDirs, playSoundEvent } = require("./sound-service.cjs");
 const { reportTokenUsage, getHermesCumulativeTokens, diffHermesCumulativeTokens, collectAndReportTokens } = require("./adapters-extended.cjs");
 const { getAgentDescriptor, validateAgentWiring } = require("../shared/agent-catalog.cjs");
+const { readClaudeTranscriptState } = require("./transcript-recovery.cjs");
 
 function createAppCoordinatorClass({
   BridgeServer,
@@ -375,7 +376,7 @@ function createAppCoordinatorClass({
      * 该会话的下一个 hook 事件会自然补上。
      */
     async discoverRunningClaudeSessions() {
-      const DISCOVERY_ACTIVE_WINDOW_MS = 3 * 6e4;
+      const RECOVERY_LOOKBACK_MS = 24 * 60 * 60 * 1e3;
       const cp = require("child_process");
       const { promisify: pify } = require("util");
       const run = pify(cp.execFile);
@@ -431,22 +432,25 @@ function createAppCoordinatorClass({
           continue;
         }
         const now = Date.now();
-        // 每个目录只取最新一份对话；且只要「正在进行」的 —— 运行中的会话每隔
-        // 几秒就在写 transcript，几分钟没动的就是完成待命，不需要监管，不注入。
-        for (const { f, mtime } of files.slice(0, 1)) {
-          if (now - mtime > DISCOVERY_ACTIVE_WINDOW_MS) continue;
+        // 同一工作目录可能有多个并行 Claude 会话，不能只取最新文件。以 transcript
+        // 的最后一轮是否有终止记录判定“未完成”，因此长时间无输出的任务也能恢复。
+        for (const { f, mtime } of files) {
+          if (now - mtime > RECOVERY_LOOKBACK_MS) continue;
           const sessionId = f.slice(0, -6);
           if (this.state.sessions.has(sessionId)) continue;
-          const prompt = this.readLatestUserPrompt(path.join(projDir, f));
-          if (!prompt) continue;
+          const transcriptPath = path.join(projDir, f);
+          const transcript = this.readClaudeTranscriptState(transcriptPath);
+          if (!transcript.unfinished || !transcript.latestPrompt) continue;
           this.bridge.emitEvent({
             type: "sessionStarted",
             sessionId,
             tool: "claude",
-            timestamp: mtime,
-            latestUserPrompt: prompt,
-            title: prompt.length > 40 ? prompt.slice(0, 40) + "…" : prompt,
-            detectionSource: "discovery"
+            timestamp: now,
+            latestUserPrompt: transcript.latestPrompt,
+            title: transcript.latestPrompt.length > 40 ? transcript.latestPrompt.slice(0, 40) + "…" : transcript.latestPrompt,
+            detectionSource: "discovery",
+            recoveredFromTranscript: true,
+            recoveryTranscriptPath: transcriptPath
           });
           discovered++;
         }
@@ -455,41 +459,16 @@ function createAppCoordinatorClass({
         log.info("[AppCoordinator] discovered %d running claude session(s)", discovered);
       }
     }
-    /** 从 transcript 尾部（最多 256KB）读最近一条用户消息的文本。 */
+    /**
+     * 读取 Claude transcript 尾部并判断最近一轮是否已结束。
+     * Claude 的工具结果也使用 user record，因此只有包含普通文本的 user record
+     * 才会开启新一轮；assistant 的 end_turn 或 stop hook summary 才会关闭它。
+     */
+    readClaudeTranscriptState(file) {
+      return readClaudeTranscriptState(file);
+    }
     readLatestUserPrompt(file) {
-      const fs = require("fs");
-      try {
-        const size = fs.statSync(file).size;
-        const readLen = Math.min(size, 256 * 1024);
-        const buf = Buffer.alloc(readLen);
-        const fd = fs.openSync(file, "r");
-        try {
-          fs.readSync(fd, buf, 0, readLen, size - readLen);
-        } finally {
-          fs.closeSync(fd);
-        }
-        const lines = buf.toString("utf8").split("\n");
-        for (let i = lines.length - 1; i >= 0; i--) {
-          let rec;
-          try {
-            rec = JSON.parse(lines[i]);
-          } catch {
-            continue;
-          }
-          if (rec?.type !== "user" || rec.isMeta) continue;
-          const c = rec.message?.content;
-          const text = typeof c === "string"
-            ? c
-            : Array.isArray(c) ? c.find((b) => b?.type === "text")?.text : null;
-          // 工具结果也是 user 消息，没有 text 块，跳过继续往上找
-          if (typeof text === "string" && text.trim() && !text.startsWith("<")) {
-            return text.trim().slice(0, 200);
-          }
-        }
-      } catch {
-        // 读不出来就当没有，调用方会跳过该会话
-      }
-      return null;
+      return this.readClaudeTranscriptState(file).latestPrompt;
     }
     async autoReInstallHooks() {
       const toggles = this.settings.hookToggles ?? {};
@@ -1336,6 +1315,9 @@ function createAppCoordinatorClass({
       for (const session of this.state.sessions.values()) {
         if (session.tool !== "claude") continue;
         if (session.phase !== "running") continue;
+        // 启动时从 transcript 恢复的会话没有 hook 的 activeTool；在下一次
+        // hook 到来前不能把“暂时无输出”的长任务误判成 ESC 中断。
+        if (session.recoveredFromTranscript) continue;
         if (session.activeTool) continue;
         if (now - session.updatedAt < IDLE_INTERRUPT_THRESHOLD_MS) continue;
         log.info(
