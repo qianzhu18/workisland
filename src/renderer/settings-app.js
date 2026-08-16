@@ -535,15 +535,14 @@ function statsPage() {
     return root;
   }
 
-  const totalTokens = snap.totalInputTokens + snap.totalOutputTokens
-    + snap.totalCacheReadTokens + snap.totalCacheCreationTokens;
+  const totalTokens = snap.totalInputTokens + snap.totalOutputTokens;
   overview.append(
     valueRow("会话数", "已完成的 Agent 会话。", formatCount(snap.totalSessionCount)),
-    valueRow("Token 总量", "输入 + 输出 + 缓存。", formatCount(totalTokens)),
+    valueRow("Token 总量", "输入 + 输出（不含缓存）。", formatCount(totalTokens)),
     valueRow("输入", "发送给模型的 token。", formatCount(snap.totalInputTokens)),
     valueRow("输出", "模型生成的 token。", formatCount(snap.totalOutputTokens)),
-    valueRow("缓存读取", "命中提示词缓存，计费远低于输入。", formatCount(snap.totalCacheReadTokens)),
-    valueRow("缓存创建", "写入提示词缓存。", formatCount(snap.totalCacheCreationTokens))
+    valueRow("缓存读取", "命中提示词缓存，单独统计，不计入总量。", formatCount(snap.totalCacheReadTokens)),
+    valueRow("缓存创建", "写入提示词缓存，单独统计，不计入总量。", formatCount(snap.totalCacheCreationTokens))
   );
   if (snap.mostUsedAgent) {
     overview.append(valueRow(

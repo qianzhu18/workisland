@@ -695,7 +695,7 @@ function createAppCoordinatorClass({
       return this.isHookToolEnabled(source);
     }
     getSnapTotalTokens(snapshot) {
-      return snapshot.totalInputTokens + snapshot.totalOutputTokens + snapshot.totalCacheReadTokens + snapshot.totalCacheCreationTokens;
+      return snapshot.totalInputTokens + snapshot.totalOutputTokens;
     }
     updateSettings(partial, source) {
       const prevSoundEnabled = this.settings.sound?.enabled ?? false;

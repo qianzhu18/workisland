@@ -54,6 +54,17 @@ class StatsService {
       }
     }
   }
+  getTokenTotals(tool, sessionId) {
+    const totals = { input: 0, output: 0, cacheRead: 0, cacheCreation: 0 };
+    for (const record of this.tokens) {
+      if (record.tool !== tool || record.sessionId !== sessionId) continue;
+      totals.input += Number(record.inputTokens) || 0;
+      totals.output += Number(record.outputTokens) || 0;
+      totals.cacheRead += Number(record.cacheReadTokens) || 0;
+      totals.cacheCreation += Number(record.cacheCreationTokens) || 0;
+    }
+    return totals;
+  }
   getSnapshot(timeRange) {
     const now = Date.now();
     const startOfToday = this.getStartOfDay(now);

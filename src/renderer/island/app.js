@@ -217,7 +217,7 @@ function IslandApp() {
   reactExports.useEffect(() => {
     window.islandBridge?.getStatsSnapshot("today").then((snap) => {
       if (snap) {
-        setTokenBurnTotal(snap.totalInputTokens + snap.totalOutputTokens + snap.totalCacheReadTokens + snap.totalCacheCreationTokens);
+        setTokenBurnTotal(snap.totalInputTokens + snap.totalOutputTokens);
       }
     });
     const offBurn = window.islandBridge?.onTodayBurnUpdate((total) => {

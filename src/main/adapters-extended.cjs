@@ -147,7 +147,13 @@ const { getStatsService } = require("./stats-service.cjs");
 const lastReportedAt = /* @__PURE__ */ new Map();
 const accountedTokens = /* @__PURE__ */ new Map();
 function applyBaselineDiff(dedupeKey, cumulative) {
-  const baseline = accountedTokens.get(dedupeKey) ?? { input: 0, output: 0, cacheRead: 0, cacheCreation: 0 };
+  let baseline = accountedTokens.get(dedupeKey);
+  if (!baseline) {
+    const separator = dedupeKey.indexOf(":");
+    const tool = separator >= 0 ? dedupeKey.slice(0, separator) : dedupeKey;
+    const sessionId = separator >= 0 ? dedupeKey.slice(separator + 1) : "";
+    baseline = getStatsService().getTokenTotals(tool, sessionId);
+  }
   const deltaInput = Math.max(0, cumulative.inputTokens - baseline.input);
   const deltaOutput = Math.max(0, cumulative.outputTokens - baseline.output);
   const deltaCacheRead = Math.max(0, (cumulative.cacheReadTokens ?? 0) - (baseline.cacheRead ?? 0));
@@ -228,6 +234,7 @@ async function parseClaudeTokens(transcriptPath) {
   let cacheRead = 0;
   let cacheCreation = 0;
   let model;
+  const seenRequestIds = new Set();
   for (const line of content.split("\n")) {
     if (!line) continue;
     let item;
@@ -238,6 +245,11 @@ async function parseClaudeTokens(transcriptPath) {
     }
     const u = item?.message?.usage;
     if (item?.type !== "assistant" || !u) continue;
+    const requestId = item.requestId ?? item.message?.request_id ?? u.request_id;
+    if (requestId) {
+      if (seenRequestIds.has(requestId)) continue;
+      seenRequestIds.add(requestId);
+    }
     input += u.input_tokens ?? 0;
     output += u.output_tokens ?? 0;
     cacheRead += u.cache_read_input_tokens ?? 0;
@@ -2530,6 +2542,8 @@ function parseTraexPermissionMode(value) {
 }
 module.exports = {
   collectAndReportTokens,
+  parseClaudeTokens,
+  parseCodexTokens,
   GeminiAdapter,
   HermesAdapter,
   AidenAdapter,
