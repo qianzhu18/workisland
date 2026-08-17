@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import path from "node:path";
+import { createRequire } from "node:module";
 import { test } from "node:test";
+
+const require = createRequire(import.meta.url);
+const { createWindowClasses } = require("../src/main/windows.cjs");
 
 const settingsSource = readFileSync(new URL("../src/renderer/settings-app.js", import.meta.url), "utf8");
 const welcomeSource = readFileSync(new URL("../src/renderer/assets/welcome-view.js", import.meta.url), "utf8");
@@ -37,8 +42,44 @@ test("telemetry stays opt-in by default in shared settings", () => {
 
 test("upgraded users see a standalone consent window once", () => {
   assert.match(mainSource, /isTelemetryConsentPending\(coordinator\.getSettings\(\)\)/);
-  assert.match(mainSource, /showWelcomeWindow\(\{ consentOnly: true \}\)/);
+  assert.match(mainSource, /showWelcomeWindow\(\{\s*consentOnly: true,\s*afterComplete: startIsland\s*\}\)/);
   assert.match(windowSource, /\?mode=telemetry/);
   assert.match(welcomeSource, /telemetryConsentOnly/);
   assert.match(welcomeSource, /你的隐私选择/);
+});
+
+test("telemetry consent is independent from the auto-hiding Island window", () => {
+  let browserWindowOptions;
+  class FakeBrowserWindow {
+    constructor(options) {
+      browserWindowOptions = options;
+    }
+    loadFile() {}
+    once() {}
+  }
+
+  const { WelcomeWindow } = createWindowClasses({
+    electron: { BrowserWindow: FakeBrowserWindow },
+    path,
+    utils: { is: { dev: false } },
+    IPC: {},
+    fixPanel() {},
+    fixPetWindow() {},
+    setWindowCornerRadius() {},
+    log: { debug() {}, error() {}, warn() {} },
+    isVisibleInIsland() { return false; },
+    getIsQuitting() { return false; }
+  });
+
+  new WelcomeWindow({
+    consentOnly: true,
+    parent: { isDestroyed: () => false }
+  });
+
+  assert.equal("parent" in browserWindowOptions, false);
+  assert.equal("modal" in browserWindowOptions, false);
+});
+
+test("closing the consent window cannot silently record a decision", () => {
+  assert.doesNotMatch(mainSource, /\.once\("closed", \(\) => finishWelcome\(\)\)/);
 });

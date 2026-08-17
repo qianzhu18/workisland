@@ -892,8 +892,7 @@ function createWindowClasses(dependencies) {
   }
   class WelcomeWindow {
     win;
-    constructor({ consentOnly = false, parent } = {}) {
-      const parentWindow = parent && !parent.isDestroyed?.() ? parent : undefined;
+    constructor({ consentOnly = false } = {}) {
       this.win = new electron.BrowserWindow({
         width: 420,
         height: 540,
@@ -905,8 +904,6 @@ function createWindowClasses(dependencies) {
         transparent: true,
         backgroundColor: "#00000000",
         center: true,
-        parent: parentWindow,
-        modal: Boolean(parentWindow),
         icon: path.join(__dirname, "../../resources/icon.png"),
         webPreferences: {
           preload: path.join(__dirname, "../preload/welcome.js"),
@@ -924,6 +921,7 @@ function createWindowClasses(dependencies) {
       }
       this.win.once("ready-to-show", () => {
         this.win.show();
+        this.win.focus();
       });
     }
     get browserWindow() {
