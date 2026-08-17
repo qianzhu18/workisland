@@ -118,7 +118,9 @@ function createTelemetryService({
 
   /** Activation signal — emitted at most once per installation. */
   function markFirstAgentSignal(tool) {
-    if (state.activationSent) return;
+    // Do not consume the one-shot marker before the user has opted in. An
+    // agent can signal while the consent window is still open.
+    if (state.activationSent || !consented()) return;
     state.activationSent = true;
     track(EVENTS.FIRST_AGENT_SIGNAL, { tool });
   }

@@ -96,6 +96,16 @@ test("first agent signal is emitted at most once per installation", async () => 
   assert.equal(signals[0].properties.tool, "claude");
 });
 
+test("first agent signal is not consumed before telemetry consent", () => {
+  const { service, settings } = makeService({ telemetryEnabled: false });
+  service.markFirstAgentSignal("claude");
+  assert.equal(service.queueLength(), 0);
+
+  settings.telemetryEnabled = true;
+  service.markFirstAgentSignal("claude");
+  assert.equal(service.queueLength(), 1);
+});
+
 test("failed uploads keep the queue for the next retry", async () => {
   const { service, requests } = makeService({ fetchImpl: async () => ({ ok: false, status: 500 }) });
   service.track(EVENTS.SESSION_COMPLETED, { tool: "kimi" });
