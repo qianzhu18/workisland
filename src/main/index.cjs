@@ -891,21 +891,35 @@ async function runIslandApp() {
       islandWindow?.moveToDisplay(t, { force: !!reason });
     });
   }
+  function startIsland({ expandAfterOnboarding = false } = {}) {
+    if (islandWindow) return islandWindow;
+    islandWindow = createIslandWindow();
+    if (!islandWindow) return void 0;
+    bindDisplayListener();
+    if (expandAfterOnboarding) {
+      const iw = islandWindow;
+      iw.browserWindow.webContents.once("did-finish-load", () => {
+        setTimeout(() => {
+          iw.send(IPC.ISLAND_ONBOARDING_EXPAND);
+        }, 500);
+      });
+    }
+    return islandWindow;
+  }
   const needsOnboarding = !coordinator.getSettings().hasCompletedOnboarding;
   const needsTelemetryConsent = isTelemetryConsentPending(coordinator.getSettings());
 
   function showWelcomeWindow({ consentOnly = false, afterComplete } = {}) {
-    const welcomeWindow = new WelcomeWindow({
-      consentOnly,
-      parent: consentOnly ? islandWindow?.browserWindow : undefined
-    });
-    bindCommandW(welcomeWindow.browserWindow, () => welcomeWindow.close());
+    const welcomeWindow = new WelcomeWindow({ consentOnly });
 
     let resolved = false;
+    const cleanupWelcome = () => {
+      electron.ipcMain.removeListener(IPC.WELCOME_GET_STARTED, onGetStarted);
+    };
     const finishWelcome = (payload = {}) => {
       if (resolved) return;
       resolved = true;
-      electron.ipcMain.removeListener(IPC.WELCOME_GET_STARTED, onGetStarted);
+      cleanupWelcome();
 
       if (needsTelemetryConsent) {
         const choice = createTelemetryConsentChoice(payload.telemetry);
@@ -921,7 +935,12 @@ async function runIslandApp() {
       finishWelcome(payload);
     };
     electron.ipcMain.on(IPC.WELCOME_GET_STARTED, onGetStarted);
-    welcomeWindow.browserWindow.once("closed", () => finishWelcome());
+    welcomeWindow.browserWindow.once("closed", () => {
+      cleanupWelcome();
+      if (resolved || isQuitting) return;
+      log.warn("[main] WelcomeWindow closed before an explicit choice; consent remains pending");
+      electron.app.quit();
+    });
   }
 
   if (needsOnboarding) {
@@ -931,20 +950,15 @@ async function runIslandApp() {
     }
     showWelcomeWindow({ afterComplete: () => {
       coordinator.updateSettings({ hasCompletedOnboarding: true });
-      islandWindow = createIslandWindow();
-      if (!islandWindow) return;
-      bindDisplayListener();
-      const iw = islandWindow;
-      iw.browserWindow.webContents.once("did-finish-load", () => {
-        setTimeout(() => {
-          iw.send(IPC.ISLAND_ONBOARDING_EXPAND);
-        }, 500);
-      });
+      startIsland({ expandAfterOnboarding: true });
     } });
+  } else if (needsTelemetryConsent) {
+    showWelcomeWindow({
+      consentOnly: true,
+      afterComplete: startIsland
+    });
   } else {
-    islandWindow = createIslandWindow();
-    bindDisplayListener();
-    if (needsTelemetryConsent) showWelcomeWindow({ consentOnly: true });
+    startIsland();
   }
   coordinator.setPetWindowFactory((x, y) => {
     const petWindow = new PetWindow(x, y, coordinator.getSettings().petScale);
