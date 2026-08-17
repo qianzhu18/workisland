@@ -4,19 +4,24 @@ const childProcess = require("child_process");
 const { promisify } = require("util");
 const log = require("electron-log");
 
+function hasAppBundlePathSegment(command, appBundleNames) {
+  const segments = command.toLowerCase().split("/");
+  return appBundleNames.some((appBundleName) => segments.includes(appBundleName.toLowerCase()));
+}
+
+function isCodexDesktopAppCommand(command) {
+  if (hasAppBundlePathSegment(command, ["Codex.app", "Codex Desktop.app"])) return true;
+  // Newer Codex Desktop builds are bundled inside ChatGPT.app.
+  return hasAppBundlePathSegment(command, ["ChatGPT.app"])
+    && command.toLowerCase().includes("/codex framework.framework/");
+}
+
 function createProcessMonitorClass({ isVisibleInIsland }) {
-  function hasAppBundlePathSegment(command, appBundleNames) {
-    const segments = command.toLowerCase().split("/");
-    return appBundleNames.some((appBundleName) => segments.includes(appBundleName.toLowerCase()));
-  }
   function isCursorDesktopAppCommand(command) {
     return hasAppBundlePathSegment(command, ["Cursor.app"]);
   }
   function isClaudeDesktopAppCommand(command) {
     return hasAppBundlePathSegment(command, ["Claude.app"]);
-  }
-  function isCodexDesktopAppCommand(command) {
-    return hasAppBundlePathSegment(command, ["Codex.app", "Codex Desktop.app"]);
   }
   function isOpenCodeDesktopAppCommand(command) {
     return hasAppBundlePathSegment(command, ["OpenCode.app", "OpenCode Desktop.app"]);
@@ -172,4 +177,4 @@ function createProcessMonitorClass({ isVisibleInIsland }) {
   return ProcessMonitor;
 }
 
-module.exports = { createProcessMonitorClass };
+module.exports = { createProcessMonitorClass, isCodexDesktopAppCommand };
