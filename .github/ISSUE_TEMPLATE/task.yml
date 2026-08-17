@@ -1,0 +1,44 @@
+name: Delivery task
+description: A scoped engineering, design, documentation, or operations task derived from an approved PRD.
+title: "task: "
+labels: ["kind: task"]
+body:
+  - type: input
+    id: parent
+    attributes:
+      label: Parent Epic or PRD
+      description: Required. Link the approved Epic, Feature Spec, or version PRD.
+      placeholder: "#123 or docs/product/prd/PRD-007-..."
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope and non-goals
+      description: Keep this task small enough to review independently.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance evidence
+      description: List the tests, real-device checks, screenshots, or documentation updates that prove completion.
+    validations:
+      required: true
+  - type: input
+    id: target
+    attributes:
+      label: Target version or iteration
+      placeholder: "v0.3.0-beta.2 / 2026-08 iteration"
+  - type: dropdown
+    id: category
+    attributes:
+      label: Delivery category
+      options:
+        - Product / design
+        - Engineering
+        - Test / quality
+        - Documentation
+        - Operations / release
+    validations:
+      required: true

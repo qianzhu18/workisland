@@ -1,0 +1,64 @@
+name: Bug report
+description: Report behavior that differs from the documented or expected experience.
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please remove secrets, prompts, source code, paths, transcripts, and personal data before posting.
+  - type: input
+    id: version
+    attributes:
+      label: WorkIsland version
+      description: Include the exact app version and whether this is an internal, Beta, or stable build.
+      placeholder: "v0.3.0-beta.1 (Apple Silicon macOS 15.6)"
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - First launch / settings
+        - Island / notifications
+        - Agent connection / hooks
+        - Approval / question handling
+        - Return to context
+        - Desktop pet / display behavior
+        - Website / manual
+        - Packaging / installation
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: Write the smallest sequence that reliably produces the issue.
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior and impact
+      description: Include the user/workflow impact. Attach a redacted screenshot or log only when needed.
+    validations:
+      required: true
+  - type: input
+    id: frequency
+    attributes:
+      label: Frequency
+      placeholder: "Every time / 3 of 5 times / once"
+    validations:
+      required: true

@@ -13,19 +13,24 @@ test("general settings expose all completion notification duration options", () 
   assert.match(source, /save\(\{ completionPopupDurationSec: Number\(v\) \}\)/);
 });
 
-test("about settings route feedback and beta community through stable website anchors", () => {
+test("about settings route the manual, feedback and beta community through stable website URLs", () => {
   assert.match(source, /帮助与内测/);
+  assert.match(source, /https:\/\/workisland\.yanglaishe\.cn\/guide\//);
+  assert.match(source, /产品手册/);
   assert.match(source, /https:\/\/workisland\.yanglaishe\.cn\/#feedback/);
   assert.match(source, /https:\/\/workisland\.yanglaishe\.cn\/#beta-group/);
   assert.match(source, /提交反馈/);
   assert.match(source, /加入内测群/);
 });
 
-test("settings use product images instead of WorkIsland and Codex letter placeholders", () => {
-  assert.match(html, /class="brand-mark"[^>]+src="\.\.\/assets\/workisland-icon\.png"/);
+test("settings use product images instead of letter placeholders", () => {
+  assert.match(html, /class="brand-mark"[^>]+src="\.\.\/assets\/workisland-icon\.png"[^>]+draggable="false"/);
   assert.doesNotMatch(html, /class="brand-mark">O</);
-  assert.match(source, /codex\.png/);
+  assert.match(source, /AGENT_ICON_URLS/);
+  assert.match(source, /DEFAULT_AGENT_ICON_URL/);
   assert.match(source, /agent-icon-image/);
+  assert.match(source, /icon\.draggable = false/);
   assert.match(source, /el\("img", "app-mark"\)/);
+  assert.match(source, /appMark\.draggable = false/);
   assert.doesNotMatch(source, /el\("div", "app-mark", "O"\)/);
 });

@@ -92,4 +92,5 @@ jobs:
           files: |
             release/*.dmg
             release/SHA256SUMS.txt
+          prerelease: ${{ contains(github.ref_name, '-') }}
           generate_release_notes: true

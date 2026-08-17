@@ -8,8 +8,9 @@ electron.contextBridge.exposeInMainWorld("welcomeBridge", {
   setLocale(locale) {
     return electron.ipcRenderer.invoke(ipc.IPC.SET_LOCALE, { locale });
   },
-  getStarted() {
-    electron.ipcRenderer.send(ipc.IPC.WELCOME_GET_STARTED);
+  getStarted(payload) {
+    // payload: { telemetry?: boolean } —— 首启匿名统计同意选择（PRD-005）。
+    electron.ipcRenderer.send(ipc.IPC.WELCOME_GET_STARTED, payload || {});
   },
   getFirstLaunchAt() {
     return electron.ipcRenderer.invoke(ipc.IPC.WELCOME_GET_FIRST_LAUNCH_AT);

@@ -22,6 +22,7 @@ const { initSoundDirs, playSoundEvent } = require("./sound-service.cjs");
 const { reportTokenUsage, getHermesCumulativeTokens, diffHermesCumulativeTokens } = require("./adapters-extended.cjs");
 const { getAgentDescriptor, validateAgentWiring } = require("../shared/agent-catalog.cjs");
 const { createPresentationRequest } = require("./presentation-policy.cjs");
+const { EVENTS } = require("../shared/telemetry.cjs");
 
 function createAppCoordinatorClass({
   BridgeServer,
@@ -126,6 +127,12 @@ function createAppCoordinatorClass({
     // 跨天定时器：本地 0 点触发一次今日 token 燃烧总量推送，让 renderer 把昨日累计清成今日值
     midnightTimer = null;
     onPowerResume = null;
+    /**
+     * 匿名遥测服务（ADR-0003 / PRD-005）。由入口在构造完成后通过
+     * setTelemetryService 注入（与 updateService 同一时序）；所有埋点调用都
+     * 经由可选链发出，服务缺席或未同意时为 no-op。
+     */
+    telemetry = null;
     constructor() {
       this.settingsRepository = new SettingsRepository(
         path.join(electron.app.getPath("userData"), "settings.json"),
@@ -225,6 +232,12 @@ function createAppCoordinatorClass({
           event.tool,
           event.detectionSource || "hook"
         );
+        // 匿名遥测：激活信号每安装只报一次；会话开始按 tool 计数。
+        // 服务内部完成白名单过滤与未同意 no-op。
+        this.telemetry?.markFirstAgentSignal(event.tool);
+        if (event.type === "sessionStarted") {
+          this.telemetry?.track(EVENTS.SESSION_STARTED, { tool: event.tool });
+        }
         const prevSession = event.type === "sessionCompleted" ? getSession(this.state, event.sessionId) : void 0;
         this.state = apply(this.state, event);
         if (event.type === "jumpTargetUpdated" && event.jumpTarget?.tty) {
@@ -242,6 +255,7 @@ function createAppCoordinatorClass({
           if (session) {
             this.statsService.recordSession(event.tool, session.createdAt, event.timestamp);
           }
+          this.telemetry?.track(EVENTS.SESSION_COMPLETED, { tool: event.tool });
         }
         this.broadcastSessionUpdate();
         this.maybePresentSurface(event);
@@ -406,6 +420,10 @@ function createAppCoordinatorClass({
     setSettingsWindow(win) {
       this.settingsWindow = win;
     }
+    /** 注入匿名遥测服务（index.cjs 在构造后调用，时序与 updateService 一致）。 */
+    setTelemetryService(service) {
+      this.telemetry = service;
+    }
     openSettingsWindow() {
       if (this.settingsWindow) {
         const bounds = this.displayMgr?.getCurrentTarget()?.display.bounds;
@@ -551,6 +569,20 @@ function createAppCoordinatorClass({
       const prevClaudeSubscriptionEnabled = this.settings.pillFirstRow.claudeSubscription;
       this.settings = { ...this.settings, ...partial };
       this.settingsRepository.scheduleSave(this.settings);
+      // 匿名遥测：同意状态变化必须立即同步给服务（关闭即清空未上报队列）；
+      // 其余白名单 key 只上报 key 本身，值永不离开本机。
+      if (this.telemetry) {
+        if ("telemetryEnabled" in partial) {
+          this.telemetry.setEnabled(this.settings.telemetryEnabled === true);
+          this.telemetry.trackSettingChange("telemetryEnabled");
+        }
+        for (const key of Object.keys(partial)) {
+          if (key !== "telemetryEnabled") this.telemetry.trackSettingChange(key);
+        }
+        if (typeof partial.sound?.enabled === "boolean") {
+          this.telemetry.trackSettingChange("sound.enabled");
+        }
+      }
       if ("launchAtLogin" in partial) {
         electron.app.setLoginItemSettings({
           openAtLogin: partial.launchAtLogin,
@@ -597,6 +629,7 @@ function createAppCoordinatorClass({
         action,
         message: void 0
       };
+      this.telemetry?.track(EVENTS.APPROVAL_HANDLED, { action, tool: session.tool });
       this.bridge.resolvePermission(sessionId, resolution, false);
     }
     async denySession(sessionId) {
@@ -607,9 +640,12 @@ function createAppCoordinatorClass({
         log.warn("[AppCoordinator] ignoring bridge deny for external permission", sessionId, mode);
         return;
       }
+      this.telemetry?.track(EVENTS.APPROVAL_HANDLED, { action: "deny", tool: session.tool });
       this.bridge.resolvePermission(sessionId, { action: "deny" }, false);
     }
     async answerSession(sessionId, answer) {
+      const session = getSession(this.state, sessionId);
+      this.telemetry?.track(EVENTS.QUESTION_ANSWERED, { tool: session?.tool ?? "unknown" });
       this.bridge.answerQuestion(sessionId, answer);
     }
     async cancelQuestion(sessionId, cancel) {
@@ -629,6 +665,7 @@ function createAppCoordinatorClass({
       if (handler) {
         const t = session.jumpTarget;
         if (shouldUseToolJumpHandler(session.tool, t, handler.toolName)) {
+          this.telemetry?.track(EVENTS.JUMP_BACK, { target: handler.toolName, tool: session.tool });
           await handler.jump(t ?? { app: handler.defaultApp }, session);
           return;
         }
@@ -637,6 +674,7 @@ function createAppCoordinatorClass({
         log.warn("[AppCoordinator] jumpToSession: no jumpTarget for session", sessionId, session.tool);
         return;
       }
+      this.telemetry?.track(EVENTS.JUMP_BACK, { target: session.jumpTarget.app, tool: session.tool });
       await jumpToTarget(session.jumpTarget);
     }
     /** 通过 Terminal prompt 继续现有会话。 */

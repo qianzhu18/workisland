@@ -11,6 +11,14 @@
 
 不要复用已经推送过的 Tag。出现问题时发布新的修复版本，并在 Release Notes 中说明变更。
 
+## 版本 PRD 与用户手册
+
+每个对外 Beta 或稳定 Release 都必须先有版本 PRD：范围、任务拆分、数据计划、验收与回滚写在同一份文档中。以 [`docs/product/prd/TEMPLATE-VERSION-PRD.md`](./product/prd/TEMPLATE-VERSION-PRD.md) 为模板，并遵守 [`Product Operating System`](./PRODUCT_OPERATING_SYSTEM.md)。
+
+- Beta 只用于受邀测试者，GitHub Release 必须标记为 **Pre-release**，不能成为 `releases/latest`。
+- 稳定版才可进入自动更新通道。
+- 所有用户可见操作变化必须同步到官网 `/guide/`；内部实验数据、访谈名单和运营判断不写入公开手册。
+
 ## 发布前检查
 
 在本地完成代码提交后：
@@ -31,7 +39,7 @@ npm run release:check -- --tag v0.3.0
 ## 正式发布
 
 1. 修改 `package.json` 和 `package-lock.json` 的版本号。
-2. 运行完整检查并提交到 `main`。
+2. 更新版本 PRD、官网手册和 Release Notes，运行完整检查并提交到 `main`。
 3. 创建并推送与版本一致的 Tag：
 
    ```bash
@@ -72,7 +80,8 @@ https://api.github.com/repos/qianzhu18/workisland/releases/latest
 
 用户可以在“关于 → 更新”中关闭自动检查，仍然可以手动检查。网络失败不会影响应用启动和本地 Agent 监控。
 
+另有独立的匿名使用统计通道：默认关闭，仅在用户于首次启动或设置页明确开启后才会上报白名单事件（见 [遥测说明](./TELEMETRY.md)）。两个通道互不影响，关闭任一通道均不影响应用功能。
+
 ## 手动运行工作流
 
 `workflow_dispatch` 只用于验证构建和生成临时 Artifact，不会创建正式 Release，也不会代替 Tag 发布。正式公开版本必须通过版本一致的 `v*` Tag 触发。
-

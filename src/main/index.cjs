@@ -26,6 +26,9 @@ const { createNativePlatformService } = require("./native-platform-service.cjs")
 const { configureLogTransport, createLogLifecycle } = require("./log-lifecycle.cjs");
 const { isAllowedExternalUrl } = require("./external-url-policy.cjs");
 const { createUpdateService } = require("./update-service.cjs");
+const { createTelemetryService } = require("./telemetry-service.cjs");
+const { EVENTS } = require("../shared/telemetry.cjs");
+const { isTelemetryConsentPending, createTelemetryConsentChoice } = require("../shared/telemetry-consent.cjs");
 const {
   canContinueSessionViaTerminalPrompt,
   isPluginAgentTool,
@@ -610,6 +613,7 @@ const AppCoordinator = createAppCoordinatorClass({
 });
 const { createIpcServices } = require("./ipc-services.cjs");
 let updateService = null;
+let telemetryService = null;
 const { registerIpcHandlers, getCustomIconDataUrl, applyDockIcon } = createIpcServices({
   performHapticFeedback,
   isAllowedExternalUrl,
@@ -713,6 +717,18 @@ async function runIslandApp() {
     },
     logger: log
   });
+  // 匿名遥测（ADR-0003 / PRD-005）：默认关闭；同意与白名单门控都在服务内。
+  telemetryService = createTelemetryService({
+    getSettings: () => coordinator.getSettings(),
+    isPackaged: electron.app.isPackaged,
+    appVersion: electron.app.getVersion(),
+    osVersion: `${process.platform} ${process.getSystemVersion?.() || process.version}`,
+    userDataPath: electron.app.getPath("userData"),
+    logger: log
+  });
+  coordinator.setTelemetryService(telemetryService);
+  telemetryService.track(EVENTS.APP_LAUNCHED);
+  telemetryService.start();
   registerIpcHandlers(coordinator);
   if (!coordinator.getSettings().locale) {
     const languages = electron.app.getPreferredSystemLanguages();
@@ -745,6 +761,7 @@ async function runIslandApp() {
     }
     stopLogLifecycle();
     updateService?.stop();
+    telemetryService?.stop();
     coordinator.stop();
     displayManager?.dispose();
     electron.globalShortcut.unregisterAll();
@@ -874,16 +891,45 @@ async function runIslandApp() {
       islandWindow?.moveToDisplay(t, { force: !!reason });
     });
   }
-  if (!coordinator.getSettings().hasCompletedOnboarding) {
+  const needsOnboarding = !coordinator.getSettings().hasCompletedOnboarding;
+  const needsTelemetryConsent = isTelemetryConsentPending(coordinator.getSettings());
+
+  function showWelcomeWindow({ consentOnly = false, afterComplete } = {}) {
+    const welcomeWindow = new WelcomeWindow({
+      consentOnly,
+      parent: consentOnly ? islandWindow?.browserWindow : undefined
+    });
+    bindCommandW(welcomeWindow.browserWindow, () => welcomeWindow.close());
+
+    let resolved = false;
+    const finishWelcome = (payload = {}) => {
+      if (resolved) return;
+      resolved = true;
+      electron.ipcMain.removeListener(IPC.WELCOME_GET_STARTED, onGetStarted);
+
+      if (needsTelemetryConsent) {
+        const choice = createTelemetryConsentChoice(payload.telemetry);
+        coordinator.updateSettings(choice);
+        if (choice.telemetryEnabled) telemetryService?.track(EVENTS.APP_LAUNCHED);
+      }
+      welcomeWindow.close();
+      afterComplete?.();
+    };
+    const onGetStarted = (event, payload) => {
+      if (event.sender !== welcomeWindow.browserWindow.webContents) return;
+      log.info("[main] WELCOME_GET_STARTED received");
+      finishWelcome(payload);
+    };
+    electron.ipcMain.on(IPC.WELCOME_GET_STARTED, onGetStarted);
+    welcomeWindow.browserWindow.once("closed", () => finishWelcome());
+  }
+
+  if (needsOnboarding) {
     log.info("[main] first launch — showing WelcomeWindow");
     if (!coordinator.getSettings().firstLaunchAt) {
       coordinator.updateSettings({ firstLaunchAt: Date.now() });
     }
-    const welcomeWindow = new WelcomeWindow();
-    bindCommandW(welcomeWindow.browserWindow, () => welcomeWindow.close());
-    electron.ipcMain.once(IPC.WELCOME_GET_STARTED, () => {
-      log.info("[main] WELCOME_GET_STARTED received");
-      welcomeWindow.close();
+    showWelcomeWindow({ afterComplete: () => {
       coordinator.updateSettings({ hasCompletedOnboarding: true });
       islandWindow = createIslandWindow();
       if (!islandWindow) return;
@@ -894,10 +940,11 @@ async function runIslandApp() {
           iw.send(IPC.ISLAND_ONBOARDING_EXPAND);
         }, 500);
       });
-    });
+    } });
   } else {
     islandWindow = createIslandWindow();
     bindDisplayListener();
+    if (needsTelemetryConsent) showWelcomeWindow({ consentOnly: true });
   }
   coordinator.setPetWindowFactory((x, y) => {
     const petWindow = new PetWindow(x, y, coordinator.getSettings().petScale);
