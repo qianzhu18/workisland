@@ -218,3 +218,14 @@ document.addEventListener("visibilitychange", () => {
 activateScene("overview");
 setTourScene("connect");
 loadLatestRelease();
+
+// Umami 事件埋点：下载转化与 GitHub 外链点击。统计脚本未加载时静默跳过。
+function trackEvent(name, data) {
+  try { window.umami?.track(name, data); } catch { /* 统计失败不影响站点 */ }
+}
+document.addEventListener("click", (event) => {
+  const link = event.target.closest?.("a");
+  if (!link) return;
+  if (link.hasAttribute("data-download-link")) trackEvent("download_click", { to: link.href });
+  else if ((link.href || "").startsWith("https://github.com/")) trackEvent("github_click", { to: link.href });
+});
