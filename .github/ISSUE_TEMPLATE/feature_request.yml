@@ -1,0 +1,39 @@
+name: Feature or improvement
+description: Propose a user problem worth validating before implementation.
+title: "feature: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This is the intake for the shared backlog, not a promise to build. Describe the user problem and evidence before proposing a solution.
+  - type: textarea
+    id: problem
+    attributes:
+      label: User problem and affected workflow
+      description: Who experiences this, when, and what do they do today?
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Link feedback, a reproducible observation, research, or a clear business/technical constraint. Do not include private user data.
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+      description: State a measurable behavior change, not only a UI or implementation request.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Current workaround or alternatives
+  - type: input
+    id: related
+    attributes:
+      label: Related Epic, PRD, or Issue
+      description: Optional. Add a URL or issue number when one already exists.

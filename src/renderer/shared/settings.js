@@ -126,6 +126,8 @@ const DEFAULT_SETTINGS = {
   expandOnActionRequired: true,
   suppressNotificationWhenFocused: true,
   updateChecksEnabled: true,
+  telemetryEnabled: false,
+  telemetryConsentNoticeVersion: "",
   hookToggles: { ...DEFAULT_HOOK_TOGGLES },
   approvalModes: { ...DEFAULT_APPROVAL_MODES },
   showDebugWindow: false,

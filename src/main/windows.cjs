@@ -892,7 +892,8 @@ function createWindowClasses(dependencies) {
   }
   class WelcomeWindow {
     win;
-    constructor() {
+    constructor({ consentOnly = false, parent } = {}) {
+      const parentWindow = parent && !parent.isDestroyed?.() ? parent : undefined;
       this.win = new electron.BrowserWindow({
         width: 420,
         height: 540,
@@ -904,6 +905,8 @@ function createWindowClasses(dependencies) {
         transparent: true,
         backgroundColor: "#00000000",
         center: true,
+        parent: parentWindow,
+        modal: Boolean(parentWindow),
         icon: path.join(__dirname, "../../resources/icon.png"),
         webPreferences: {
           preload: path.join(__dirname, "../preload/welcome.js"),
@@ -912,9 +915,12 @@ function createWindowClasses(dependencies) {
         }
       });
       if (utils.is.dev && process.env["ELECTRON_RENDERER_URL"]) {
-        this.win.loadURL(`${process.env["ELECTRON_RENDERER_URL"]}/island/renderer/welcome.html`);
+        const suffix = consentOnly ? "?mode=telemetry" : "";
+        this.win.loadURL(`${process.env["ELECTRON_RENDERER_URL"]}/island/renderer/welcome.html${suffix}`);
       } else {
-        this.win.loadFile(path.join(__dirname, "../renderer/island/renderer/welcome.html"));
+        this.win.loadFile(path.join(__dirname, "../renderer/island/renderer/welcome.html"), consentOnly ? {
+          query: { mode: "telemetry" }
+        } : undefined);
       }
       this.win.once("ready-to-show", () => {
         this.win.show();

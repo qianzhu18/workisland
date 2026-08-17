@@ -22,9 +22,9 @@ resources/bin/panel_fix.node
 native/panel-fix/build/
 .gstack/
 
-# Internal docs - not for public release
+# Build artifacts and local-only documents. Repository docs are intentionally
+# tracked so product decisions can be reviewed with the code they govern.
 doc/
-docs/
 CLAUDE.md
 DESIGN.md
 SHA256SUMS.txt

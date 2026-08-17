@@ -58,6 +58,43 @@ jobs:
           else
             env -u CSC_LINK npm run package:mac
           fi
+      - name: Verify packaged payload
+        run: |
+          node <<'NODE'
+          const asar = require('@electron/asar');
+          const archive = 'release/mac-arm64/WorkIsland.app/Contents/Resources/app.asar';
+          const files = new Set(asar.listPackage(archive));
+          const required = [
+            '/src/main/telemetry-service.cjs',
+            '/src/shared/telemetry.cjs',
+            '/src/shared/telemetry-consent.cjs',
+            '/src/renderer/settings-app.js',
+            '/src/renderer/settings-app.css',
+            '/src/renderer/island/assets/brands/agent.svg',
+            '/src/renderer/island/assets/brands/claude.svg',
+            '/src/renderer/island/assets/brands/codebuddy.svg',
+            '/src/renderer/island/assets/brands/copilot.svg',
+            '/src/renderer/island/assets/brands/cursor.svg',
+            '/src/renderer/island/assets/brands/gemini.svg',
+            '/src/renderer/island/assets/brands/hermes.svg',
+            '/src/renderer/island/assets/brands/kimi.svg',
+            '/src/renderer/island/assets/brands/opencode.svg',
+            '/src/renderer/island/assets/brands/pi.svg',
+            '/src/renderer/island/assets/brands/sara.svg',
+            '/src/renderer/island/assets/brands/trae.svg',
+            '/src/renderer/island/assets/brands/zcode.svg'
+          ];
+          const missing = required.filter((file) => !files.has(file));
+          const settings = asar.extractFile(archive, 'src/renderer/settings-app.js').toString('utf8');
+          if (!settings.includes('AGENT_ICON_URLS')) missing.push('/src/renderer/settings-app.js:AGENT_ICON_URLS');
+          const main = asar.extractFile(archive, 'src/main/index.cjs').toString('utf8');
+          if (!main.includes('isTelemetryConsentPending')) missing.push('/src/main/index.cjs:isTelemetryConsentPending');
+          if (missing.length) {
+            console.error(`Packaged payload is incomplete:\n${missing.map((file) => `- ${file}`).join('\n')}`);
+            process.exit(1);
+          }
+          console.log(`Packaged payload OK: ${required.length} assets and telemetry consent wiring present.`);
+          NODE
       - name: Notarize and staple tagged release
         if: startsWith(github.ref, 'refs/tags/v')
         env:
@@ -92,4 +129,5 @@ jobs:
           files: |
             release/*.dmg
             release/SHA256SUMS.txt
+          prerelease: ${{ contains(github.ref_name, '-') }}
           generate_release_notes: true
