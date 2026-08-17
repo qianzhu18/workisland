@@ -80,7 +80,10 @@ function createSessionState({ isVisibleInIsland }) {
           // 已经清过，这里是防御性兜底，避免上一轮未配对的 toolUseStarted 导致
           // sweep 误判"还有工具在跑"）。
           activeTool: void 0,
-          createdAt: event.timestamp,
+          // Hooks may emit SessionStart/UserPromptSubmit for every turn in the
+          // same session. Keep the original start so elapsed time covers the
+          // whole conversation, while a genuinely ended session can restart.
+          createdAt: prev.isSessionEnded ? event.timestamp : prev.createdAt,
           updatedAt: event.timestamp
         };
         break;
@@ -121,7 +124,6 @@ function createSessionState({ isVisibleInIsland }) {
           // 防御性兜底：上一轮可能有未配对的 toolUseStarted（pull adapter 不发
           // tool 事件，理论上不会出现，但保留与 sessionStarted 一致的清理语义）。
           activeTool: void 0,
-          createdAt: event.timestamp,
           updatedAt: event.timestamp
         };
         break;
