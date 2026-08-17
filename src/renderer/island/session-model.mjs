@@ -1,7 +1,6 @@
 export function isVisibleInIsland(session) {
   if (session.parentSessionId) return false;
   if (session.phase === "waitingForApproval" || session.phase === "waitingForAnswer") return true;
-  if (session.phase === "completed") return !session.completionDismissed;
 
   if (session.isHookManaged) {
     if (session.isSessionEnded) return false;

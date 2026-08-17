@@ -128,7 +128,8 @@ function createProcessMonitorClass({ isVisibleInIsland }) {
             this.opts.updateSession(session.id, {
               isSessionEnded: true,
               phase: "completed",
-              completionDismissed: false
+              completionDismissed: true,
+              jumpTarget: void 0
             });
             changed = true;
           }

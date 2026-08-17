@@ -298,9 +298,7 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, checkF
       coordinator.confirmPlan(sessionId, choice);
     });
     trackedOn(IPC.SESSION_JUMP, (_event, { sessionId }) => {
-      void coordinator.jumpToSession(sessionId).then(() => {
-        coordinator.dismissCompletion(sessionId);
-      }).catch((err) => {
+      void coordinator.jumpToSession(sessionId).catch((err) => {
         console.error("[ipc] SESSION_JUMP failed:", sessionId, err);
       });
     });

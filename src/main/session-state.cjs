@@ -235,6 +235,7 @@ function createSessionState({ isVisibleInIsland }) {
       }
       case "sessionCompleted": {
         const isEnd = event.isSessionEnd ?? prev.isSessionEnded;
+        const autoDismiss = isEnd;
         const isPending = prev.phase === "waitingForApproval" || prev.phase === "waitingForAnswer";
         if (isPending) {
           session = {
@@ -264,9 +265,7 @@ function createSessionState({ isVisibleInIsland }) {
           lastAssistantMessage: event.lastAssistantMessage ?? prev.lastAssistantMessage,
           latestUserPrompt: event.latestUserPrompt ?? prev.latestUserPrompt,
           isSessionEnded: isEnd,
-          // Completion notifications may auto-collapse, but the result remains
-          // unread until the user opens the session explicitly.
-          completionDismissed: isEnd ? false : prev.completionDismissed,
+          completionDismissed: autoDismiss ? true : prev.completionDismissed,
           isPullColdCompleteSession: !!event.isPullColdCompleteSession,
           error: event.error ?? prev.error,
           errorDetail: event.errorDetail ?? prev.errorDetail,
@@ -385,9 +384,7 @@ function createSessionState({ isVisibleInIsland }) {
     const cutoff = Date.now() - thresholdMs;
     const sessions = /* @__PURE__ */ new Map();
     for (const [id, session] of Array.from(state.sessions.entries())) {
-      if (session.phase === "completed" && !session.completionDismissed) {
-        sessions.set(id, session);
-      } else if (session.updatedAt > cutoff) {
+      if (session.updatedAt > cutoff) {
         sessions.set(id, session);
       }
     }
