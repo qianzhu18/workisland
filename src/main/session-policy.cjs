@@ -11,6 +11,9 @@ function requiresAttention(phase) {
 function isVisibleInIsland(session) {
   if (session.parentSessionId) return false;
   if (requiresAttention(session.phase)) return true;
+  // Completed work stays available until the user explicitly opens it.
+  // Auto-collapsing the notification must not erase an unread result.
+  if (session.phase === "completed") return !session.completionDismissed;
   if (session.isHookManaged) {
     if (session.isSessionEnded) return false;
     if (session.tool === "trae") return Boolean(session.latestUserPrompt);
