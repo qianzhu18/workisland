@@ -5,8 +5,29 @@ const api = window.settingsApi;
 const DEFAULT_PET_SPRITE = "echo.png";
 const FEEDBACK_URL = "https://workisland.yanglaishe.cn/#feedback";
 const BETA_GROUP_URL = "https://workisland.yanglaishe.cn/#beta-group";
+const USER_GUIDE_URL = "https://workisland.yanglaishe.cn/guide/";
 const WORKISLAND_ICON_URL = "../assets/workisland-icon.png";
-const CODEX_ICON_URL = "../assets/brands/codex.png";
+const DEFAULT_AGENT_ICON_URL = "../assets/brands/agent.svg";
+const AGENT_ICON_URLS = Object.freeze({
+  claude: "../assets/brands/claude.svg",
+  codex: "../assets/brands/codex.png",
+  coco: "../assets/brands/trae.svg",
+  cursor: "../assets/brands/cursor.svg",
+  trae: "../assets/brands/trae.svg",
+  "trae-cn": "../assets/brands/trae.svg",
+  zcode: "../assets/brands/zcode.svg",
+  workbuddy: "../assets/brands/codebuddy.svg",
+  opencode: "../assets/brands/opencode.svg",
+  sara: "../assets/brands/sara.svg",
+  kimi: "../assets/brands/kimi.svg",
+  gemini: "../assets/brands/gemini.svg",
+  "copilot-cli": "../assets/brands/copilot.svg",
+  hermes: "../assets/brands/hermes.svg",
+  aiden: "../assets/brands/agent.svg",
+  traex: "../assets/brands/trae.svg",
+  "plugin:omp": "../assets/brands/pi.svg",
+  "plugin:pi": "../assets/brands/pi.svg"
+});
 const state = { settings: null, statuses: new Map(), displays: [], codexPets: [], activeTab: "general", busy: new Set(), latestUpdate: null };
 
 function el(tag, className, text) {
@@ -323,15 +344,12 @@ function agentCard(report) {
   const { agentId, label } = report;
   const installed = Boolean(report?.installed);
   const card = el("div", `agent-card${installed ? " connected" : ""}`);
-  const icon = agentId === "codex"
-    ? el("img", "agent-icon agent-icon-image")
-    : el("div", "agent-icon");
-  if (agentId === "codex") {
-    icon.src = CODEX_ICON_URL;
-    icon.alt = "";
-  } else {
-    icon.append(agentGlyph(agentId));
-  }
+  const iconFrame = el("div", "agent-icon");
+  const icon = el("img", "agent-icon-image");
+  icon.src = AGENT_ICON_URLS[agentId] || DEFAULT_AGENT_ICON_URL;
+  icon.alt = "";
+  icon.draggable = false;
+  iconFrame.append(icon);
   const content = el("div", "agent-content");
   const heading = el("div", "agent-heading");
   heading.append(el("strong", "", label), statusBadge(report));
@@ -358,7 +376,7 @@ function agentCard(report) {
     action.disabled = true;
     action.textContent = "未安装";
   }
-  card.append(icon, content, action);
+  card.append(iconFrame, content, action);
   return card;
 }
 
@@ -445,11 +463,13 @@ function aboutPage() {
   const appMark = el("img", "app-mark");
   appMark.src = WORKISLAND_ICON_URL;
   appMark.alt = "";
+  appMark.draggable = false;
   version.append(appMark, el("div", "about-copy", "WorkIsland\n正在读取版本…"));
   api.getAppVersion().then(v => version.querySelector(".about-copy").textContent = `WorkIsland\n版本 ${v}`).catch(() => {});
   about.append(version);
-  const support = section("帮助与内测", "反馈渠道与内测群信息由 WorkIsland 官网统一维护，群码更新无需重新安装应用。");
+  const support = section("帮助与内测", "操作手册、反馈渠道与内测群信息由 WorkIsland 官网统一维护，无需重新安装即可更新。");
   support.append(
+    row("产品手册", "查看安装、首次任务、状态理解、隐私与反馈说明。", button("打开手册", () => api.openExternal(USER_GUIDE_URL), "primary")),
     row("提交反馈", "报告问题、提出建议或补充复现信息。", button("打开反馈入口", () => api.openExternal(FEEDBACK_URL), "primary")),
     row("加入内测群", "查看最新 WorkIsland 微信内测群二维码。", button("查看群码", () => api.openExternal(BETA_GROUP_URL)))
   );
@@ -492,7 +512,15 @@ function aboutPage() {
   const actions = el("div", "section-actions");
   actions.append(button("导出诊断日志", async () => { const path = await api.collectLogs(); showToast(path ? "日志已导出" : "日志导出完成"); }), button("退出应用", () => api.quitApp(), "danger"));
   about.append(actions);
-  root.append(about, support, updates);
+  const privacy = section("匿名使用统计", "默认关闭。开启后仅上报事件类型与 Agent 名称等匿名统计。");
+  privacy.append(
+    row(
+      "允许匿名使用统计",
+      "不包含会话内容、文件路径或个人信息；关闭时会立即清空未上报的数据。目的地为 PostHog（美国区），事件清单见开源代码 telemetry.cjs。",
+      toggle(state.settings.telemetryEnabled, v => save({ telemetryEnabled: v }), "允许匿名使用统计")
+    )
+  );
+  root.append(about, support, privacy, updates);
   return root;
 }
 

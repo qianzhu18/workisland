@@ -32,6 +32,10 @@ jobs:
           test -s website/styles.css
           test -s website/script.js
           test -s website/icon.png
+          test -s website/robots.txt
+          test -s website/sitemap.xml
+          test -s website/guide/index.html
+          test -s website/guide/guide.css
           node --check website/script.js
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5

@@ -1,116 +1,123 @@
-# WorkIsland
+<p align="center">
+  <img src="website/icon.png" width="112" alt="WorkIsland app icon">
+</p>
 
-WorkIsland 是一个 macOS 本地桌面应用：在刘海灵动岛区域展示 Coding Agent 会话状态，处理支持的审批请求，并提供桌宠、声音、快捷键、用量统计和终端跳转。
+<h1 align="center">WorkIsland</h1>
 
-它解决一个具体的工作流问题——**当你同时让多个 AI 编程任务在后台运行时，不用逐个翻找终端和 IDE，就知道哪个任务需要你处理，并能安全地回到正确会话继续工作。**
+<p align="center"><strong>Keep your AI coding agents moving, without losing your own flow.</strong></p>
 
-## 核心能力
+<p align="center">
+  A local-first macOS task monitor for Claude Code, Codex, Cursor, and other coding agents. See what needs attention, approve or answer it, then return to the exact source session in one step.
+</p>
 
-- **灵动岛任务状态**：运行、等待审批、等待回答、完成、失败，在刘海区域实时展示
-- **双通道完成检测**：Hook 通道 + Transcript 文件监听，即使没装 Hook 也能监控到 Claude Code / Codex 的任务完成
-- **审批与提问**：在灵动岛直接处理 Agent 的权限请求和提问
-- **终端跳转**：把用户带回正确的源会话（Terminal / iTerm2 / Ghostty / Warp）
-- **桌宠**：可拖拽的桌面伴侣，状态随任务变化，兼容 Codex V2 桌宠 sprite 协议
-- **声音通知**：任务开始、完成、失败、需要审批时播放提示音
-- **用量统计**：Token 燃烧追踪
-- **反馈与内测**：设置页与官网提供统一入口，内测群二维码由官网维护，可独立于 DMG 更新
+<p align="center">
+  <a href="https://workisland.yanglaishe.cn/">官网</a> ·
+  <a href="https://workisland.yanglaishe.cn/guide/">产品手册</a> ·
+  <a href="https://github.com/qianzhu18/workisland/releases">下载</a> ·
+  <a href="https://github.com/qianzhu18/workisland/issues/new/choose">反馈</a>
+</p>
 
-## Agent 兼容
+<p align="center">
+  <img src="https://img.shields.io/badge/macOS-Apple%20Silicon-000000?logo=apple&logoColor=white" alt="macOS Apple Silicon">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue.svg" alt="Apache 2.0 license"></a>
+  <a href="https://workisland.yanglaishe.cn/"><img src="https://img.shields.io/badge/website-workisland.yanglaishe.cn-0ea5e9" alt="WorkIsland website"></a>
+</p>
 
-设置页的 Agent 清单来自主进程连接器注册表，不再维护一份可能失真的静态名单。应用启动时会校验每个核心 Agent 都同时具备 Hook manager、事件 adapter 和能力描述，缺少任一环节都会直接暴露为开发错误，而不是显示一个无法连接的按钮。
+![WorkIsland shows multiple coding-agent tasks in a real macOS interface](website/assets/demo/overview.png)
 
-当前核心连接器包括 Claude Code、Codex、Coco、Cursor、TRAE / TRAE CN、ZCode、WorkBuddy / CodeBuddy、OpenCode、Sara、Kimi Code、Gemini CLI、GitHub Copilot CLI、Hermes、Aiden 和 TraeX。ZCode 使用 `~/.zcode/cli/config.json` 原生 Hook；WorkBuddy 同时兼容 `~/.workbuddy/settings.json` 与 `~/.codebuddy/settings.json`，安装和移除都会保留用户已有 Hook。
+## Why WorkIsland
 
-## 开发
+When several AI coding tasks run in the background, the expensive part is not starting them. It is noticing the one that needs a decision, then finding the right terminal or IDE session again.
 
-要求 Apple Silicon macOS、Node.js 22 或更高版本。
+WorkIsland keeps that loop in one local macOS surface. It watches task state, raises only the work that needs you, and brings you back to the originating conversation when you are ready to continue.
+
+## Install
+
+**For users:** download the Apple Silicon DMG from [GitHub Releases](https://github.com/qianzhu18/workisland/releases), move `WorkIsland.app` to Applications, then launch it. No cloud account is required.
+
+**For contributors:** WorkIsland requires an Apple Silicon Mac and Node.js 22 or later.
 
 ```bash
+git clone https://github.com/qianzhu18/workisland.git
+cd workisland
 npm run setup
-npm run doctor
-npm run check
-npm run dev
-```
-
-`npm run dev` 使用真实用户目录接入本地 Agent Hook，应用数据保存在仓库的 `.local-data`。只调试 UI、不希望修改真实 Hook 配置时使用：
-
-```bash
 npm run dev:isolated
 ```
 
-全部支持可配置审批的 Agent 默认使用灵动岛审批，也可在设置页切回终端审批。Hook 配置采用合并和原子写入，不覆盖无关用户配置。
+Use `npm run dev` only when you deliberately want to connect the app to your real local Agent Hook configuration. The isolated mode keeps development data inside the repository.
 
-## 下载与首次启动测试
+## What You Can Do
 
-产品官网：[WorkIsland](https://workisland.yanglaishe.cn/)。官网的下载按钮会指向最新稳定版 GitHub Release，GitHub Release 是安装包的唯一分发源。
+- **See the state that matters** - running, approval needed, question waiting, completed, or failed tasks stay visible near the macOS notch.
+- **Handle approvals and questions in place** - respond when an agent needs a decision instead of polling every terminal.
+- **Return to the right source session** - jump back to the matching Terminal, iTerm2, Ghostty, or Warp conversation.
+- **Monitor through two local signals** - Hooks and transcript watching complement each other, so task completion remains observable when one channel is unavailable.
+- **Keep the workflow local-first** - task content stays on the Mac; the app does not require a cloud account to monitor local work.
+- **Make notifications fit your attention** - choose the island, desktop companion, sounds, shortcuts, and notification timing that suit your workflow.
 
-从 [GitHub Releases](https://github.com/qianzhu18/workisland/releases) 下载适用于 Apple Silicon Mac 的 DMG，拖动 `WorkIsland.app` 到“应用程序”后即可测试。应用保持本地运行，首次启动不需要配置云端账号。
+## Agent Compatibility
 
-如果 macOS 因为测试包未签名而阻止打开，可以在应用已经复制到“应用程序”后清除隔离属性：
+WorkIsland has first-party adapters for Claude Code, Codex, Coco, Cursor, TRAE / TRAE CN, ZCode, WorkBuddy / CodeBuddy, OpenCode, Sara, Kimi Code, Gemini CLI, GitHub Copilot CLI, Hermes, Aiden, and TraeX. The app checks that each core integration has a Hook manager, event adapter, and capability description instead of presenting a connection that cannot work.
+
+## Product Links
+
+| Resource | Use it for |
+| --- | --- |
+| [WorkIsland 官网](https://workisland.yanglaishe.cn/) | 产品概览、真实界面与最新下载入口 |
+| [产品手册](https://workisland.yanglaishe.cn/guide/) | 安装、首个 Agent 任务、隐私与反馈说明 |
+| [GitHub Releases](https://github.com/qianzhu18/workisland/releases) | Apple Silicon DMG 与版本说明 |
+| [GitHub Issues](https://github.com/qianzhu18/workisland/issues/new/choose) | Bug 报告和可公开讨论的建议 |
+| [Security policy](SECURITY.md) | 安全问题的私下报告方式 |
+
+## Privacy
+
+WorkIsland is designed for local workflows. It does not upload Agent sessions, project files, or terminal content. Installed releases can check GitHub Releases for updates; optional anonymous telemetry is off by default and only starts after an explicit opt-in. Read the [product guide](https://workisland.yanglaishe.cn/guide/#privacy) before enabling it.
+
+## Community and Support
+
+For a reproducible bug, open a [GitHub Issue](https://github.com/qianzhu18/workisland/issues/new/choose). For feedback, compatibility questions, or a QR code refresh, email [its.qianzhu@gmail.com](mailto:its.qianzhu@gmail.com?subject=WorkIsland%20feedback).
+
+<table>
+  <tr>
+    <td align="center" width="33%">
+      <img src="website/assets/community/qianzhu-wechat.png" width="190" alt="Author Qianzhu WeChat QR code"><br>
+      <strong>联系作者：千逐</strong><br>
+      扫码添加微信，请备注 “WorkIsland”
+    </td>
+    <td align="center" width="33%">
+      <img src="website/assets/community/workisland-beta-group.png" width="190" alt="WorkIsland WeChat beta group QR code"><br>
+      <strong>加入 WorkIsland 内测群</strong><br>
+      扫码参与下一版讨论与 Agent 兼容性反馈
+    </td>
+    <td align="center" width="33%">
+      <a href="https://workisland.yanglaishe.cn/#support">官网反馈与内测入口</a><br><br>
+      你决定是否导出日志或截图。公开反馈前请先移除项目代码、密钥和其他敏感信息。
+    </td>
+  </tr>
+</table>
+
+## Support the Project
+
+WorkIsland is free, open source, and has no subscription or in-app purchase. If it saves you a context switch, you can **Buy Me a Coffee** with WeChat Pay. This is voluntary support, not a purchase of features or priority support.
+
+<p align="center">
+  <img src="website/assets/community/qianzhu-wechat-pay.jpg" width="260" alt="WeChat Pay QR code for supporting WorkIsland">
+</p>
+
+## Build, Contribute, and Release
+
+Run the complete local check before submitting a change:
 
 ```bash
-xattr -c "/Applications/WorkIsland.app"
+npm run check
 ```
 
-如果系统仍然显示“无法验证开发者”，再执行：
+Read [CONTRIBUTING.md](CONTRIBUTING.md) for contribution expectations and [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md) for the signed, notarized macOS release flow.
 
-```bash
-xattr -dr com.apple.quarantine "/Applications/WorkIsland.app"
-```
+## License and Trademark
 
-以上命令只用于本机测试未签名构建；正式签名和公证包应优先按系统提示直接打开。若下载后的 DMG 本身被隔离，也可以先对 DMG 执行 `xattr -c "/path/to/WorkIsland-0.2.6-arm64.dmg"`，再重新挂载。
+Source code is licensed under [Apache License 2.0](LICENSE). WorkIsland's name, trademark, and logo are not granted under that license. Third-party dependencies, images, fonts, audio, and companion assets retain their respective licenses; see [NOTICE](NOTICE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-## 仓库边界
+---
 
-项目专注于本地功能。应用不会连接云端账号、远程开发机或遥测服务，也不会上传会话内容。安装版会按设置每日请求一次 GitHub Release 版本信息，用于更新提醒；详细规则见 [发布与更新流程](./docs/RELEASE_PROCESS.md)。
-
-代码结构见 [架构说明](./docs/ARCHITECTURE.md)，不支持功能的完整原因见 [功能边界](./docs/UNAVAILABLE_FEATURES.md)，公开发布前请完成 [发布与更新流程](./docs/RELEASE_PROCESS.md)。
-
-应用图标、用量图标和提示音由仓库内 `npm run build:assets` 可重复生成（应用图标由设计师提供的 logo 生成，不会被覆盖）。刘海定位、窗口层级、圆角与触觉反馈模块的 Objective-C++ 源码位于 `native/panel-fix/`，可通过 `npm run build:native` 重建。
-
-参与开发前请阅读 [贡献指南](./CONTRIBUTING.md)，安全问题请按 [安全策略](./SECURITY.md) 私下报告。
-
-## Roadmap
-
-WorkIsland 的长期愿景是成为**本地优先的多 Agent AI 编程任务监控与注意力路由器**，并逐步扩展到更多显示面：
-
-### 短期（当前）
-- 巩固 macOS 灵动岛任务监控的可靠性：状态不漏、提醒不扰、回源不误
-- 支持更多 Coding Agent（通过 adapter 扩展）
-
-### 中期
-- **移动端任务副屏**：把闲置的手机变成第二显示面。横屏后化身时钟 + 任务监视器，任务完成时滑下预览，需要修改时用语音输入下达指令，监控更多平台
-- **跨平台桌宠**：桌宠从 macOS 扩展到 Windows，作为独立的桌面伴侣产品线
-
-### 长期
-- 探索更多注意力路由场景（不只是编程任务）
-
-## 构建与发布
-
-Apple Silicon macOS 安装包可在本机生成：
-
-```bash
-npm ci
-npm run package:mac
-```
-
-产物位于 `release/WorkIsland-<version>-arm64.dmg`。GitHub Actions 的 `release` 工作流支持手动运行；推送与 `package.json` 版本一致的标签（例如 `v0.3.0`）时，会自动构建、签名、公证并创建 GitHub Release，随后上传 DMG 与 SHA-256 校验文件。完整步骤见 [发布与更新流程](./docs/RELEASE_PROCESS.md)。
-
-正式 Tag 发布必须在 GitHub Actions Secrets 中配置：
-
-- `CSC_LINK`：Developer ID Application 证书的 Base64 或安全下载地址
-- `CSC_KEY_PASSWORD`：证书密码
-- `APPLE_API_KEY`、`APPLE_API_KEY_ID`、`APPLE_API_ISSUER`：App Store Connect API Key，用于公证
-
-未配置这些 Secrets 时，Tag 发布会主动失败，避免把未签名安装包误作为正式版本公开。手动运行工作流仍可用于生成临时构建产物。
-
-## 许可证与分发
-
-WorkIsland 源代码采用 Apache License 2.0，详见 [LICENSE](./LICENSE) 和
-[NOTICE](./NOTICE)。
-
-WorkIsland 名称、商标和 Logo 不随 Apache-2.0 授权。第三方依赖、桌宠素材、
-图片、音频和字体继续遵循各自的许可证，详见 [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md)。
-
-GitHub Releases 提供适用于 Apple Silicon Mac 的 DMG。正式发布前请完成签名、
-公证和第三方许可声明核查。
+If WorkIsland helps your AI coding workflow, a GitHub star makes the project easier for the next person to find.

@@ -4,14 +4,41 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#151518">
-    <meta name="description" content="WorkIsland：macOS 上本地优先的 Agent 状态灵动岛。Claude Code、Codex、Cursor 等 Agent 继续工作，需要你时才浮上来——监控、审批、一键跳回原会话。">
-    <meta property="og:title" content="WorkIsland — 为你的 AI Agents 造一座灵动岛">
-    <meta property="og:description" content="本地优先的 macOS Agent 状态中枢。下载最新版本，或在 GitHub 查看源代码。">
+    <meta name="description" content="WorkIsland 是 macOS 上本地优先的 AI 编程 Agent 任务监控与审批工具，支持 Claude Code、Codex、Cursor 等。任务运行、审批、提问和完成状态一眼可见，需要时一键回到原会话。">
+    <link rel="canonical" href="https://workisland.yanglaishe.cn/">
+    <meta property="og:title" content="WorkIsland：macOS AI 编程 Agent 任务监控与审批">
+    <meta property="og:description" content="本地优先的 macOS Agent 状态中枢。任务需要你时，一键回到原会话。">
     <meta property="og:type" content="website">
-    <title>WorkIsland — 为你的 AI Agents 造一座灵动岛</title>
+    <meta property="og:url" content="https://workisland.yanglaishe.cn/">
+    <meta property="og:site_name" content="WorkIsland">
+    <meta property="og:locale" content="zh_CN">
+    <meta property="og:image" content="https://workisland.yanglaishe.cn/assets/demo/overview.png">
+    <meta property="og:image:width" content="1480">
+    <meta property="og:image:height" content="1144">
+    <meta property="og:image:alt" content="WorkIsland 显示多个 AI 编程 Agent 任务状态的真实界面">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="WorkIsland：macOS AI 编程 Agent 任务监控与审批">
+    <meta name="twitter:description" content="本地优先的 macOS Agent 状态中枢。任务需要你时，一键回到原会话。">
+    <meta name="twitter:image" content="https://workisland.yanglaishe.cn/assets/demo/overview.png">
+    <meta name="twitter:image:alt" content="WorkIsland 显示多个 AI 编程 Agent 任务状态的真实界面">
+    <title>WorkIsland：macOS AI 编程 Agent 任务监控与审批</title>
     <link rel="icon" href="icon.png" type="image/png">
+    <link rel="preconnect" href="https://api.github.com" crossorigin>
     <link rel="stylesheet" href="tokens.css">
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=20260817-star-cta">
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "@id": "https://workisland.yanglaishe.cn/#website",
+        "url": "https://workisland.yanglaishe.cn/",
+        "name": "WorkIsland",
+        "inLanguage": "zh-CN",
+        "description": "macOS 上本地优先的 AI 编程 Agent 任务监控与审批工具。"
+      }
+    </script>
+    <!-- Umami 自托管匿名统计（无 cookie、数据不出自己服务器） -->
+    <script async defer src="https://umami.yanglaishe.cn/script.js" data-website-id="77be7067-a168-465e-adb5-5e546e879e54"></script>
   </head>
   <body>
     <a class="skip-link" href="#main">跳到主要内容</a>
@@ -27,6 +54,7 @@
         <a href="#features">功能</a>
         <a href="#workflow">工作流</a>
         <a href="#tour">导览</a>
+        <a href="guide/">手册</a>
         <a href="#support">内测</a>
         <a href="#faq">FAQ</a>
         <a href="https://github.com/qianzhu18/workisland" target="_blank" rel="noreferrer">GitHub <span aria-hidden="true">↗</span></a>
@@ -45,13 +73,14 @@
         <div class="vi-hero-orbit vi-hero-orbit-a" aria-hidden="true"></div>
         <div class="vi-hero-orbit vi-hero-orbit-b" aria-hidden="true"></div>
         <p class="vi-hero-badge"><span class="vi-dot vi-dot-idle"></span> WORK ISLAND · FOR YOUR AGENTS</p>
-        <h1 class="vi-headline"><span>让&nbsp;Agent</span><em>浮上来。</em></h1>
+        <h1 class="vi-headline"><span>让&nbsp;AI 编程</span><em>Agent 浮上来。</em></h1>
         <p class="vi-sub">Claude Code、Codex、Cursor 等 Agent 在后台继续工作；只在需要确认、回答或跳回会话时，WorkIsland 才从刘海处轻轻把你叫回来。</p>
         <div class="vi-cta">
           <a class="vi-btn vi-btn-solid" href="https://github.com/qianzhu18/workisland/releases/latest" data-download-link>下载 macOS 版</a>
-          <a class="vi-btn vi-btn-ghost" href="https://github.com/qianzhu18/workisland" target="_blank" rel="noreferrer">GitHub <span aria-hidden="true">↗</span></a>
+          <a class="vi-btn vi-btn-ghost" href="https://github.com/qianzhu18/workisland" target="_blank" rel="noreferrer">在 GitHub 点 Star <span aria-hidden="true">↗</span></a>
         </div>
         <p class="vi-platform">APPLE SILICON · LOCAL FIRST · FREE &amp; OPEN SOURCE</p>
+        <p class="vi-star-note">觉得 WorkIsland 好用？欢迎在 GitHub 上给我们点个 Star，这对我们真的非常重要。</p>
         <a class="vi-scroll-cue" href="#features"><span></span> 看它怎么工作</a>
       </section>
 
@@ -59,7 +88,7 @@
       <section class="vi-demo-section" aria-label="WorkIsland 灵动岛交互演示">
         <div class="vi-demo-proof">
           <div class="vi-frame">
-            <img class="vi-real-demo-image" data-real-demo-image data-demo-scene="overview" src="assets/demo/overview.png" alt="真实 WorkIsland 总览界面：三个 Claude Code 任务在后台运行">
+            <img class="vi-real-demo-image" data-real-demo-image data-demo-scene="overview" fetchpriority="high" width="1480" height="1144" src="assets/demo/overview.png" alt="真实 WorkIsland 总览界面：三个 Claude Code 任务在后台运行">
             <div class="vi-real-demo-badge"><img src="icon.png" alt="">真实 WorkIsland 界面</div>
             <div class="vi-real-demo-scan" aria-hidden="true"></div>
           </div>
@@ -196,23 +225,37 @@
         <div class="vi-support-intro">
           <p class="vi-section-eyebrow">BUILD WITH US</p>
           <h2 class="vi-section-title" id="support-title">把下一版，和真实用户一起做。</h2>
-          <p class="vi-section-sub">遇到问题、想到更好的交互，或者愿意提前试用新能力，都可以从这里找到我们。</p>
+          <p class="vi-section-sub">先看操作手册，再把真实工作流中的问题和建议告诉我们。</p>
+          <a class="vi-support-guide" href="guide/">查看产品手册 <span aria-hidden="true">→</span></a>
         </div>
         <div class="vi-support-grid">
           <article class="vi-support-card" id="feedback">
             <span class="vi-support-index">01 · FEEDBACK</span>
-            <h3>反馈问题与建议</h3>
-            <p>请带上 WorkIsland 版本、复现步骤和必要的脱敏截图。日志默认保留在本机，由你决定是否导出和提交。</p>
-            <a class="vi-btn vi-btn-solid" href="https://github.com/qianzhu18/workisland/issues/new/choose" target="_blank" rel="noreferrer">提交反馈 <span aria-hidden="true">↗</span></a>
+            <h3>邮件吐槽与公开反馈</h3>
+            <p>不想加群也没关系。直接发邮件或提交公开 Issue；请尽量带上版本、复现步骤和必要的脱敏截图。日志默认保留在本机，由你决定是否导出和提交。</p>
+            <a class="vi-support-email" href="mailto:its.qianzhu@gmail.com?subject=WorkIsland%20feedback">its.qianzhu@gmail.com</a>
+            <div class="vi-support-actions">
+              <a class="vi-btn vi-btn-solid" href="mailto:its.qianzhu@gmail.com?subject=WorkIsland%20feedback">邮件反馈 <span aria-hidden="true">↗</span></a>
+              <a class="vi-btn vi-btn-ghost" href="https://github.com/qianzhu18/workisland/issues/new/choose" target="_blank" rel="noreferrer">GitHub Issue <span aria-hidden="true">↗</span></a>
+            </div>
           </article>
           <article class="vi-support-card vi-support-card-group" id="beta-group">
             <div class="vi-support-copy">
               <span class="vi-support-index">02 · BETA GROUP</span>
-              <h3>加入 WorkIsland 内测群</h3>
-              <p>扫码加入微信内测群，提前体验下一版，并直接参与 Agent 兼容、设置体验和通知策略讨论。</p>
-              <small>若群码失效，请通过左侧反馈入口提醒我们更新。</small>
+              <h3>微信联系作者 / 加入 WorkIsland 内测群</h3>
+              <p>加入内测群参与下一版讨论，或直接添加作者千逐反馈 Agent 兼容问题。</p>
+              <small>若二维码失效，请发邮件至 its.qianzhu@gmail.com 提醒更新。</small>
             </div>
-            <img class="vi-support-qr" src="assets/community/workisland-beta-group.png" alt="WorkIsland 微信内测群二维码" width="854" height="854" loading="lazy">
+            <div class="vi-support-qr-list">
+              <figure class="vi-support-qr-item">
+                <img class="vi-support-qr" src="assets/community/workisland-beta-group.png" alt="WorkIsland 微信内测群二维码" width="854" height="854" loading="lazy">
+                <figcaption>加入 WorkIsland 内测群</figcaption>
+              </figure>
+              <figure class="vi-support-qr-item">
+                <img class="vi-support-qr" src="assets/community/qianzhu-wechat.png" alt="作者千逐微信二维码" width="800" height="800" loading="lazy">
+                <figcaption>联系作者：千逐</figcaption>
+              </figure>
+            </div>
           </article>
         </div>
       </section>
@@ -282,15 +325,18 @@
             <h4>产品</h4>
             <a href="#features">功能</a>
             <a href="#workflow">工作流</a>
+            <a href="guide/">产品手册</a>
             <a href="#support">反馈与内测</a>
             <a href="#faq">FAQ</a>
             <a href="https://github.com/qianzhu18/workisland/releases/latest" data-download-link>下载</a>
           </div>
           <div class="vi-footer-col">
-            <h4>资源</h4>
-            <a href="https://github.com/qianzhu18/workisland" target="_blank" rel="noreferrer">GitHub</a>
-            <a href="https://github.com/qianzhu18/workisland/releases" target="_blank" rel="noreferrer">Releases</a>
-            <a href="#feedback">提交反馈</a>
+              <h4>资源</h4>
+              <a href="https://github.com/qianzhu18/workisland" target="_blank" rel="noreferrer">GitHub</a>
+              <a href="https://github.com/qianzhu18/workisland/releases" target="_blank" rel="noreferrer">Releases</a>
+              <a href="guide/">产品手册</a>
+              <a href="mailto:its.qianzhu@gmail.com?subject=WorkIsland%20feedback">邮件反馈</a>
+              <a href="#feedback">提交反馈</a>
             <a href="#beta-group">加入内测群</a>
           </div>
           <div class="vi-footer-col">

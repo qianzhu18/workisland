@@ -61,6 +61,12 @@ const DEFAULT_SETTINGS = {
   launchAtLogin: false,
   updateChecksEnabled: true,
   lastUpdateCheckAt: 0,
+  // Opt-in anonymous telemetry (ADR-0003 / PRD-005). Must default to false;
+  // turning it off also drops any pending local event queue.
+  telemetryEnabled: false,
+  // A missing version means an existing installation has not seen the current
+  // telemetry notice and must be asked once before any data can be enabled.
+  telemetryConsentNoticeVersion: "",
   displayPreference: "primary",
   sound: {
     enabled: true,
