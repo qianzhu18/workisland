@@ -75,13 +75,15 @@ function createTerminalNavigation({ isPluginAgentTool, PLUGIN_BY_TOOL }) {
       return claudeSessionScanCache.map.get(cliSessionId) ?? null;
     }
     try {
-      const root = path__namespace.join(
-        os__namespace.homedir(),
-        "Library", "Application Support", "Claude", "claude-code-sessions"
-      );
-      if (!fs__namespace.existsSync(root)) return null;
+      // Cowork（local-agent-mode-sessions）与普通 Code 会话（claude-code-sessions）
+      // 记录结构同款（sessionId/cliSessionId/lastActivityAt），一并扫描，
+      // 点击 Cowork 会话卡片同样能经 epitaxy 深链跳进对应对话
+      const roots = ["claude-code-sessions", "local-agent-mode-sessions"].map((d) =>
+        path__namespace.join(os__namespace.homedir(), "Library", "Application Support", "Claude", d)
+      ).filter((r) => fs__namespace.existsSync(r));
+      if (roots.length === 0) return null;
       const best = new Map();
-      for (const org of fs__namespace.readdirSync(root)) {
+      for (const root of roots) for (const org of fs__namespace.readdirSync(root)) {
         const orgDir = path__namespace.join(root, org);
         if (!fs__namespace.statSync(orgDir).isDirectory()) continue;
         for (const acct of fs__namespace.readdirSync(orgDir)) {
