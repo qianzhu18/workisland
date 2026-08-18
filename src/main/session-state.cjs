@@ -84,6 +84,10 @@ function createSessionState({ isVisibleInIsland }) {
           // same session. Keep the original start so elapsed time covers the
           // whole conversation, while a genuinely ended session can restart.
           createdAt: prev.isSessionEnded ? event.timestamp : prev.createdAt,
+          // 本轮开始时间，每轮刷新。卡片计时用它 —— createdAt 是「整段对话」
+          // 语义（统计服务依赖），直接拿来显示会出现 30 分钟+ 的吓人数字，
+          // 且会话结束过/应用重启后又会重置，表现成「时而整段时而单轮」。
+          turnStartedAt: event.timestamp,
           updatedAt: event.timestamp
         };
         break;

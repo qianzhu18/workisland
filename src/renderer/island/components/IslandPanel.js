@@ -319,7 +319,9 @@ function useElapsed(session) {
     return () => clearInterval(id);
   }, [isRunning]);
   const end = isRunning ? now : session.updatedAt;
-  const elapsed = Math.floor((end - session.createdAt) / 1e3);
+  // 优先按本轮起点计时；老状态里没有该字段时退回整段语义
+  const start = session.turnStartedAt ?? session.createdAt;
+  const elapsed = Math.floor((end - start) / 1e3);
   return formatDuration(elapsed);
 }
 function SessionRow({

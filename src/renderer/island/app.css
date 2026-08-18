@@ -687,6 +687,14 @@ body {
  * ellipsis，会自适应；需要动的是那些按 680+ 宽度设计的横向排布。 */
 
 /* 顶栏：配额格子和按钮组允许换行，行高放开 */
+/* 侧边面板兜底：内容永远不越出窗口（黑形状会盖住整窗高度时被裁切在形状内）。
+ * 用纯 CSS 而不是内联 height + React 状态：panelLayerRef 的 ResizeObserver
+ * 就挂在这个元素上，任何经 React 的高度反馈都有成环风险（实测会 #185 爆栈）。 */
+.island-panel-layer.is-side-dock {
+  max-height: 100%;
+  overflow: hidden;
+}
+
 .island-panel-layer.is-side-dock .usage-row {
   flex-wrap: wrap;
   /* 左右各让开 20px：贴边侧顶端有 14px 的内凹弧线，12px 内边距会让
