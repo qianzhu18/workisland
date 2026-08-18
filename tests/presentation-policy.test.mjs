@@ -18,6 +18,31 @@ test("a normal session start does not open a surface", () => {
   assert.equal(selectAutomaticSurface({ type: "sessionStarted", sessionId: "a" }, settings), null);
 });
 
+test("a submitted prompt opens a short-lived filtered notification", () => {
+  assert.deepEqual(
+    createPresentationRequest({ type: "sessionStarted", sessionId: "submitted-session", latestUserPrompt: "Ship it" }, {
+      ...settings,
+      expandOnSessionSubmit: true
+    }),
+    {
+      surface: { type: "sessionList", actionableSessionId: "submitted-session", visibleSessionIds: ["submitted-session"] },
+      priority: "submission",
+      autoDismiss: true,
+      suppressWhenFocused: false
+    }
+  );
+});
+
+test("submission notifications can be disabled without affecting completion notifications", () => {
+  assert.equal(
+    selectAutomaticSurface({ type: "activityUpdated", sessionId: "a", latestUserPrompt: "Ship it" }, {
+      ...settings,
+      expandOnSessionSubmit: false
+    }),
+    null
+  );
+});
+
 test("a completion opens the hover-equivalent panel filtered to its session", () => {
   assert.deepEqual(
     createPresentationRequest({ type: "sessionCompleted", sessionId: "completed-session" }, settings),

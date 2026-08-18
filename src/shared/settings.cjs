@@ -78,14 +78,20 @@ const DEFAULT_SETTINGS = {
   hoverToOpen: true,
   autoCollapseDelayMs: 4e3,
   hideWhenFullscreen: true,
-  alwaysHide: false,
+  // Notification mode is the low-distraction default. The Island is revealed
+  // for task submissions/completions and remains available through the top
+  // hotspot; users who prefer a persistent pill can disable this setting.
+  alwaysHide: true,
+  // Bumps when a display-mode default must migrate existing installations.
+  notificationModeVersion: 1,
   hideWhenNoActiveSessions: false,
   autoCollapseOnMouseLeave: true,
-  completionPopupDurationSec: 10,
+  completionPopupDurationSec: 5,
   showUsageQuota: true,
   usageDisplayValue: "used",
   disableClaudeTerminalTitle: true,
   expandOnSessionComplete: true,
+  expandOnSessionSubmit: true,
   expandOnActionRequired: true,
   suppressNotificationWhenFocused: true,
   updateChecksEnabled: true,
@@ -121,6 +127,14 @@ function createDefaultSettings() {
 
 function mergeSettings(parsed = {}) {
   const merged = { ...createDefaultSettings(), ...parsed };
+
+  // `alwaysHide` existed before it was exposed as a user preference and was
+  // persisted as false by default. Migrate those installations once to the
+  // notification-first behavior; a later explicit settings change is kept.
+  if (!Number.isInteger(parsed.notificationModeVersion) || parsed.notificationModeVersion < 1) {
+    merged.alwaysHide = true;
+    merged.notificationModeVersion = DEFAULT_SETTINGS.notificationModeVersion;
+  }
 
   // Settings written by pre-Codex-V2 builds used Orca as the implicit default.
   // Migrate that legacy value, but leave every other explicit custom selection

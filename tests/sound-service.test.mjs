@@ -53,6 +53,11 @@ test("partial persisted sound settings retain every default event", () => {
   assert.equal(merged.sound.events.approvalNeeded.enabled, true);
 });
 
-test("completion notifications default to ten seconds when no user value exists", () => {
-  assert.equal(mergeSettings({}).completionPopupDurationSec, 10);
+test("short-lived notifications default to five seconds when no user value exists", () => {
+  assert.equal(mergeSettings({}).completionPopupDurationSec, 5);
+});
+
+test("legacy persistent Islands migrate once to notification mode", () => {
+  assert.equal(mergeSettings({ alwaysHide: false }).alwaysHide, true);
+  assert.equal(mergeSettings({ alwaysHide: false, notificationModeVersion: 1 }).alwaysHide, false);
 });

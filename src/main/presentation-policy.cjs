@@ -1,6 +1,27 @@
 "use strict";
 
 function createPresentationRequest(event, settings) {
+  const isTaskSubmission = (event.type === "sessionStarted" || event.type === "activityUpdated")
+    && typeof event.latestUserPrompt === "string"
+    && event.latestUserPrompt.trim().length > 0;
+
+  if (isTaskSubmission) {
+    if (!settings.expandOnSessionSubmit) return null;
+    return {
+      // A submitted prompt is the start of a user-visible turn. Keep the
+      // same filtered panel as completion notifications and let the renderer
+      // dismiss it after the configured short notification window.
+      surface: {
+        type: "sessionList",
+        actionableSessionId: event.sessionId,
+        visibleSessionIds: [event.sessionId]
+      },
+      priority: "submission",
+      autoDismiss: true,
+      suppressWhenFocused: false
+    };
+  }
+
   if (event.type === "sessionCompleted") {
     if (!settings.expandOnSessionComplete) return null;
     if (event.isInterrupt || event.isSessionEnd || event.isRalphLoopIteration) return null;

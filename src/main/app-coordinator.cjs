@@ -82,6 +82,11 @@ function createAppCoordinatorClass({
     fullscreenOverrideForNotification = false;
     logDirEnsured = false;
     pidWatchers = /* @__PURE__ */ new Map();
+    // Hook and transcript channels can report one submitted prompt twice
+    // (sessionStarted followed by activityUpdated). Keep the notification
+    // edge idempotent within a short window without suppressing a later,
+    // identical prompt.
+    submissionNotificationBySession = /* @__PURE__ */ new Map();
     /**
      * Codex 会话元数据（transcript_path + 当前 turn_id），由 hookProcessed 事件维护，
      * 供 sweepInterruptedCodexSessions 读 transcript 末尾的 turn_aborted/interrupted 用。
@@ -413,6 +418,9 @@ function createAppCoordinatorClass({
     setIslandWin(iw) {
       this.islandWin = iw;
       this.petMode.setIslandWindow(iw);
+      // `start()` runs before the Island window is created. Re-evaluate here
+      // so notification-only mode is applied on the first launch as well.
+      this.evaluateFullscreenVisibility();
     }
     setDisplayManager(dm) {
       this.displayMgr = dm;
@@ -980,6 +988,16 @@ function createAppCoordinatorClass({
       const session = this.state.sessions.get(event.sessionId);
       const request = createPresentationRequest({ ...event, error: event.error ?? session?.error }, this.settings);
       if (!request) return;
+      if (request.priority === "submission") {
+        const prompt = String(event.latestUserPrompt || "").trim();
+        const timestamp = Number.isFinite(event.timestamp) ? event.timestamp : Date.now();
+        const previous = this.submissionNotificationBySession.get(event.sessionId);
+        if (previous && previous.prompt === prompt && Math.abs(timestamp - previous.timestamp) < 10e3) return;
+        this.submissionNotificationBySession.set(event.sessionId, { prompt, timestamp });
+        if (this.submissionNotificationBySession.size > 256) {
+          this.submissionNotificationBySession.delete(this.submissionNotificationBySession.keys().next().value);
+        }
+      }
       if (request.suppressWhenFocused && this.settings.suppressNotificationWhenFocused) {
         const sessionBundleIds = session ? getSessionBundleIds(session) : [];
         const frontmostBundleId = getFrontmostAppBundleId();
