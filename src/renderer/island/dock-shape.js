@@ -30,9 +30,14 @@ function buildDockClipPath({ edge, winW, winH, bodyLen, depth, concaveR, convexR
   // 沿边方向的总跨度 = 本体 + 两端各一个内凹半径
   const span = edge === "top" ? winW : winH;
   const outer = Math.min(bodyLen + 2 * concaveR, span);
-  const u0 = spanStart == null
+  let u0 = spanStart == null
     ? (span - outer) / 2
     : Math.max(0, Math.min(spanStart, span - outer));
+  // 左边缘的旋转映射是 (u,v) → [v, H-u]，u 轴方向被翻转 —— 调用方传入的
+  // spanStart 语义是「距窗口顶部」，这里补一次翻转，否则形状会落到窗口底部、
+  // 与胶囊层（按顶部定位）分家：左侧贴边就只剩一块空黑。形状沿边对称，
+  // 翻转起点即完成整体镜像。
+  if (edge === "left") u0 = span - u0 - outer;
   const u1 = u0 + outer;
   const cR = Math.min(concaveR, outer / 4, depth / 4);
   const vR = Math.min(convexR, outer / 4, depth / 2);
