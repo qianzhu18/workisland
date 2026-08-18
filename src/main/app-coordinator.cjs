@@ -12,6 +12,7 @@ const { QuotaService } = require("./quota-service.cjs");
 const { getStatsService } = require("./stats-service.cjs");
 const { resolveApprovalMode } = require("../shared/approval-policy.cjs");
 const { saveSessions } = require("./hook-shared.cjs");
+const { readClaudeTranscriptState } = require("./transcript-recovery.cjs");
 const { ClaudeHookManager, CodexHookManager } = require("./hooks-core.cjs");
 const { CocoHookManager, CursorHookManager, TraeHookManager, TraeCnHookManager } = require("./hooks-editors.cjs");
 const { OpenCodePluginManager, SaraPluginManager, KimiHookManager, GeminiHookManager, CopilotCliHookManager } = require("./hooks-plugins.cjs");
@@ -300,6 +301,19 @@ function createAppCoordinatorClass({
       this.quotaService.start();
       this.processMonitor.start();
       this.startCodexTranscriptWatcher();
+      // 启动发现：WorkIsland 只靠 hook 被动感知会话，它启动之前就在跑的对话
+      // 要等下一个 hook 事件才会现身。主动扫一次正在运行的 claude CLI 进程
+      // 与 Cowork 本地会话，合成 sessionStarted 注入现有管线。
+      setTimeout(() => {
+        try {
+          this.scanCoworkSessions();
+        } catch (err) {
+          log.warn("[AppCoordinator] cowork scan failed:", err?.message ?? err);
+        }
+        this.discoverRunningClaudeSessions().catch((err) => {
+          log.warn("[AppCoordinator] claude session discovery failed:", err?.message ?? err);
+        });
+      }, 2e3);
       this.startReconciliation();
       this.startFullscreenCheck();
       this.autoReInstallHooks();
@@ -332,6 +346,202 @@ function createAppCoordinatorClass({
         log.warn("[AppCoordinator] codex transcript watcher failed to start:", err.message);
         this.codexTranscriptWatcher = null;
       }
+    }
+    /**
+     * 发现已在运行的 claude CLI 会话（WorkIsland 启动前就开始的那些）。
+     *
+     * 路线：ps 找 claude 进程 → lsof 拿各自 cwd → 映射到
+     * ~/.claude/projects/<转义后 cwd>/ 下最新的 transcript（文件名即 session id）
+     * → 读尾部抽出最近一条用户消息 → 合成 sessionStarted 注入 agentEvent 管线。
+     *
+     * latestUserPrompt 必须带上：isVisibleInIsland 对 hook 管理的 claude 会话
+     * 要求它非空，缺了就算注入成功也不会显示。
+     * jumpTarget 不合成 —— 它来自 hook 环境（tty/pid），猜出来的会跳错地方；
+     * 该会话的下一个 hook 事件会自然补上。
+     */
+    async discoverRunningClaudeSessions() {
+      const RECOVERY_LOOKBACK_MS = 24 * 60 * 60 * 1e3;
+      const cp = require("child_process");
+      const { promisify: pify } = require("util");
+      const run = pify(cp.execFile);
+      const fs = require("fs");
+      const path = require("path");
+      const os = require("os");
+      let stdout;
+      try {
+        // comm= 只输出可执行路径、不带参数 —— 不能用 command= 取第一个词：
+        // Claude Desktop 内嵌 CLI 的路径含空格（Application Support），
+        // 按空白切词会断在 "Application"，basename 永远匹配不上。
+        ({ stdout } = await run("/bin/ps", ["-axo", "pid=,comm="], { timeout: 2e3 }));
+      } catch {
+        return;
+      }
+      const pids = [];
+      for (const line of stdout.split("\n")) {
+        const m = line.match(/^\s*(\d+)\s+(.+)$/);
+        if (!m) continue;
+        const base = m[2].trim().split("/").pop();
+        if (base === "claude") pids.push(m[1]);
+      }
+      if (pids.length === 0) return;
+      // lsof 批量拿 cwd：-F pn 输出 pPID / n路径 成对出现
+      let cwdOut = "";
+      try {
+        ({ stdout: cwdOut } = await run(
+          "/usr/sbin/lsof",
+          ["-a", "-p", pids.join(","), "-d", "cwd", "-Fpn"],
+          { timeout: 3e3 }
+        ));
+      } catch {
+        return;
+      }
+      const cwds = new Map();
+      let curPid = null;
+      for (const line of cwdOut.split("\n")) {
+        if (line.startsWith("p")) curPid = line.slice(1);
+        else if (line.startsWith("n") && curPid) cwds.set(curPid, line.slice(1));
+      }
+      const projectsRoot = path.join(os.homedir(), ".claude", "projects");
+      const dirs = new Set(cwds.values());
+      let discovered = 0;
+      for (const cwd of dirs) {
+        const projDir = path.join(projectsRoot, cwd.replace(/[\/.]/g, "-"));
+        let files;
+        try {
+          files = fs.readdirSync(projDir)
+            .filter((f) => f.endsWith(".jsonl"))
+            .map((f) => ({ f, mtime: fs.statSync(path.join(projDir, f)).mtimeMs }))
+            .sort((a, b) => b.mtime - a.mtime);
+        } catch {
+          continue;
+        }
+        const now = Date.now();
+        // 同一工作目录可能有多个并行 Claude 会话，不能只取最新文件。以 transcript
+        // 的最后一轮是否有终止记录判定“未完成”，因此长时间无输出的任务也能恢复。
+        for (const { f, mtime } of files) {
+          if (now - mtime > RECOVERY_LOOKBACK_MS) continue;
+          const sessionId = f.slice(0, -6);
+          if (this.state.sessions.has(sessionId)) continue;
+          const transcriptPath = path.join(projDir, f);
+          const transcript = this.readClaudeTranscriptState(transcriptPath);
+          if (!transcript.unfinished || !transcript.latestPrompt) continue;
+          this.bridge.emitEvent({
+            type: "sessionStarted",
+            sessionId,
+            tool: "claude",
+            timestamp: now,
+            latestUserPrompt: transcript.latestPrompt,
+            title: transcript.latestPrompt.length > 40 ? transcript.latestPrompt.slice(0, 40) + "…" : transcript.latestPrompt,
+            detectionSource: "discovery",
+            recoveredFromTranscript: true,
+            recoveryTranscriptPath: transcriptPath
+          });
+          discovered++;
+        }
+      }
+      if (discovered > 0) {
+        log.info("[AppCoordinator] discovered %d running claude session(s)", discovered);
+      }
+    }
+    /**
+     * 发现 Claude Desktop 的 Cowork（本地 Agent 模式）会话。
+     *
+     * Cowork 跑在 VM 沙箱里：进程在 VM 内（宿主机 ps 看不见）、hook 也没装，
+     * 现有两条感知通道全部失明。但宿主机上有完整痕迹：
+     *   local-agent-mode-sessions/<org>/<acct>/local_<id>.json   元数据（标题等）
+     *   local-agent-mode-sessions/<org>/<acct>/local_<id>/audit.jsonl  transcript 镜像
+     * 用 audit 的 mtime 判活（与 claude 发现同一个 3 分钟窗口），周期扫描：
+     * 新会话注入 sessionStarted，已知会话用 activityUpdated 续命，
+     * 停止写入后由现有 claude 闲置 sweep 自然停表。
+     */
+    scanCoworkSessions() {
+      const fs = require("fs");
+      const path = require("path");
+      const os = require("os");
+      const ACTIVE_WINDOW_MS = 3 * 6e4;
+      const root = path.join(
+        os.homedir(),
+        "Library", "Application Support", "Claude", "local-agent-mode-sessions"
+      );
+      let orgs;
+      try {
+        orgs = fs.readdirSync(root);
+      } catch {
+        return;
+      }
+      const now = Date.now();
+      for (const org of orgs) {
+        const orgDir = path.join(root, org);
+        let accts;
+        try {
+          if (!fs.statSync(orgDir).isDirectory()) continue;
+          accts = fs.readdirSync(orgDir);
+        } catch {
+          continue;
+        }
+        for (const acct of accts) {
+          const acctDir = path.join(orgDir, acct);
+          let names;
+          try {
+            if (!fs.statSync(acctDir).isDirectory()) continue;
+            names = fs.readdirSync(acctDir);
+          } catch {
+            continue;
+          }
+          for (const name of names) {
+            if (!name.startsWith("local_") || !name.endsWith(".json")) continue;
+            let rec;
+            try {
+              rec = JSON.parse(fs.readFileSync(path.join(acctDir, name), "utf8"));
+            } catch {
+              continue;
+            }
+            if (!rec?.cliSessionId || rec.isArchived) continue;
+            const audit = path.join(acctDir, name.slice(0, -5), "audit.jsonl");
+            let mtime;
+            try {
+              mtime = fs.statSync(audit).mtimeMs;
+            } catch {
+              continue;
+            }
+            if (now - mtime > ACTIVE_WINDOW_MS) continue;
+            const known = this.state.sessions.get(rec.cliSessionId);
+            if (known) {
+              // 续命：audit 还在写就说明 VM 里还在跑，把 updatedAt 顶上去，
+              // 免得被闲置 sweep 提前停表
+              if (!known.isSessionEnded && mtime > known.updatedAt + 1e3) {
+                this.bridge.emitEvent({
+                  type: "activityUpdated",
+                  sessionId: rec.cliSessionId,
+                  tool: "claude",
+                  timestamp: Math.round(mtime),
+                  detectionSource: "cowork"
+                });
+              }
+              continue;
+            }
+            const prompt = this.readLatestUserPrompt(audit)
+              ?? (typeof rec.initialMessage === "string" ? rec.initialMessage.trim().slice(0, 200) : null);
+            if (!prompt) continue;
+            this.bridge.emitEvent({
+              type: "sessionStarted",
+              sessionId: rec.cliSessionId,
+              tool: "claude",
+              timestamp: Math.round(mtime),
+              latestUserPrompt: prompt,
+              title: rec.title || (prompt.length > 40 ? prompt.slice(0, 40) + "…" : prompt),
+              detectionSource: "cowork"
+            });
+            log.info("[AppCoordinator] cowork session discovered: %s (%s)", rec.cliSessionId, rec.title ?? "");
+          }
+        }
+      }
+    }
+    readLatestUserPrompt(file) {
+      return this.readClaudeTranscriptState(file).latestPrompt;
+    }
+    readClaudeTranscriptState(file) {
+      return readClaudeTranscriptState(file);
     }
     async autoReInstallHooks() {
       const toggles = this.settings.hookToggles ?? {};
@@ -1080,6 +1290,13 @@ function createAppCoordinatorClass({
         // 主动发现：transcript watcher 已知的 session 但 state 里还没有
         // （说明 hook 没装或没发），合成 sessionStarted 让灵动岛能看到它们。
         const codexDiscoveredChanged = this.discoverUntrackedCodexSessions();
+        // Cowork（VM 内会话）既无宿主进程也无 hook，靠周期扫描感知；
+        // 事件经 bridge.emitEvent 走标准管线，广播由 agentEvent handler 自理
+        try {
+          this.scanCoworkSessions();
+        } catch (err) {
+          log.warn("[AppCoordinator] cowork scan failed:", err?.message ?? err);
+        }
         const beforeIds = new Set(this.state.sessions.keys());
         const beforeVisibilityPruneCount = this.state.sessions.size;
         const { state: cleaned } = removeInvisibleSessions(this.state);
