@@ -63,113 +63,6 @@ function PetApp() {
     }, 1000 / 15);
     return () => clearInterval(t);
   }, [echoMode]);
-  // ── Echo 导演层 ──────────────────────────────────────────────────────
-  // 组件本身有 12 种情绪、6 种动作和视线向量，静态映射只用到零头，观感死板。
-  // 导演层做四件事：空闲情绪轮换 + 随机小动作、状态转场的一次性动作、
-  // 点击分级反馈、视线跟随鼠标。全部只在 echoMode 下运行。
-  const echoFrameRef = reactExports.useRef(0);
-  const echoModeRef = reactExports.useRef(false);
-  echoModeRef.current = echoMode;
-  const [echoIdleMood, setEchoIdleMood] = reactExports.useState("calm");
-  const [echoOverride, setEchoOverride] = reactExports.useState(null);
-  const [echoAction, setEchoAction] = reactExports.useState(null);
-  const [echoGaze, setEchoGaze] = reactExports.useState(null);
-  const echoPrevStatus = reactExports.useRef("idle");
-  const fireEchoAction = reactExports.useCallback((name) => {
-    setEchoAction({ name, at: echoFrameRef.current + 2 });
-  }, []);
-  const overrideEcho = reactExports.useCallback((patch, ms) => {
-    setEchoOverride({ ...patch, until: Date.now() + ms });
-  }, []);
-  // 临时覆盖到点自动失效
-  reactExports.useEffect(() => {
-    if (!echoOverride) return;
-    const ms = echoOverride.until - Date.now();
-    if (ms <= 0) {
-      setEchoOverride(null);
-      return;
-    }
-    const t = setTimeout(() => setEchoOverride(null), ms);
-    return () => clearTimeout(t);
-  }, [echoOverride]);
-  // 空闲时不再永远 calm：情绪按权重轮换，偶尔来一个小动作（歪头/探头/点头）
-  reactExports.useEffect(() => {
-    if (!echoMode || status !== "idle") return;
-    let alive = true;
-    let moodT;
-    let actT;
-    const rotate = () => {
-      if (!alive) return;
-      const r = Math.random();
-      setEchoIdleMood(r < 0.55 ? "calm" : r < 0.75 ? "curious" : r < 0.92 ? "listening" : "sleepy");
-      moodT = setTimeout(rotate, 12e3 + Math.random() * 16e3);
-    };
-    const micro = () => {
-      if (!alive) return;
-      const r = Math.random();
-      fireEchoAction(r < 0.4 ? "tilt" : r < 0.75 ? "peek" : "nod");
-      actT = setTimeout(micro, 18e3 + Math.random() * 26e3);
-    };
-    moodT = setTimeout(rotate, 8e3);
-    actT = setTimeout(micro, 9e3 + Math.random() * 8e3);
-    return () => {
-      alive = false;
-      clearTimeout(moodT);
-      clearTimeout(actT);
-      setEchoIdleMood("calm");
-    };
-  }, [echoMode, status, fireEchoAction]);
-  // 状态转场：完成→跳一下庆祝再转 fond；来任务→点头应声；睡醒→wake 过渡；
-  // 拖拽落地→回弹小跳
-  reactExports.useEffect(() => {
-    if (!echoMode) return;
-    const prev = echoPrevStatus.current;
-    echoPrevStatus.current = status;
-    if (prev === status) return;
-    if (status === "complete") {
-      fireEchoAction("hop");
-      overrideEcho({ mood: "happy" }, 5e3);
-    } else if (status === "attention") {
-      fireEchoAction("shake");
-    } else if (status === "running" && (prev === "idle" || prev === "sleep" || prev === "complete")) {
-      fireEchoAction("nod");
-    } else if (prev === "sleep" && status === "idle") {
-      overrideEcho({ mood: "wake" }, 1800);
-    } else if (prev === "drag") {
-      fireEchoAction("hop");
-    }
-  }, [echoMode, status, fireEchoAction, overrideEcho]);
-  // 待处理状态每隔一阵摇头呼唤，直到被处理
-  reactExports.useEffect(() => {
-    if (!echoMode || status !== "attention") return;
-    const t = setInterval(() => fireEchoAction("shake"), 9e3);
-    return () => clearInterval(t);
-  }, [echoMode, status, fireEchoAction]);
-  // 视线跟随鼠标（rAF 节流；睡着时不跟）。鼠标离开窗口即回落到情绪默认视线
-  reactExports.useEffect(() => {
-    if (!echoMode) return;
-    let raf = 0;
-    const onMove = (e) => {
-      if (raf) return;
-      raf = requestAnimationFrame(() => {
-        raf = 0;
-        const nx = (e.clientX / window.innerWidth) * 2 - 1;
-        const ny = (e.clientY / window.innerHeight) * 2 - 1;
-        setEchoGaze([
-          Math.max(-1, Math.min(1, nx)),
-          Math.max(-1, Math.min(1, ny * 0.7))
-        ]);
-      });
-    };
-    const onLeave = () => setEchoGaze(null);
-    window.addEventListener("mousemove", onMove);
-    document.documentElement.addEventListener("mouseleave", onLeave);
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      document.documentElement.removeEventListener("mouseleave", onLeave);
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, [echoMode]);
   const panelOpen = panelState.open;
   const panelDirection = panelState.direction;
   const canvasRef = reactExports.useRef(null);
@@ -334,6 +227,113 @@ function PetApp() {
     };
   }, [effectiveBaseStatus]);
   const status = isDragging ? "drag" : isPlaying ? "play" : effectiveBaseStatus === "idle" && isSleeping ? "sleep" : effectiveBaseStatus;
+  // ── Echo 导演层 ──────────────────────────────────────────────────────
+  // 组件本身有 12 种情绪、6 种动作和视线向量，静态映射只用到零头，观感死板。
+  // 导演层做四件事：空闲情绪轮换 + 随机小动作、状态转场的一次性动作、
+  // 点击分级反馈、视线跟随鼠标。全部只在 echoMode 下运行。
+  const echoFrameRef = reactExports.useRef(0);
+  const echoModeRef = reactExports.useRef(false);
+  echoModeRef.current = echoMode;
+  const [echoIdleMood, setEchoIdleMood] = reactExports.useState("calm");
+  const [echoOverride, setEchoOverride] = reactExports.useState(null);
+  const [echoAction, setEchoAction] = reactExports.useState(null);
+  const [echoGaze, setEchoGaze] = reactExports.useState(null);
+  const echoPrevStatus = reactExports.useRef("idle");
+  const fireEchoAction = reactExports.useCallback((name) => {
+    setEchoAction({ name, at: echoFrameRef.current + 2 });
+  }, []);
+  const overrideEcho = reactExports.useCallback((patch, ms) => {
+    setEchoOverride({ ...patch, until: Date.now() + ms });
+  }, []);
+  // 临时覆盖到点自动失效
+  reactExports.useEffect(() => {
+    if (!echoOverride) return;
+    const ms = echoOverride.until - Date.now();
+    if (ms <= 0) {
+      setEchoOverride(null);
+      return;
+    }
+    const t = setTimeout(() => setEchoOverride(null), ms);
+    return () => clearTimeout(t);
+  }, [echoOverride]);
+  // 空闲时不再永远 calm：情绪按权重轮换，偶尔来一个小动作（歪头/探头/点头）
+  reactExports.useEffect(() => {
+    if (!echoMode || status !== "idle") return;
+    let alive = true;
+    let moodT;
+    let actT;
+    const rotate = () => {
+      if (!alive) return;
+      const r = Math.random();
+      setEchoIdleMood(r < 0.55 ? "calm" : r < 0.75 ? "curious" : r < 0.92 ? "listening" : "sleepy");
+      moodT = setTimeout(rotate, 12e3 + Math.random() * 16e3);
+    };
+    const micro = () => {
+      if (!alive) return;
+      const r = Math.random();
+      fireEchoAction(r < 0.4 ? "tilt" : r < 0.75 ? "peek" : "nod");
+      actT = setTimeout(micro, 18e3 + Math.random() * 26e3);
+    };
+    moodT = setTimeout(rotate, 8e3);
+    actT = setTimeout(micro, 9e3 + Math.random() * 8e3);
+    return () => {
+      alive = false;
+      clearTimeout(moodT);
+      clearTimeout(actT);
+      setEchoIdleMood("calm");
+    };
+  }, [echoMode, status, fireEchoAction]);
+  // 状态转场：完成→跳一下庆祝再转 fond；来任务→点头应声；睡醒→wake 过渡；
+  // 拖拽落地→回弹小跳
+  reactExports.useEffect(() => {
+    if (!echoMode) return;
+    const prev = echoPrevStatus.current;
+    echoPrevStatus.current = status;
+    if (prev === status) return;
+    if (status === "complete") {
+      fireEchoAction("hop");
+      overrideEcho({ mood: "happy" }, 5e3);
+    } else if (status === "attention") {
+      fireEchoAction("shake");
+    } else if (status === "running" && (prev === "idle" || prev === "sleep" || prev === "complete")) {
+      fireEchoAction("nod");
+    } else if (prev === "sleep" && status === "idle") {
+      overrideEcho({ mood: "wake" }, 1800);
+    } else if (prev === "drag") {
+      fireEchoAction("hop");
+    }
+  }, [echoMode, status, fireEchoAction, overrideEcho]);
+  // 待处理状态每隔一阵摇头呼唤，直到被处理
+  reactExports.useEffect(() => {
+    if (!echoMode || status !== "attention") return;
+    const t = setInterval(() => fireEchoAction("shake"), 9e3);
+    return () => clearInterval(t);
+  }, [echoMode, status, fireEchoAction]);
+  // 视线跟随鼠标（rAF 节流；睡着时不跟）。鼠标离开窗口即回落到情绪默认视线
+  reactExports.useEffect(() => {
+    if (!echoMode) return;
+    let raf = 0;
+    const onMove = (e) => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const nx = (e.clientX / window.innerWidth) * 2 - 1;
+        const ny = (e.clientY / window.innerHeight) * 2 - 1;
+        setEchoGaze([
+          Math.max(-1, Math.min(1, nx)),
+          Math.max(-1, Math.min(1, ny * 0.7))
+        ]);
+      });
+    };
+    const onLeave = () => setEchoGaze(null);
+    window.addEventListener("mousemove", onMove);
+    document.documentElement.addEventListener("mouseleave", onLeave);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      document.documentElement.removeEventListener("mouseleave", onLeave);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [echoMode]);
   const drawFrame = reactExports.useCallback((frame) => {
     const canvas = canvasRef.current;
     const sheet = sheetRef.current;

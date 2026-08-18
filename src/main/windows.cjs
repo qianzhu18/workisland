@@ -901,6 +901,13 @@ function createWindowClasses(dependencies) {
       } else {
         this.win.loadFile(path.join(__dirname, "../renderer/island/renderer/pet.html"));
       }
+      // 宠物窗口的渲染层报错接到主日志（岛窗口已有同款；宠物没有 devtools，
+      // 渲染崩了从外面只能看到「本体不见了」）
+      this.win.webContents.on("console-message", (_e, level, message, line, sourceId) => {
+        if (level >= 2) log.error("[pet renderer]", message, sourceId + ":" + line);
+      });
+      if (false) {
+      }
       this.win.webContents.on("did-finish-load", () => {
         // Give the first hover/release sequence a real interactive window. Keeping the
         // window click-through from creation can prevent Chromium from ever producing

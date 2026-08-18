@@ -978,6 +978,23 @@ async function runIslandApp() {
   } else {
     startIsland();
   }
+  // 调试开关：WORKISLAND_OPEN_PET=1 时启动后自动召唤宠物并抓渲染帧。
+  // 外部截屏工具抓不到面板级窗口，这是验证「本体是否画出来」的唯一手段。
+  if (process.env.WORKISLAND_OPEN_PET) {
+    setTimeout(() => {
+      try {
+        coordinator.enterPetMode(700, 500);
+        setTimeout(() => {
+          const pw = coordinator.getPetWindow();
+          if (!pw) { log.warn("[pet-debug] pet window absent"); return; }
+          pw.browserWindow.webContents.capturePage().then((img) => {
+            require("node:fs").writeFileSync("/tmp/pet-capture.png", img.toPNG());
+            log.info("[pet-debug] captured", JSON.stringify(img.getSize()));
+          }).catch((e) => log.warn("[pet-debug] capture failed:", e));
+        }, 3000);
+      } catch (e) { log.warn("[pet-debug] failed:", e); }
+    }, 6000);
+  }
   coordinator.setPetWindowFactory((x, y) => {
     const petWindow = new PetWindow(x, y, coordinator.getSettings().petScale);
     bindCommandW(petWindow.browserWindow, () => coordinator.exitPetMode());
