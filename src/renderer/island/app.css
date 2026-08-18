@@ -1,30 +1,3 @@
-/* ── Echo 令牌层 ──────────────────────────────────────────────────────────
- * 抽取前：205 处硬编码颜色 / 103 个不同色值，且存在三类重复：
- *   · 大小写重复      #9599A6 与 #9599a6
- *   · 肉眼无差重复    #d1d3db 与 #d1d3dd（蓝通道差 2）
- *   · 同角色多基色    浅色叠加层同时用了 rgb(224,226,242) / (224,230,242)
- *                     / (221,230,244) / (255,255,255) 四种基色，4%-16% 透明度下
- *                     根本分辨不出，却让换肤无从下手
- * 现统一到 Echo 的宣纸暖调（#F8F2E6）。岛体本身保持纯黑 —— 那是为了和刘海
- * 无缝融合，不能换成墨色。 */
-:root {
-  --isl-fg: #F2ECDE;          /* 主文字   ← #d1d3db #d1d3dd #EEEEEE */
-  --isl-fg-strong: #FFFFFF;   /* 最强对比 ← #ffffff */
-  --isl-fg-2: #A79E90;        /* 次级     ← #9599a6 */
-  --isl-fg-3: #6E6559;        /* 三级     ← #646b77 */
-
-  /* 叠加层：单一基色 + 五档透明度，替代原来的四种基色混用 */
-  --isl-layer-1: rgba(248, 242, 230, 0.04);
-  --isl-layer-2: rgba(248, 242, 230, 0.06);
-  --isl-layer-3: rgba(248, 242, 230, 0.10);
-  --isl-layer-4: rgba(248, 242, 230, 0.14);
-  --isl-layer-5: rgba(248, 242, 230, 0.16);
-
-  --isl-accent: #C4452D;      /* 朱砂 ← #387bff。仅用于链接/聚焦/accent-color，
-                                 不涉及批准按钮，所以换成红色没有语义风险 */
-  --isl-ok: #42E86B;
-}
-
 /* island.css — Dynamic Island layout, shape morphing, and animations.
  *
  * Shape transitions use CSS clip-path: inset() so the black pill/panel shape
@@ -37,12 +10,12 @@
  *
  * Color palette (mirrors Swift IslandPanelView):
  *   Background:   #000
- *   Text primary:    rgba(248, 242, 230, 0.9)
- *   Text secondary:  rgba(248, 242, 230, 0.55)
- *   Text tertiary:   rgba(248, 242, 230, 0.28)
- *   Border:          rgba(248, 242, 230, 0.07)  (open)  / var(--isl-layer-1) (closed)
+ *   Text primary:    rgba(255,255,255,0.9)
+ *   Text secondary:  rgba(255,255,255,0.55)
+ *   Text tertiary:   rgba(255,255,255,0.28)
+ *   Border:          rgba(255,255,255,0.07)  (open)  / rgba(255,255,255,0.04) (closed)
  *   Phase-running:   #6E9FFF  (blue)
- *   Phase-active:    var(--isl-ok)  (green)
+ *   Phase-active:    #42E86B  (green)
  *   Phase-attention: #FF9F0A  (orange)
  *   Phase-question:  #FFD60A  (yellow)
  *   Badge bg:        #232326
@@ -72,7 +45,7 @@ body {
 
 /* 与 Trae 参考一致：卡片顶栏比内容区更深一层，全岛统一 */
 html {
-  --island-card-header-bg: var(--isl-layer-1);
+  --island-card-header-bg: rgba(221, 230, 244, 0.04);
 }
 
 body {
@@ -94,7 +67,8 @@ body {
  * automatically follows the island shape during clip-path animation.
  * Adjust blur/spread/color to taste. */
 .island-pop-wrapper {
-  filter: drop-shadow(0 0 0 1px var(--isl-layer-3));
+  filter: drop-shadow(0 0 0 1px rgba(255, 255, 255, 0.1));
+  transition: filter 0.3s ease-out;
 }
 
 .island-pop-wrapper.is-open {
@@ -205,7 +179,7 @@ body {
   flex: 1;
   font-size: 12px;
   font-weight: 600;
-  color: rgba(248, 242, 230, 0.9);
+  color: rgba(255, 255, 255, 0.9);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -217,7 +191,7 @@ body {
 }
 
 .pill-label-completed {
-  color: var(--isl-ok);
+  color: #42e86b;
 }
 
 .pill-label-idle {
@@ -241,7 +215,7 @@ body {
   flex-shrink: 0;
   border: 0;
   border-radius: 8px;
-  background: rgba(248, 242, 230, 0.08);
+  background: rgba(255, 255, 255, 0.08);
   color: #fff;
   font-size: 14px;
   line-height: 1;
@@ -268,7 +242,7 @@ body {
 }
 
 .panel-btn.panel-pet-button:hover {
-  background: rgba(248, 242, 230, 0.18);
+  background: rgba(255, 255, 255, 0.18);
   transform: scale(1.06);
 }
 
@@ -315,7 +289,7 @@ body {
 .pill-count {
   font-size: 12px;
   font-weight: 600;
-  color: rgba(248, 242, 230, 0.9);
+  color: rgba(255, 255, 255, 0.9);
   letter-spacing: -0.2px;
 }
 
@@ -344,7 +318,7 @@ body {
 .panel-title {
   font-size: 13px;
   font-weight: 600;
-  color: rgba(248, 242, 230, 0.9);
+  color: rgba(255, 255, 255, 0.9);
   letter-spacing: -0.2px;
 }
 
@@ -359,7 +333,7 @@ body {
   border: none;
   display: flex;
   align-items: center;
-  color: rgba(248, 242, 230, 0.5);
+  color: rgba(255, 255, 255, 0.5);
   cursor: pointer;
   border-radius: 6px;
   transition:
@@ -373,13 +347,13 @@ body {
   -webkit-user-drag: none;
 }
 .panel-btn:hover {
-  color: rgba(248, 242, 230, 0.85);
-  background: rgba(248, 242, 230, 0.08);
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .panel-divider {
   height: 1px;
-  background: rgba(248, 242, 230, 0.07);
+  background: rgba(255, 255, 255, 0.07);
   margin: 0 18px;
   flex-shrink: 0;
 }
@@ -401,7 +375,7 @@ body {
   background: transparent;
 }
 .session-list::-webkit-scrollbar-thumb {
-  background: rgba(248, 242, 230, 0.2);
+  background: rgba(255, 255, 255, 0.2);
   border-radius: 2px;
 }
 
@@ -423,7 +397,7 @@ body {
 
 .session-list-empty-text {
   font-size: 11px;
-  color: rgba(248, 242, 230, 0.9);
+  color: rgba(255, 255, 255, 0.9);
 }
 .session-row-container {
   display: flex;
@@ -450,7 +424,7 @@ body {
     sans-serif;
   font-size: 12px;
   font-weight: 400;
-  color: var(--isl-fg);
+  color: #d1d3db;
   line-height: 16px;
   overflow-wrap: break-word;
 }
@@ -483,13 +457,13 @@ body {
 }
 
 .island-markdown li::marker {
-  color: var(--isl-fg);
+  color: #d1d3db;
 }
 
 .island-markdown code {
   font-family: "SF Mono", Menlo, Monaco, monospace;
   font-size: 12px;
-  background: var(--isl-layer-3);
+  background: rgba(224, 230, 242, 0.1);
   padding: 1px 4px;
   border-radius: 3px;
 }
@@ -497,7 +471,7 @@ body {
 .island-markdown pre {
   padding: 8px;
   margin: 4px 0;
-  background: var(--isl-layer-2);
+  background: rgba(224, 230, 242, 0.06);
   border-radius: 4px;
   overflow-x: auto;
 }
@@ -513,11 +487,11 @@ body {
 
 .island-markdown strong {
   font-weight: 600;
-  color: var(--isl-fg-strong);
+  color: #ffffff;
 }
 
 .island-markdown a {
-  color: var(--isl-accent);
+  color: #387bff;
   text-decoration: none;
 }
 
@@ -529,7 +503,7 @@ body {
 .island-markdown h6 {
   margin: 4px 0 2px;
   font-weight: 600;
-  color: var(--isl-fg-strong);
+  color: #ffffff;
   line-height: 1.3;
 }
 
@@ -557,18 +531,18 @@ body {
 .island-markdown th,
 .island-markdown td {
   padding: 4px 8px;
-  border: 1px solid var(--isl-layer-5);
+  border: 1px solid rgba(224, 226, 242, 0.16);
   text-align: left;
 }
 
 .island-markdown th {
   font-weight: 600;
-  color: var(--isl-fg-strong);
-  background: rgba(248, 242, 230, 0.08);
+  color: #ffffff;
+  background: rgba(224, 230, 242, 0.08);
 }
 
 .island-markdown td {
-  color: var(--isl-fg);
+  color: #d1d3db;
 }
 
 /* ── dock（贴边）落位 ──────────────────────────────────────────────────────
@@ -699,9 +673,9 @@ body {
  * ellipsis，会自适应；需要动的是那些按 680+ 宽度设计的横向排布。 */
 
 /* 顶栏：配额格子和按钮组允许换行，行高放开 */
-/* 侧边面板兜底：内容永远不越出窗口。用纯 CSS 而不是内联高度 + React 状态：
- * panelLayerRef 的 ResizeObserver 挂在同一元素上，经 React 的高度反馈有成环
- * 风险（实测 #185 爆栈）。 */
+/* 侧边面板兜底：内容永远不越出窗口（黑形状会盖住整窗高度时被裁切在形状内）。
+ * 用纯 CSS 而不是内联 height + React 状态：panelLayerRef 的 ResizeObserver
+ * 就挂在这个元素上，任何经 React 的高度反馈都有成环风险（实测会 #185 爆栈）。 */
 .island-panel-layer.is-side-dock {
   max-height: 100%;
   overflow: hidden;
