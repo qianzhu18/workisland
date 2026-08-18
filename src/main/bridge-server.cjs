@@ -376,6 +376,9 @@ function createBridgeServerClass({
           if (!app) return;
           const jumpTarget = {
             app: app || "",
+            // Claude Desktop 靠 claude://resume?session=<uuid> 深链定位会话，
+            // 需要把会话 id 一路带到 TerminalJumpService
+            sessionId,
             tty: pickStr("terminal_tty"),
             tabId: pickStr("terminal_session_id"),
             paneId: pickStr("warp_pane_uuid"),
