@@ -15,7 +15,7 @@ const { resolveApprovalMode } = require("../shared/approval-policy.cjs");
 const { saveSessions } = require("./hook-shared.cjs");
 const { readClaudeTranscriptState } = require("./transcript-recovery.cjs");
 const { ClaudeHookManager, CodexHookManager } = require("./hooks-core.cjs");
-const { CocoHookManager, CursorHookManager, TraeHookManager, TraeCnHookManager } = require("./hooks-editors.cjs");
+const { CocoHookManager, CursorHookManager } = require("./hooks-editors.cjs");
 const { OpenCodePluginManager, SaraPluginManager, KimiHookManager, GeminiHookManager, CopilotCliHookManager } = require("./hooks-plugins.cjs");
 const { HermesHookManager, AidenHookManager, TraexCliHookManager } = require("./hooks-extended.cjs");
 const { PluginHookManager, DeepSeekHarnessHookManager, buildSourceHookCommand } = require("./hooks-custom.cjs");
@@ -27,6 +27,7 @@ const { reportTokenUsage, getHermesCumulativeTokens, diffHermesCumulativeTokens 
 const { getAgentDescriptor, validateAgentWiring } = require("../shared/agent-catalog.cjs");
 const { createPresentationRequest } = require("./presentation-policy.cjs");
 const { EVENTS } = require("../shared/telemetry.cjs");
+const UNSUPPORTED_HOOK_SOURCES = new Set(["trae", "trae-cn"]);
 
 function createAppCoordinatorClass({
   BridgeServer,
@@ -163,8 +164,6 @@ function createAppCoordinatorClass({
         ["claude", new ClaudeHookManager()],
         ["codex", new CodexHookManager()],
         ["coco", new CocoHookManager()],
-        ["trae", new TraeHookManager()],
-        ["trae-cn", new TraeCnHookManager()],
         ["cursor", new CursorHookManager()],
         ["zcode", new ZCodeHookManager()],
         ["workbuddy", new WorkBuddyHookManager()],
@@ -245,13 +244,12 @@ function createAppCoordinatorClass({
           event.tool,
           event.detectionSource || "hook"
         );
-        // Trae desktop hooks are only considered connected after a real event
-        // reaches the bridge. A syntactically valid hooks.json alone proves
-        // configuration was written, not that the current desktop build runs it.
-        if (event.tool === "trae" || event.tool === "trae-cn") {
+        // DSH is only considered verified after its configured profile emits a
+        // real lifecycle event. Installing the bundle alone is not E2E proof.
+        if (event.tool === "dsh") {
           const manager = this.hookManagers.get(event.tool);
           void manager?.recordEvent?.(event).catch((error) => {
-            log.warn("[AppCoordinator] failed to record Trae hook verification: %s", error?.message || error);
+            log.warn("[AppCoordinator] failed to record DSH verification: %s", error?.message || error);
           });
         }
         if (event.tool?.startsWith("custom:")) void this.customConnections.recordVerifiedEvent(event.tool);
@@ -779,6 +777,7 @@ function createAppCoordinatorClass({
       return this.petMode.isActive ? "pet" : "island";
     }
     isHookToolEnabled(tool) {
+      if (UNSUPPORTED_HOOK_SOURCES.has(tool)) return false;
       const explicit = this.settings.hookToggles?.[tool];
       if (explicit !== void 0) return explicit;
       if (isPluginAgentTool(tool)) return getPluginDefaultHookEnabled(tool);

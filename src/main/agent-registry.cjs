@@ -3,13 +3,12 @@
 const log = require("electron-log");
 const crypto$1 = require("node:crypto");
 const { ClaudeAdapter, CodexAdapter } = require("./adapters-cli.cjs");
-const { CocoAdapter, CursorAdapter, OpenCodeAdapter, SaraAdapter, TraeHookAdapter, KimiAdapter, CopilotCliAdapter } = require("./adapters-ide.cjs");
+const { CocoAdapter, CursorAdapter, OpenCodeAdapter, SaraAdapter, KimiAdapter, CopilotCliAdapter } = require("./adapters-ide.cjs");
 const { GeminiAdapter, HermesAdapter, AidenAdapter, TraexCliAdapter } = require("./adapters-extended.cjs");
 const { ZCodeAdapter, WorkBuddyAdapter } = require("./adapters-work-agents.cjs");
 const { DeepSeekHarnessAdapter } = require("./adapters-dsh.cjs");
 
 function createLocalHookAdapterRegistry() {
-  const trae = new TraeHookAdapter();
   const adapters = [
     new ClaudeAdapter(),
     new CodexAdapter(),
@@ -19,7 +18,6 @@ function createLocalHookAdapterRegistry() {
     new WorkBuddyAdapter(),
     new OpenCodeAdapter(),
     new SaraAdapter(),
-    trae,
     new KimiAdapter(),
     new CopilotCliAdapter(),
     new GeminiAdapter(),
@@ -29,7 +27,6 @@ function createLocalHookAdapterRegistry() {
     new TraexCliAdapter()
   ];
   const registry = new Map(adapters.map((adapter) => [adapter.agentId, adapter]));
-  registry.set("trae-cn", trae);
   return registry;
 }
 

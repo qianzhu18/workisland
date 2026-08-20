@@ -13,8 +13,6 @@ const AGENT_ICON_URLS = Object.freeze({
   codex: "../assets/brands/codex.png",
   coco: "../assets/brands/trae.svg",
   cursor: "../assets/brands/cursor.svg",
-  trae: "../assets/brands/trae.svg",
-  "trae-cn": "../assets/brands/trae.svg",
   zcode: "../assets/brands/zcode.svg",
   workbuddy: "../assets/brands/codebuddy.svg",
   opencode: "../assets/brands/opencode.svg",
@@ -29,7 +27,7 @@ const AGENT_ICON_URLS = Object.freeze({
   "plugin:omp": "../assets/brands/pi.svg",
   "plugin:pi": "../assets/brands/pi.svg"
 });
-const LEGACY_TRAE_DESKTOP_AGENT_IDS = new Set(["trae", "trae-cn"]);
+const VERIFY_ON_REAL_EVENT_AGENT_IDS = new Set(["dsh"]);
 const DISCOVERY_PROMPT = "请只查阅官方文档：这个智能体是否支持 macOS 本地生命周期 Hook？如支持，请给出配置文件路径、提交任务和完成任务的事件名称及 JSON 示例。不要执行命令，不要读取或修改文件。";
 const state = { settings: null, statuses: new Map(), customConnections: [], displays: [], codexPets: [], activeTab: "general", busy: new Set(), latestUpdate: null };
 
@@ -197,12 +195,12 @@ function generalPage() {
 function statusBadge(report) {
   const installed = Boolean(report?.installed);
   const unavailable = report?.available === false;
-  const isLegacyTraeDesktop = LEGACY_TRAE_DESKTOP_AGENT_IDS.has(report?.agentId);
+  const verifyOnRealEvent = VERIFY_ON_REAL_EVENT_AGENT_IDS.has(report?.agentId);
   const verified = report?.connectionState === "verified";
-  const text = isLegacyTraeDesktop && installed
+  const text = verifyOnRealEvent && installed
     ? (verified ? "已实际验证" : "配置已写入")
     : installed ? "已连接" : unavailable ? "未检测" : "未连接";
-  const statusClass = isLegacyTraeDesktop && installed && !verified
+  const statusClass = verifyOnRealEvent && installed && !verified
     ? "pending"
     : installed ? "installed" : "missing";
   return el("span", `status ${statusClass}`, text);
@@ -260,9 +258,9 @@ function agentCard(report) {
   heading.append(el("strong", "", label), statusBadge(report));
   content.append(heading);
   const issues = report?.issues?.filter(Boolean) || [];
-  const isLegacyTraeDesktop = LEGACY_TRAE_DESKTOP_AGENT_IDS.has(agentId);
-  const detail = isLegacyTraeDesktop && report.installed && report.connectionState !== "verified"
-    ? "Hook 配置已写入；请运行一次实际任务。收到事件后才会显示“已实际验证”。"
+  const verifyOnRealEvent = VERIFY_ON_REAL_EVENT_AGENT_IDS.has(agentId);
+  const detail = verifyOnRealEvent && report.installed && report.connectionState !== "verified"
+    ? (issues[0] || "连接配置已写入；请运行一次实际任务。收到事件后才会显示“已实际验证”。")
     : report.available === false && !report.installed
     ? `未检测到 ${label}，安装后即可连接。`
     : issues.length ? issues[0] : report.description;

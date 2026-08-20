@@ -35,8 +35,8 @@ test("settings use product images instead of letter placeholders", () => {
   assert.doesNotMatch(source, /el\("div", "app-mark", "O"\)/);
 });
 
-test("legacy Trae desktop hooks distinguish a written config from a verified connection", () => {
-  assert.match(source, /LEGACY_TRAE_DESKTOP_AGENT_IDS/);
+test("DeepSeek Harness distinguishes a written config from a verified connection", () => {
+  assert.match(source, /VERIFY_ON_REAL_EVENT_AGENT_IDS/);
   assert.match(source, /配置已写入/);
   assert.match(source, /已实际验证/);
   assert.match(source, /report\?\.connectionState === "verified"/);
@@ -52,4 +52,10 @@ test("agents page exposes a guided verified custom Hook connection", () => {
 test("DeepSeek Harness remains opt-in until the user clicks connect", () => {
   const settingsSource = readFileSync(new URL("../src/shared/settings.cjs", import.meta.url), "utf8");
   assert.match(settingsSource, /dsh:\s*false/);
+});
+
+test("unsupported Trae desktop legacy hooks are not offered as connectable Agents", () => {
+  const catalogSource = readFileSync(new URL("../src/shared/agent-catalog.cjs", import.meta.url), "utf8");
+  assert.doesNotMatch(catalogSource, /descriptor\("trae",/);
+  assert.doesNotMatch(catalogSource, /descriptor\("trae-cn",/);
 });

@@ -6,8 +6,6 @@ const DEFAULT_HOOK_TOGGLES = {
   claude: true,
   codex: true,
   coco: true,
-  trae: true,
-  "trae-cn": true,
   opencode: true,
   cursor: true,
   zcode: true,
@@ -19,8 +17,8 @@ const DEFAULT_HOOK_TOGGLES = {
   aiden: true,
   sara: true,
   "traex": true,
-  // DSH installation downloads the official runtime package and changes its
-  // web profile, so it must only run after the user clicks “连接”.
+  // DSH installation changes the active profile, so it must only run after
+  // the user clicks “连接”.
   dsh: false
 };
 

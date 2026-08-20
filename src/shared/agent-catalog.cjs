@@ -13,12 +13,6 @@ const CORE_AGENT_DESCRIPTORS = Object.freeze([
   descriptor("cursor", "Cursor", "#6E7CF6", "Cursor 原生 Hook，支持 Agent turn、Shell、MCP 和文件活动。", {
     completion: "native", approval: "observe", question: "observe", jump: "workspace"
   }),
-  descriptor("trae", "Trae 桌面版（旧 Hook）", "#5967E9", "旧版桌面 Hook：写入配置后，需在一次实际任务中收到事件才会验证为可用。", {
-    completion: "native", approval: "observe", question: "observe", jump: "workspace"
-  }),
-  descriptor("trae-cn", "Trae CN（旧 Hook）", "#5967E9", "旧版桌面 Hook：写入配置后，需在一次实际任务中收到事件才会验证为可用。", {
-    completion: "native", approval: "observe", question: "observe", jump: "workspace"
-  }),
   descriptor("zcode", "ZCode", "#635BFF", "ZCode 原生配置 Hook，支持实时状态、完成提醒和 Island 审批。", {
     completion: "native", approval: "bridge", question: "nativeOnly", jump: "app"
   }),
@@ -46,7 +40,7 @@ const CORE_AGENT_DESCRIPTORS = Object.freeze([
   descriptor("aiden", "Aiden", "#626EE3", "Aiden Hook，支持会话、工具和审批状态。", {
     completion: "native", approval: "bridge", question: "observe", jump: "workspace"
   }),
-  descriptor("dsh", "DeepSeek Harness", "#4D6BFE", "官方生命周期插件接入；请先运行一次 DSH 以初始化 web profile。支持会话状态、任务消息、运行活动和完成提醒。", {
+  descriptor("dsh", "DeepSeek Harness", "#4D6BFE", "自动识别正在运行的 DSH_HOME 与 profile，安装生命周期插件；重启 DSH 后支持会话状态、任务消息、运行活动和完成提醒。", {
     completion: "native", approval: "observe", question: "observe", jump: "workspace"
   }),
   descriptor("traex", "TRAE CLI", "#626EE3", "TRAE CLI Hook，支持会话、工具和 Island 审批；不监控 Trae 桌面端会话。", {

@@ -12,6 +12,7 @@ const log = require("electron-log");
 const utils = require("@electron-toolkit/utils");
 const { getSocketPath } = require("./bridge-protocol.cjs");
 const { shellQuote, buildDevHooksCliCommand, wrapWithInstallCheck } = require("./hook-shared.cjs");
+const { discoverRunningDshProfiles } = require("./dsh-profile-discovery.cjs");
 const execFileAsync = promisify(execFile);
 
 function commandQuote(value) { return `'${String(value).replace(/'/g, `'\\''`)}'`; }
@@ -157,46 +158,106 @@ class PluginHookManager {
 class DeepSeekHarnessHookManager {
   agentId = "dsh";
   configPath = path.join(os.homedir(), ".flux", "dsh-workisland-bridge.json");
-  profileDir = path.join(os.homedir(), ".dsh", "profiles", "web");
-  profilePath = path.join(this.profileDir, "package.json");
-  async updateProfileBundle(enabled) {
-    const profile = JSON.parse(await promises.readFile(this.profilePath, "utf8"));
+  defaultProfileDir = path.join(os.homedir(), ".dsh", "profiles", "web");
+  async readConfig() {
+    try { return JSON.parse(await promises.readFile(this.configPath, "utf8")); } catch { return null; }
+  }
+  async discoverActiveProfiles() {
+    const { stdout } = await execFileAsync("/bin/ps", ["-axo", "pid=,command="], { encoding: "utf8", maxBuffer: 4 * 1024 * 1024 });
+    const candidatePids = String(stdout).split(/\r?\n/)
+      .filter((line) => /\bdsh\b/.test(line) && /(?:^|\s)--profile(?:=|\s+)/.test(line))
+      .map((line) => line.trim().match(/^(\d+)\b/)?.[1])
+      .filter(Boolean);
+    const detailed = [];
+    for (const pid of candidatePids) {
+      try {
+        const result = await execFileAsync("/bin/ps", ["eww", "-p", pid, "-o", "pid=,command="], { encoding: "utf8", maxBuffer: 4 * 1024 * 1024 });
+        detailed.push(result.stdout);
+      } catch {}
+    }
+    return discoverRunningDshProfiles(detailed.join("\n"));
+  }
+  async targetProfiles() {
+    const active = await this.discoverActiveProfiles();
+    const initialized = active.filter((item) => fs.existsSync(path.join(item.profileDir, "package.json")));
+    if (initialized.length > 0) return initialized;
+    const defaultPath = path.join(this.defaultProfileDir, "package.json");
+    return fs.existsSync(defaultPath)
+      ? [{ name: "web", homeDir: path.dirname(path.dirname(this.defaultProfileDir)), profileDir: this.defaultProfileDir }]
+      : [];
+  }
+  async updateProfileBundle(profilePath, enabled) {
+    const profile = JSON.parse(await promises.readFile(profilePath, "utf8"));
     const bundles = Array.isArray(profile.dsh?.profile?.bundles) ? profile.dsh.profile.bundles : [];
     const nextBundles = enabled
       ? [...new Set([...bundles, "@workisland/dsh-bridge"])]
       : bundles.filter((bundle) => bundle !== "@workisland/dsh-bridge");
     profile.dsh = { ...profile.dsh, profile: { ...profile.dsh?.profile, bundles: nextBundles } };
-    await promises.writeFile(this.profilePath, JSON.stringify(profile, null, 2) + "\n", "utf8");
+    await promises.writeFile(profilePath, JSON.stringify(profile, null, 2) + "\n", "utf8");
   }
   async install() {
     const command = buildSourceHookCommand("dsh");
     const bundlePath = utils.is.dev
       ? path.join(electron.app.getAppPath(), "resources", "dsh-workisland-bridge")
       : path.join(process.resourcesPath, "dsh-workisland-bridge");
-    if (!fs.existsSync(this.profilePath)) throw new Error("未找到 DSH web profile。请先运行一次 DeepSeek Harness，再返回点击连接");
-    try {
-      await runProfilePnpm(this.profileDir, ["add", `file:${bundlePath}`]);
-      await this.updateProfileBundle(true);
-    } catch (error) { throw new Error(`DeepSeek Harness bridge 安装失败：${error?.stderr || error?.message || "未知错误"}`); }
+    const targets = await this.targetProfiles();
+    if (targets.length === 0) throw new Error("未检测到已初始化的 DeepSeek Harness profile。请先启动 DSH，再返回点击连接");
+    for (const target of targets) {
+      const profilePath = path.join(target.profileDir, "package.json");
+      try {
+        await runProfilePnpm(target.profileDir, ["add", `file:${bundlePath}`]);
+        await this.updateProfileBundle(profilePath, true);
+      } catch (error) { throw new Error(`DeepSeek Harness ${target.name} profile 安装失败：${error?.stderr || error?.message || "未知错误"}`); }
+    }
     await promises.mkdir(path.dirname(this.configPath), { recursive: true });
-    await promises.writeFile(this.configPath, JSON.stringify({ command, installedAt: new Date().toISOString() }, null, 2) + "\n", "utf8");
+    await promises.writeFile(this.configPath, JSON.stringify({
+      command,
+      installedAt: new Date().toISOString(),
+      restartRequired: targets.some((target) => target.pid),
+      profiles: targets.map(({ pid, name, homeDir, profileDir }) => ({ pid, name, homeDir, profileDir }))
+    }, null, 2) + "\n", "utf8");
   }
   async uninstall() {
-    if (fs.existsSync(this.profilePath)) {
-      await runProfilePnpm(this.profileDir, ["remove", "@workisland/dsh-bridge"]).catch(() => {});
-      await this.updateProfileBundle(false).catch(() => {});
+    const config = await this.readConfig();
+    const configured = Array.isArray(config?.profiles) ? config.profiles : [];
+    const profileDirs = new Set([...configured.map((item) => item.profileDir), this.defaultProfileDir].filter(Boolean));
+    for (const profileDir of profileDirs) {
+      const profilePath = path.join(profileDir, "package.json");
+      if (!fs.existsSync(profilePath)) continue;
+      await runProfilePnpm(profileDir, ["remove", "@workisland/dsh-bridge"]).catch(() => {});
+      await this.updateProfileBundle(profilePath, false).catch(() => {});
     }
     await promises.unlink(this.configPath).catch(() => {});
   }
+  async recordEvent(event) {
+    const config = await this.readConfig();
+    if (!config) return;
+    await promises.writeFile(this.configPath, JSON.stringify({
+      ...config,
+      restartRequired: false,
+      lastVerifiedAt: new Date().toISOString(),
+      lastVerifiedEvent: event?.type || "unknown"
+    }, null, 2) + "\n", "utf8");
+  }
   async checkHealth() {
     try {
-      const config = JSON.parse(await promises.readFile(this.configPath, "utf8"));
-      const profile = JSON.parse(await promises.readFile(this.profilePath, "utf8"));
+      const config = await this.readConfig();
+      if (!config) throw new Error("missing config");
+      const targets = await this.targetProfiles();
       const hasSource = typeof config.command === "string" && (config.command.includes("--source dsh") || config.command.includes("--source 'dsh'"));
-      const installed = hasSource && Boolean(profile.dependencies?.["@workisland/dsh-bridge"]) && profile.dsh?.profile?.bundles?.includes("@workisland/dsh-bridge");
-      return { agentId: this.agentId, installed, issues: installed ? [] : ["DSH web profile 尚未加载 WorkIsland bridge"], manifestPath: this.configPath };
+      const missing = [];
+      for (const target of targets) {
+        const profile = JSON.parse(await promises.readFile(path.join(target.profileDir, "package.json"), "utf8"));
+        if (!profile.dependencies?.["@workisland/dsh-bridge"] || !profile.dsh?.profile?.bundles?.includes("@workisland/dsh-bridge")) missing.push(target.name);
+      }
+      const installed = hasSource && targets.length > 0 && missing.length === 0;
+      const verified = Boolean(config.lastVerifiedAt);
+      const issues = installed
+        ? verified ? [] : [`已写入 ${targets.map((item) => item.name).join("、")} profile；请重启 DSH 并发送一条测试消息完成验证`]
+        : missing.length ? [`当前运行的 ${missing.join("、")} profile 尚未加载 WorkIsland bridge`] : ["未检测到可连接的 DeepSeek Harness profile"];
+      return { agentId: this.agentId, installed, connectionState: installed ? (verified ? "verified" : "configured") : "disconnected", issues, manifestPath: this.configPath };
     } catch {
-      return { agentId: this.agentId, installed: false, issues: ["请先在 DeepSeek Harness 的 web profile 中安装 WorkIsland bridge bundle"], manifestPath: this.configPath };
+      return { agentId: this.agentId, installed: false, connectionState: "disconnected", issues: ["请先启动 DeepSeek Harness，再点击连接；WorkIsland 会自动识别正在运行的 profile"], manifestPath: this.configPath };
     }
   }
 }

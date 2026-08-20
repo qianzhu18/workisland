@@ -31,7 +31,6 @@ for (const [agentId, adapter] of Object.entries({
   codex: require("../src/main/adapters-cli.cjs").CodexAdapter,
   coco: require("../src/main/adapters-ide.cjs").CocoAdapter,
   cursor: require("../src/main/adapters-ide.cjs").CursorAdapter,
-  trae: require("../src/main/adapters-ide.cjs").TraeHookAdapter,
   zcode: require("../src/main/adapters-work-agents.cjs").ZCodeAdapter,
   workbuddy: require("../src/main/adapters-work-agents.cjs").WorkBuddyAdapter,
   opencode: require("../src/main/adapters-ide.cjs").OpenCodeAdapter,
@@ -44,7 +43,6 @@ for (const [agentId, adapter] of Object.entries({
   dsh: require("../src/main/adapters-dsh.cjs").DeepSeekHarnessAdapter,
   traex: require("../src/main/adapters-extended.cjs").TraexCliAdapter
 })) adapterRegistry.set(agentId, new adapter());
-adapterRegistry.set("trae-cn", adapterRegistry.get("trae"));
 const { hasTraexSourceMarker } = require("../src/main/hooks-extended.cjs");
 const { AGENT_PLUGINS } = require("../src/main/agent-registry.cjs");
 Module._load = originalLoad;
@@ -55,8 +53,6 @@ const scenarios = {
   coco: { event_type: "user_prompt_submit", user_prompt_submit: { prompt: "matrix test" } },
   dsh: { hook_event_name: "UserPromptSubmit", prompt: "matrix test" },
   cursor: { hook_event_name: "beforeSubmitPrompt", prompt: "matrix test" },
-  trae: { hook_event_name: "UserPromptSubmit", prompt: "matrix test" },
-  "trae-cn": { hook_event_name: "UserPromptSubmit", prompt: "matrix test" },
   zcode: { hook_event_name: "UserPromptSubmit", prompt: "matrix test" },
   workbuddy: { hook_event_name: "UserPromptSubmit", prompt: "matrix test" },
   opencode: { hook_event_name: "UserPromptSubmit", prompt: "matrix test" },
