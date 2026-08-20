@@ -215,10 +215,6 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, checkF
     electron.ipcMain.handle(IPC.SETTINGS_GET_HOOK_STATUS, () => {
       return coordinator.getHookStatus();
     });
-    electron.ipcMain.handle(IPC.SETTINGS_LIST_CUSTOM_AGENT_CONNECTIONS, () => coordinator.listCustomAgentConnections());
-    electron.ipcMain.handle(IPC.SETTINGS_PREVIEW_CUSTOM_AGENT_CONNECTION, (_event, input) => coordinator.previewCustomAgentConnection(input));
-    electron.ipcMain.handle(IPC.SETTINGS_INSTALL_CUSTOM_AGENT_CONNECTION, (_event, input) => coordinator.installCustomAgentConnection(input));
-    electron.ipcMain.handle(IPC.SETTINGS_UNINSTALL_CUSTOM_AGENT_CONNECTION, (_event, { source }) => coordinator.uninstallCustomAgentConnection(source));
     electron.ipcMain.handle(IPC.PLUGIN_AGENT_META, () => {
       return listPluginAgentMeta();
     });

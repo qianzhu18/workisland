@@ -18,9 +18,7 @@ const { ClaudeHookManager, CodexHookManager } = require("./hooks-core.cjs");
 const { CocoHookManager, CursorHookManager } = require("./hooks-editors.cjs");
 const { OpenCodePluginManager, SaraPluginManager, KimiHookManager, GeminiHookManager, CopilotCliHookManager } = require("./hooks-plugins.cjs");
 const { HermesHookManager, AidenHookManager, TraexCliHookManager } = require("./hooks-extended.cjs");
-const { PluginHookManager, DeepSeekHarnessHookManager, buildSourceHookCommand } = require("./hooks-custom.cjs");
-const { CustomAgentConnectionManager, normalizeCustomConnection } = require("./custom-agent-connections.cjs");
-const { CustomAgentAdapter } = require("./adapters-custom-agent.cjs");
+const { PluginHookManager, DeepSeekHarnessHookManager } = require("./hooks-custom.cjs");
 const { ZCodeHookManager, WorkBuddyHookManager } = require("./hooks-work-agents.cjs");
 const { initSoundDirs, playSoundEvent } = require("./sound-service.cjs");
 const { reportTokenUsage, getHermesCumulativeTokens, diffHermesCumulativeTokens } = require("./adapters-extended.cjs");
@@ -82,7 +80,6 @@ function createAppCoordinatorClass({
     quotaService = new QuotaService();
     statsService = getStatsService();
     processMonitor;
-    customConnections;
     onSettingsChangeCallback = null;
     reconcileTimer = null;
     islandHiddenForFullscreen = false;
@@ -180,12 +177,6 @@ function createAppCoordinatorClass({
       for (const plugin of AGENT_PLUGINS) {
         this.hookManagers.set(`plugin:${plugin.id}`, new PluginHookManager(plugin));
       }
-      this.customConnections = new CustomAgentConnectionManager({
-        homeDir: os.homedir(),
-        manifestDir: path.join(os.homedir(), ".flux", "hooks", "custom"),
-        hookCommandForSource: buildSourceHookCommand
-      });
-      void this.reloadCustomAdapters();
       validateAgentWiring({ managerIds: this.hookManagers.keys(), adapterIds: adapterAgentIds });
       saveSessions([]);
       this.bridge.setSessionTitleProvider((sessionId) => this.state.sessions.get(sessionId)?.title);
@@ -252,7 +243,6 @@ function createAppCoordinatorClass({
             log.warn("[AppCoordinator] failed to record DSH verification: %s", error?.message || error);
           });
         }
-        if (event.tool?.startsWith("custom:")) void this.customConnections.recordVerifiedEvent(event.tool);
         // 匿名遥测：激活信号每安装只报一次；会话开始按 tool 计数。
         // 服务内部完成白名单过滤与未同意 no-op。
         this.telemetry?.markFirstAgentSignal(event.tool);
@@ -1104,29 +1094,6 @@ function createAppCoordinatorClass({
         }
       }
       return reports;
-    }
-    async reloadCustomAdapters() {
-      const connections = await this.customConnections.list();
-      for (const connection of connections) adapterRegistry.set(connection.source, new CustomAgentAdapter(connection));
-      return connections;
-    }
-    async listCustomAgentConnections() {
-      const connections = await this.reloadCustomAdapters();
-      return Promise.all(connections.map(async (connection) => ({ ...connection, status: await this.customConnections.getStatus(connection) })));
-    }
-    normalizeCustomAgentInput(input) { return normalizeCustomConnection(input, { homeDir: os.homedir() }); }
-    async previewCustomAgentConnection(input) { return this.customConnections.preview(this.normalizeCustomAgentInput(input)); }
-    async installCustomAgentConnection(input) {
-      const connection = this.normalizeCustomAgentInput(input);
-      await this.customConnections.install(connection);
-      adapterRegistry.set(connection.source, new CustomAgentAdapter(connection));
-      return { success: true, connection };
-    }
-    async uninstallCustomAgentConnection(source) {
-      const connection = (await this.customConnections.list()).find((entry) => entry.source === source);
-      if (!connection) return { success: false, error: "未找到连接" };
-      await this.customConnections.uninstall(connection); adapterRegistry.delete(source);
-      return { success: true };
     }
     async installHook(agentId) {
       log.info(`[AppCoordinator] installHook(${agentId}) start`);

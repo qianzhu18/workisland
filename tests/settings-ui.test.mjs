@@ -42,11 +42,12 @@ test("DeepSeek Harness distinguishes a written config from a verified connection
   assert.match(source, /report\?\.connectionState === "verified"/);
 });
 
-test("agents page exposes a guided verified custom Hook connection", () => {
-  assert.match(source, /接入我的智能体/);
-  assert.match(source, /不知道 Hook 是什么/);
-  assert.match(source, /确认写入并开始验证/);
-  assert.match(source, /已收到真实事件/);
+test("agents page does not advertise speculative custom Hook connections", () => {
+  const preloadSource = readFileSync(new URL("../src/preload/settings.js", import.meta.url), "utf8");
+  const ipcSource = readFileSync(new URL("../src/shared/ipc.cjs", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /接入我的智能体|DISCOVERY_PROMPT|customConnections/);
+  assert.doesNotMatch(preloadSource, /CustomAgentConnection/);
+  assert.doesNotMatch(ipcSource, /CUSTOM_AGENT_CONNECTION/);
 });
 
 test("DeepSeek Harness remains opt-in until the user clicks connect", () => {

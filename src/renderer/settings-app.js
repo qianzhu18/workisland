@@ -28,8 +28,7 @@ const AGENT_ICON_URLS = Object.freeze({
   "plugin:pi": "../assets/brands/pi.svg"
 });
 const VERIFY_ON_REAL_EVENT_AGENT_IDS = new Set(["dsh"]);
-const DISCOVERY_PROMPT = "请只查阅官方文档：这个智能体是否支持 macOS 本地生命周期 Hook？如支持，请给出配置文件路径、提交任务和完成任务的事件名称及 JSON 示例。不要执行命令，不要读取或修改文件。";
-const state = { settings: null, statuses: new Map(), customConnections: [], displays: [], codexPets: [], activeTab: "general", busy: new Set(), latestUpdate: null };
+const state = { settings: null, statuses: new Map(), displays: [], codexPets: [], activeTab: "general", busy: new Set(), latestUpdate: null };
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -209,7 +208,6 @@ function statusBadge(report) {
 async function refreshAgents() {
   const reports = await api.getHookStatus();
   state.statuses = new Map((reports || []).map(report => [report.agentId, report]));
-  state.customConnections = await api.listCustomAgentConnections?.() || [];
   if (state.activeTab === "agents") renderPage();
 }
 
@@ -289,30 +287,6 @@ function agentCard(report) {
 
 function agentsPage() {
   const root = document.createDocumentFragment();
-  const custom = section("接入我的智能体", "不知道 Hook 是什么也没关系：先让智能体查阅它自己的官方文档。只有官方本地 Hook 才能可靠显示项目、提示词和运行状态。");
-  const discover = el("div", "custom-agent-guide");
-  discover.append(el("p", "agent-detail", DISCOVERY_PROMPT), button("复制查询提示词", async () => { await navigator.clipboard.writeText(DISCOVERY_PROMPT); showToast("提示词已复制"); }));
-  const form = el("div", "custom-agent-form");
-  const field = (placeholder, aria) => { const input = el("input", "text-input"); input.placeholder = placeholder; input.setAttribute("aria-label", aria); return input; };
-  const idInput = field("标识，例如 mimo", "智能体标识");
-  const labelInput = field("名称，例如 MIMO", "智能体名称");
-  const pathInput = field("配置路径，例如 /Users/你/.mimo/hooks.json", "Hook 配置路径");
-  const promptInput = field("提交任务事件名", "提交任务事件名");
-  const stopInput = field("完成任务事件名", "完成任务事件名");
-  const connect = button("预览接入", async () => {
-    try {
-      const input = { id: idInput.value.trim(), label: labelInput.value.trim(), configPath: pathInput.value.trim(), eventMap: { [promptInput.value.trim()]: "UserPromptSubmit", [stopInput.value.trim()]: "Stop" } };
-      const preview = await api.previewCustomAgentConnection(input);
-      if (!window.confirm(`将写入：${preview.configPath}\n事件：${preview.events.map(item => item.externalEvent).join("、")}\n\n确认写入并开始验证？`)) return;
-      await api.installCustomAgentConnection(input); await refreshAgents(); showToast("已配置。请先发送一条测试消息，收到真实事件后会变为已验证接入");
-    } catch (error) { showToast(error.message || String(error), true); }
-  }, "primary");
-  form.append(idInput, labelInput, pathInput, promptInput, stopInput, connect);
-  custom.append(discover, form);
-  for (const connection of state.customConnections) {
-    const status = connection.status?.state === "verified" ? "已收到真实事件 · 已验证接入" : "已配置，等待真实事件";
-    custom.append(row(connection.label, `${connection.configPath} · ${status}`, button("移除连接", async () => { await api.uninstallCustomAgentConnection(connection.source); await refreshAgents(); }, "danger")));
-  }
   const hooks = section("本地 Agent", "连接只会修改对应 Agent 的本地 Hook 配置，不依赖云端服务。");
   const grid = el("div", "agent-list");
   for (const report of state.statuses.values()) grid.append(agentCard(report));
@@ -323,7 +297,7 @@ function agentsPage() {
     button("移除全部 Hook", async () => { await api.uninstallAllHooks(); await refreshAgents(); }, "danger")
   );
   hooks.append(tools);
-  root.append(custom, hooks);
+  root.append(hooks);
   return root;
 }
 
