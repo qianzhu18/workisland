@@ -2568,12 +2568,16 @@ class CopilotCliAdapter {
     return eventName === "preToolUse";
   }
 }
+class TraeWorkHookAdapter extends TraeHookAdapter {
+  agentId = "traework";
+}
 module.exports = {
   CocoAdapter,
   CursorAdapter,
   OpenCodeAdapter,
   SaraAdapter,
   TraeHookAdapter,
+  TraeWorkHookAdapter,
   KimiAdapter,
   CopilotCliAdapter
 };

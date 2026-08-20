@@ -785,23 +785,31 @@ async function writeJson$b(filePath, data) {
 }
 class BaseTraeHookManager {
   agentId;
+  configType;
+  commandSource;
+  requiresManifest;
   queue = Promise.resolve();
-  constructor(agentId) {
+  constructor(agentId, configType = agentId, commandSource = agentId, requiresManifest = false) {
     this.agentId = agentId;
+    this.configType = configType;
+    this.commandSource = commandSource;
+    this.requiresManifest = requiresManifest;
   }
   async install() {
     log.info("[TraeHookManager] install %s: events=%d", this.agentId, TRAE_EVENTS.length);
-    const hookCommand = buildCommand$5(this.agentId);
+    const hookCommand = buildCommand$5(this.commandSource);
     await this.enqueue(async () => {
-      await installTraeHook({ homeDir: os.homedir(), hookCommand }, this.agentId, { logger: log });
+      await installTraeHook({ homeDir: os.homedir(), hookCommand }, this.configType, { logger: log });
     });
     await this.enqueue(() => this.persistManifest());
   }
-  async uninstall() {
+  async uninstall(options = {}) {
     log.info("[TraeHookManager] uninstall %s", this.agentId);
-    await this.enqueue(async () => {
-      await uninstallTraeHook(os.homedir(), this.agentId, { logger: log });
-    });
+    if (!options.preserveSharedConfig) {
+      await this.enqueue(async () => {
+        await uninstallTraeHook(os.homedir(), this.configType, { logger: log });
+      });
+    }
     if (!options.preserveVerification) {
       try {
         await promises.unlink(getManifestPath$7(this.agentId));
@@ -815,10 +823,13 @@ class BaseTraeHookManager {
     if (!utils.is.dev && !fs.existsSync(binaryPath)) {
       issues.push(`Hook binary not found: ${binaryPath}`);
     }
-    const hookCommand = buildCommand$5(this.agentId);
-    const sharedIssues = await checkTraeHook(os.homedir(), hookCommand, this.agentId);
+    const hookCommand = buildCommand$5(this.commandSource);
+    const sharedIssues = await checkTraeHook(os.homedir(), hookCommand, this.configType);
     issues.push(...sharedIssues);
     const manifest = await readJson$9(getManifestPath$7(this.agentId));
+    if (this.requiresManifest && !manifest) {
+      issues.push(`${this.agentId} 尚未在 WorkIsland 中连接`);
+    }
     return {
       agentId: this.agentId,
       installed: issues.length === 0,
@@ -847,7 +858,7 @@ class BaseTraeHookManager {
     const existing = await readJson$9(getManifestPath$7(this.agentId));
     const now = (/* @__PURE__ */ new Date()).toISOString();
     const manifest = {
-      configPath: getTraeConfigPath(os.homedir(), this.agentId),
+      configPath: getTraeConfigPath(os.homedir(), this.configType),
       events: TRAE_EVENTS.map((e) => e.event),
       installedAt: existing?.installedAt ?? now,
       ...(existing?.lastVerifiedAt ? {
@@ -873,9 +884,24 @@ class TraeHookManager extends BaseTraeHookManager {
     super("trae");
   }
 }
+class TraeWorkHookManager extends BaseTraeHookManager {
+  constructor() {
+    // TraeWork reads the same ~/.trae/hooks.json as TraeCode. The hook CLI
+    // identifies TraeWork from its parent desktop process and relabels events.
+    super("traework", "trae", "trae", true);
+  }
+  async checkHealth() {
+    const health = await super.checkHealth();
+    const homeApplications = path.join(os.homedir(), "Applications", "TRAE SOLO.app");
+    return {
+      ...health,
+      available: fs.existsSync("/Applications/TRAE SOLO.app") || fs.existsSync(homeApplications)
+    };
+  }
+}
 class TraeCnHookManager extends BaseTraeHookManager {
   constructor() {
     super("trae-cn");
   }
 }
-module.exports = { CocoHookManager, CursorHookManager, TraeHookManager, TraeCnHookManager };
+module.exports = { CocoHookManager, CursorHookManager, TraeHookManager, TraeWorkHookManager, TraeCnHookManager };

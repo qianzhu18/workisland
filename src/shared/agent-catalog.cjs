@@ -16,10 +16,16 @@ const CORE_AGENT_DESCRIPTORS = Object.freeze([
   descriptor("trae", "TraeCode", "#5967E9", "支持 TraeCode v3.5.66+。连接后还需在 TraeCode 设置 → Hooks 中启用“已配置的 Hooks”，并将运行方式设为“本地自动运行”；收到真实任务事件后才显示已验证。", {
     completion: "native", approval: "observe", question: "observe", jump: "workspace"
   }),
+  descriptor("traework", "TraeWork", "#5967E9", "TraeWork 已内置全局和项目级 Hooks；当前桌面版默认在沙箱中执行，且部分会话由云端执行。收到真实本地 Hook 事件后才显示已验证；若一直未连接，需要 TraeWork 开放本地执行授权或本地回调能力。", {
+    completion: "native", approval: "observe", question: "observe", jump: "app"
+  }),
   descriptor("zcode", "ZCode", "#635BFF", "ZCode 原生配置 Hook，支持实时状态、完成提醒和 Island 审批。", {
     completion: "native", approval: "bridge", question: "nativeOnly", jump: "app"
   }),
-  descriptor("workbuddy", "WorkBuddy / CodeBuddy", "#2F80ED", "WorkBuddy / CodeBuddy Claude-compatible Hook，支持完整会话生命周期和 Island 审批。", {
+  descriptor("workbuddy", "WorkBuddy", "#2F80ED", "WorkBuddy Claude-compatible Hook，支持完整会话生命周期、Island 审批和应用跳转。", {
+    completion: "native", approval: "bridge", question: "bridge", jump: "app"
+  }),
+  descriptor("codebuddy", "CodeBuddy（国内版）", "#2F80ED", "CodeBuddy 国内版 Claude-compatible Hook，独立连接 ~/.codebuddy/settings.json，支持完整会话生命周期、Island 审批和应用跳转。", {
     completion: "native", approval: "bridge", question: "bridge", jump: "app"
   }),
   descriptor("opencode", "OpenCode", "#6E64D8", "本地插件接入，支持会话、工具、权限和问题交互。", {

@@ -3,9 +3,9 @@
 const log = require("electron-log");
 const crypto$1 = require("node:crypto");
 const { ClaudeAdapter, CodexAdapter } = require("./adapters-cli.cjs");
-const { CocoAdapter, CursorAdapter, OpenCodeAdapter, SaraAdapter, TraeHookAdapter, KimiAdapter, CopilotCliAdapter } = require("./adapters-ide.cjs");
+const { CocoAdapter, CursorAdapter, OpenCodeAdapter, SaraAdapter, TraeHookAdapter, TraeWorkHookAdapter, KimiAdapter, CopilotCliAdapter } = require("./adapters-ide.cjs");
 const { GeminiAdapter, HermesAdapter, AidenAdapter, TraexCliAdapter } = require("./adapters-extended.cjs");
-const { ZCodeAdapter, WorkBuddyAdapter } = require("./adapters-work-agents.cjs");
+const { ZCodeAdapter, WorkBuddyAdapter, CodeBuddyAdapter } = require("./adapters-work-agents.cjs");
 const { DeepSeekHarnessAdapter } = require("./adapters-dsh.cjs");
 
 function createLocalHookAdapterRegistry() {
@@ -16,9 +16,11 @@ function createLocalHookAdapterRegistry() {
     new CursorAdapter(),
     new ZCodeAdapter(),
     new WorkBuddyAdapter(),
+    new CodeBuddyAdapter(),
     new OpenCodeAdapter(),
     new SaraAdapter(),
     new TraeHookAdapter(),
+    new TraeWorkHookAdapter(),
     new KimiAdapter(),
     new CopilotCliAdapter(),
     new GeminiAdapter(),

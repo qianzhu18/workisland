@@ -135,6 +135,11 @@ function enrichPayload(payload, eventName) {
   return enrichTerminalContext(next);
 }
 
+function resolveHookSource(source, payload) {
+  if (source === "trae" && payload?.terminal_app === "TraeWork") return "traework";
+  return source;
+}
+
 function sendHook(socketPath, source, payload) {
   return new Promise((resolve, reject) => {
     const socket = net.createConnection(socketPath);
@@ -181,8 +186,9 @@ async function main() {
   const eventName = readArg("--event");
   const raw = await readStdin();
   const payload = enrichPayload(raw.trim() ? JSON.parse(raw) : {}, eventName);
+  const effectiveSource = resolveHookSource(source, payload);
   const socketPath = process.env.FLUX_SOCKET_PATH || path.join(os.homedir(), ".flux", "run", "bridge.sock");
-  const response = await sendHook(socketPath, source, payload);
+  const response = await sendHook(socketPath, effectiveSource, payload);
   if (response?.type === "hookDirective" && response.directive) {
     process.stdout.write(`${JSON.stringify(response.directive)}\n`);
   }
@@ -205,5 +211,6 @@ module.exports = {
   detectDesktopHostFromProcessList,
   enrichTerminalContext,
   enrichPayload,
+  resolveHookSource,
   run
 };

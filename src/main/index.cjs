@@ -210,6 +210,7 @@ const {
   OpenCodeAdapter,
   SaraAdapter,
   TraeHookAdapter,
+  TraeWorkHookAdapter,
   KimiAdapter,
   CopilotCliAdapter
 } = require("./adapters-ide.cjs");
@@ -240,9 +241,11 @@ const {
 const SOURCE_TO_TERMINAL_APP = {
   cursor: "Cursor",
   trae: "Trae",
+  traework: "TraeWork",
   "trae-cn": "Trae CN",
   zcode: "ZCode",
-  workbuddy: "WorkBuddy"
+  workbuddy: "WorkBuddy",
+  codebuddy: "CodeBuddy CN"
 };
 const GENERIC_VSCODE_APPS = /* @__PURE__ */ new Set([
   "vs code",
@@ -475,7 +478,7 @@ const {
   OPENCODE_BITS_PLUGIN_FILENAME
 } = require("./hook-shared.cjs");
 const { ClaudeHookManager, CodexHookManager } = require("./hooks-core.cjs");
-const { CocoHookManager, CursorHookManager, TraeHookManager, TraeCnHookManager } = require("./hooks-editors.cjs");
+const { CocoHookManager, CursorHookManager, TraeHookManager, TraeWorkHookManager, TraeCnHookManager } = require("./hooks-editors.cjs");
 const {
   OpenCodePluginManager,
   SaraPluginManager,
@@ -562,6 +565,11 @@ const TOOL_JUMP_HANDLERS = {
   trae: {
     toolName: "trae",
     defaultApp: "Trae",
+    jump: (t) => jumpTraeAgentSession(t)
+  },
+  traework: {
+    toolName: "traework",
+    defaultApp: "TRAE SOLO",
     jump: (t) => jumpTraeAgentSession(t)
   },
   "trae-cn": {

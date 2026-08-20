@@ -67,11 +67,16 @@ test("current TraeCode Hooks are offered with real-event verification, without u
   assert.match(catalogSource, /启用“已配置的 Hooks”/);
   assert.match(catalogSource, /“本地自动运行”/);
   assert.doesNotMatch(catalogSource, /descriptor\("trae-cn",/);
-  assert.match(source, /VERIFY_ON_REAL_EVENT_AGENT_IDS = new Set\(\["dsh", "trae"\]\)/);
+  assert.match(catalogSource, /descriptor\("traework",\s*"TraeWork"/);
+  assert.match(catalogSource, /默认在沙箱中执行/);
+  assert.match(source, /VERIFY_ON_REAL_EVENT_AGENT_IDS = new Set\(\["dsh", "trae", "traework"\]\)/);
   assert.match(coordinatorSource, /\["trae", new TraeHookManager\(\)\]/);
+  assert.match(coordinatorSource, /\["traework", new TraeWorkHookManager\(\)\]/);
   assert.match(coordinatorSource, /manager\.uninstall\(\{ preserveVerification: true \}\)/);
-  assert.match(coordinatorSource, /agentId === "trae"[\s\S]*health\?\.installed[\s\S]*preserving user approval/);
+  assert.match(coordinatorSource, /\["trae", "traework"\]\.includes\(agentId\)[\s\S]*health\?\.installed[\s\S]*preserving user approval/);
   assert.doesNotMatch(coordinatorSource, /UNSUPPORTED_HOOK_SOURCES/);
   const managerSource = readFileSync(new URL("../src/main/hooks-editors.cjs", import.meta.url), "utf8");
   assert.match(managerSource, /existing\?\.lastVerifiedAt[\s\S]*lastVerifiedEvent: existing\.lastVerifiedEvent/);
+  assert.match(managerSource, /super\("traework", "trae", "trae", true\)/);
+  assert.match(managerSource, /available: fs\.existsSync\("\/Applications\/TRAE SOLO\.app"\)/);
 });

@@ -13,8 +13,10 @@ const EXPECTED_AGENT_ICONS = Object.freeze({
   coco: "trae.svg",
   cursor: "cursor.svg",
   trae: "trae.svg",
+  traework: "trae.svg",
   zcode: "zcode.svg",
   workbuddy: "codebuddy.svg",
+  codebuddy: "codebuddy.svg",
   opencode: "opencode.svg",
   sara: "sara.svg",
   kimi: "kimi.svg",
@@ -54,7 +56,8 @@ test("Agent cards render image assets without letter placeholders", () => {
   assert.match(settingsSource, /icon\.draggable = false/);
 });
 
-test("the shared WorkBuddy adapter is presented as supporting CodeBuddy", () => {
-  const descriptor = listCoreAgentDescriptors().find(({ agentId }) => agentId === "workbuddy");
-  assert.equal(descriptor?.label, "WorkBuddy / CodeBuddy");
+test("WorkBuddy and CodeBuddy are presented as separate products", () => {
+  const descriptors = new Map(listCoreAgentDescriptors().map((entry) => [entry.agentId, entry]));
+  assert.equal(descriptors.get("workbuddy")?.label, "WorkBuddy");
+  assert.equal(descriptors.get("codebuddy")?.label, "CodeBuddy（国内版）");
 });

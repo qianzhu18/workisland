@@ -510,6 +510,7 @@ function createBridgeServerClass({
             }
           };
         case "workbuddy":
+        case "codebuddy":
           return wrapWorkBuddyPermissionDecision(false, message);
         case "opencode":
         case "sara":
@@ -530,7 +531,7 @@ function createBridgeServerClass({
       if (pending.tool === "claude" && pending.questionPayload) {
         return this.buildClaudeAnswerDirective(pending, payload);
       }
-      if (pending.tool === "workbuddy" && pending.questionPayload) {
+      if ((pending.tool === "workbuddy" || pending.tool === "codebuddy") && pending.questionPayload) {
         return this.buildWorkBuddyAnswerDirective(pending, payload);
       }
       if (pending.tool === "copilot-cli") {
@@ -616,6 +617,7 @@ function createBridgeServerClass({
         case "claude":
           return this.buildClaudeQuestionCancelDirective();
         case "workbuddy":
+        case "codebuddy":
           return wrapWorkBuddyPermissionDecision(false, _cancel.message ?? "User cancelled");
         case "opencode":
         case "sara":
