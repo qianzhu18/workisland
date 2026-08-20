@@ -13,6 +13,7 @@ const utils = require("@electron-toolkit/utils");
 const { getSocketPath } = require("./bridge-protocol.cjs");
 const { shellQuote, buildDevHooksCliCommand, wrapWithInstallCheck } = require("./hook-shared.cjs");
 const { discoverRunningDshProfiles } = require("./dsh-profile-discovery.cjs");
+const { createSerializedJsonUpdater } = require("./serialized-json-updater.cjs");
 const execFileAsync = promisify(execFile);
 
 function commandQuote(value) { return `'${String(value).replace(/'/g, `'\\''`)}'`; }
@@ -121,7 +122,7 @@ class PluginHookManager {
     await this.plugin.install(ctx);
     log.info("[PluginHookManager:%s] installed", this.plugin.id);
   }
-  async uninstall() {
+  async uninstall(options = {}) {
     const ctx = this.createCtx();
     await this.plugin.uninstall(ctx);
     log.info("[PluginHookManager:%s] uninstalled", this.plugin.id);
@@ -159,6 +160,7 @@ class DeepSeekHarnessHookManager {
   agentId = "dsh";
   configPath = path.join(os.homedir(), ".flux", "dsh-workisland-bridge.json");
   defaultProfileDir = path.join(os.homedir(), ".dsh", "profiles", "web");
+  updateConfig = createSerializedJsonUpdater(this.configPath);
   async readConfig() {
     try { return JSON.parse(await promises.readFile(this.configPath, "utf8")); } catch { return null; }
   }
@@ -196,6 +198,7 @@ class DeepSeekHarnessHookManager {
     await promises.writeFile(profilePath, JSON.stringify(profile, null, 2) + "\n", "utf8");
   }
   async install() {
+    const existing = await this.readConfig();
     const command = buildSourceHookCommand("dsh");
     const bundlePath = utils.is.dev
       ? path.join(electron.app.getAppPath(), "resources", "dsh-workisland-bridge")
@@ -210,11 +213,20 @@ class DeepSeekHarnessHookManager {
       } catch (error) { throw new Error(`DeepSeek Harness ${target.name} profile 安装失败：${error?.stderr || error?.message || "未知错误"}`); }
     }
     await promises.mkdir(path.dirname(this.configPath), { recursive: true });
+    const profileDirs = targets.map((target) => target.profileDir).sort();
+    const existingProfileDirs = Array.isArray(existing?.profiles)
+      ? existing.profiles.map((target) => target.profileDir).filter(Boolean).sort()
+      : [];
+    const preservesVerification = JSON.stringify(profileDirs) === JSON.stringify(existingProfileDirs);
     await promises.writeFile(this.configPath, JSON.stringify({
       command,
-      installedAt: new Date().toISOString(),
+      installedAt: existing?.installedAt || new Date().toISOString(),
       restartRequired: targets.some((target) => target.pid),
-      profiles: targets.map(({ pid, name, homeDir, profileDir }) => ({ pid, name, homeDir, profileDir }))
+      profiles: targets.map(({ pid, name, homeDir, profileDir }) => ({ pid, name, homeDir, profileDir })),
+      ...(preservesVerification && existing?.lastVerifiedAt ? {
+        lastVerifiedAt: existing.lastVerifiedAt,
+        lastVerifiedEvent: existing.lastVerifiedEvent
+      } : {})
     }, null, 2) + "\n", "utf8");
   }
   async uninstall() {
@@ -227,17 +239,20 @@ class DeepSeekHarnessHookManager {
       await runProfilePnpm(profileDir, ["remove", "@workisland/dsh-bridge"]).catch(() => {});
       await this.updateProfileBundle(profilePath, false).catch(() => {});
     }
-    await promises.unlink(this.configPath).catch(() => {});
+    if (!options.preserveVerification) {
+      await promises.unlink(this.configPath).catch(() => {});
+    }
   }
   async recordEvent(event) {
-    const config = await this.readConfig();
-    if (!config) return;
-    await promises.writeFile(this.configPath, JSON.stringify({
+    await this.updateConfig((config) => ({
       ...config,
       restartRequired: false,
       lastVerifiedAt: new Date().toISOString(),
       lastVerifiedEvent: event?.type || "unknown"
-    }, null, 2) + "\n", "utf8");
+    })).catch((error) => {
+      if (error?.code === "ENOENT" || error instanceof SyntaxError) return;
+      throw error;
+    });
   }
   async checkHealth() {
     try {

@@ -568,6 +568,16 @@ const TOOL_JUMP_HANDLERS = {
     toolName: "trae-cn",
     defaultApp: "Trae CN",
     jump: (t) => jumpTraeAgentSession(t)
+  },
+  dsh: {
+    toolName: "dsh",
+    defaultApp: "dsh",
+    jump: async (target) => {
+      const url = typeof target?.url === "string" && target.url.startsWith("http://127.0.0.1:")
+        ? target.url
+        : "http://127.0.0.1:3080/";
+      await electron.shell.openExternal(url);
+    }
   }
 };
 const { createAppCoordinatorClass } = require("./app-coordinator.cjs");

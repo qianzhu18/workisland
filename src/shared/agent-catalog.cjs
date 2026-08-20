@@ -13,6 +13,9 @@ const CORE_AGENT_DESCRIPTORS = Object.freeze([
   descriptor("cursor", "Cursor", "#6E7CF6", "Cursor 原生 Hook，支持 Agent turn、Shell、MCP 和文件活动。", {
     completion: "native", approval: "observe", question: "observe", jump: "workspace"
   }),
+  descriptor("trae", "TraeCode", "#5967E9", "支持 TraeCode v3.5.66+。连接后还需在 TraeCode 设置 → Hooks 中启用“已配置的 Hooks”，并将运行方式设为“本地自动运行”；收到真实任务事件后才显示已验证。", {
+    completion: "native", approval: "observe", question: "observe", jump: "workspace"
+  }),
   descriptor("zcode", "ZCode", "#635BFF", "ZCode 原生配置 Hook，支持实时状态、完成提醒和 Island 审批。", {
     completion: "native", approval: "bridge", question: "nativeOnly", jump: "app"
   }),
@@ -41,7 +44,7 @@ const CORE_AGENT_DESCRIPTORS = Object.freeze([
     completion: "native", approval: "bridge", question: "observe", jump: "workspace"
   }),
   descriptor("dsh", "DeepSeek Harness", "#4D6BFE", "自动识别正在运行的 DSH_HOME 与 profile，安装生命周期插件；重启 DSH 后支持会话状态、任务消息、运行活动和完成提醒。", {
-    completion: "native", approval: "observe", question: "observe", jump: "workspace"
+    completion: "native", approval: "bridge", question: "observe", jump: "app"
   }),
   descriptor("traex", "TRAE CLI", "#626EE3", "TRAE CLI Hook，支持会话、工具和 Island 审批；不监控 Trae 桌面端会话。", {
     completion: "native", approval: "bridge", question: "observe", jump: "workspace", approvalConfigurable: true

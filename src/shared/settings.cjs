@@ -17,6 +17,9 @@ const DEFAULT_HOOK_TOGGLES = {
   aiden: true,
   sara: true,
   "traex": true,
+  // TraeCode's official Hooks require an explicit configuration write and a
+  // real event before WorkIsland can claim the connection works.
+  trae: false,
   // DSH installation changes the active profile, so it must only run after
   // the user clicks “连接”.
   dsh: false

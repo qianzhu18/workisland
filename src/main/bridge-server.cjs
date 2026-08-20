@@ -383,6 +383,7 @@ function createBridgeServerClass({
             tabId: pickStr("terminal_session_id"),
             paneId: pickStr("warp_pane_uuid"),
             workingDirectory: pickStr("cwd"),
+            url: pickStr("url"),
             ideWorkspace: normalizeIdeWorkspace(hookPayload, overrides),
             pid: normalizeAgentPid(pickNum("pid")),
             kittyListenOn: pickStr("kitty_listen_on"),

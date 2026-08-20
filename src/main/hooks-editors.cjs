@@ -230,7 +230,7 @@ class CocoHookManager {
     };
     await writeJson$f(getManifestPath$9(), manifest);
   }
-  async uninstall() {
+  async uninstall(options = {}) {
     const manifestPath = getManifestPath$9();
     const manifest = await readJson$c(manifestPath);
     await uninstallCocoHook(os.homedir(), {
@@ -802,9 +802,11 @@ class BaseTraeHookManager {
     await this.enqueue(async () => {
       await uninstallTraeHook(os.homedir(), this.agentId, { logger: log });
     });
-    try {
-      await promises.unlink(getManifestPath$7(this.agentId));
-    } catch {
+    if (!options.preserveVerification) {
+      try {
+        await promises.unlink(getManifestPath$7(this.agentId));
+      } catch {
+      }
     }
   }
   async checkHealth() {
@@ -848,6 +850,10 @@ class BaseTraeHookManager {
       configPath: getTraeConfigPath(os.homedir(), this.agentId),
       events: TRAE_EVENTS.map((e) => e.event),
       installedAt: existing?.installedAt ?? now,
+      ...(existing?.lastVerifiedAt ? {
+        lastVerifiedAt: existing.lastVerifiedAt,
+        lastVerifiedEvent: existing.lastVerifiedEvent
+      } : {}),
       updatedAt: now
     };
     log.info("[TraeHookManager] manifest written for %s", this.agentId);

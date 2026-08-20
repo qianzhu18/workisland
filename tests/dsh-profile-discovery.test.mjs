@@ -10,8 +10,20 @@ test("discovers a running custom DSH_HOME and profile from macOS process output"
   assert.deepEqual(discoverRunningDshProfiles(output), [{
     pid: 55307,
     name: "dev",
+    port: 3080,
     homeDir: "/Users/bao/Desktop/deepseek-harness-demo/.dsh",
     profileDir: "/Users/bao/Desktop/deepseek-harness-demo/.dsh/profiles/dev"
+  }]);
+});
+
+test("discovers another user's DSH profile and non-default port without local path assumptions", () => {
+  const output = "8301 ?? S 0:00 node /usr/local/bin/dsh --profile research --port=4912 DSH_HOME=/Users/alice/Agents/harness/.dsh HOME=/Users/alice";
+  assert.deepEqual(discoverRunningDshProfiles(output), [{
+    pid: 8301,
+    name: "research",
+    port: 4912,
+    homeDir: "/Users/alice/Agents/harness/.dsh",
+    profileDir: "/Users/alice/Agents/harness/.dsh/profiles/research"
   }]);
 });
 
