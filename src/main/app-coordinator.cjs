@@ -233,6 +233,15 @@ function createAppCoordinatorClass({
           event.tool,
           event.detectionSource || "hook"
         );
+        // Trae desktop hooks are only considered connected after a real event
+        // reaches the bridge. A syntactically valid hooks.json alone proves
+        // configuration was written, not that the current desktop build runs it.
+        if (event.tool === "trae" || event.tool === "trae-cn") {
+          const manager = this.hookManagers.get(event.tool);
+          void manager?.recordEvent?.(event).catch((error) => {
+            log.warn("[AppCoordinator] failed to record Trae hook verification: %s", error?.message || error);
+          });
+        }
         // 匿名遥测：激活信号每安装只报一次；会话开始按 tool 计数。
         // 服务内部完成白名单过滤与未同意 no-op。
         this.telemetry?.markFirstAgentSignal(event.tool);

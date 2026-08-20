@@ -13,10 +13,10 @@ const CORE_AGENT_DESCRIPTORS = Object.freeze([
   descriptor("cursor", "Cursor", "#6E7CF6", "Cursor 原生 Hook，支持 Agent turn、Shell、MCP 和文件活动。", {
     completion: "native", approval: "observe", question: "observe", jump: "workspace"
   }),
-  descriptor("trae", "TRAE", "#5967E9", "TRAE 国际版原生 Hook，支持实时状态和完成提醒。", {
+  descriptor("trae", "Trae 桌面版（旧 Hook）", "#5967E9", "旧版桌面 Hook：写入配置后，需在一次实际任务中收到事件才会验证为可用。", {
     completion: "native", approval: "observe", question: "observe", jump: "workspace"
   }),
-  descriptor("trae-cn", "TRAE CN", "#5967E9", "TRAE 中国版原生 Hook，支持实时状态和完成提醒。", {
+  descriptor("trae-cn", "Trae CN（旧 Hook）", "#5967E9", "旧版桌面 Hook：写入配置后，需在一次实际任务中收到事件才会验证为可用。", {
     completion: "native", approval: "observe", question: "observe", jump: "workspace"
   }),
   descriptor("zcode", "ZCode", "#635BFF", "ZCode 原生配置 Hook，支持实时状态、完成提醒和 Island 审批。", {
@@ -46,7 +46,7 @@ const CORE_AGENT_DESCRIPTORS = Object.freeze([
   descriptor("aiden", "Aiden", "#626EE3", "Aiden Hook，支持会话、工具和审批状态。", {
     completion: "native", approval: "bridge", question: "observe", jump: "workspace"
   }),
-  descriptor("traex", "TraeX", "#626EE3", "TraeX CLI Hook，支持会话、工具和 Island 审批。", {
+  descriptor("traex", "TRAE CLI", "#626EE3", "TRAE CLI Hook，支持会话、工具和 Island 审批；不监控 Trae 桌面端会话。", {
     completion: "native", approval: "bridge", question: "observe", jump: "workspace", approvalConfigurable: true
   })
 ]);

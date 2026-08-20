@@ -816,12 +816,30 @@ class BaseTraeHookManager {
     const hookCommand = buildCommand$5(this.agentId);
     const sharedIssues = await checkTraeHook(os.homedir(), hookCommand, this.agentId);
     issues.push(...sharedIssues);
+    const manifest = await readJson$9(getManifestPath$7(this.agentId));
     return {
       agentId: this.agentId,
       installed: issues.length === 0,
+      connectionState: issues.length > 0 ? "disconnected" : manifest?.lastVerifiedAt ? "verified" : "configured",
+      lastVerifiedAt: manifest?.lastVerifiedAt,
       issues,
       manifestPath: getManifestPath$7(this.agentId)
     };
+  }
+  async recordEvent(event) {
+    await this.enqueue(async () => {
+      const manifestPath = getManifestPath$7(this.agentId);
+      const manifest = await readJson$9(manifestPath);
+      if (!manifest) return;
+      const now = new Date().toISOString();
+      await writeJson$b(manifestPath, {
+        ...manifest,
+        lastVerifiedAt: now,
+        lastVerifiedEvent: event.type,
+        updatedAt: now
+      });
+      log.info("[TraeHookManager] verified %s from %s", this.agentId, event.type);
+    });
   }
   async persistManifest() {
     const existing = await readJson$9(getManifestPath$7(this.agentId));
