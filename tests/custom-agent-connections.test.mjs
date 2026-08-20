@@ -32,13 +32,14 @@ test("installs and uninstalls only its own marked Hook groups and records verifi
   const manager = new CustomAgentConnectionManager({ homeDir, manifestDir: join(homeDir, ".flux", "hooks"), hookCommandForSource: source => `node flux-hooks --source ${source}` });
   await manager.install(connection);
   const installed = JSON.parse(await readFile(configPath, "utf8"));
-  assert.equal(installed.hooks.Stop.length, 1);
-  assert.match(installed.hooks.Stop[0].hooks[0].command, /--source custom:mimo/);
+  assert.equal(installed.hooks.stop.length, 1);
+  assert.equal(installed.hooks.stop[0].workIsland.event, "Stop");
+  assert.match(installed.hooks.stop[0].hooks[0].command, /--source custom:mimo/);
   assert.equal((await manager.getStatus(connection)).state, "configured");
   await manager.recordVerifiedEvent(connection.source, new Date("2026-08-20T08:00:00.000Z"));
   assert.deepEqual(await manager.getStatus(connection), { state: "verified", verifiedAt: "2026-08-20T08:00:00.000Z" });
-  await writeFile(configPath, JSON.stringify({ ...installed, hooks: { ...installed.hooks, Stop: [{ hooks: [{ type: "command", command: "user-command" }] }, ...installed.hooks.Stop] } }));
+  await writeFile(configPath, JSON.stringify({ ...installed, hooks: { ...installed.hooks, stop: [{ hooks: [{ type: "command", command: "user-command" }] }, ...installed.hooks.stop] } }));
   await manager.uninstall(connection);
   const removed = JSON.parse(await readFile(configPath, "utf8"));
-  assert.deepEqual(removed.hooks.Stop, [{ hooks: [{ type: "command", command: "user-command" }] }]);
+  assert.deepEqual(removed.hooks.stop, [{ hooks: [{ type: "command", command: "user-command" }] }]);
 });

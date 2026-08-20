@@ -579,6 +579,7 @@ const AppCoordinator = createAppCoordinatorClass({
   AgentEventDedup,
   ProcessMonitor,
   AGENT_PLUGINS,
+  adapterRegistry,
   adapterAgentIds: new Set(adapterRegistry.keys()),
   TOOL_JUMP_HANDLERS,
   createInitialState,

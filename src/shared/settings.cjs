@@ -18,7 +18,10 @@ const DEFAULT_HOOK_TOGGLES = {
   "copilot-cli": true,
   aiden: true,
   sara: true,
-  "traex": true
+  "traex": true,
+  // DSH installation downloads the official runtime package and changes its
+  // web profile, so it must only run after the user clicks “连接”.
+  dsh: false
 };
 
 const {

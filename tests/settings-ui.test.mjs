@@ -41,3 +41,15 @@ test("legacy Trae desktop hooks distinguish a written config from a verified con
   assert.match(source, /已实际验证/);
   assert.match(source, /report\?\.connectionState === "verified"/);
 });
+
+test("agents page exposes a guided verified custom Hook connection", () => {
+  assert.match(source, /接入我的智能体/);
+  assert.match(source, /不知道 Hook 是什么/);
+  assert.match(source, /确认写入并开始验证/);
+  assert.match(source, /已收到真实事件/);
+});
+
+test("DeepSeek Harness remains opt-in until the user clicks connect", () => {
+  const settingsSource = readFileSync(new URL("../src/shared/settings.cjs", import.meta.url), "utf8");
+  assert.match(settingsSource, /dsh:\s*false/);
+});

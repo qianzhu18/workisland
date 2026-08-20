@@ -46,7 +46,7 @@ const CORE_AGENT_DESCRIPTORS = Object.freeze([
   descriptor("aiden", "Aiden", "#626EE3", "Aiden Hook，支持会话、工具和审批状态。", {
     completion: "native", approval: "bridge", question: "observe", jump: "workspace"
   }),
-  descriptor("dsh", "DeepSeek Harness", "#4D6BFE", "官方生命周期插件接入，支持会话状态、任务消息、运行活动和完成提醒。", {
+  descriptor("dsh", "DeepSeek Harness", "#4D6BFE", "官方生命周期插件接入；请先运行一次 DSH 以初始化 web profile。支持会话状态、任务消息、运行活动和完成提醒。", {
     completion: "native", approval: "observe", question: "observe", jump: "workspace"
   }),
   descriptor("traex", "TRAE CLI", "#626EE3", "TRAE CLI Hook，支持会话、工具和 Island 审批；不监控 Trae 桌面端会话。", {

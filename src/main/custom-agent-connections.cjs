@@ -60,6 +60,15 @@ class CustomAgentConnectionManager {
   async readManifest(connection) {
     try { return JSON.parse(await promises.readFile(this.manifestPath(connection), "utf8")); } catch { return null; }
   }
+  async list() {
+    let names = [];
+    try { names = await promises.readdir(this.manifestDir); } catch {}
+    const items = [];
+    for (const name of names.filter((entry) => entry.endsWith(".json"))) {
+      try { items.push(JSON.parse(await promises.readFile(path.join(this.manifestDir, name), "utf8"))); } catch {}
+    }
+    return items;
+  }
   async preview(connection) {
     return { configPath: connection.configPath, events: Object.entries(connection.eventMap).map(([event, externalEvent]) => ({ event, externalEvent })), command: this.hookCommandForSource(connection.source) };
   }
@@ -74,9 +83,9 @@ class CustomAgentConnectionManager {
     if (!config || typeof config !== "object" || Array.isArray(config)) throw new Error("Hook 配置不是 JSON 对象，未作任何修改");
     if (!config.hooks || typeof config.hooks !== "object" || Array.isArray(config.hooks)) config.hooks = {};
     const command = this.hookCommandForSource(connection.source);
-    for (const event of Object.keys(connection.eventMap)) {
-      const groups = Array.isArray(config.hooks[event]) ? config.hooks[event] : [];
-      config.hooks[event] = [...groups.filter((group) => group?.workIsland?.connectionId !== connection.id), ownedGroup(connection, event, command)];
+    for (const [event, externalEvent] of Object.entries(connection.eventMap)) {
+      const groups = Array.isArray(config.hooks[externalEvent]) ? config.hooks[externalEvent] : [];
+      config.hooks[externalEvent] = [...groups.filter((group) => group?.workIsland?.connectionId !== connection.id), ownedGroup(connection, event, command)];
     }
     await promises.mkdir(path.dirname(connection.configPath), { recursive: true });
     await promises.writeFile(connection.configPath, JSON.stringify(config, null, 2) + "\n", "utf8");

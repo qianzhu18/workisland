@@ -12,6 +12,10 @@ electron.contextBridge.exposeInMainWorld("settingsApi", {
   installHook: (agentId) => electron.ipcRenderer.invoke(ipc.IPC.SETTINGS_INSTALL_HOOK, { agentId }),
   uninstallHook: (agentId) => electron.ipcRenderer.invoke(ipc.IPC.SETTINGS_UNINSTALL_HOOK, { agentId }),
   uninstallAllHooks: () => electron.ipcRenderer.invoke(ipc.IPC.SETTINGS_UNINSTALL_ALL_HOOKS),
+  listCustomAgentConnections: () => electron.ipcRenderer.invoke(ipc.IPC.SETTINGS_LIST_CUSTOM_AGENT_CONNECTIONS),
+  previewCustomAgentConnection: (input) => electron.ipcRenderer.invoke(ipc.IPC.SETTINGS_PREVIEW_CUSTOM_AGENT_CONNECTION, input),
+  installCustomAgentConnection: (input) => electron.ipcRenderer.invoke(ipc.IPC.SETTINGS_INSTALL_CUSTOM_AGENT_CONNECTION, input),
+  uninstallCustomAgentConnection: (source) => electron.ipcRenderer.invoke(ipc.IPC.SETTINGS_UNINSTALL_CUSTOM_AGENT_CONNECTION, { source }),
   // 插件元信息：renderer 缓存供 AgentToolBadge 等做 label/badgeColor 兜底。
   getPluginAgentMeta: () => electron.ipcRenderer.invoke(ipc.IPC.PLUGIN_AGENT_META),
   onSettingsChanged: (cb) => {
