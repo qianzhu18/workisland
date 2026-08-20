@@ -41,6 +41,7 @@ for (const [agentId, adapter] of Object.entries({
   gemini: require("../src/main/adapters-extended.cjs").GeminiAdapter,
   hermes: require("../src/main/adapters-extended.cjs").HermesAdapter,
   aiden: require("../src/main/adapters-extended.cjs").AidenAdapter,
+  dsh: require("../src/main/adapters-dsh.cjs").DeepSeekHarnessAdapter,
   traex: require("../src/main/adapters-extended.cjs").TraexCliAdapter
 })) adapterRegistry.set(agentId, new adapter());
 adapterRegistry.set("trae-cn", adapterRegistry.get("trae"));
@@ -52,6 +53,7 @@ const scenarios = {
   claude: { hook_event_name: "UserPromptSubmit", prompt: "matrix test" },
   codex: { hook_event_name: "UserPromptSubmit", prompt: "matrix test", transcript_path: "/tmp/missing-transcript" },
   coco: { event_type: "user_prompt_submit", user_prompt_submit: { prompt: "matrix test" } },
+  dsh: { hook_event_name: "UserPromptSubmit", prompt: "matrix test" },
   cursor: { hook_event_name: "beforeSubmitPrompt", prompt: "matrix test" },
   trae: { hook_event_name: "UserPromptSubmit", prompt: "matrix test" },
   "trae-cn": { hook_event_name: "UserPromptSubmit", prompt: "matrix test" },

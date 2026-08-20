@@ -17,7 +17,7 @@ const { ClaudeHookManager, CodexHookManager } = require("./hooks-core.cjs");
 const { CocoHookManager, CursorHookManager, TraeHookManager, TraeCnHookManager } = require("./hooks-editors.cjs");
 const { OpenCodePluginManager, SaraPluginManager, KimiHookManager, GeminiHookManager, CopilotCliHookManager } = require("./hooks-plugins.cjs");
 const { HermesHookManager, AidenHookManager, TraexCliHookManager } = require("./hooks-extended.cjs");
-const { PluginHookManager } = require("./hooks-custom.cjs");
+const { PluginHookManager, DeepSeekHarnessHookManager } = require("./hooks-custom.cjs");
 const { ZCodeHookManager, WorkBuddyHookManager } = require("./hooks-work-agents.cjs");
 const { initSoundDirs, playSoundEvent } = require("./sound-service.cjs");
 const { reportTokenUsage, getHermesCumulativeTokens, diffHermesCumulativeTokens } = require("./adapters-extended.cjs");
@@ -170,7 +170,8 @@ function createAppCoordinatorClass({
         ["copilot-cli", new CopilotCliHookManager()],
         ["hermes", new HermesHookManager()],
         ["aiden", new AidenHookManager()],
-        ["traex", new TraexCliHookManager()]
+        ["traex", new TraexCliHookManager()],
+        ["dsh", new DeepSeekHarnessHookManager()]
       ]);
       for (const plugin of AGENT_PLUGINS) {
         this.hookManagers.set(`plugin:${plugin.id}`, new PluginHookManager(plugin));

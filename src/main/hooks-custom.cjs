@@ -144,4 +144,22 @@ class PluginHookManager {
     };
   }
 }
-module.exports = { PluginHookManager };
+class DeepSeekHarnessHookManager {
+  agentId = "dsh";
+  configPath = path.join(os.homedir(), ".flux", "dsh-workisland-bridge.json");
+  async install() {
+    const command = buildHookCommand("dsh");
+    await promises.mkdir(path.dirname(this.configPath), { recursive: true });
+    await promises.writeFile(this.configPath, JSON.stringify({ command, installedAt: new Date().toISOString() }, null, 2) + "\n", "utf8");
+  }
+  async uninstall() { await promises.unlink(this.configPath).catch(() => {}); }
+  async checkHealth() {
+    try {
+      const config = JSON.parse(await promises.readFile(this.configPath, "utf8"));
+      return { agentId: this.agentId, installed: typeof config.command === "string" && config.command.includes("--source dsh"), issues: [], manifestPath: this.configPath };
+    } catch {
+      return { agentId: this.agentId, installed: false, issues: ["请先在 DeepSeek Harness 的 web profile 中安装 WorkIsland bridge bundle"], manifestPath: this.configPath };
+    }
+  }
+}
+module.exports = { PluginHookManager, DeepSeekHarnessHookManager };
