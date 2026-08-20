@@ -153,12 +153,6 @@ function createTerminalNavigation({ isPluginAgentTool, PLUGIN_BY_TOOL }) {
       bundleId: "cn.trae.app.dev",
       cliPath: "/Applications/Trae CN - Dev.app/Contents/Resources/app/bin/trae-cn-dev",
       displayName: "Trae CN - Dev"
-    },
-    {
-      dirName: "TRAE SOLO",
-      bundleId: "com.trae.solo.app",
-      cliPath: "/Applications/TRAE SOLO.app/Contents/Resources/app/bin/trae-solo",
-      displayName: "TRAE SOLO"
     }
   ];
   function findTraeVariantInfo(dirName) {
@@ -168,7 +162,7 @@ function createTerminalNavigation({ isPluginAgentTool, PLUGIN_BY_TOOL }) {
   const TRAE_VARIANT_DISPATCH_KEYS = new Set(
     TRAE_VARIANTS_INFO.map((v) => v.dirName.toLowerCase())
   );
-  const TRAE_AGENT_TOOLS = /* @__PURE__ */ new Set(["trae", "trae-cn", "traework"]);
+  const TRAE_AGENT_TOOLS = /* @__PURE__ */ new Set(["trae", "trae-cn"]);
   function findTraeVariantByApp(app) {
     if (!app) return void 0;
     const lc = app.toLowerCase();
@@ -220,9 +214,7 @@ function createTerminalNavigation({ isPluginAgentTool, PLUGIN_BY_TOOL }) {
     zcode: "dev.zcode.app",
     workbuddy: "com.workbuddy.workbuddy",
     codebuddy: "com.tencent.codebuddycn",
-    "codebuddy cn": "com.tencent.codebuddycn",
-    traework: "com.trae.solo.app",
-    "trae solo": "com.trae.solo.app"
+    "codebuddy cn": "com.tencent.codebuddycn"
   };
   function getSessionBundleIds(session) {
     const ids = [];
@@ -264,9 +256,6 @@ function createTerminalNavigation({ isPluginAgentTool, PLUGIN_BY_TOOL }) {
       case "coco":
       case "trae":
         ids.push(...TRAE_BUNDLE_IDS);
-        break;
-      case "traework":
-        ids.push("com.trae.solo.app");
         break;
       case "claude":
         ids.push(CLAUDE_DESKTOP_BUNDLE_ID);

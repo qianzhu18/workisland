@@ -13,7 +13,6 @@ const EXPECTED_AGENT_ICONS = Object.freeze({
   coco: "trae.svg",
   cursor: "cursor.svg",
   trae: "trae.svg",
-  traework: "trae.svg",
   zcode: "zcode.svg",
   workbuddy: "codebuddy.svg",
   codebuddy: "codebuddy.svg",

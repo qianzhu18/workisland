@@ -136,6 +136,7 @@ function enrichPayload(payload, eventName) {
 }
 
 function resolveHookSource(source, payload) {
+  if (source === "workbuddy" && payload?.terminal_app === "CodeBuddy CN") return "codebuddy";
   if (source === "trae" && payload?.terminal_app === "TraeWork") return "traework";
   return source;
 }

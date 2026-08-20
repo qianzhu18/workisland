@@ -15,7 +15,6 @@ const AGENT_ICON_URLS = Object.freeze({
   coco: "../assets/brands/trae.svg",
   cursor: "../assets/brands/cursor.svg",
   trae: "../assets/brands/trae.svg",
-  traework: "../assets/brands/trae.svg",
   zcode: "../assets/brands/zcode.svg",
   workbuddy: "../assets/brands/codebuddy.svg",
   codebuddy: "../assets/brands/codebuddy.svg",
@@ -31,7 +30,7 @@ const AGENT_ICON_URLS = Object.freeze({
   "plugin:omp": "../assets/brands/pi.svg",
   "plugin:pi": "../assets/brands/pi.svg"
 });
-const VERIFY_ON_REAL_EVENT_AGENT_IDS = new Set(["dsh", "trae", "traework"]);
+const VERIFY_ON_REAL_EVENT_AGENT_IDS = new Set(["dsh", "trae"]);
 const state = { settings: null, statuses: new Map(), displays: [], codexPets: [], activeTab: "general", busy: new Set(), latestUpdate: null };
 
 function el(tag, className, text) {

@@ -41,18 +41,8 @@ test("desktop hook process trees distinguish CodeBuddy from WorkBuddy", () => {
     "620 610 /Applications/WorkIsland.app/Contents/MacOS/WorkIsland /Applications/WorkIsland.app/Contents/Resources/bin/flux-hooks --source workbuddy"
   ].join("\n");
   assert.equal(detectDesktopHostFromProcessList(processList, 620), "CodeBuddy CN");
-});
-
-test("TraeWork shares the Trae hook file but keeps an independent event source", () => {
-  const processList = [
-    "700 1 /Applications/TRAE SOLO.app/Contents/MacOS/Electron",
-    "710 700 /Applications/TRAE SOLO.app/Contents/Frameworks/TRAE SOLO Helper.app/Contents/MacOS/TRAE SOLO Helper --type=utility",
-    "720 710 /Applications/WorkIsland.app/Contents/MacOS/WorkIsland /Applications/WorkIsland.app/Contents/Resources/bin/flux-hooks --source trae"
-  ].join("\n");
-  assert.equal(detectDesktopHostFromProcessList(processList, 720), "TraeWork");
-  assert.equal(resolveHookSource("trae", { terminal_app: "TraeWork" }), "traework");
-  assert.equal(resolveHookSource("trae", { terminal_app: "Trae" }), "trae");
-  assert.equal(resolveHookSource("codex", { terminal_app: "TraeWork" }), "codex");
+  assert.equal(resolveHookSource("workbuddy", { terminal_app: "CodeBuddy CN" }), "codebuddy");
+  assert.equal(resolveHookSource("workbuddy", { terminal_app: "WorkBuddy" }), "workbuddy");
 });
 
 test("CodeBuddy events keep an independent agent identity", () => {
@@ -102,10 +92,6 @@ test("Claude Code and Codex resolve Warp and Terminal bundle IDs for source jump
     tool: "workbuddy",
     jumpTarget: { app: "CodeBuddy CN" }
   }).includes("com.tencent.codebuddycn"));
-  assert.ok(navigation.getSessionBundleIds({
-    tool: "traework",
-    jumpTarget: { app: "TraeWork" }
-  }).includes("com.trae.solo.app"));
 });
 
 test("packaged launcher remains a JavaScript entrypoint for Electron Node mode", () => {

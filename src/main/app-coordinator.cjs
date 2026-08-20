@@ -15,7 +15,7 @@ const { resolveApprovalMode } = require("../shared/approval-policy.cjs");
 const { saveSessions } = require("./hook-shared.cjs");
 const { readClaudeTranscriptState } = require("./transcript-recovery.cjs");
 const { ClaudeHookManager, CodexHookManager } = require("./hooks-core.cjs");
-const { CocoHookManager, CursorHookManager, TraeHookManager, TraeWorkHookManager } = require("./hooks-editors.cjs");
+const { CocoHookManager, CursorHookManager, TraeHookManager } = require("./hooks-editors.cjs");
 const { OpenCodePluginManager, SaraPluginManager, KimiHookManager, GeminiHookManager, CopilotCliHookManager } = require("./hooks-plugins.cjs");
 const { HermesHookManager, AidenHookManager, TraexCliHookManager } = require("./hooks-extended.cjs");
 const { PluginHookManager, DeepSeekHarnessHookManager } = require("./hooks-custom.cjs");
@@ -161,7 +161,6 @@ function createAppCoordinatorClass({
         ["codex", new CodexHookManager()],
         ["coco", new CocoHookManager()],
         ["trae", new TraeHookManager()],
-        ["traework", new TraeWorkHookManager()],
         ["cursor", new CursorHookManager()],
         ["zcode", new ZCodeHookManager()],
         ["workbuddy", new WorkBuddyHookManager()],
@@ -237,9 +236,9 @@ function createAppCoordinatorClass({
           event.tool,
           event.detectionSource || "hook"
         );
-        // DSH, TraeCode, and TraeWork are only considered verified after a configured
+        // DSH and TraeCode are only considered verified after a configured
         // integration emits a real lifecycle event. Writing config is not E2E proof.
-        if (event.tool === "dsh" || event.tool === "trae" || event.tool === "traework") {
+        if (event.tool === "dsh" || event.tool === "trae") {
           const manager = this.hookManagers.get(event.tool);
           void manager?.recordEvent?.(event).catch((error) => {
             log.warn("[AppCoordinator] failed to record Agent verification: %s", error?.message || error);
@@ -567,7 +566,7 @@ function createAppCoordinatorClass({
           }
           // TraeCode disables its user-approved Hook switch when hooks.json is
           // rewritten. A healthy config must therefore be left untouched.
-          if (["trae", "traework"].includes(agentId)) {
+          if (agentId === "trae") {
             const health = await manager.checkHealth();
             if (health?.installed) {
               log.info("[AppCoordinator] Trae Hook is healthy, preserving user approval");
@@ -1129,11 +1128,7 @@ function createAppCoordinatorClass({
     }
     async uninstallHook(agentId) {
       const manager = this.hookManagers.get(agentId);
-      if (manager) {
-        const sharedPeer = agentId === "trae" ? "traework" : agentId === "traework" ? "trae" : null;
-        const preserveSharedConfig = Boolean(sharedPeer && this.settings.hookToggles?.[sharedPeer]);
-        await manager.uninstall({ preserveSharedConfig });
-      }
+      if (manager) await manager.uninstall();
     }
     // 移除所有已安装的 hook 配置，并将 hookToggles 全部置为 false
     async uninstallAllHooks() {

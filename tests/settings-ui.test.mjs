@@ -60,23 +60,22 @@ test("DeepSeek Harness remains opt-in until the user clicks connect", () => {
   assert.match(settingsSource, /dsh:\s*false/);
 });
 
-test("current TraeCode Hooks are offered with real-event verification, without untested Trae CN", () => {
+test("current TraeCode Hooks are offered without advertising unsupported TraeWork or Trae CN", () => {
   const catalogSource = readFileSync(new URL("../src/shared/agent-catalog.cjs", import.meta.url), "utf8");
   const coordinatorSource = readFileSync(new URL("../src/main/app-coordinator.cjs", import.meta.url), "utf8");
   assert.match(catalogSource, /descriptor\("trae",\s*"TraeCode"/);
   assert.match(catalogSource, /启用“已配置的 Hooks”/);
   assert.match(catalogSource, /“本地自动运行”/);
   assert.doesNotMatch(catalogSource, /descriptor\("trae-cn",/);
-  assert.match(catalogSource, /descriptor\("traework",\s*"TraeWork"/);
-  assert.match(catalogSource, /默认在沙箱中执行/);
-  assert.match(source, /VERIFY_ON_REAL_EVENT_AGENT_IDS = new Set\(\["dsh", "trae", "traework"\]\)/);
+  assert.doesNotMatch(catalogSource, /descriptor\("traework",/);
+  assert.doesNotMatch(source, /traework:/);
+  assert.match(source, /VERIFY_ON_REAL_EVENT_AGENT_IDS = new Set\(\["dsh", "trae"\]\)/);
   assert.match(coordinatorSource, /\["trae", new TraeHookManager\(\)\]/);
-  assert.match(coordinatorSource, /\["traework", new TraeWorkHookManager\(\)\]/);
+  assert.doesNotMatch(coordinatorSource, /\["traework", new TraeWorkHookManager\(\)\]/);
   assert.match(coordinatorSource, /manager\.uninstall\(\{ preserveVerification: true \}\)/);
-  assert.match(coordinatorSource, /\["trae", "traework"\]\.includes\(agentId\)[\s\S]*health\?\.installed[\s\S]*preserving user approval/);
+  assert.match(coordinatorSource, /agentId === "trae"[\s\S]*health\?\.installed[\s\S]*preserving user approval/);
   assert.doesNotMatch(coordinatorSource, /UNSUPPORTED_HOOK_SOURCES/);
   const managerSource = readFileSync(new URL("../src/main/hooks-editors.cjs", import.meta.url), "utf8");
   assert.match(managerSource, /existing\?\.lastVerifiedAt[\s\S]*lastVerifiedEvent: existing\.lastVerifiedEvent/);
-  assert.match(managerSource, /super\("traework", "trae", "trae", true\)/);
-  assert.match(managerSource, /available: fs\.existsSync\("\/Applications\/TRAE SOLO\.app"\)/);
+  assert.doesNotMatch(managerSource, /class TraeWorkHookManager/);
 });

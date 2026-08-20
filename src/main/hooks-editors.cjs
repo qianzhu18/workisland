@@ -787,13 +787,11 @@ class BaseTraeHookManager {
   agentId;
   configType;
   commandSource;
-  requiresManifest;
   queue = Promise.resolve();
-  constructor(agentId, configType = agentId, commandSource = agentId, requiresManifest = false) {
+  constructor(agentId, configType = agentId, commandSource = agentId) {
     this.agentId = agentId;
     this.configType = configType;
     this.commandSource = commandSource;
-    this.requiresManifest = requiresManifest;
   }
   async install() {
     log.info("[TraeHookManager] install %s: events=%d", this.agentId, TRAE_EVENTS.length);
@@ -827,9 +825,6 @@ class BaseTraeHookManager {
     const sharedIssues = await checkTraeHook(os.homedir(), hookCommand, this.configType);
     issues.push(...sharedIssues);
     const manifest = await readJson$9(getManifestPath$7(this.agentId));
-    if (this.requiresManifest && !manifest) {
-      issues.push(`${this.agentId} 尚未在 WorkIsland 中连接`);
-    }
     return {
       agentId: this.agentId,
       installed: issues.length === 0,
@@ -884,24 +879,9 @@ class TraeHookManager extends BaseTraeHookManager {
     super("trae");
   }
 }
-class TraeWorkHookManager extends BaseTraeHookManager {
-  constructor() {
-    // TraeWork reads the same ~/.trae/hooks.json as TraeCode. The hook CLI
-    // identifies TraeWork from its parent desktop process and relabels events.
-    super("traework", "trae", "trae", true);
-  }
-  async checkHealth() {
-    const health = await super.checkHealth();
-    const homeApplications = path.join(os.homedir(), "Applications", "TRAE SOLO.app");
-    return {
-      ...health,
-      available: fs.existsSync("/Applications/TRAE SOLO.app") || fs.existsSync(homeApplications)
-    };
-  }
-}
 class TraeCnHookManager extends BaseTraeHookManager {
   constructor() {
     super("trae-cn");
   }
 }
-module.exports = { CocoHookManager, CursorHookManager, TraeHookManager, TraeWorkHookManager, TraeCnHookManager };
+module.exports = { CocoHookManager, CursorHookManager, TraeHookManager, TraeCnHookManager };
