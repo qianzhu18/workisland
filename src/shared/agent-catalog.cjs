@@ -19,7 +19,7 @@ const CORE_AGENT_DESCRIPTORS = Object.freeze([
   descriptor("zcode", "ZCode", "#635BFF", "ZCode 原生配置 Hook，支持实时状态、完成提醒和 Island 审批。", {
     completion: "native", approval: "bridge", question: "nativeOnly", jump: "app"
   }),
-  descriptor("workbuddy", "WorkBuddy", "#2F80ED", "WorkBuddy / CodeBuddy Claude-compatible Hook，支持完整会话生命周期和 Island 审批。", {
+  descriptor("workbuddy", "WorkBuddy / CodeBuddy", "#2F80ED", "WorkBuddy / CodeBuddy Claude-compatible Hook，支持完整会话生命周期和 Island 审批。", {
     completion: "native", approval: "bridge", question: "bridge", jump: "app"
   }),
   descriptor("opencode", "OpenCode", "#6E64D8", "本地插件接入，支持会话、工具、权限和问题交互。", {

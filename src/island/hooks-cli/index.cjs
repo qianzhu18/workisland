@@ -4,6 +4,7 @@
 const net = require("node:net");
 const os = require("node:os");
 const path = require("node:path");
+const { execFileSync } = require("node:child_process");
 
 const TERMINAL_APP_ALIASES = Object.freeze({
   apple_terminal: "Terminal",
@@ -26,6 +27,48 @@ function canonicalTerminalApp(value) {
   return TERMINAL_APP_ALIASES[normalized] || value.trim();
 }
 
+function desktopHostForCommand(command) {
+  if (typeof command !== "string") return undefined;
+  const normalized = command.toLowerCase();
+  if (normalized.includes("/codebuddy cn.app/")) return "CodeBuddy CN";
+  if (normalized.includes("/workbuddy.app/")) return "WorkBuddy";
+  if (normalized.includes("/trae solo.app/")) return "TraeWork";
+  if (normalized.includes("/trae.app/")) return "Trae";
+  return undefined;
+}
+
+function detectDesktopHostFromProcessList(raw, startPid = process.ppid) {
+  const processes = new Map();
+  for (const line of String(raw || "").split("\n")) {
+    const match = line.trim().match(/^(\d+)\s+(\d+)\s+(.+)$/);
+    if (match) processes.set(Number(match[1]), { parentPid: Number(match[2]), command: match[3] });
+  }
+  let pid = Number(startPid);
+  const seen = new Set();
+  while (pid > 1 && !seen.has(pid)) {
+    seen.add(pid);
+    const entry = processes.get(pid);
+    if (!entry) break;
+    const app = desktopHostForCommand(entry.command);
+    if (app) return app;
+    pid = entry.parentPid;
+  }
+  return undefined;
+}
+
+function detectDesktopHostApp() {
+  try {
+    const raw = execFileSync("/bin/ps", ["-Ao", "pid=,ppid=,command="], {
+      encoding: "utf8",
+      timeout: 500,
+      stdio: ["ignore", "pipe", "ignore"]
+    });
+    return detectDesktopHostFromProcessList(raw, process.ppid);
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * Add terminal context that Claude Code and Codex do not include in hook JSON.
  * Warp exposes TERM_PROGRAM=WarpTerminal; keeping this metadata on the hook
@@ -35,7 +78,8 @@ function enrichTerminalContext(payload, env = process.env) {
   const next = payload;
   const terminalApp = canonicalTerminalApp(next.terminal_app)
     || canonicalTerminalApp(env.TERM_PROGRAM)
-    || (env.WARP_CLI_AGENT_PROTOCOL_VERSION ? "Warp" : undefined);
+    || (env.WARP_CLI_AGENT_PROTOCOL_VERSION ? "Warp" : undefined)
+    || detectDesktopHostApp();
   if (terminalApp && !next.terminal_app) next.terminal_app = terminalApp;
 
   const sessionId = env.WARP_SESSION_ID
@@ -156,4 +200,10 @@ async function run() {
 
 if (require.main === module) void run();
 
-module.exports = { canonicalTerminalApp, enrichTerminalContext, enrichPayload, run };
+module.exports = {
+  canonicalTerminalApp,
+  detectDesktopHostFromProcessList,
+  enrichTerminalContext,
+  enrichPayload,
+  run
+};

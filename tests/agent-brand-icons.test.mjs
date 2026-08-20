@@ -53,3 +53,8 @@ test("Agent cards render image assets without letter placeholders", () => {
   assert.doesNotMatch(settingsSource, /label\.slice\(0, 1\)\.toUpperCase\(\)/);
   assert.match(settingsSource, /icon\.draggable = false/);
 });
+
+test("the shared WorkBuddy adapter is presented as supporting CodeBuddy", () => {
+  const descriptor = listCoreAgentDescriptors().find(({ agentId }) => agentId === "workbuddy");
+  assert.equal(descriptor?.label, "WorkBuddy / CodeBuddy");
+});

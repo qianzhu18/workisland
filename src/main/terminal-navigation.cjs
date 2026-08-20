@@ -212,7 +212,9 @@ function createTerminalNavigation({ isPluginAgentTool, PLUGIN_BY_TOOL }) {
     codex: CODEX_APP_BUNDLE_ID,
     opencode: "com.opencode.app",
     zcode: "dev.zcode.app",
-    workbuddy: "com.workbuddy.workbuddy"
+    workbuddy: "com.workbuddy.workbuddy",
+    "codebuddy cn": "com.tencent.codebuddycn",
+    codebuddy: "com.tencent.codebuddycn"
   };
   function getSessionBundleIds(session) {
     const ids = [];
@@ -265,7 +267,7 @@ function createTerminalNavigation({ isPluginAgentTool, PLUGIN_BY_TOOL }) {
         ids.push("dev.zcode.app");
         break;
       case "workbuddy":
-        ids.push("com.workbuddy.workbuddy");
+        ids.push("com.workbuddy.workbuddy", "com.tencent.codebuddycn");
         break;
       default:
         if (isPluginAgentTool(session.tool)) {

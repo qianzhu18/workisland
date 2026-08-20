@@ -38,8 +38,13 @@ test("settings use product images instead of letter placeholders", () => {
 test("DeepSeek Harness distinguishes a written config from a verified connection", () => {
   assert.match(source, /VERIFY_ON_REAL_EVENT_AGENT_IDS/);
   assert.match(source, /配置已写入/);
-  assert.match(source, /已实际验证/);
+  assert.match(source, /已连接/);
   assert.match(source, /report\?\.connectionState === "verified"/);
+});
+
+test("an open Agents page refreshes connection state after real Hook events", () => {
+  assert.match(source, /AGENT_STATUS_REFRESH_INTERVAL_MS/);
+  assert.match(source, /setInterval\([\s\S]*state\.activeTab === "agents"[\s\S]*refreshAgents/);
 });
 
 test("agents page does not advertise speculative custom Hook connections", () => {
