@@ -8,15 +8,16 @@ const BETA_GROUP_URL = "https://workisland.yanglaishe.cn/#beta-group";
 const USER_GUIDE_URL = "https://workisland.yanglaishe.cn/guide/";
 const WORKISLAND_ICON_URL = "../assets/workisland-icon.png";
 const DEFAULT_AGENT_ICON_URL = "../assets/brands/agent.svg";
+const AGENT_STATUS_REFRESH_INTERVAL_MS = 3000;
 const AGENT_ICON_URLS = Object.freeze({
   claude: "../assets/brands/claude.svg",
   codex: "../assets/brands/codex.png",
   coco: "../assets/brands/trae.svg",
   cursor: "../assets/brands/cursor.svg",
   trae: "../assets/brands/trae.svg",
-  "trae-cn": "../assets/brands/trae.svg",
   zcode: "../assets/brands/zcode.svg",
   workbuddy: "../assets/brands/codebuddy.svg",
+  codebuddy: "../assets/brands/codebuddy.svg",
   opencode: "../assets/brands/opencode.svg",
   sara: "../assets/brands/sara.svg",
   kimi: "../assets/brands/kimi.svg",
@@ -24,10 +25,12 @@ const AGENT_ICON_URLS = Object.freeze({
   "copilot-cli": "../assets/brands/copilot.svg",
   hermes: "../assets/brands/hermes.svg",
   aiden: "../assets/brands/agent.svg",
+  dsh: "../assets/brands/agent.svg",
   traex: "../assets/brands/trae.svg",
   "plugin:omp": "../assets/brands/pi.svg",
   "plugin:pi": "../assets/brands/pi.svg"
 });
+const VERIFY_ON_REAL_EVENT_AGENT_IDS = new Set(["dsh", "trae"]);
 const state = { settings: null, statuses: new Map(), displays: [], codexPets: [], activeTab: "general", busy: new Set(), latestUpdate: null };
 
 function el(tag, className, text) {
@@ -194,8 +197,15 @@ function generalPage() {
 function statusBadge(report) {
   const installed = Boolean(report?.installed);
   const unavailable = report?.available === false;
-  const text = installed ? "已连接" : unavailable ? "未检测" : "未连接";
-  return el("span", `status ${installed ? "installed" : "missing"}`, text);
+  const verifyOnRealEvent = VERIFY_ON_REAL_EVENT_AGENT_IDS.has(report?.agentId);
+  const verified = report?.connectionState === "verified";
+  const text = verifyOnRealEvent && installed
+    ? (verified ? "已连接" : "配置已写入")
+    : installed ? "已连接" : unavailable ? "未检测" : "未连接";
+  const statusClass = verifyOnRealEvent && installed && !verified
+    ? "pending"
+    : installed ? "installed" : "missing";
+  return el("span", `status ${statusClass}`, text);
 }
 
 async function refreshAgents() {
@@ -249,7 +259,10 @@ function agentCard(report) {
   heading.append(el("strong", "", label), statusBadge(report));
   content.append(heading);
   const issues = report?.issues?.filter(Boolean) || [];
-  const detail = report.available === false && !report.installed
+  const verifyOnRealEvent = VERIFY_ON_REAL_EVENT_AGENT_IDS.has(agentId);
+  const detail = verifyOnRealEvent && report.installed && report.connectionState !== "verified"
+    ? (issues[0] || "连接配置已写入；请运行一次实际任务。收到事件后才会显示“已连接”。")
+    : report.available === false && !report.installed
     ? `未检测到 ${label}，安装后即可连接。`
     : issues.length ? issues[0] : report.description;
   content.append(el("div", "agent-detail", detail));
@@ -462,6 +475,9 @@ async function start() {
   api.onSettingsChanged?.(settings => { state.settings = settings; renderPage(); });
   renderPage();
   refreshAgents().catch(() => {});
+  setInterval(() => {
+    if (state.activeTab === "agents") refreshAgents().catch(() => {});
+  }, AGENT_STATUS_REFRESH_INTERVAL_MS);
 }
 
 start().catch(error => {

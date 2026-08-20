@@ -34,3 +34,48 @@ test("settings use product images instead of letter placeholders", () => {
   assert.match(source, /appMark\.draggable = false/);
   assert.doesNotMatch(source, /el\("div", "app-mark", "O"\)/);
 });
+
+test("DeepSeek Harness distinguishes a written config from a verified connection", () => {
+  assert.match(source, /VERIFY_ON_REAL_EVENT_AGENT_IDS/);
+  assert.match(source, /配置已写入/);
+  assert.match(source, /已连接/);
+  assert.match(source, /report\?\.connectionState === "verified"/);
+});
+
+test("an open Agents page refreshes connection state after real Hook events", () => {
+  assert.match(source, /AGENT_STATUS_REFRESH_INTERVAL_MS/);
+  assert.match(source, /setInterval\([\s\S]*state\.activeTab === "agents"[\s\S]*refreshAgents/);
+});
+
+test("agents page does not advertise speculative custom Hook connections", () => {
+  const preloadSource = readFileSync(new URL("../src/preload/settings.js", import.meta.url), "utf8");
+  const ipcSource = readFileSync(new URL("../src/shared/ipc.cjs", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /接入我的智能体|DISCOVERY_PROMPT|customConnections/);
+  assert.doesNotMatch(preloadSource, /CustomAgentConnection/);
+  assert.doesNotMatch(ipcSource, /CUSTOM_AGENT_CONNECTION/);
+});
+
+test("DeepSeek Harness remains opt-in until the user clicks connect", () => {
+  const settingsSource = readFileSync(new URL("../src/shared/settings.cjs", import.meta.url), "utf8");
+  assert.match(settingsSource, /dsh:\s*false/);
+});
+
+test("current TraeCode Hooks are offered without advertising unsupported TraeWork or Trae CN", () => {
+  const catalogSource = readFileSync(new URL("../src/shared/agent-catalog.cjs", import.meta.url), "utf8");
+  const coordinatorSource = readFileSync(new URL("../src/main/app-coordinator.cjs", import.meta.url), "utf8");
+  assert.match(catalogSource, /descriptor\("trae",\s*"TraeCode"/);
+  assert.match(catalogSource, /启用“已配置的 Hooks”/);
+  assert.match(catalogSource, /“本地自动运行”/);
+  assert.doesNotMatch(catalogSource, /descriptor\("trae-cn",/);
+  assert.doesNotMatch(catalogSource, /descriptor\("traework",/);
+  assert.doesNotMatch(source, /traework:/);
+  assert.match(source, /VERIFY_ON_REAL_EVENT_AGENT_IDS = new Set\(\["dsh", "trae"\]\)/);
+  assert.match(coordinatorSource, /\["trae", new TraeHookManager\(\)\]/);
+  assert.doesNotMatch(coordinatorSource, /\["traework", new TraeWorkHookManager\(\)\]/);
+  assert.match(coordinatorSource, /manager\.uninstall\(\{ preserveVerification: true \}\)/);
+  assert.match(coordinatorSource, /agentId === "trae"[\s\S]*health\?\.installed[\s\S]*preserving user approval/);
+  assert.doesNotMatch(coordinatorSource, /UNSUPPORTED_HOOK_SOURCES/);
+  const managerSource = readFileSync(new URL("../src/main/hooks-editors.cjs", import.meta.url), "utf8");
+  assert.match(managerSource, /existing\?\.lastVerifiedAt[\s\S]*lastVerifiedEvent: existing\.lastVerifiedEvent/);
+  assert.doesNotMatch(managerSource, /class TraeWorkHookManager/);
+});

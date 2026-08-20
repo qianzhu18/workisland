@@ -13,9 +13,9 @@ const EXPECTED_AGENT_ICONS = Object.freeze({
   coco: "trae.svg",
   cursor: "cursor.svg",
   trae: "trae.svg",
-  "trae-cn": "trae.svg",
   zcode: "zcode.svg",
   workbuddy: "codebuddy.svg",
+  codebuddy: "codebuddy.svg",
   opencode: "opencode.svg",
   sara: "sara.svg",
   kimi: "kimi.svg",
@@ -23,6 +23,7 @@ const EXPECTED_AGENT_ICONS = Object.freeze({
   "copilot-cli": "copilot.svg",
   hermes: "hermes.svg",
   aiden: "agent.svg",
+  dsh: "agent.svg",
   traex: "trae.svg",
   "plugin:omp": "pi.svg",
   "plugin:pi": "pi.svg"
@@ -52,4 +53,10 @@ test("Agent cards render image assets without letter placeholders", () => {
   assert.match(settingsSource, /AGENT_ICON_URLS\[agentId\]/);
   assert.doesNotMatch(settingsSource, /label\.slice\(0, 1\)\.toUpperCase\(\)/);
   assert.match(settingsSource, /icon\.draggable = false/);
+});
+
+test("WorkBuddy and CodeBuddy are presented as separate products", () => {
+  const descriptors = new Map(listCoreAgentDescriptors().map((entry) => [entry.agentId, entry]));
+  assert.equal(descriptors.get("workbuddy")?.label, "WorkBuddy");
+  assert.equal(descriptors.get("codebuddy")?.label, "CodeBuddy（国内版）");
 });

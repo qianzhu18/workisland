@@ -50,7 +50,11 @@ select { min-width:142px; height:30px; padding:0 28px 0 9px; color:inherit; back
 .agent-detail { margin-top:3px; overflow:hidden; color:var(--muted); font-size:12px; text-overflow:ellipsis; white-space:nowrap; }
 .status { padding:1px 6px; border-radius:5px; font-size:10px; font-weight:600; }
 .status.installed { color:#248a3d; background:rgba(52,199,89,.14); }
+.status.pending { color:#9a6700; background:rgba(255,159,10,.16); }
 .status.missing { color:var(--muted); background:rgba(120,120,128,.12); }
+.custom-agent-guide { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px; border-radius:10px; background:rgba(120,120,128,.08); }
+.custom-agent-form { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:10px; }
+.custom-agent-form .text-input:nth-child(3) { grid-column:1 / -1; }
 .section-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:12px; }
 .range-control { display:flex; align-items:center; gap:10px; min-width:210px; }
 input[type=range] { flex:1; accent-color:var(--accent); }

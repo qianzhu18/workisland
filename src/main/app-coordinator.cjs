@@ -3,6 +3,7 @@
 const electron = require("electron");
 const fs = require("node:fs");
 const path = require("node:path");
+const os = require("node:os");
 const log = require("electron-log");
 const { IPC } = require("../shared/ipc.cjs");
 const { i18n } = require("./i18n.cjs");
@@ -14,11 +15,11 @@ const { resolveApprovalMode } = require("../shared/approval-policy.cjs");
 const { saveSessions } = require("./hook-shared.cjs");
 const { readClaudeTranscriptState } = require("./transcript-recovery.cjs");
 const { ClaudeHookManager, CodexHookManager } = require("./hooks-core.cjs");
-const { CocoHookManager, CursorHookManager, TraeHookManager, TraeCnHookManager } = require("./hooks-editors.cjs");
+const { CocoHookManager, CursorHookManager, TraeHookManager } = require("./hooks-editors.cjs");
 const { OpenCodePluginManager, SaraPluginManager, KimiHookManager, GeminiHookManager, CopilotCliHookManager } = require("./hooks-plugins.cjs");
 const { HermesHookManager, AidenHookManager, TraexCliHookManager } = require("./hooks-extended.cjs");
-const { PluginHookManager } = require("./hooks-custom.cjs");
-const { ZCodeHookManager, WorkBuddyHookManager } = require("./hooks-work-agents.cjs");
+const { PluginHookManager, DeepSeekHarnessHookManager } = require("./hooks-custom.cjs");
+const { ZCodeHookManager, WorkBuddyHookManager, CodeBuddyHookManager } = require("./hooks-work-agents.cjs");
 const { initSoundDirs, playSoundEvent } = require("./sound-service.cjs");
 const { reportTokenUsage, getHermesCumulativeTokens, diffHermesCumulativeTokens } = require("./adapters-extended.cjs");
 const { getAgentDescriptor, validateAgentWiring } = require("../shared/agent-catalog.cjs");
@@ -31,6 +32,7 @@ function createAppCoordinatorClass({
   CodexTranscriptWatcher,
   AgentEventDedup,
   AGENT_PLUGINS,
+  adapterRegistry,
   adapterAgentIds,
   TOOL_JUMP_HANDLERS,
   createInitialState,
@@ -159,10 +161,10 @@ function createAppCoordinatorClass({
         ["codex", new CodexHookManager()],
         ["coco", new CocoHookManager()],
         ["trae", new TraeHookManager()],
-        ["trae-cn", new TraeCnHookManager()],
         ["cursor", new CursorHookManager()],
         ["zcode", new ZCodeHookManager()],
         ["workbuddy", new WorkBuddyHookManager()],
+        ["codebuddy", new CodeBuddyHookManager()],
         ["opencode", new OpenCodePluginManager()],
         ["sara", new SaraPluginManager()],
         ["kimi", new KimiHookManager()],
@@ -170,7 +172,8 @@ function createAppCoordinatorClass({
         ["copilot-cli", new CopilotCliHookManager()],
         ["hermes", new HermesHookManager()],
         ["aiden", new AidenHookManager()],
-        ["traex", new TraexCliHookManager()]
+        ["traex", new TraexCliHookManager()],
+        ["dsh", new DeepSeekHarnessHookManager()]
       ]);
       for (const plugin of AGENT_PLUGINS) {
         this.hookManagers.set(`plugin:${plugin.id}`, new PluginHookManager(plugin));
@@ -233,6 +236,14 @@ function createAppCoordinatorClass({
           event.tool,
           event.detectionSource || "hook"
         );
+        // DSH and TraeCode are only considered verified after a configured
+        // integration emits a real lifecycle event. Writing config is not E2E proof.
+        if (event.tool === "dsh" || event.tool === "trae") {
+          const manager = this.hookManagers.get(event.tool);
+          void manager?.recordEvent?.(event).catch((error) => {
+            log.warn("[AppCoordinator] failed to record Agent verification: %s", error?.message || error);
+          });
+        }
         // 匿名遥测：激活信号每安装只报一次；会话开始按 tool 计数。
         // 服务内部完成白名单过滤与未同意 no-op。
         this.telemetry?.markFirstAgentSignal(event.tool);
@@ -553,8 +564,19 @@ function createAppCoordinatorClass({
             log.info(`[AppCoordinator] hook for ${agentId} is disabled, skipping auto-reinstall`);
             continue;
           }
+          // TraeCode disables its user-approved Hook switch when hooks.json is
+          // rewritten. A healthy config must therefore be left untouched.
+          if (agentId === "trae") {
+            const health = await manager.checkHealth();
+            if (health?.installed) {
+              log.info("[AppCoordinator] Trae Hook is healthy, preserving user approval");
+              continue;
+            }
+          }
           try {
-            await manager.uninstall();
+            // Reconciliation refreshes Hook commands; it must not erase proof
+            // from a real Agent event when the same integration is reinstalled.
+            await manager.uninstall({ preserveVerification: true });
           } catch {
           }
           const options = { statusLineEnabled: this.resolveClaudeStatusLineEnabled(agentId) };

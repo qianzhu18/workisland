@@ -34,6 +34,7 @@ for (const [agentId, adapter] of Object.entries({
   trae: require("../src/main/adapters-ide.cjs").TraeHookAdapter,
   zcode: require("../src/main/adapters-work-agents.cjs").ZCodeAdapter,
   workbuddy: require("../src/main/adapters-work-agents.cjs").WorkBuddyAdapter,
+  codebuddy: require("../src/main/adapters-work-agents.cjs").CodeBuddyAdapter,
   opencode: require("../src/main/adapters-ide.cjs").OpenCodeAdapter,
   sara: require("../src/main/adapters-ide.cjs").SaraAdapter,
   kimi: require("../src/main/adapters-ide.cjs").KimiAdapter,
@@ -41,9 +42,9 @@ for (const [agentId, adapter] of Object.entries({
   gemini: require("../src/main/adapters-extended.cjs").GeminiAdapter,
   hermes: require("../src/main/adapters-extended.cjs").HermesAdapter,
   aiden: require("../src/main/adapters-extended.cjs").AidenAdapter,
+  dsh: require("../src/main/adapters-dsh.cjs").DeepSeekHarnessAdapter,
   traex: require("../src/main/adapters-extended.cjs").TraexCliAdapter
 })) adapterRegistry.set(agentId, new adapter());
-adapterRegistry.set("trae-cn", adapterRegistry.get("trae"));
 const { hasTraexSourceMarker } = require("../src/main/hooks-extended.cjs");
 const { AGENT_PLUGINS } = require("../src/main/agent-registry.cjs");
 Module._load = originalLoad;
@@ -52,11 +53,12 @@ const scenarios = {
   claude: { hook_event_name: "UserPromptSubmit", prompt: "matrix test" },
   codex: { hook_event_name: "UserPromptSubmit", prompt: "matrix test", transcript_path: "/tmp/missing-transcript" },
   coco: { event_type: "user_prompt_submit", user_prompt_submit: { prompt: "matrix test" } },
+  dsh: { hook_event_name: "UserPromptSubmit", prompt: "matrix test" },
   cursor: { hook_event_name: "beforeSubmitPrompt", prompt: "matrix test" },
   trae: { hook_event_name: "UserPromptSubmit", prompt: "matrix test" },
-  "trae-cn": { hook_event_name: "UserPromptSubmit", prompt: "matrix test" },
   zcode: { hook_event_name: "UserPromptSubmit", prompt: "matrix test" },
   workbuddy: { hook_event_name: "UserPromptSubmit", prompt: "matrix test" },
+  codebuddy: { hook_event_name: "UserPromptSubmit", prompt: "matrix test" },
   opencode: { hook_event_name: "UserPromptSubmit", prompt: "matrix test" },
   sara: { hook_event_name: "UserPromptSubmit", prompt: "matrix test" },
   kimi: { hook_event_name: "UserPromptSubmit", prompt: "matrix test" },
