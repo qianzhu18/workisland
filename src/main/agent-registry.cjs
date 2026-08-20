@@ -5,10 +5,10 @@ const crypto$1 = require("node:crypto");
 const { ClaudeAdapter, CodexAdapter } = require("./adapters-cli.cjs");
 const { CocoAdapter, CursorAdapter, OpenCodeAdapter, SaraAdapter, TraeHookAdapter, KimiAdapter, CopilotCliAdapter } = require("./adapters-ide.cjs");
 const { GeminiAdapter, HermesAdapter, AidenAdapter, TraexCliAdapter } = require("./adapters-extended.cjs");
-const { ZCodeAdapter, WorkBuddyAdapter } = require("./adapters-work-agents.cjs");
+const { ZCodeAdapter, WorkBuddyAdapter, CodeBuddyAdapter } = require("./adapters-work-agents.cjs");
+const { DeepSeekHarnessAdapter } = require("./adapters-dsh.cjs");
 
 function createLocalHookAdapterRegistry() {
-  const trae = new TraeHookAdapter();
   const adapters = [
     new ClaudeAdapter(),
     new CodexAdapter(),
@@ -16,18 +16,19 @@ function createLocalHookAdapterRegistry() {
     new CursorAdapter(),
     new ZCodeAdapter(),
     new WorkBuddyAdapter(),
+    new CodeBuddyAdapter(),
     new OpenCodeAdapter(),
     new SaraAdapter(),
-    trae,
+    new TraeHookAdapter(),
     new KimiAdapter(),
     new CopilotCliAdapter(),
     new GeminiAdapter(),
     new HermesAdapter(),
     new AidenAdapter(),
+    new DeepSeekHarnessAdapter(),
     new TraexCliAdapter()
   ];
   const registry = new Map(adapters.map((adapter) => [adapter.agentId, adapter]));
-  registry.set("trae-cn", trae);
   return registry;
 }
 

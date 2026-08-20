@@ -52,6 +52,7 @@ function buildPermissionDirective(pending, resolution) {
       return wrapPermissionRequestDecision(decision);
     }
     case "workbuddy":
+    case "codebuddy":
       return wrapWorkBuddyPermissionDecision(allowed, resolution.message);
     case "zcode":
       return wrapPermissionRequestDecision(createHookDecision(allowed, resolution.message));

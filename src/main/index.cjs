@@ -242,7 +242,8 @@ const SOURCE_TO_TERMINAL_APP = {
   trae: "Trae",
   "trae-cn": "Trae CN",
   zcode: "ZCode",
-  workbuddy: "WorkBuddy"
+  workbuddy: "WorkBuddy",
+  codebuddy: "CodeBuddy CN"
 };
 const GENERIC_VSCODE_APPS = /* @__PURE__ */ new Set([
   "vs code",
@@ -568,6 +569,16 @@ const TOOL_JUMP_HANDLERS = {
     toolName: "trae-cn",
     defaultApp: "Trae CN",
     jump: (t) => jumpTraeAgentSession(t)
+  },
+  dsh: {
+    toolName: "dsh",
+    defaultApp: "dsh",
+    jump: async (target) => {
+      const url = typeof target?.url === "string" && target.url.startsWith("http://127.0.0.1:")
+        ? target.url
+        : "http://127.0.0.1:3080/";
+      await electron.shell.openExternal(url);
+    }
   }
 };
 const { createAppCoordinatorClass } = require("./app-coordinator.cjs");
@@ -579,6 +590,7 @@ const AppCoordinator = createAppCoordinatorClass({
   AgentEventDedup,
   ProcessMonitor,
   AGENT_PLUGINS,
+  adapterRegistry,
   adapterAgentIds: new Set(adapterRegistry.keys()),
   TOOL_JUMP_HANDLERS,
   createInitialState,

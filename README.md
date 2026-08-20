@@ -57,7 +57,7 @@ Use `npm run dev` only when you deliberately want to connect the app to your rea
 
 ## Agent Compatibility
 
-WorkIsland has first-party adapters for Claude Code, Codex, Coco, Cursor, TRAE / TRAE CN, ZCode, WorkBuddy / CodeBuddy, OpenCode, Sara, Kimi Code, Gemini CLI, GitHub Copilot CLI, Hermes, Aiden, and TraeX. The app checks that each core integration has a Hook manager, event adapter, and capability description instead of presenting a connection that cannot work.
+WorkIsland has first-party adapters for Claude Code, Codex, Coco, Cursor, TraeCode, ZCode, WorkBuddy / CodeBuddy, OpenCode, Sara, Kimi Code, Gemini CLI, GitHub Copilot CLI, Hermes, Aiden, DeepSeek Harness, and TRAE CLI. MiMo, Trae Work, Trae CN, and generic custom-Hook connections are not advertised because they have not passed a real end-to-end integration test. TraeCode requires its in-app Hooks switch and local automatic execution mode to be enabled before events can reach WorkIsland.
 
 ## Product Links
 

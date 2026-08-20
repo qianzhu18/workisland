@@ -4,7 +4,13 @@ import { createRequire } from "node:module";
 import { test } from "node:test";
 
 const require = createRequire(import.meta.url);
-const { canonicalTerminalApp, enrichPayload, enrichTerminalContext } = require("../src/island/hooks-cli/index.cjs");
+const {
+  canonicalTerminalApp,
+  detectDesktopHostFromProcessList,
+  enrichPayload,
+  enrichTerminalContext,
+  resolveHookSource
+} = require("../src/island/hooks-cli/index.cjs");
 const { createTerminalNavigation } = require("../src/main/terminal-navigation.cjs");
 
 test("Warp TERM_PROGRAM is normalized for Claude Code hook payloads", () => {
@@ -26,6 +32,24 @@ test("explicit hook metadata wins over inherited terminal environment", () => {
   });
   assert.equal(payload.terminal_app, "Ghostty");
   assert.equal(payload.terminal_session_id, "explicit");
+});
+
+test("desktop hook process trees distinguish CodeBuddy from WorkBuddy", () => {
+  const processList = [
+    "600 1 /Applications/CodeBuddy CN.app/Contents/MacOS/Electron",
+    "610 600 /Applications/CodeBuddy CN.app/Contents/Frameworks/CodeBuddy CN Helper.app/Contents/MacOS/CodeBuddy CN Helper --type=utility",
+    "620 610 /Applications/WorkIsland.app/Contents/MacOS/WorkIsland /Applications/WorkIsland.app/Contents/Resources/bin/flux-hooks --source workbuddy"
+  ].join("\n");
+  assert.equal(detectDesktopHostFromProcessList(processList, 620), "CodeBuddy CN");
+  assert.equal(resolveHookSource("workbuddy", { terminal_app: "CodeBuddy CN" }), "codebuddy");
+  assert.equal(resolveHookSource("workbuddy", { terminal_app: "WorkBuddy" }), "workbuddy");
+});
+
+test("CodeBuddy events keep an independent agent identity", () => {
+  const { CodeBuddyAdapter } = require("../src/main/adapters-work-agents.cjs");
+  const adapter = new CodeBuddyAdapter();
+  assert.equal(adapter.agentId, "codebuddy");
+  assert.equal(adapter.defaultApp, "CodeBuddy CN");
 });
 
 test("enrichPayload keeps the agent PID fallback and Warp context", () => {
@@ -64,6 +88,10 @@ test("Claude Code and Codex resolve Warp and Terminal bundle IDs for source jump
     tool: "claude",
     jumpTarget: { app: "iTerm2" }
   }).includes("com.googlecode.iterm2"));
+  assert.ok(navigation.getSessionBundleIds({
+    tool: "workbuddy",
+    jumpTarget: { app: "CodeBuddy CN" }
+  }).includes("com.tencent.codebuddycn"));
 });
 
 test("packaged launcher remains a JavaScript entrypoint for Electron Node mode", () => {

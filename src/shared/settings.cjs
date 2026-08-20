@@ -6,19 +6,27 @@ const DEFAULT_HOOK_TOGGLES = {
   claude: true,
   codex: true,
   coco: true,
-  trae: true,
-  "trae-cn": true,
   opencode: true,
   cursor: true,
   zcode: true,
   workbuddy: true,
+  codebuddy: true,
   kimi: true,
   hermes: true,
   gemini: true,
   "copilot-cli": true,
   aiden: true,
   sara: true,
-  "traex": true
+  "traex": true,
+  // TraeCode's official Hooks require an explicit configuration write and a
+  // real event before WorkIsland can claim the connection works.
+  trae: false,
+  // TraeWork shares TraeCode's hooks.json, but its current desktop runtime
+  // executes Hooks in a sandbox. Keep it opt-in until a real event verifies it.
+  traework: false,
+  // DSH installation changes the active profile, so it must only run after
+  // the user clicks “连接”.
+  dsh: false
 };
 
 const {

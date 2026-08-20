@@ -151,15 +151,12 @@ function getManifestPath(agentId, homeDir = os.homedir()) {
   return path.join(homeDir, ".flux", "hooks", `${agentId}-manifest.json`);
 }
 
-function getWorkBuddyConfigPaths(homeDir = os.homedir(), { workBuddyInstalled = isWorkBuddyInstalled(homeDir) } = {}) {
-  const candidates = [
-    path.join(homeDir, ".workbuddy", "settings.json"),
-    path.join(homeDir, ".codebuddy", "settings.json")
-  ];
-  const existing = candidates.filter((candidate) => fs.existsSync(candidate));
-  if (existing.length) return existing;
-  if (workBuddyInstalled || fs.existsSync(path.join(homeDir, ".workbuddy"))) return [candidates[0]];
-  return [candidates[1]];
+function getWorkBuddyConfigPath(homeDir = os.homedir()) {
+  return path.join(homeDir, ".workbuddy", "settings.json");
+}
+
+function getCodeBuddyConfigPath(homeDir = os.homedir()) {
+  return path.join(homeDir, ".codebuddy", "settings.json");
 }
 
 function isZCodeInstalled(homeDir = os.homedir()) {
@@ -171,7 +168,12 @@ function isZCodeInstalled(homeDir = os.homedir()) {
 function isWorkBuddyInstalled(homeDir = os.homedir()) {
   return fs.existsSync("/Applications/WorkBuddy.app")
     || fs.existsSync(path.join(homeDir, "Applications", "WorkBuddy.app"))
-    || fs.existsSync(path.join(homeDir, ".workbuddy"))
+    || fs.existsSync(path.join(homeDir, ".workbuddy"));
+}
+
+function isCodeBuddyInstalled(homeDir = os.homedir()) {
+  return fs.existsSync("/Applications/CodeBuddy CN.app")
+    || fs.existsSync(path.join(homeDir, "Applications", "CodeBuddy CN.app"))
     || fs.existsSync(path.join(homeDir, ".codebuddy"));
 }
 
@@ -242,35 +244,41 @@ class ZCodeHookManager {
   }
 }
 
-class WorkBuddyHookManager {
-  agentId = "workbuddy";
+class ClaudeCompatibleWorkAgentHookManager {
+  constructor({ agentId, label, getConfigPath, isInstalled, legacySources = [] }) {
+    this.agentId = agentId;
+    this.label = label;
+    this.getConfigPath = getConfigPath;
+    this.isInstalled = isInstalled;
+    this.legacySources = legacySources;
+  }
 
   async install() {
     const manifestPath = getManifestPath(this.agentId);
     const previousManifest = await readJson(manifestPath);
     const command = buildHookCommand(this.agentId);
-    const configs = [];
-    for (const configPath of getWorkBuddyConfigPaths()) {
-      const current = await readJson(configPath, { strict: true }) ?? {};
-      const previous = previousManifest?.configs?.find((entry) => entry.configPath === configPath);
-      const hadHooksSection = previous?.hadHooksSection ?? Object.hasOwn(current, "hooks");
-      current.hooks = mergeHookGroups(current.hooks, WORKBUDDY_EVENTS, command, this.agentId);
-      await writeJsonAtomic(configPath, current);
-      configs.push({ configPath, hadHooksSection });
-    }
+    const configPath = this.getConfigPath();
+    const current = await readJson(configPath, { strict: true }) ?? {};
+    const previous = previousManifest?.configs?.find((entry) => entry.configPath === configPath);
+    const hadHooksSection = previous?.hadHooksSection ?? Object.hasOwn(current, "hooks");
+    let hooks = current.hooks;
+    for (const legacySource of this.legacySources) hooks = removeHookGroups(hooks, legacySource);
+    current.hooks = mergeHookGroups(hooks, WORKBUDDY_EVENTS, command, this.agentId);
+    await writeJsonAtomic(configPath, current);
+    const configs = [{ configPath, hadHooksSection }];
     await writeJsonAtomic(manifestPath, {
       configs,
       events: WORKBUDDY_EVENTS.map(({ event }) => event),
       installedAt: previousManifest?.installedAt ?? new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });
-    log.info("[WorkBuddyHookManager] installed hooks to %s", configs.map(({ configPath }) => configPath).join(", "));
+    log.info("[%sHookManager] installed hooks to %s", this.label, configPath);
   }
 
   async uninstall() {
     const manifestPath = getManifestPath(this.agentId);
     const manifest = await readJson(manifestPath);
-    const configs = manifest?.configs ?? getWorkBuddyConfigPaths().map((configPath) => ({ configPath }));
+    const configs = manifest?.configs ?? [{ configPath: this.getConfigPath() }];
     for (const config of configs) {
       const current = await readJson(config.configPath, { strict: true });
       if (!current?.hooks || typeof current.hooks !== "object") continue;
@@ -287,19 +295,19 @@ class WorkBuddyHookManager {
     const issues = [];
     const manifest = await readJson(getManifestPath(this.agentId));
     const manifestPaths = manifest?.configs?.map(({ configPath }) => configPath).filter(Boolean) ?? [];
-    const configPaths = manifestPaths.length ? manifestPaths : getWorkBuddyConfigPaths();
+    const configPaths = manifestPaths.length ? manifestPaths : [this.getConfigPath()];
     const command = buildHookCommand(this.agentId);
     for (const configPath of configPaths) {
       const current = await readJson(configPath);
       if (!current) {
-        issues.push(`WorkBuddy Hook 尚未连接：${configPath}`);
+        issues.push(`${this.label} Hook 尚未连接：${configPath}`);
         continue;
       }
       issues.push(...verifyHookGroups(current.hooks, WORKBUDDY_EVENTS, command, this.agentId));
     }
     return {
       agentId: this.agentId,
-      available: isWorkBuddyInstalled(),
+      available: this.isInstalled(),
       installed: issues.length === 0,
       issues,
       manifestPath: getManifestPath(this.agentId),
@@ -308,13 +316,38 @@ class WorkBuddyHookManager {
   }
 }
 
+class WorkBuddyHookManager extends ClaudeCompatibleWorkAgentHookManager {
+  constructor() {
+    super({
+      agentId: "workbuddy",
+      label: "WorkBuddy",
+      getConfigPath: getWorkBuddyConfigPath,
+      isInstalled: isWorkBuddyInstalled
+    });
+  }
+}
+
+class CodeBuddyHookManager extends ClaudeCompatibleWorkAgentHookManager {
+  constructor() {
+    super({
+      agentId: "codebuddy",
+      label: "CodeBuddy",
+      getConfigPath: getCodeBuddyConfigPath,
+      isInstalled: isCodeBuddyInstalled,
+      legacySources: ["workbuddy"]
+    });
+  }
+}
+
 module.exports = {
   ZCODE_EVENTS,
   WORKBUDDY_EVENTS,
   ZCodeHookManager,
   WorkBuddyHookManager,
+  CodeBuddyHookManager,
   getZCodeConfigPath,
-  getWorkBuddyConfigPaths,
+  getWorkBuddyConfigPath,
+  getCodeBuddyConfigPath,
   mergeHookGroups,
   removeHookGroups,
   verifyHookGroups,
