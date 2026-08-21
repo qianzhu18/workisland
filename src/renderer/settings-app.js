@@ -127,10 +127,10 @@ function generalPage() {
     row("全屏时隐藏", "全屏应用位于当前屏幕时隐藏 Island。", toggle(state.settings.hideWhenFullscreen, v => save({ hideWhenFullscreen: v }), "全屏时隐藏")),
     row(
       "Island 显示模式",
-      "极简：没有待办事项时不占用顶部空间，仍可通过顶部热区或快捷键唤回；常驻：空闲时保留紧凑胶囊。两种模式下提交与完成都会短暂显示，审批、提问和错误持续显示。",
+      "常驻（新装默认）：空闲时保留顶部紧凑胶囊，装完即可看到 WorkIsland；极简：空闲时隐藏，需要时通过顶部热区或快捷键唤回。两种模式下提交与完成都会短暂显示，审批、提问和错误持续显示。",
       select(
         state.settings.islandDisplayMode === "persistent" ? "persistent" : "minimal",
-        [["minimal", "极简（推荐）"], ["persistent", "常驻"]],
+        [["persistent", "常驻（默认）"], ["minimal", "极简"]],
         v => save({ islandDisplayMode: v }),
         "Island 显示模式"
       )

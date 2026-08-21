@@ -78,12 +78,14 @@ const DEFAULT_SETTINGS = {
   hoverToOpen: true,
   autoCollapseDelayMs: 4e3,
   hideWhenFullscreen: true,
-  // Single user-facing display mode. "minimal" (default) keeps the top space
-  // clear unless something needs attention; the Island stays reachable via
-  // the hotspot, menu or shortcut. "persistent" keeps a compact pill. The
-  // legacy booleans (alwaysHide / hideWhenNoActiveSessions) are one-time
-  // migration sources only — see migrateIslandDisplayMode().
-  islandDisplayMode: "minimal",
+  // Single user-facing display mode. New installs default to "persistent" so
+  // the Island is visibly there right after installation (owner decision
+  // 2026-08-22: a silent first run reads as "did it even install?"). Users who
+  // find the pill noisy can switch to "minimal", which keeps the top space
+  // clear unless something needs attention. The legacy booleans (alwaysHide /
+  // hideWhenNoActiveSessions) are one-time migration sources only — see
+  // migrateIslandDisplayMode().
+  islandDisplayMode: "persistent",
   // Bumps when the display-mode default must migrate existing installations.
   islandDisplayModeVersion: 1,
   autoCollapseOnMouseLeave: true,
@@ -136,6 +138,17 @@ function migrateIslandDisplayMode(merged, parsed) {
   // booleans when the stored settings predate islandDisplayMode.
   if (parsed.islandDisplayMode === "minimal" || parsed.islandDisplayMode === "persistent") {
     merged.islandDisplayMode = parsed.islandDisplayMode;
+    return;
+  }
+  // A stored file with none of the legacy keys is indistinguishable from a
+  // fresh install (every legacy build persisted `alwaysHide`), so it follows
+  // the current default instead of being force-migrated to "minimal".
+  const hasLegacySignals =
+    parsed.alwaysHide !== undefined ||
+    parsed.notificationModeVersion !== undefined ||
+    parsed.hideWhenNoActiveSessions !== undefined;
+  if (!hasLegacySignals) {
+    merged.islandDisplayMode = DEFAULT_SETTINGS.islandDisplayMode;
     return;
   }
   // `alwaysHide` existed before it was exposed as a user preference and was

@@ -115,7 +115,7 @@ const DEFAULT_SETTINGS = {
   hoverToOpen: true,
   autoCollapseDelayMs: 4e3,
   hideWhenFullscreen: true,
-  islandDisplayMode: "minimal",
+  islandDisplayMode: "persistent",
   islandDisplayModeVersion: 1,
   autoCollapseOnMouseLeave: true,
   completionPopupDurationSec: 5,

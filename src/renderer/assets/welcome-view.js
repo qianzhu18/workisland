@@ -95,7 +95,7 @@ function WelcomeApp() {
         { className: "welcome-btn", type: "button", onClick: start, disabled: starting },
         starting ? "正在保存…" : telemetryConsentOnly ? "保存选择" : "进入 WorkIsland"
       ),
-      telemetryConsentOnly ? null : React.createElement("p", { className: "welcome-hint" }, "进入后，WorkIsland 会显示在屏幕顶部；无刘海或外接屏会使用浮动栏。")
+      telemetryConsentOnly ? null : React.createElement("p", { className: "welcome-hint" }, "进入后，WorkIsland 会常驻在屏幕顶部（无刘海或外接屏使用浮动栏），并有启动提示音；空闲时若觉得打扰，可随时在「设置 → Island 行为」切换为极简模式。")
     )
   );
 }

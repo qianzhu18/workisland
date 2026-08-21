@@ -19,14 +19,19 @@ const baseNotificationSettings = {
 
 // ── Default & migration ─────────────────────────────────────────────────────
 
-test("fresh installs default to minimal display mode", () => {
-  assert.equal(DEFAULT_SETTINGS.islandDisplayMode, "minimal");
-  assert.equal(createDefaultSettings().islandDisplayMode, "minimal");
-  assert.equal(mergeSettings({}).islandDisplayMode, "minimal");
+test("fresh installs default to persistent display mode for first-run visibility", () => {
+  // Owner decision 2026-08-22: a silent minimal first run reads as "did it
+  // even install?". New installs start persistent; minimal stays one click away.
+  assert.equal(DEFAULT_SETTINGS.islandDisplayMode, "persistent");
+  assert.equal(createDefaultSettings().islandDisplayMode, "persistent");
+  // A stored file without any legacy signals is indistinguishable from a
+  // fresh install (every legacy build persisted `alwaysHide`), so it follows
+  // the current default too instead of being force-migrated to "minimal".
+  assert.equal(mergeSettings({}).islandDisplayMode, "persistent");
 });
 
-test("renderer default settings mirror the shared minimal default", () => {
-  assert.match(rendererDefaultsSource, /islandDisplayMode:\s*"minimal"/);
+test("renderer default settings mirror the shared persistent default", () => {
+  assert.match(rendererDefaultsSource, /islandDisplayMode:\s*"persistent"/);
   assert.doesNotMatch(rendererDefaultsSource, /alwaysHide|hideWhenNoActiveSessions/);
 });
 
@@ -134,7 +139,13 @@ test("action-required surfaces are not suppressed when WorkIsland is focused", (
 
 test("settings expose a positive minimal / persistent choice instead of negative toggles", () => {
   assert.match(settingsAppSource, /Island 显示模式/);
-  assert.match(settingsAppSource, /\[\["minimal", "极简（推荐）"\], \["persistent", "常驻"\]\]/);
+  assert.match(settingsAppSource, /\[\["persistent", "常驻（默认）"\], \["minimal", "极简"\]\]/);
   assert.match(settingsAppSource, /save\(\{ islandDisplayMode: v \}\)/);
   assert.doesNotMatch(settingsAppSource, /alwaysHide|hideWhenNoActiveSessions/);
+});
+
+test("onboarding copy points new users at the persistent pill and the minimal switch", () => {
+  const welcomeSource = readFileSync(new URL("../src/renderer/assets/welcome-view.js", import.meta.url), "utf8");
+  assert.match(welcomeSource, /常驻在屏幕顶部/);
+  assert.match(welcomeSource, /极简/);
 });
