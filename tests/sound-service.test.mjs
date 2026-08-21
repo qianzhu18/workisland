@@ -57,7 +57,7 @@ test("short-lived notifications default to five seconds when no user value exist
   assert.equal(mergeSettings({}).completionPopupDurationSec, 5);
 });
 
-test("legacy persistent Islands migrate once to notification mode", () => {
-  assert.equal(mergeSettings({ alwaysHide: false }).alwaysHide, true);
-  assert.equal(mergeSettings({ alwaysHide: false, notificationModeVersion: 1 }).alwaysHide, false);
+test("legacy persistent Islands migrate once to minimal display mode", () => {
+  assert.equal(mergeSettings({ alwaysHide: false }).islandDisplayMode, "minimal");
+  assert.equal(mergeSettings({ alwaysHide: false, notificationModeVersion: 1 }).islandDisplayMode, "persistent");
 });

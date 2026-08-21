@@ -613,7 +613,7 @@ function createAppCoordinatorClass({
       if ("autoCollapseOnMouseLeave" in partial && !this.settings.autoCollapseOnMouseLeave) {
         this.islandWin?.setFocusHidden(false);
       }
-      if ("hideWhenFullscreen" in partial || "alwaysHide" in partial || "hideWhenNoActiveSessions" in partial) {
+      if ("hideWhenFullscreen" in partial || "islandDisplayMode" in partial) {
         this.evaluateFullscreenVisibility();
       }
       if ("petScale" in partial) this.petMode.resize(this.settings.petScale);
@@ -966,9 +966,6 @@ function createAppCoordinatorClass({
       );
       this.islandWindow.webContents.send(IPC.ISLAND_SESSION_UPDATE, sessions);
       this.petMode.send(IPC.PET_SESSION_UPDATE, sessions);
-      // Keep the visibility setting synchronized with the live session list.
-      // This used to be a renderer-only setting, so toggling it had no effect.
-      if (this.settings.hideWhenNoActiveSessions) this.evaluateFullscreenVisibility();
       this.detectApprovalEdge();
       this.detectJumpEdge();
     }
@@ -1357,16 +1354,14 @@ function createAppCoordinatorClass({
     }
     /**
      * 计算灵动岛是否应当收敛为 1px hotspot 形态。
-     * 三条独立触发路径，任一为真即隐藏：
-     *   1. alwaysHide：用户开启「始终隐藏」，与屏幕/全屏状态无关。
+     * 两条独立触发路径，任一为真即隐藏：
+     *   1. islandDisplayMode === "minimal"：用户选择极简模式，空闲时不占用可见顶部空间。
      *   2. hideWhenFullscreen：仅在无刘海屏幕、有全屏应用且菜单栏隐藏时触发。
-     *   3. hideWhenNoActiveSessions：没有可展示的 Agent 会话时隐藏。
      * 隐藏后由 fullscreenOverrideForNotification 配合 broadcastSurface/toggleIslandExpand 临时显现，
      * surfaceDismissed 后再次 evaluate 回到隐藏。
      */
     computeShouldConceal() {
-      if (this.settings.alwaysHide) return true;
-      if (this.settings.hideWhenNoActiveSessions && this.getSessions().length === 0) return true;
+      if (this.settings.islandDisplayMode === "minimal") return true;
       if (!this.settings.hideWhenFullscreen) return false;
       const target = this.displayMgr?.getCurrentTarget();
       if (!target) return false;
