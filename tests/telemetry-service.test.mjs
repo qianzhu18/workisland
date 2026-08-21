@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, existsSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { test } from "node:test";
@@ -14,9 +14,9 @@ function makeService({
   isPackaged = true,
   apiKey = "phc-test-key",
   requests = [],
-  fetchImpl = async () => ({ ok: true })
+  fetchImpl = async () => ({ ok: true }),
+  userDataPath = mkdtempSync(join(tmpdir(), "workisland-telemetry-"))
 } = {}) {
-  const userDataPath = mkdtempSync(join(tmpdir(), "workisland-telemetry-"));
   const settings = { telemetryEnabled };
   const service = createTelemetryService({
     getSettings: () => settings,
@@ -56,6 +56,39 @@ test("without consent nothing is queued or sent", async () => {
   assert.equal(service.queueLength(), 0);
   assert.equal(requests.length, 0);
   assert.equal(service.isConsented(), false);
+});
+
+test("unknown event names are rejected before they reach the queue", () => {
+  const { service } = makeService();
+  service.track("event_added_by_mistake", { secret: "must not leave disk" });
+  service.track("", null);
+  service.track(null, null);
+  assert.equal(service.queueLength(), 0);
+});
+
+test("persisted telemetry is validated before retrying uploads", async () => {
+  const userDataPath = mkdtempSync(join(tmpdir(), "workisland-telemetry-persisted-"));
+  const telemetryPath = join(userDataPath, "telemetry");
+  mkdirSync(telemetryPath, { recursive: true });
+  writeFileSync(join(telemetryPath, "state.json"), JSON.stringify({
+    anonId: 42,
+    activationSent: "yes"
+  }));
+  writeFileSync(join(telemetryPath, "pending.json"), JSON.stringify([
+    { event: EVENTS.APP_LAUNCHED, props: { secret: "must be removed" }, ts: 1_700_000_000_000 },
+    { event: "retired_event", props: {}, ts: 1_700_000_000_000 },
+    { event: EVENTS.SESSION_STARTED, props: { tool: "claude" }, ts: "invalid" },
+    "not-an-event"
+  ]));
+
+  const { service, requests } = makeService({ userDataPath });
+  assert.equal(service.queueLength(), 1, "only a current, well-formed event is retained");
+  await service.flush();
+
+  assert.equal(requests.length, 1);
+  assert.deepEqual(requests[0].body.batch.map((event) => event.event), [EVENTS.APP_LAUNCHED]);
+  assert.equal(typeof requests[0].body.batch[0].distinct_id, "string");
+  assert.equal("secret" in requests[0].body.batch[0].properties, false);
 });
 
 test("a launch can be recorded only after the user consents", () => {

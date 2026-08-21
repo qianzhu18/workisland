@@ -49,10 +49,10 @@ WorkIsland 内置一套**默认关闭**的匿名使用统计。本文说明它�
 
 ## 扩充事件 / 属性的流程
 
-白名单是唯一数据出口。任何扩充必须：先更新 PRD-005 的事件表 → 再改 `src/shared/telemetry.cjs`（`EVENTS` / `PROPERTY_WHITELIST` / `SETTINGS_KEY_WHITELIST`）→ 补测试。`sanitizeProps` 会静默丢弃白名单之外的一切字段，这是设计上的失败安全（fail-closed）。
+白名单是唯一数据出口。任何扩充必须：先更新 PRD-005 的事件表 → 再改 `src/shared/telemetry.cjs`（`EVENTS` / `PROPERTY_WHITELIST` / `SETTINGS_KEY_WHITELIST`）→ 补测试。`sanitizeProps` 会静默丢弃白名单之外的一切字段；遥测服务还会拒绝 `EVENTS` 之外的事件名，并在启动加载 `pending.json` 时逐条重新校验（白名单外事件、非白名单属性、非法时间戳一律丢弃）——这是设计上的失败安全（fail-closed），旧版本残留或被篡改的队列不会因此离开设备。
 
 ## 运维备忘
 
-- 队列文件：`<userData>/telemetry/pending.json`（上限 500 条，超限丢最旧）；匿名编号：`telemetry/state.json`。
+- 队列文件：`<userData>/telemetry/pending.json`（上限 500 条，超限丢最旧；启动时逐条重新校验，白名单外条目被静默丢弃）；匿名编号：`telemetry/state.json`（加载时校验形状，异常字段回退为默认）。
 - 上报节奏：每 5 分钟批量 flush（每批 ≤100 条），8s 超时，失败静默保留重试，退出前尽力 flush 一次。
 - Key 泄露处置：PostHog 控制台轮换 key，更新常量发版即可——旧 key 无法读取任何数据。

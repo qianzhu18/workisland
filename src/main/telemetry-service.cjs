@@ -12,6 +12,7 @@ const {
   TELEMETRY_QUEUE_MAX,
   TELEMETRY_BATCH_MAX,
   EVENTS,
+  PROPERTY_WHITELIST,
   SETTINGS_KEY_WHITELIST,
   sanitizeProps
 } = require("../shared/telemetry.cjs");
@@ -46,8 +47,30 @@ function createTelemetryService({
   const statePath = path.join(dir, STATE_FILE);
   const pendingPath = path.join(dir, PENDING_FILE);
 
-  let state = readJson(statePath, { anonId: null, activationSent: false });
-  let queue = readJson(pendingPath, []);
+  // Fail closed on disk state: a stale or malformed file must never smuggle an
+  // unknown event, property, or anonymous id past the whitelist.
+  const persistedState = readJson(statePath, {});
+  const state = persistedState && typeof persistedState === "object" && !Array.isArray(persistedState)
+    ? {
+        anonId: typeof persistedState.anonId === "string" && persistedState.anonId.length > 0
+          ? persistedState.anonId
+          : null,
+        activationSent: persistedState.activationSent === true
+      }
+    : { anonId: null, activationSent: false };
+  const persistedQueue = readJson(pendingPath, []);
+  let queue = Array.isArray(persistedQueue)
+    ? persistedQueue.filter((entry) => (
+        entry &&
+        typeof entry.event === "string" &&
+        Object.prototype.hasOwnProperty.call(PROPERTY_WHITELIST, entry.event) &&
+        Number.isFinite(entry.ts)
+      )).map((entry) => ({
+        event: entry.event,
+        props: sanitizeProps(entry.event, entry.props),
+        ts: entry.ts
+      }))
+    : [];
   let saveTimer = null;
   let flushTimer = null;
   let inFlight = null;
@@ -105,6 +128,9 @@ function createTelemetryService({
 
   function track(eventName, props) {
     if (!consented()) return;
+    // Fail closed for event names outside the shared whitelist; sanitizing
+    // properties alone would still let an unknown event name leave the machine.
+    if (!Object.prototype.hasOwnProperty.call(PROPERTY_WHITELIST, eventName)) return;
     queue.push({
       event: eventName,
       props: sanitizeProps(eventName, props),
