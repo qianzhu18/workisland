@@ -4,6 +4,16 @@ import { test } from "node:test";
 
 const source = readFileSync(new URL("../src/renderer/settings-app.js", import.meta.url), "utf8");
 const html = readFileSync(new URL("../src/renderer/island/renderer/settings.html", import.meta.url), "utf8");
+const css = readFileSync(new URL("../src/renderer/settings-app.css", import.meta.url), "utf8");
+
+test("Agent descriptions wrap instead of truncating long guidance", () => {
+  const rule = css.match(/\.agent-detail\s*\{([^}]*)\}/)?.[1] || "";
+  assert.match(rule, /white-space:\s*normal/);
+  assert.match(rule, /overflow-wrap:\s*anywhere/);
+  assert.doesNotMatch(rule, /white-space:\s*nowrap/);
+  assert.doesNotMatch(rule, /overflow:\s*hidden/);
+  assert.doesNotMatch(rule, /text-overflow:\s*ellipsis/);
+});
 
 test("general settings expose all completion notification duration options", () => {
   assert.match(source, /完成通知停留时间/);
