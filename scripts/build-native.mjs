@@ -26,3 +26,11 @@ const args = ["-std=c++17", "-fobjc-arc", "-dynamiclib", "-undefined", "dynamic_
 execFileSync("clang++", args, { stdio: "inherit" });
 copyFileSync(join(buildDir, "panel_fix.node"), join(outDir, "panel_fix.node"));
 console.log(`Built ${join(outDir, "panel_fix.node")}`);
+
+const mediaBridge = join(buildDir, "media-bridge");
+execFileSync("clang++", ["-std=c++17", "-fobjc-arc", "-fblocks",
+  "-framework", "AppKit", "-framework", "Foundation",
+  join(root, "native/media-bridge/src/media_bridge.mm"), "-o", mediaBridge], { stdio: "inherit" });
+copyFileSync(mediaBridge, join(outDir, "media-bridge"));
+execFileSync("chmod", ["755", join(outDir, "media-bridge")]);
+console.log(`Built ${join(outDir, "media-bridge")}`);

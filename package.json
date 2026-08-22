@@ -83,6 +83,10 @@
         "to": "bin/flux-hooks"
       },
       {
+        "from": "resources/bin/media-bridge",
+        "to": "bin/media-bridge"
+      },
+      {
         "from": "resources/scripts/collect-logs.sh",
         "to": "scripts/collect-logs.sh"
       },

@@ -11,6 +11,7 @@ dist/
 release/
 .native-build/
 resources/bin/panel_fix.node
+resources/bin/media-bridge
 
 # Package-manager and editor noise
 .npm/
