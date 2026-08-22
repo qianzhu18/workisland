@@ -137,6 +137,13 @@ function requestQuitApp() {
 
 function generalPage() {
   const root = document.createDocumentFragment();
+  const workstation = section("工作台", "让灵动岛同时承载媒体控制和轻量性能监视。所有数据只在本机读取与展示。");
+  workstation.append(
+    row("媒体播放", "自动识别 macOS 当前播放的媒体；播放时在左侧显示封面、进度和控制按钮，没有媒体时恢复完整 Agent 视图。", toggle(state.settings.mediaEnabled, v => save({ mediaEnabled: v }), "媒体播放")),
+    row("切歌动态提醒", "歌曲变化时在灵动岛短暂显示新封面与曲名；Agent 审批、失败和完成提醒始终优先。", toggle(state.settings.mediaTrackChangeNotifications, v => save({ mediaTrackChangeNotifications: v }), "切歌动态提醒")),
+    row("性能监视器", "在灵动岛右上角显示实时负载，悬停可查看 CPU、内存和高占用进程。", toggle(state.settings.performanceEnabled, v => save({ performanceEnabled: v }), "性能监视器")),
+    row("性能异常提醒", "CPU 或内存持续高占用时提醒。默认关闭，避免打扰专注。", toggle(state.settings.performanceAlertsEnabled, v => save({ performanceAlertsEnabled: v }), "性能异常提醒"))
+  );
   const behavior = section("Island 行为", "控制灵动岛何时出现以及如何收起。");
   behavior.append(
     row("登录时启动", "开机登录后自动启动 WorkIsland。", toggle(state.settings.launchAtLogin, v => save({ launchAtLogin: v }), "登录时启动")),
@@ -219,7 +226,7 @@ function generalPage() {
   lifecycle.append(
     row("退出 WorkIsland", "需要重新打开应用后才会继续监测本机 Agent 状态。", button("退出应用", requestQuitApp, "danger"))
   );
-  root.append(behavior, display, lifecycle);
+  root.append(workstation, behavior, display, lifecycle);
   return root;
 }
 

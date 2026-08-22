@@ -121,7 +121,7 @@ function IslandApp() {
   const collapseTick = useSessionStore((s) => s.collapseTick);
   const switchSessionTick = useSessionStore((s) => s.switchSessionTick);
   const switchSessionDirection = useSessionStore((s) => s.switchSessionDirection);
-  const { notchStatus, transitionClass, isPopping, open, close } = useIslandAnimation();
+  const { notchStatus, transitionClass, isPopping, open, close, pop } = useIslandAnimation();
   const panelLayerRef = reactExports.useRef(null);
   const [panelHeight, setPanelHeight] = reactExports.useState(300);
   const [mounted, setMounted] = reactExports.useState(false);
@@ -155,6 +155,16 @@ function IslandApp() {
   const [hoverToOpen, setHoverToOpen] = reactExports.useState(DEFAULT_SETTINGS.hoverToOpen);
   const [autoCollapseOnMouseLeave, setAutoCollapseOnMouseLeave] = reactExports.useState(DEFAULT_SETTINGS.autoCollapseOnMouseLeave);
   const [showUsageQuota, setShowUsageQuota] = reactExports.useState(DEFAULT_SETTINGS.showUsageQuota);
+  const [mediaEnabled, setMediaEnabled] = reactExports.useState(DEFAULT_SETTINGS.mediaEnabled);
+  const [mediaTrackChangeNotifications, setMediaTrackChangeNotifications] = reactExports.useState(DEFAULT_SETTINGS.mediaTrackChangeNotifications);
+  const [performanceEnabled, setPerformanceEnabled] = reactExports.useState(DEFAULT_SETTINGS.performanceEnabled);
+  const [performanceAlertsEnabled, setPerformanceAlertsEnabled] = reactExports.useState(DEFAULT_SETTINGS.performanceAlertsEnabled);
+  const [mediaState, setMediaState] = reactExports.useState({ active: false });
+  const [performanceState, setPerformanceState] = reactExports.useState({ cpuPct: 0, memoryPct: 0, processes: [] });
+  const [performanceAlert, setPerformanceAlert] = reactExports.useState("");
+  const previousTrackRef = reactExports.useRef("");
+  const highLoadSinceRef = reactExports.useRef(0);
+  const performanceAlertTimerRef = reactExports.useRef(null);
   const [tokenBurnTotal, setTokenBurnTotal] = reactExports.useState(0);
   const [autoCollapseDurationMs, setAutoCollapseDurationMs] = reactExports.useState(
     DEFAULT_SETTINGS.completionPopupDurationSec * 1e3
@@ -174,6 +184,10 @@ function IslandApp() {
       setHoverToOpen(s.hoverToOpen);
       setAutoCollapseOnMouseLeave(s.autoCollapseOnMouseLeave);
       setShowUsageQuota(s.showUsageQuota);
+      setMediaEnabled(s.mediaEnabled);
+      setMediaTrackChangeNotifications(s.mediaTrackChangeNotifications);
+      setPerformanceEnabled(s.performanceEnabled);
+      setPerformanceAlertsEnabled(s.performanceAlertsEnabled);
     });
     const offSettings = window.islandBridge?.onSettingsChanged((s) => {
       setAutoCollapseDurationMs(s.completionPopupDurationSec * 1e3);
@@ -181,10 +195,52 @@ function IslandApp() {
       setHoverToOpen(s.hoverToOpen);
       setAutoCollapseOnMouseLeave(s.autoCollapseOnMouseLeave);
       setShowUsageQuota(s.showUsageQuota);
+      setMediaEnabled(s.mediaEnabled);
+      setMediaTrackChangeNotifications(s.mediaTrackChangeNotifications);
+      setPerformanceEnabled(s.performanceEnabled);
+      setPerformanceAlertsEnabled(s.performanceAlertsEnabled);
     });
     return () => {
       offBurn?.();
       offSettings?.();
+    };
+  }, []);
+  reactExports.useEffect(() => {
+    const track = mediaState?.active ? `${mediaState.appBundleId}|${mediaState.title}|${mediaState.artist}` : "";
+    if (track && previousTrackRef.current && track !== previousTrackRef.current && mediaTrackChangeNotifications && !sessions.some((session) => requiresAttention(session.phase))) pop();
+    previousTrackRef.current = track;
+  }, [mediaState?.appBundleId, mediaState?.title, mediaState?.artist, mediaState?.active, mediaTrackChangeNotifications, sessions, pop]);
+  reactExports.useEffect(() => {
+    if (!performanceAlertsEnabled) {
+      highLoadSinceRef.current = 0;
+      setPerformanceAlert("");
+      return;
+    }
+    const overloaded = performanceState.cpuPct >= 90 || performanceState.memoryPct >= 92;
+    if (!overloaded) {
+      highLoadSinceRef.current = 0;
+      return;
+    }
+    if (!highLoadSinceRef.current) highLoadSinceRef.current = Date.now();
+    if (Date.now() - highLoadSinceRef.current < 10e3 || sessions.some((session) => requiresAttention(session.phase))) return;
+    const label = performanceState.cpuPct >= 90 ? `CPU 高占用 ${Math.round(performanceState.cpuPct)}%` : `内存高占用 ${Math.round(performanceState.memoryPct)}%`;
+    setPerformanceAlert(label);
+    pop();
+    if (performanceAlertTimerRef.current) clearTimeout(performanceAlertTimerRef.current);
+    performanceAlertTimerRef.current = setTimeout(() => setPerformanceAlert(""), 6e3);
+    highLoadSinceRef.current = Number.POSITIVE_INFINITY;
+  }, [performanceState.cpuPct, performanceState.memoryPct, performanceAlertsEnabled, sessions, pop]);
+  reactExports.useEffect(() => {
+    let mounted2 = true;
+    const bridge = window.islandBridge;
+    bridge?.getMediaState?.().then((state) => mounted2 && state && setMediaState(state));
+    bridge?.getPerformanceState?.().then((state) => mounted2 && state && setPerformanceState(state));
+    const offMedia = bridge?.onMediaStateUpdate?.((state) => setMediaState(state));
+    const offPerformance = bridge?.onPerformanceUpdate?.((state) => setPerformanceState(state));
+    return () => {
+      mounted2 = false;
+      offMedia?.();
+      offPerformance?.();
     };
   }, []);
   reactExports.useEffect(() => {
@@ -658,7 +714,9 @@ function IslandApp() {
             hasUpdate,
             tokenBurnTotal,
             onClick: handlePillClick,
-            onUpdateClick: handleOpenAbout
+            onUpdateClick: handleOpenAbout,
+            media: mediaEnabled ? mediaState : null,
+            performanceAlert
           }
         )
       ),
@@ -681,6 +739,10 @@ function IslandApp() {
             tokenBurnTotal,
             pillFirstRow,
             showUsageQuota,
+            mediaState,
+            mediaEnabled,
+            performanceState,
+            performanceEnabled,
             onSessionRowClick: handleSessionRowClick,
             onOpenSettings: handleOpenSettings,
             onOpenAbout: handleOpenAbout,

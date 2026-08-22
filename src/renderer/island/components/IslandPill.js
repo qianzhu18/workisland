@@ -35,7 +35,7 @@ function getLatestActivity(sessions) {
   if (prompt) return `${i18n.k680472829({ placeholder1: prompt }, "你：{placeholder1}")}`;
   return sanitizeAgentDisplayText(latest.currentActivity || "");
 }
-function derivePillDisplay(sessions, visibleCount, hasNotch) {
+function derivePillDisplay(sessions, visibleCount, hasNotch, media, performanceAlert) {
   const phase = dominantPhase(sessions);
   let status = "idle";
   let icon = STATUS_ICONS.idle;
@@ -56,6 +56,14 @@ function derivePillDisplay(sessions, visibleCount, hasNotch) {
     const activity = getLatestActivity(sessions);
     label = activity || "In Progress";
   }
+  if (visibleCount === 0 && performanceAlert) {
+    status = "performance";
+    label = performanceAlert;
+  } else if (visibleCount === 0 && media?.active && media?.title) {
+    status = media.playing ? "media-playing" : "media-paused";
+    icon = media.artworkDataUrl || STATUS_ICONS.idle;
+    label = media.title;
+  }
   if (hasNotch) {
     label = null;
   } else if (visibleCount === 0) {
@@ -63,10 +71,10 @@ function derivePillDisplay(sessions, visibleCount, hasNotch) {
   }
   return { status, icon, label };
 }
-function IslandPill({ sessions, visibleCount, hasNotch, onClick }) {
-  const { status, icon, label } = derivePillDisplay(sessions, visibleCount, hasNotch);
+function IslandPill({ sessions, visibleCount, hasNotch, onClick, media, performanceAlert }) {
+  const { status, icon, label } = derivePillDisplay(sessions, visibleCount, hasNotch, media, performanceAlert);
   const isIdle = status === "idle";
-  return /* @__PURE__ */ React.createElement("div", { className: "pill", onClick }, /* @__PURE__ */ React.createElement("div", { className: "pill-left" }, /* @__PURE__ */ React.createElement("img", { className: "pill-icon-img", src: icon, alt: "", draggable: false })), label && /* @__PURE__ */ React.createElement("div", { className: `pill-label${isIdle ? " pill-label-idle" : ""}` }, label), /* @__PURE__ */ React.createElement("div", { className: "pill-right" }, visibleCount > 0 && /* @__PURE__ */ React.createElement("div", { className: "pill-count" }, visibleCount)));
+  return /* @__PURE__ */ React.createElement("div", { className: `pill pill-${status}`, onClick }, /* @__PURE__ */ React.createElement("div", { className: "pill-left" }, /* @__PURE__ */ React.createElement("img", { className: "pill-icon-img", src: icon, alt: "", draggable: false })), label && /* @__PURE__ */ React.createElement("div", { className: `pill-label${isIdle ? " pill-label-idle" : ""}` }, label), /* @__PURE__ */ React.createElement("div", { className: "pill-right" }, visibleCount > 0 && /* @__PURE__ */ React.createElement("div", { className: "pill-count" }, visibleCount)));
 }
 function buildNotchPath(left, right, bottom, topRadius, bottomRadius, topInset = 0) {
   const width = right - left;

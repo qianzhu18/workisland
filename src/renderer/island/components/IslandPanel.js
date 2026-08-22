@@ -4,6 +4,8 @@ import { g as getFireIconByTokenCount, s as sanitizeAgentDisplayText, c as clean
 import { f as formatTokenCount } from "../../shared/tokens.js";
 import { M as Markdown, r as remarkGfm } from "../../vendor/markdown.js";
 import { canContinueSessionViaTerminalPrompt, filterSurfaceSessions, sortVisibleSessions } from "../session-model.mjs";
+import { MediaCard } from "./MediaCard.js";
+import { PerformancePopover } from "./PerformancePopover.js";
 const defaultIcon = new URL("../assets/status/idle.svg", import.meta.url).href;
 const runningIcon = new URL("../assets/status/running.svg", import.meta.url).href;
 const approvalIcon = new URL("../assets/status/approval.svg", import.meta.url).href;
@@ -210,6 +212,8 @@ function AgentUsageRow({
   visibleSessionIds,
   pillFirstRow,
   showUsageQuota = true,
+  performanceState,
+  performanceEnabled = true,
   onOpenSettings,
   onOpenAbout,
   onOpenPet
@@ -234,7 +238,7 @@ function AgentUsageRow({
     if (tool === "codex" && !pillFirstRow.codexSubscription) return false;
     return true;
   }).map((tool, idx, arr) => /* @__PURE__ */ React.createElement(React.Fragment, { key: tool }, /* @__PURE__ */ React.createElement(AgentQuotaCell, { tool, quota: agentQuotas[tool] }), idx < arr.length - 1 && /* @__PURE__ */ React.createElement("span", { className: "usage-cell-divider" }, "|")));
-  return /* @__PURE__ */ React.createElement("div", { className: "usage-row", style: { minHeight: notchHeight } }, showUsageQuota && /* @__PURE__ */ React.createElement("div", { className: "usage-row-agents" }, quotaCells), /* @__PURE__ */ React.createElement("div", { className: "usage-row-actions" }, visibleSessionIds.length > 0 && /* @__PURE__ */ React.createElement("button", { className: "panel-btn", onClick: handleClearSessions, title: i18n.k1005723937({}, "清理会话") }, /* @__PURE__ */ React.createElement("img", { src: cleanIcon, alt: "clean sessions", width: 16, height: 16 })), pillFirstRow.upgradeButton && hasUpdate && /* @__PURE__ */ React.createElement(StatusIcon, { icon: updateIcon, badgeColor: "#4A90D9", title: i18n.k3734051999({}, "有新版本可用"), onClick: onOpenAbout }), pillFirstRow.tokenCount && /* @__PURE__ */ React.createElement(TokenUsage, { tokenCount: tokenBurnTotal, onClick: () => onOpenSettings("statistics") }), pillFirstRow.soundIcon && /* @__PURE__ */ React.createElement("button", { className: "panel-btn", onClick: handleToggleSound, title: muted ? "Unmute" : "Mute" }, /* @__PURE__ */ React.createElement("img", { src: muted ? voiceMuteIcon : voiceIcon, alt: muted ? "muted" : "sound" })), /* @__PURE__ */ React.createElement("button", { className: "panel-btn panel-pet-button", type: "button", onClick: onOpenPet, title: "打开或关闭桌宠", "aria-label": "打开或关闭桌宠" }, /* @__PURE__ */ React.createElement(PetButtonIcon)), /* @__PURE__ */ React.createElement("button", { className: "panel-btn", onClick: () => onOpenSettings("display"), title: "Settings" }, /* @__PURE__ */ React.createElement("img", { src: settingIcon, alt: "settings" }))));
+  return /* @__PURE__ */ React.createElement("div", { className: "usage-row", style: { minHeight: notchHeight } }, showUsageQuota && /* @__PURE__ */ React.createElement("div", { className: "usage-row-agents" }, quotaCells), /* @__PURE__ */ React.createElement("div", { className: "usage-row-actions" }, visibleSessionIds.length > 0 && /* @__PURE__ */ React.createElement("button", { className: "panel-btn", onClick: handleClearSessions, title: i18n.k1005723937({}, "清理会话") }, /* @__PURE__ */ React.createElement("img", { src: cleanIcon, alt: "clean sessions", width: 16, height: 16 })), pillFirstRow.upgradeButton && hasUpdate && /* @__PURE__ */ React.createElement(StatusIcon, { icon: updateIcon, badgeColor: "#4A90D9", title: i18n.k3734051999({}, "有新版本可用"), onClick: onOpenAbout }), pillFirstRow.tokenCount && /* @__PURE__ */ React.createElement(TokenUsage, { tokenCount: tokenBurnTotal, onClick: () => onOpenSettings("statistics") }), pillFirstRow.soundIcon && /* @__PURE__ */ React.createElement("button", { className: "panel-btn", onClick: handleToggleSound, title: muted ? "Unmute" : "Mute" }, /* @__PURE__ */ React.createElement("img", { src: muted ? voiceMuteIcon : voiceIcon, alt: muted ? "muted" : "sound" })), performanceEnabled && /* @__PURE__ */ React.createElement(PerformancePopover, { state: performanceState }), /* @__PURE__ */ React.createElement("button", { className: "panel-btn panel-pet-button", type: "button", onClick: onOpenPet, title: "打开或关闭桌宠", "aria-label": "打开或关闭桌宠" }, /* @__PURE__ */ React.createElement(PetButtonIcon)), /* @__PURE__ */ React.createElement("button", { className: "panel-btn", onClick: () => onOpenSettings("display"), title: "Settings" }, /* @__PURE__ */ React.createElement("img", { src: settingIcon, alt: "settings" }))));
 }
 const TOOL_BADGE_COLORS = {
   claude: "#DA7250",
@@ -1276,6 +1280,10 @@ function IslandPanel({
   hasUpdate,
   tokenBurnTotal,
   pillFirstRow,
+  mediaState,
+  mediaEnabled = true,
+  performanceState,
+  performanceEnabled = true,
   onSessionRowClick,
   onOpenSettings,
   onOpenAbout,
@@ -1335,11 +1343,13 @@ function IslandPanel({
       tokenBurnTotal,
       visibleSessionIds: visibleSessions.map((session) => session.id),
       pillFirstRow,
+      performanceState,
+      performanceEnabled,
       onOpenSettings,
       onOpenAbout,
       onOpenPet
     }
-  ), /* @__PURE__ */ React.createElement("div", { className: "panel-divider" }), /* @__PURE__ */ React.createElement("div", { className: "session-list", ref: sessionListRef }, visibleSessions.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "session-list-empty" }, /* @__PURE__ */ React.createElement(
+  ), /* @__PURE__ */ React.createElement("div", { className: "panel-divider" }), /* @__PURE__ */ React.createElement("div", { className: `workspace-content${mediaEnabled && mediaState?.active && mediaState?.title ? " has-media" : ""}` }, mediaEnabled && mediaState?.active && mediaState?.title && /* @__PURE__ */ React.createElement(MediaCard, { media: mediaState }), /* @__PURE__ */ React.createElement("div", { className: "workspace-agent-pane" }, /* @__PURE__ */ React.createElement("div", { className: "session-list", ref: sessionListRef }, visibleSessions.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "session-list-empty" }, /* @__PURE__ */ React.createElement(
     "img",
     {
       className: "session-list-empty-icon",
@@ -1389,7 +1399,7 @@ function IslandPanel({
         }
       )))
     );
-  })));
+  })))));
 }
 export {
   AgentToolBadge as A,

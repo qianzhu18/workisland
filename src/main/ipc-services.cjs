@@ -282,6 +282,12 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, checkF
     electron.ipcMain.handle(IPC.STATS_GET_SNAPSHOT, (_event, { timeRange }) => {
       return coordinator.getStatsSnapshot(timeRange);
     });
+    electron.ipcMain.handle(IPC.MEDIA_GET_STATE, () => coordinator.getMediaState());
+    electron.ipcMain.handle(IPC.MEDIA_COMMAND, (_event, command) => coordinator.sendMediaCommand(command));
+    electron.ipcMain.handle(IPC.PERFORMANCE_GET_STATE, () => coordinator.getPerformanceState());
+    electron.ipcMain.on(IPC.PERFORMANCE_DETAILS_VISIBLE, (_event, { visible }) => {
+      coordinator.setPerformanceDetailsVisible(Boolean(visible));
+    });
     electron.ipcMain.handle(IPC.WELCOME_GET_FIRST_LAUNCH_AT, () => {
       return coordinator.getSettings().firstLaunchAt;
     });
