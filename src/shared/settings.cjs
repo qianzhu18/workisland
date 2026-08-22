@@ -85,14 +85,23 @@ const DEFAULT_SETTINGS = {
   hoverToOpen: true,
   autoCollapseDelayMs: 4e3,
   hideWhenFullscreen: true,
-  alwaysHide: false,
-  hideWhenNoActiveSessions: false,
+  // Single user-facing display mode. New installs default to "persistent" so
+  // the Island is visibly there right after installation (owner decision
+  // 2026-08-22: a silent first run reads as "did it even install?"). Users who
+  // find the pill noisy can switch to "minimal", which keeps the top space
+  // clear unless something needs attention. The legacy booleans (alwaysHide /
+  // hideWhenNoActiveSessions) are one-time migration sources only — see
+  // migrateIslandDisplayMode().
+  islandDisplayMode: "persistent",
+  // Bumps when the display-mode default must migrate existing installations.
+  islandDisplayModeVersion: 1,
   autoCollapseOnMouseLeave: true,
-  completionPopupDurationSec: 10,
+  completionPopupDurationSec: 5,
   showUsageQuota: true,
   usageDisplayValue: "used",
   disableClaudeTerminalTitle: true,
   expandOnSessionComplete: true,
+  expandOnSessionSubmit: true,
   expandOnActionRequired: true,
   suppressNotificationWhenFocused: true,
   updateChecksEnabled: true,
@@ -126,8 +135,49 @@ function createDefaultSettings() {
   return clone(DEFAULT_SETTINGS);
 }
 
+// Legacy top-level keys that used to control Island visibility. They are only
+// read as one-time migration sources; mergeSettings drops them afterwards so
+// runtime code can rely on islandDisplayMode alone.
+const LEGACY_ISLAND_DISPLAY_KEYS = ["alwaysHide", "notificationModeVersion", "hideWhenNoActiveSessions"];
+
+function migrateIslandDisplayMode(merged, parsed) {
+  // An explicitly persisted mode always wins; only derive from the legacy
+  // booleans when the stored settings predate islandDisplayMode.
+  if (parsed.islandDisplayMode === "minimal" || parsed.islandDisplayMode === "persistent") {
+    merged.islandDisplayMode = parsed.islandDisplayMode;
+    return;
+  }
+  // A stored file with none of the legacy keys is indistinguishable from a
+  // fresh install (every legacy build persisted `alwaysHide`), so it follows
+  // the current default instead of being force-migrated to "minimal".
+  const hasLegacySignals =
+    parsed.alwaysHide !== undefined ||
+    parsed.notificationModeVersion !== undefined ||
+    parsed.hideWhenNoActiveSessions !== undefined;
+  if (!hasLegacySignals) {
+    merged.islandDisplayMode = DEFAULT_SETTINGS.islandDisplayMode;
+    return;
+  }
+  // `alwaysHide` existed before it was exposed as a user preference and was
+  // persisted as false by default. Pre-version installations were forced to
+  // the notification-first behavior by the old migration, so they map to
+  // "minimal" regardless of the stored boolean — that is not a user choice.
+  const legacyNotificationModeSeen =
+    Number.isInteger(parsed.notificationModeVersion) && parsed.notificationModeVersion >= 1;
+  const alwaysHide = legacyNotificationModeSeen ? parsed.alwaysHide : true;
+  const hideWhenNoActiveSessions = parsed.hideWhenNoActiveSessions === true;
+  // Explicitly disabling notification mode (alwaysHide=false) without asking
+  // to hide when idle means the user chose the persistent pill. Any
+  // "hide when idle" combination maps to minimal.
+  merged.islandDisplayMode = alwaysHide || hideWhenNoActiveSessions ? "minimal" : "persistent";
+}
+
 function mergeSettings(parsed = {}) {
   const merged = { ...createDefaultSettings(), ...parsed };
+
+  migrateIslandDisplayMode(merged, parsed);
+  merged.islandDisplayModeVersion = DEFAULT_SETTINGS.islandDisplayModeVersion;
+  for (const key of LEGACY_ISLAND_DISPLAY_KEYS) delete merged[key];
 
   // Settings written by pre-Codex-V2 builds used Orca as the implicit default.
   // Migrate that legacy value, but leave every other explicit custom selection
