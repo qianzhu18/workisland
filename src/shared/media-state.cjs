@@ -1,0 +1,69 @@
+"use strict";
+
+const MAX_ARTWORK_DATA_URL_LENGTH = 8 * 1024 * 1024;
+
+const EMPTY_MEDIA_STATE = Object.freeze({
+  active: false,
+  playing: false,
+  title: "",
+  artist: "",
+  album: "",
+  appBundleId: "",
+  appName: "",
+  durationSec: 0,
+  elapsedSec: 0,
+  playbackRate: 0,
+  artworkDataUrl: "",
+  canPlayPause: false,
+  canNext: false,
+  canPrevious: false,
+  updatedAt: 0
+});
+
+function text(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function number(value, fallback = 0) {
+  return Number.isFinite(Number(value)) ? Number(value) : fallback;
+}
+
+function artwork(value) {
+  if (typeof value !== "string" || !value.startsWith("data:image/")) return "";
+  return value.length <= MAX_ARTWORK_DATA_URL_LENGTH ? value : "";
+}
+
+function normalizeMediaSnapshot(value = {}) {
+  const durationSec = Math.max(0, number(value.durationSec));
+  const elapsedSec = Math.max(0, Math.min(number(value.elapsedSec), durationSec || Number.MAX_SAFE_INTEGER));
+  return {
+    active: Boolean(value.active),
+    playing: Boolean(value.playing),
+    title: text(value.title),
+    artist: text(value.artist),
+    album: text(value.album),
+    appBundleId: text(value.appBundleId),
+    appName: text(value.appName),
+    durationSec,
+    elapsedSec,
+    playbackRate: Math.max(0, number(value.playbackRate)),
+    artworkDataUrl: artwork(value.artworkDataUrl),
+    canPlayPause: Boolean(value.canPlayPause ?? value.capabilities?.playPause),
+    canNext: Boolean(value.canNext ?? value.capabilities?.next),
+    canPrevious: Boolean(value.canPrevious ?? value.capabilities?.previous),
+    updatedAt: Math.max(0, number(value.updatedAt, Date.now()))
+  };
+}
+
+function reduceMediaEvent(state = EMPTY_MEDIA_STATE, event = {}) {
+  if (event.kind === "state") return normalizeMediaSnapshot(event.state);
+  if (event.kind === "cleared" || event.kind === "unavailable") return EMPTY_MEDIA_STATE;
+  return state;
+}
+
+module.exports = {
+  EMPTY_MEDIA_STATE,
+  MAX_ARTWORK_DATA_URL_LENGTH,
+  normalizeMediaSnapshot,
+  reduceMediaEvent
+};
