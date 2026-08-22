@@ -28,7 +28,7 @@ const AGENT_ICON_URLS = Object.freeze({
   "plugin:omp": "../assets/brands/pi.svg",
   "plugin:pi": "../assets/brands/pi.svg"
 });
-const state = { settings: null, statuses: new Map(), displays: [], codexPets: [], activeTab: "general", busy: new Set(), latestUpdate: null };
+const state = { settings: null, statuses: new Map(), displays: [], codexPets: [], activeTab: "general", busy: new Set(), latestUpdate: null, telemetryStatus: null };
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -92,10 +92,20 @@ async function save(partial) {
   state.settings = { ...state.settings, ...partial };
   try {
     await api.setSettings(partial);
+    if ("telemetryEnabled" in partial) await loadTelemetryStatus();
+    if (state.activeTab === "about") renderPage();
   } catch (error) {
     state.settings = previous;
     renderPage();
     showToast(error?.message || "设置保存失败", true);
+  }
+}
+
+async function loadTelemetryStatus() {
+  try {
+    state.telemetryStatus = await api.getTelemetryStatus?.() || null;
+  } catch {
+    state.telemetryStatus = null;
   }
 }
 
@@ -412,13 +422,26 @@ function aboutPage() {
   const actions = el("div", "section-actions");
   actions.append(button("导出诊断日志", async () => { const path = await api.collectLogs(); showToast(path ? "日志已导出" : "日志导出完成"); }), button("退出应用", () => api.quitApp(), "danger"));
   about.append(actions);
-  const privacy = section("匿名使用统计", "默认关闭。开启后仅上报事件类型与 Agent 名称等匿名统计。");
+  const privacy = section("匿名使用统计", "默认开启。仅上报事件类型与 Agent 名称等匿名统计，可在下方随时关闭。");
+  const telemetryStatus = state.telemetryStatus;
+  const statusText = !telemetryStatus
+    ? "正在读取本机发送状态…"
+    : telemetryStatus.status === "disabled"
+      ? "已关闭：不会继续收集或发送，未上报数据已清空。"
+      : telemetryStatus.status === "development"
+        ? "开发模式：本机可检查队列，但不会出网发送。"
+        : telemetryStatus.status === "not-configured"
+          ? "上传未配置：本机不会向 PostHog 发送数据。"
+          : telemetryStatus.lastSuccessAt
+            ? `最近一次成功提交到 PostHog：${new Date(telemetryStatus.lastSuccessAt).toLocaleString()}；待发送 ${telemetryStatus.pendingEventCount} 条。`
+            : `已开启：等待首次成功提交；待发送 ${telemetryStatus.pendingEventCount} 条。`;
   privacy.append(
     row(
       "允许匿名使用统计",
-      "不包含会话内容、文件路径或个人信息；关闭时会立即清空未上报的数据。目的地为 PostHog（美国区），事件清单见开源代码 telemetry.cjs。",
+      "默认开启；关闭后立即停止收集并清空未上报的数据。不包含会话内容、文件路径或个人信息；目的地为 PostHog（美国区），事件清单见开源代码 telemetry.cjs。",
       toggle(state.settings.telemetryEnabled, v => save({ telemetryEnabled: v }), "允许匿名使用统计")
-    )
+    ),
+    row("本机发送状态", "仅显示本机队列与 PostHog 批量接口最近一次 HTTP 2xx 确认，不展示或上传任何额外内容。", el("div", "setting-description", statusText))
   );
   root.append(about, support, privacy, updates);
   return root;
@@ -443,6 +466,7 @@ function showToast(message, error = false) {
 async function start() {
   if (!api) throw new Error("settingsApi unavailable");
   state.settings = await api.getSettings();
+  await loadTelemetryStatus();
   await loadDisplays();
   await loadCodexPets();
   document.querySelectorAll(".nav-item").forEach(item => item.addEventListener("click", () => {

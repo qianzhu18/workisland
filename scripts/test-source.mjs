@@ -44,13 +44,14 @@ const {
   getWorkBuddyConfigPaths
 } = require("../src/main/hooks-work-agents.cjs");
 
-assert.equal(Object.keys(IPC).length, 91, "IPC contract changed; review both main and preload consumers");
+assert.equal(Object.keys(IPC).length, 92, "IPC contract changed; review both main and preload consumers");
 assert.equal(new Set(Object.values(IPC)).size, Object.keys(IPC).length, "IPC channels must be unique");
 assert.ok(Object.isFrozen(IPC), "IPC contract must be immutable");
 assert.equal(IPC.PET_DRAG_TO_ISLAND, "pet:drag-to-island");
 assert.equal(IPC.SETTINGS_GET_CUSTOM_ICON, "settings:get-custom-icon");
 assert.equal(IPC.PET_TOGGLE, "pet:toggle");
 assert.equal(IPC.SETTINGS_GET_CODEX_PETS, "settings:get-codex-pets");
+assert.equal(IPC.SETTINGS_GET_TELEMETRY_STATUS, "settings:get-telemetry-status");
 const coreAgentIds = listCoreAgentDescriptors().map(({ agentId }) => agentId);
 assert.ok(coreAgentIds.includes("zcode"));
 assert.ok(coreAgentIds.includes("workbuddy"));

@@ -11,44 +11,48 @@ const settingsSource = readFileSync(new URL("../src/renderer/settings-app.js", i
 const welcomeSource = readFileSync(new URL("../src/renderer/assets/welcome-view.js", import.meta.url), "utf8");
 const preloadSource = readFileSync(new URL("../src/preload/welcome.js", import.meta.url), "utf8");
 const sharedSource = readFileSync(new URL("../src/shared/settings.cjs", import.meta.url), "utf8");
+const rendererSharedSource = readFileSync(new URL("../src/renderer/shared/settings.js", import.meta.url), "utf8");
 const mainSource = readFileSync(new URL("../src/main/index.cjs", import.meta.url), "utf8");
 const windowSource = readFileSync(new URL("../src/main/windows.cjs", import.meta.url), "utf8");
 
-test("settings about page exposes the opt-in telemetry toggle", () => {
+// 遥测政策 v2（2026-08-22）：默认开启、设置内披露、随时可关；不再有同意窗口。
+
+test("settings about page discloses default-on telemetry with a working toggle", () => {
   assert.match(settingsSource, /匿名使用统计/);
+  assert.match(settingsSource, /默认开启/);
   assert.match(settingsSource, /save\(\{ telemetryEnabled: v \}\)/);
-  // 关闭语义必须向用户说明：清空未上报数据。
+  // 关闭语义必须向用户说明：立即停止收集并清空未上报数据。
   assert.match(settingsSource, /清空未上报的数据/);
+  assert.match(settingsSource, /本机发送状态/);
+  assert.match(settingsSource, /最近一次成功提交到 PostHog/);
+  assert.match(settingsSource, /getTelemetryStatus/);
 });
 
-test("welcome consent card defaults to unchecked and submits with get-started", () => {
-  assert.match(welcomeSource, /useState\(false\)/);
-  assert.match(welcomeSource, /允许匿名使用统计/);
-  assert.match(welcomeSource, /getStarted\(\{ telemetry \}\)/);
+test("welcome shows no telemetry consent UI under the default-on policy", () => {
+  assert.doesNotMatch(welcomeSource, /允许匿名使用统计/);
+  assert.doesNotMatch(welcomeSource, /getStarted\(\{ telemetry \}\)/);
+  assert.doesNotMatch(welcomeSource, /telemetryConsentOnly|mode=telemetry/);
+  assert.match(welcomeSource, /进入 WorkIsland/);
 });
 
-test("welcome preload forwards the telemetry payload", () => {
-  assert.match(preloadSource, /WELCOME_GET_STARTED, payload \|\| \{\}/);
+test("welcome preload no longer carries a telemetry payload", () => {
+  assert.match(preloadSource, /WELCOME_GET_STARTED\)/);
+  assert.doesNotMatch(preloadSource, /telemetry/);
 });
 
-test("first-launch opt-in records the launch only after consent", () => {
-  assert.match(mainSource, /createTelemetryConsentChoice\(payload\.telemetry\)/);
-  assert.match(mainSource, /choice\.telemetryEnabled\) telemetryService\?\.track\(EVENTS\.APP_LAUNCHED\)/);
+test("telemetry is on by default in shared settings", () => {
+  assert.match(sharedSource, /telemetryEnabled: true/);
+  assert.match(rendererSharedSource, /telemetryEnabled: true/);
 });
 
-test("telemetry stays opt-in by default in shared settings", () => {
-  assert.match(sharedSource, /telemetryEnabled: false/);
+test("the consent window flow is fully removed from the main process", () => {
+  assert.match(mainSource, /telemetryService\.track\(EVENTS\.APP_LAUNCHED\)/);
+  assert.doesNotMatch(mainSource, /isTelemetryConsentPending|createTelemetryConsentChoice|needsTelemetryConsent/);
+  assert.doesNotMatch(mainSource, /consentOnly/);
+  assert.doesNotMatch(windowSource, /consentOnly|mode=telemetry/);
 });
 
-test("upgraded users see a standalone consent window once", () => {
-  assert.match(mainSource, /isTelemetryConsentPending\(coordinator\.getSettings\(\)\)/);
-  assert.match(mainSource, /showWelcomeWindow\(\{\s*consentOnly: true,\s*afterComplete: startIsland\s*\}\)/);
-  assert.match(windowSource, /\?mode=telemetry/);
-  assert.match(welcomeSource, /telemetryConsentOnly/);
-  assert.match(welcomeSource, /你的隐私选择/);
-});
-
-test("telemetry consent is independent from the auto-hiding Island window", () => {
+test("the welcome window is never attached to the auto-hiding Island window", () => {
   let browserWindowOptions;
   class FakeBrowserWindow {
     constructor(options) {
@@ -71,15 +75,12 @@ test("telemetry consent is independent from the auto-hiding Island window", () =
     getIsQuitting() { return false; }
   });
 
-  new WelcomeWindow({
-    consentOnly: true,
-    parent: { isDestroyed: () => false }
-  });
+  new WelcomeWindow();
 
   assert.equal("parent" in browserWindowOptions, false);
   assert.equal("modal" in browserWindowOptions, false);
 });
 
-test("closing the consent window cannot silently record a decision", () => {
+test("closing the welcome window cannot silently complete onboarding", () => {
   assert.doesNotMatch(mainSource, /\.once\("closed", \(\) => finishWelcome\(\)\)/);
 });

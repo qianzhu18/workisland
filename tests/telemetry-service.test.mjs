@@ -48,14 +48,14 @@ test("sanitizeProps drops unknown properties and long values", () => {
   assert.deepEqual(sanitizeProps(EVENTS.APP_LAUNCHED, { anything: "else" }), {});
 });
 
-test("without consent nothing is queued or sent", async () => {
+test("when telemetry is off nothing is queued or sent", async () => {
   const { service, requests } = makeService({ telemetryEnabled: false });
   service.track(EVENTS.SESSION_STARTED, { tool: "claude" });
   service.markFirstAgentSignal("claude");
   await service.flush();
   assert.equal(service.queueLength(), 0);
   assert.equal(requests.length, 0);
-  assert.equal(service.isConsented(), false);
+  assert.equal(service.isEnabled(), false);
 });
 
 test("unknown event names are rejected before they reach the queue", () => {
@@ -91,17 +91,17 @@ test("persisted telemetry is validated before retrying uploads", async () => {
   assert.equal("secret" in requests[0].body.batch[0].properties, false);
 });
 
-test("a launch can be recorded only after the user consents", () => {
+test("a launch can be recorded only while telemetry is enabled", () => {
   const { service, settings } = makeService({ telemetryEnabled: false });
   service.track(EVENTS.APP_LAUNCHED);
-  assert.equal(service.queueLength(), 0, "pre-consent launch is never retained");
+  assert.equal(service.queueLength(), 0, "disabled launch is never retained");
 
   settings.telemetryEnabled = true;
   service.track(EVENTS.APP_LAUNCHED);
-  assert.equal(service.queueLength(), 1, "first-launch consent can create an activation cohort");
+  assert.equal(service.queueLength(), 1, "re-enabling telemetry permits the activation event");
 });
 
-test("consent queues whitelisted events and flush clears them on success", async () => {
+test("enabled telemetry queues whitelisted events and flush clears them on success", async () => {
   const { service, requests } = makeService();
   service.track(EVENTS.SESSION_STARTED, { tool: "claude", evil: "drop-me" });
   service.track(EVENTS.JUMP_BACK, { tool: "codex", target: "ghostty" });
@@ -129,7 +129,7 @@ test("first agent signal is emitted at most once per installation", async () => 
   assert.equal(signals[0].properties.tool, "claude");
 });
 
-test("first agent signal is not consumed before telemetry consent", () => {
+test("first agent signal is not consumed while telemetry is off", () => {
   const { service, settings } = makeService({ telemetryEnabled: false });
   service.markFirstAgentSignal("claude");
   assert.equal(service.queueLength(), 0);
@@ -162,7 +162,7 @@ test("missing api key disables uploads but keeps local queueing", async () => {
   assert.equal(requests.length, 0);
 });
 
-test("disabling consent wipes the pending queue immediately", async () => {
+test("disabling telemetry wipes the pending queue immediately", async () => {
   const { service, settings } = makeService();
   service.track(EVENTS.SESSION_STARTED, { tool: "claude" });
   settings.telemetryEnabled = false;
@@ -179,6 +179,24 @@ test("queue caps at the configured maximum by dropping the oldest", () => {
     service.track(EVENTS.SESSION_STARTED, { tool: `agent-${index}` });
   }
   assert.equal(service.queueLength(), 500);
+});
+
+test("status records only a successful PostHog batch acknowledgement", async () => {
+  const { service } = makeService();
+  assert.deepEqual(service.getStatus(), {
+    enabled: true,
+    canUpload: true,
+    pendingEventCount: 0,
+    lastSuccessAt: null,
+    status: "ready"
+  });
+
+  service.track(EVENTS.APP_LAUNCHED);
+  await service.flush();
+  const status = service.getStatus();
+  assert.equal(status.pendingEventCount, 0);
+  assert.equal(status.status, "ready");
+  assert.equal(typeof status.lastSuccessAt, "number");
 });
 
 test("trackSettingChange only reports whitelisted keys without values", async () => {

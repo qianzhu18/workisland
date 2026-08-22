@@ -67,6 +67,7 @@ const IPC = Object.freeze({
 
   SETTINGS_GET: "settings:get",
   SETTINGS_SET: "settings:set",
+  SETTINGS_GET_TELEMETRY_STATUS: "settings:get-telemetry-status",
   SETTINGS_DID_CHANGE: "settings:did-change",
   SETTINGS_GET_HOOK_STATUS: "settings:get-hook-status",
   SETTINGS_INSTALL_HOOK: "settings:install-hook",

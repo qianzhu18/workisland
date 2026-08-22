@@ -131,7 +131,7 @@ function createAppCoordinatorClass({
     /**
      * 匿名遥测服务（ADR-0003 / PRD-005）。由入口在构造完成后通过
      * setTelemetryService 注入（与 updateService 同一时序）；所有埋点调用都
-     * 经由可选链发出，服务缺席或未同意时为 no-op。
+     * 经由可选链发出，服务缺席或用户关闭统计时为 no-op。
      */
     telemetry = null;
     constructor() {
@@ -234,7 +234,7 @@ function createAppCoordinatorClass({
           event.detectionSource || "hook"
         );
         // 匿名遥测：激活信号每安装只报一次；会话开始按 tool 计数。
-        // 服务内部完成白名单过滤与未同意 no-op。
+        // 服务内部完成白名单过滤与关闭状态下的 no-op。
         this.telemetry?.markFirstAgentSignal(event.tool);
         if (event.type === "sessionStarted") {
           this.telemetry?.track(EVENTS.SESSION_STARTED, { tool: event.tool });
@@ -634,6 +634,15 @@ function createAppCoordinatorClass({
     setTelemetryService(service) {
       this.telemetry = service;
     }
+    getTelemetryStatus() {
+      return this.telemetry?.getStatus?.() ?? {
+        enabled: this.settings.telemetryEnabled === true,
+        canUpload: false,
+        pendingEventCount: 0,
+        lastSuccessAt: null,
+        status: "unavailable"
+      };
+    }
     openSettingsWindow() {
       if (this.settingsWindow) {
         const bounds = this.displayMgr?.getCurrentTarget()?.display.bounds;
@@ -779,7 +788,7 @@ function createAppCoordinatorClass({
       const prevClaudeSubscriptionEnabled = this.settings.pillFirstRow.claudeSubscription;
       this.settings = { ...this.settings, ...partial };
       this.settingsRepository.scheduleSave(this.settings);
-      // 匿名遥测：同意状态变化必须立即同步给服务（关闭即清空未上报队列）；
+      // 匿名遥测：开关变化必须立即同步给服务（关闭即清空未上报队列）；
       // 其余白名单 key 只上报 key 本身，值永不离开本机。
       if (this.telemetry) {
         if ("telemetryEnabled" in partial) {

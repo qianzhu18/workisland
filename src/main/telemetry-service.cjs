@@ -21,12 +21,14 @@ const STATE_FILE = "state.json";
 const PENDING_FILE = "pending.json";
 
 /**
- * Opt-in anonymous telemetry (ADR-0003 / PRD-005).
+ * Anonymous usage telemetry (PRD-005; default-on policy since 2026-08-22,
+ * disclosed in Settings → About with a one-click off).
  *
  * Guarantees, in order of importance:
- * 1. Disabled means disabled: without consent nothing is queued, and turning
- *    consent off drops the pending queue immediately.
- * 2. Only whitelisted events/props leave the machine (see shared/telemetry.cjs).
+ * 1. Off means off: when telemetryEnabled is false nothing is queued, and
+ *    turning it off drops the pending queue immediately.
+ * 2. Only whitelisted events/props leave the machine (see shared/telemetry.cjs);
+ *    unknown event names and persisted queue entries are rejected fail-closed.
  * 3. Uploads never disturb the app: 8s timeout, silent retries, queue caps.
  * 4. Development builds never upload; they may queue locally for inspection.
  */
@@ -55,9 +57,12 @@ function createTelemetryService({
         anonId: typeof persistedState.anonId === "string" && persistedState.anonId.length > 0
           ? persistedState.anonId
           : null,
-        activationSent: persistedState.activationSent === true
+        activationSent: persistedState.activationSent === true,
+        lastSuccessAt: Number.isFinite(persistedState.lastSuccessAt) && persistedState.lastSuccessAt > 0
+          ? persistedState.lastSuccessAt
+          : null
       }
-    : { anonId: null, activationSent: false };
+    : { anonId: null, activationSent: false, lastSuccessAt: null };
   const persistedQueue = readJson(pendingPath, []);
   let queue = Array.isArray(persistedQueue)
     ? persistedQueue.filter((entry) => (
@@ -104,12 +109,12 @@ function createTelemetryService({
     }, 300);
   }
 
-  function consented() {
+  function enabled() {
     return getSettings()?.telemetryEnabled === true;
   }
 
   function canUpload() {
-    return consented() && isPackaged === true && typeof apiKey === "string" && apiKey.length > 0;
+    return enabled() && isPackaged === true && typeof apiKey === "string" && apiKey.length > 0;
   }
 
   function anonId() {
@@ -127,7 +132,7 @@ function createTelemetryService({
   }
 
   function track(eventName, props) {
-    if (!consented()) return;
+    if (!enabled()) return;
     // Fail closed for event names outside the shared whitelist; sanitizing
     // properties alone would still let an unknown event name leave the machine.
     if (!Object.prototype.hasOwnProperty.call(PROPERTY_WHITELIST, eventName)) return;
@@ -144,9 +149,8 @@ function createTelemetryService({
 
   /** Activation signal — emitted at most once per installation. */
   function markFirstAgentSignal(tool) {
-    // Do not consume the one-shot marker before the user has opted in. An
-    // agent can signal while the consent window is still open.
-    if (state.activationSent || !consented()) return;
+    // Do not consume the one-shot marker while collection is turned off.
+    if (state.activationSent || !enabled()) return;
     state.activationSent = true;
     track(EVENTS.FIRST_AGENT_SIGNAL, { tool });
   }
@@ -174,6 +178,9 @@ function createTelemetryService({
       .then((ok) => {
         if (ok) {
           queue = queue.slice(batch.length);
+          // This is an HTTP 2xx acknowledgement from PostHog's batch endpoint,
+          // not a claim about downstream analytics processing.
+          state.lastSuccessAt = now();
           scheduleSave();
         }
       })
@@ -209,7 +216,7 @@ function createTelemetryService({
   }
 
   /**
-   * Consent changes funnel through here. Disabling wipes every pending event
+   * Setting changes funnel through here. Disabling wipes every pending event
    * right away — "off" must mean the data is gone, not queued for later.
    */
   function setEnabled(enabled) {
@@ -220,6 +227,24 @@ function createTelemetryService({
       saveTimer = null;
     }
     writeJsonAtomic(pendingPath, queue);
+  }
+
+  function getStatus() {
+    const isEnabled = enabled();
+    const canSend = canUpload();
+    return {
+      enabled: isEnabled,
+      canUpload: canSend,
+      pendingEventCount: queue.length,
+      lastSuccessAt: state.lastSuccessAt,
+      status: !isEnabled
+        ? "disabled"
+        : !isPackaged
+          ? "development"
+          : !apiKey
+            ? "not-configured"
+            : "ready"
+    };
   }
 
   function start() {
@@ -250,7 +275,8 @@ function createTelemetryService({
     flush,
     start,
     stop,
-    isConsented: consented,
+    isEnabled: enabled,
+    getStatus,
     queueLength: () => queue.length,
     getStatePath: () => statePath,
     getPendingPath: () => pendingPath
