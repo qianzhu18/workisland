@@ -64,19 +64,6 @@ electron.contextBridge.exposeInMainWorld("islandBridge", {
     return () => electron.ipcRenderer.off(ipc.IPC.ISLAND_WINDOW_BLUR, handler);
   },
   // ── Renderer → main ────────────────────────────────────────────────────────
-  // floating 拖动：按下/松手各发一次，中间由主进程轮询光标跟手。
-  dragStart() {
-    electron.ipcRenderer.send(ipc.IPC.ISLAND_DRAG_START);
-  },
-  dragEnd() {
-    electron.ipcRenderer.send(ipc.IPC.ISLAND_DRAG_END);
-  },
-  getPlacement() {
-    return electron.ipcRenderer.invoke(ipc.IPC.ISLAND_GET_PLACEMENT);
-  },
-  onPlacement(cb) {
-    electron.ipcRenderer.on(ipc.IPC.ISLAND_PLACEMENT, (_e, payload) => cb(payload));
-  },
   enterIsland() {
     electron.ipcRenderer.send(ipc.IPC.ISLAND_ENTER);
   },
