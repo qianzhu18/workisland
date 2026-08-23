@@ -11,6 +11,10 @@ const TELEMETRY_FLUSH_INTERVAL_MS = 5 * 60 * 1e3;
 const TELEMETRY_REQUEST_TIMEOUT_MS = 8e3;
 const TELEMETRY_QUEUE_MAX = 500;
 const TELEMETRY_BATCH_MAX = 100;
+// PostHog's ingest pipeline may otherwise infer a location from the request
+// IP address. This transport-only directive must be present on every event;
+// it is not product analytics and is never populated from user data.
+const DISABLE_GEOIP_PROPERTY = "$geoip_disable";
 
 const EVENTS = Object.freeze({
   APP_LAUNCHED: "app_launched",
@@ -75,6 +79,7 @@ module.exports = {
   TELEMETRY_REQUEST_TIMEOUT_MS,
   TELEMETRY_QUEUE_MAX,
   TELEMETRY_BATCH_MAX,
+  DISABLE_GEOIP_PROPERTY,
   EVENTS,
   PROPERTY_WHITELIST,
   SETTINGS_KEY_WHITELIST,

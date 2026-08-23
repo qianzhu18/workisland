@@ -11,8 +11,8 @@ body:
     id: version
     attributes:
       label: WorkIsland version
-      description: Include the exact app version and whether this is an internal, Beta, or stable build.
-      placeholder: "v0.3.0-beta.1 (Apple Silicon macOS 15.6)"
+      description: Include the exact app version and whether this is a stable or pre-release (Alpha) build.
+      placeholder: "v3.0.0 (Apple Silicon macOS 15.6)"
     validations:
       required: true
   - type: dropdown

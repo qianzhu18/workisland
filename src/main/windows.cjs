@@ -1249,7 +1249,8 @@ function createWindowClasses(dependencies) {
   }
   class WelcomeWindow {
     win;
-    constructor({ consentOnly = false } = {}) {
+    // 遥测同意窗口模式已随 2026-08-22 默认开启政策移除；此处只创建新手引导窗口。
+    constructor() {
       this.win = new electron.BrowserWindow({
         width: 420,
         height: 540,
@@ -1269,12 +1270,9 @@ function createWindowClasses(dependencies) {
         }
       });
       if (utils.is.dev && process.env["ELECTRON_RENDERER_URL"]) {
-        const suffix = consentOnly ? "?mode=telemetry" : "";
-        this.win.loadURL(`${process.env["ELECTRON_RENDERER_URL"]}/island/renderer/welcome.html${suffix}`);
+        this.win.loadURL(`${process.env["ELECTRON_RENDERER_URL"]}/island/renderer/welcome.html`);
       } else {
-        this.win.loadFile(path.join(__dirname, "../renderer/island/renderer/welcome.html"), consentOnly ? {
-          query: { mode: "telemetry" }
-        } : undefined);
+        this.win.loadFile(path.join(__dirname, "../renderer/island/renderer/welcome.html"));
       }
       this.win.once("ready-to-show", () => {
         this.win.show();

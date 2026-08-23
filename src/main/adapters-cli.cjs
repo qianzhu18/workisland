@@ -289,6 +289,14 @@ class ClaudeAdapter {
     const sessionId = payload.session_id;
     const now = Date.now();
     const hookEvent = payload.hook_event_name;
+    // 每个事件都刷新 jumpTarget，而不只在 SessionStart / UserPromptSubmit / Stop。
+    //
+    // 那三个事件只在一轮的开头和结尾出现。会话若在中途被重建 —— WorkIsland 重启、
+    // 或空闲扫描把会话清掉后又被后续工具事件带回来 —— 就再也等不到它们，
+    // 重建出来的会话永远没有 jumpTarget：点击卡片毫无反应，而且 PidWatcher 与
+    // 桌面 App 存活探测都以 jumpTarget 为前提，会话也不会自动结束。
+    // updateJumpTarget 只是按当前 hook payload 记录终端/工作目录，重复调用无副作用。
+    if (sessionId) ctx.updateJumpTarget?.(sessionId, tool);
     const subAgentId = resolveClaudeSubAgentId(payload);
     if (subAgentId && hookEvent !== "SubagentStart" && hookEvent !== "SubagentStop") {
       const parentId = this.subagentParentByAgentId.get(subAgentId) ?? sessionId;

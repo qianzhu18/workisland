@@ -44,6 +44,7 @@ function createSessionState({ isVisibleInIsland }) {
       isSessionEnded: false,
       isProcessAlive: false,
       isHookManaged: true,
+      recoveredFromTranscript: false,
       completionDismissed: false,
       isRemote: false
     };
@@ -68,6 +69,10 @@ function createSessionState({ isVisibleInIsland }) {
           isSessionEnded: false,
           completionDismissed: false,
           isPullColdCompleteSession: false,
+          // 启动发现补出来的会话要带上标记：它没有 hook 的 activeTool，
+          // 空闲扫描不能把「暂时没输出的长任务」误判成 ESC 中断。
+          recoveredFromTranscript: !!event.recoveredFromTranscript,
+          recoveryTranscriptPath: event.recoveryTranscriptPath ?? (event.recoveredFromTranscript ? prev.recoveryTranscriptPath : void 0),
           // 显式清 error / errorDetail：与 turnStarted 保持 parity —— 新一轮 = 干净状态。
           // sessionCompleted reducer 用 `event.error ?? prev.error` 透传，残留会让
           // 下一轮成功完成时仍渲染为错误完成卡。
@@ -77,7 +82,14 @@ function createSessionState({ isVisibleInIsland }) {
           // 已经清过，这里是防御性兜底，避免上一轮未配对的 toolUseStarted 导致
           // sweep 误判"还有工具在跑"）。
           activeTool: void 0,
-          createdAt: event.timestamp,
+          // Hook 会为同一会话的每一轮都发 SessionStart/UserPromptSubmit。
+          // createdAt 保留最初的起点（统计服务按它归档「整段对话」），
+          // 只有真正结束过的会话才重新开始计。
+          createdAt: prev.isSessionEnded ? event.timestamp : prev.createdAt,
+          // 本轮开始时间，每轮刷新。卡片计时用它 —— 直接用 createdAt 会显示
+          // 整段对话的 30 分钟+，且会话结束过/应用重启后又会重置，
+          // 表现成「时而整段时而单轮」。
+          turnStartedAt: event.timestamp,
           updatedAt: event.timestamp
         };
         break;
@@ -118,7 +130,8 @@ function createSessionState({ isVisibleInIsland }) {
           // 防御性兜底：上一轮可能有未配对的 toolUseStarted（pull adapter 不发
           // tool 事件，理论上不会出现，但保留与 sessionStarted 一致的清理语义）。
           activeTool: void 0,
-          createdAt: event.timestamp,
+          // 同 sessionStarted：整段起点不动，只刷新本轮起点。
+          turnStartedAt: event.timestamp,
           updatedAt: event.timestamp
         };
         break;

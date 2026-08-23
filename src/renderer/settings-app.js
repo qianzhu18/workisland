@@ -31,7 +31,7 @@ const AGENT_ICON_URLS = Object.freeze({
   "plugin:pi": "../assets/brands/pi.svg"
 });
 const VERIFY_ON_REAL_EVENT_AGENT_IDS = new Set(["dsh", "trae"]);
-const state = { settings: null, statuses: new Map(), displays: [], codexPets: [], activeTab: "general", busy: new Set(), latestUpdate: null };
+const state = { settings: null, statuses: new Map(), displays: [], codexPets: [], activeTab: "general", busy: new Set(), latestUpdate: null, telemetryStatus: null };
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -95,10 +95,20 @@ async function save(partial) {
   state.settings = { ...state.settings, ...partial };
   try {
     await api.setSettings(partial);
+    if ("telemetryEnabled" in partial) await loadTelemetryStatus();
+    if (state.activeTab === "about") renderPage();
   } catch (error) {
     state.settings = previous;
     renderPage();
     showToast(error?.message || "设置保存失败", true);
+  }
+}
+
+async function loadTelemetryStatus() {
+  try {
+    state.telemetryStatus = await api.getTelemetryStatus?.() || null;
+  } catch {
+    state.telemetryStatus = null;
   }
 }
 
@@ -120,6 +130,11 @@ async function loadCodexPets() {
   }
 }
 
+function requestQuitApp() {
+  const confirmed = window.confirm("退出 WorkIsland？\n\n这会关闭 Island、桌宠与后台监听。");
+  if (confirmed) api.quitApp();
+}
+
 function generalPage() {
   const root = document.createDocumentFragment();
   const behavior = section("Island 行为", "控制灵动岛何时出现以及如何收起。");
@@ -129,12 +144,22 @@ function generalPage() {
     row("悬停展开", "鼠标停留在 Island 上时展开面板。", toggle(state.settings.hoverToOpen, v => save({ hoverToOpen: v }), "悬停展开")),
     row("失去焦点后隐藏", "失去窗口焦点后隐藏 Island；鼠标移到顶部热区可恢复。", toggle(state.settings.autoCollapseOnMouseLeave, v => save({ autoCollapseOnMouseLeave: v }), "失去焦点后隐藏")),
     row("全屏时隐藏", "全屏应用位于当前屏幕时隐藏 Island。", toggle(state.settings.hideWhenFullscreen, v => save({ hideWhenFullscreen: v }), "全屏时隐藏")),
-    row("没有会话时隐藏", "仅在 Agent 活动期间显示 Island。", toggle(state.settings.hideWhenNoActiveSessions, v => save({ hideWhenNoActiveSessions: v }), "无会话时隐藏")),
+    row(
+      "Island 显示模式",
+      "常驻（新装默认）：空闲时保留顶部紧凑胶囊，装完即可看到 WorkIsland；极简：空闲时隐藏，需要时通过顶部热区或快捷键唤回。两种模式下提交与完成都会短暂显示，审批、提问和错误持续显示。",
+      select(
+        state.settings.islandDisplayMode === "persistent" ? "persistent" : "minimal",
+        [["persistent", "常驻（默认）"], ["minimal", "极简"]],
+        v => save({ islandDisplayMode: v }),
+        "Island 显示模式"
+      )
+    ),
+    row("任务提交时展开", "提交新的 Agent 任务时显示 5 秒提醒。", toggle(state.settings.expandOnSessionSubmit, v => save({ expandOnSessionSubmit: v }), "提交时展开")),
     row("需要操作时展开", "审批、提问或计划确认到来时自动展开。", toggle(state.settings.expandOnActionRequired, v => save({ expandOnActionRequired: v }), "操作时展开")),
     row("任务完成时展开", "Agent 完成当前轮次时短暂展示结果。", toggle(state.settings.expandOnSessionComplete, v => save({ expandOnSessionComplete: v }), "完成时展开")),
     row(
       "完成通知停留时间",
-      "只影响任务完成通知；审批、提问和失败通知会保留到你处理为止。",
+      "影响任务提交和完成通知；审批、提问和失败通知会保留到你处理为止。",
       select(
         state.settings.completionPopupDurationSec,
         [["5", "5 秒"], ["10", "10 秒"], ["20", "20 秒"], ["30", "30 秒"]],
@@ -191,7 +216,11 @@ function generalPage() {
     row("显示额度信息", "在面板顶部展示本地可读取的额度数据。", toggle(state.settings.showUsageQuota, v => save({ showUsageQuota: v }), "显示额度")),
     row("触感反馈", "执行审批等关键操作时提供轻微触感。", toggle(state.settings.hapticFeedback, v => save({ hapticFeedback: v }), "触感反馈"))
   );
-  root.append(behavior, display);
+  const lifecycle = section("应用", "关闭 WorkIsland 会同时关闭 Island、桌宠与后台监听。");
+  lifecycle.append(
+    row("退出 WorkIsland", "需要重新打开应用后才会继续监测本机 Agent 状态。", button("退出应用", requestQuitApp, "danger"))
+  );
+  root.append(behavior, display, lifecycle);
   return root;
 }
 
@@ -423,18 +452,32 @@ function aboutPage() {
     row("自动检查更新", "安装版每天检查一次 GitHub Release；关闭后仍可手动检查。", toggle(state.settings.updateChecksEnabled, v => save({ updateChecksEnabled: v }), "自动检查更新")),
     row("版本检查", "发现新版本后会提醒，并提供官方下载页。", updateControls)
   );
+  const diagnostics = section("诊断", "导出仅包含本机诊断信息的日志；退出操作位于默认的“通用”页面。");
   const actions = el("div", "section-actions");
-  actions.append(button("导出诊断日志", async () => { const path = await api.collectLogs(); showToast(path ? "日志已导出" : "日志导出完成"); }), button("退出应用", () => api.quitApp(), "danger"));
-  about.append(actions);
-  const privacy = section("匿名使用统计", "默认关闭。开启后仅上报事件类型与 Agent 名称等匿名统计。");
+  actions.append(button("导出诊断日志", async () => { const path = await api.collectLogs(); showToast(path ? "日志已导出" : "日志导出完成"); }));
+  diagnostics.append(actions);
+  const privacy = section("匿名使用统计", "默认开启。仅上报事件类型与 Agent 名称等匿名统计，可在下方随时关闭。");
+  const telemetryStatus = state.telemetryStatus;
+  const statusText = !telemetryStatus
+    ? "正在读取本机发送状态…"
+    : telemetryStatus.status === "disabled"
+      ? "已关闭：不会继续收集或发送，未上报数据已清空。"
+      : telemetryStatus.status === "development"
+        ? "开发模式：本机可检查队列，但不会出网发送。"
+        : telemetryStatus.status === "not-configured"
+          ? "上传未配置：本机不会向 PostHog 发送数据。"
+          : telemetryStatus.lastSuccessAt
+            ? `最近一次成功提交到 PostHog：${new Date(telemetryStatus.lastSuccessAt).toLocaleString()}；待发送 ${telemetryStatus.pendingEventCount} 条。`
+            : `已开启：等待首次成功提交；待发送 ${telemetryStatus.pendingEventCount} 条。`;
   privacy.append(
     row(
       "允许匿名使用统计",
-      "不包含会话内容、文件路径或个人信息；关闭时会立即清空未上报的数据。目的地为 PostHog（美国区），事件清单见开源代码 telemetry.cjs。",
+      "默认开启；关闭后立即停止收集并清空未上报的数据。不包含会话内容、文件路径或个人信息；目的地为 PostHog（美国区），事件清单见开源代码 telemetry.cjs。",
       toggle(state.settings.telemetryEnabled, v => save({ telemetryEnabled: v }), "允许匿名使用统计")
-    )
+    ),
+    row("本机发送状态", "仅显示本机队列与 PostHog 批量接口最近一次 HTTP 2xx 确认，不展示或上传任何额外内容。", el("div", "setting-description", statusText))
   );
-  root.append(about, support, privacy, updates);
+  root.append(about, support, privacy, updates, diagnostics);
   return root;
 }
 
@@ -457,6 +500,7 @@ function showToast(message, error = false) {
 async function start() {
   if (!api) throw new Error("settingsApi unavailable");
   state.settings = await api.getSettings();
+  await loadTelemetryStatus();
   await loadDisplays();
   await loadCodexPets();
   document.querySelectorAll(".nav-item").forEach(item => item.addEventListener("click", () => {
