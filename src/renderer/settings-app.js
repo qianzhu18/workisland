@@ -140,7 +140,6 @@ function generalPage() {
   const behavior = section("Island 行为", "控制灵动岛何时出现以及如何收起。");
   behavior.append(
     row("登录时启动", "开机登录后自动启动 WorkIsland。", toggle(state.settings.launchAtLogin, v => save({ launchAtLogin: v }), "登录时启动")),
-    row("贴边模式", "脱离顶部刘海，变成可拖动的贴边条：拖动时收成小方块，松手吸附到最近的边（上/左/右）。贴左右时是竖条、展开为竖长面板；贴顶部时是横条。", toggle(state.settings.islandPlacement === "docked", v => save({ islandPlacement: v ? "docked" : "notch" }), "贴边模式")),
     row("悬停展开", "鼠标停留在 Island 上时展开面板。", toggle(state.settings.hoverToOpen, v => save({ hoverToOpen: v }), "悬停展开")),
     row("失去焦点后隐藏", "失去窗口焦点后隐藏 Island；鼠标移到顶部热区可恢复。", toggle(state.settings.autoCollapseOnMouseLeave, v => save({ autoCollapseOnMouseLeave: v }), "失去焦点后隐藏")),
     row("全屏时隐藏", "全屏应用位于当前屏幕时隐藏 Island。", toggle(state.settings.hideWhenFullscreen, v => save({ hideWhenFullscreen: v }), "全屏时隐藏")),
