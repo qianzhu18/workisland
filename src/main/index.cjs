@@ -28,7 +28,6 @@ const { isAllowedExternalUrl } = require("./external-url-policy.cjs");
 const { createUpdateService } = require("./update-service.cjs");
 const { createTelemetryService } = require("./telemetry-service.cjs");
 const { EVENTS } = require("../shared/telemetry.cjs");
-const { isTelemetryConsentPending, createTelemetryConsentChoice } = require("../shared/telemetry-consent.cjs");
 const {
   canContinueSessionViaTerminalPrompt,
   isPluginAgentTool,
@@ -729,7 +728,8 @@ async function runIslandApp() {
     },
     logger: log
   });
-  // 匿名遥测（ADR-0003 / PRD-005）：默认关闭；同意与白名单门控都在服务内。
+  // 匿名遥测（PRD-005，2026-08-22 改版）：默认开启、设置内披露；开关门控读取
+  // telemetryEnabled 设置本身，白名单与 fail-closed 门控仍在服务内。
   telemetryService = createTelemetryService({
     getSettings: () => coordinator.getSettings(),
     isPackaged: electron.app.isPackaged,
@@ -935,38 +935,33 @@ async function runIslandApp() {
     return islandWindow;
   }
   const needsOnboarding = !coordinator.getSettings().hasCompletedOnboarding;
-  const needsTelemetryConsent = isTelemetryConsentPending(coordinator.getSettings());
 
-  function showWelcomeWindow({ consentOnly = false, afterComplete } = {}) {
-    const welcomeWindow = new WelcomeWindow({ consentOnly });
+  function showWelcomeWindow({ afterComplete } = {}) {
+    const welcomeWindow = new WelcomeWindow();
 
     let resolved = false;
     const cleanupWelcome = () => {
       electron.ipcMain.removeListener(IPC.WELCOME_GET_STARTED, onGetStarted);
     };
-    const finishWelcome = (payload = {}) => {
+    const finishWelcome = () => {
       if (resolved) return;
       resolved = true;
       cleanupWelcome();
-
-      if (needsTelemetryConsent) {
-        const choice = createTelemetryConsentChoice(payload.telemetry);
-        coordinator.updateSettings(choice);
-        if (choice.telemetryEnabled) telemetryService?.track(EVENTS.APP_LAUNCHED);
-      }
+      // 遥测不再在此询问（2026-08-22 默认开启政策）：启动时已按设置记录
+      // app_launched，欢迎页只负责完成新手引导。
       welcomeWindow.close();
       afterComplete?.();
     };
-    const onGetStarted = (event, payload) => {
+    const onGetStarted = (event) => {
       if (event.sender !== welcomeWindow.browserWindow.webContents) return;
       log.info("[main] WELCOME_GET_STARTED received");
-      finishWelcome(payload);
+      finishWelcome();
     };
     electron.ipcMain.on(IPC.WELCOME_GET_STARTED, onGetStarted);
     welcomeWindow.browserWindow.once("closed", () => {
       cleanupWelcome();
       if (resolved || isQuitting) return;
-      log.warn("[main] WelcomeWindow closed before an explicit choice; consent remains pending");
+      log.warn("[main] WelcomeWindow closed before onboarding completed; retry on next launch");
       electron.app.quit();
     });
   }
@@ -980,11 +975,6 @@ async function runIslandApp() {
       coordinator.updateSettings({ hasCompletedOnboarding: true });
       startIsland({ expandAfterOnboarding: true });
     } });
-  } else if (needsTelemetryConsent) {
-    showWelcomeWindow({
-      consentOnly: true,
-      afterComplete: startIsland
-    });
   } else {
     startIsland();
   }

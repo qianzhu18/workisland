@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, existsSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { test } from "node:test";
@@ -7,22 +7,24 @@ import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 const { createTelemetryService } = require("../src/main/telemetry-service.cjs");
-const { EVENTS, sanitizeProps } = require("../src/shared/telemetry.cjs");
+const { DISABLE_GEOIP_PROPERTY, EVENTS, sanitizeProps } = require("../src/shared/telemetry.cjs");
 
 function makeService({
   telemetryEnabled = true,
   isPackaged = true,
   apiKey = "phc-test-key",
   requests = [],
-  fetchImpl = async () => ({ ok: true })
+  fetchImpl = async () => ({ ok: true }),
+  now = () => Date.now(),
+  userDataPath = mkdtempSync(join(tmpdir(), "workisland-telemetry-"))
 } = {}) {
-  const userDataPath = mkdtempSync(join(tmpdir(), "workisland-telemetry-"));
   const settings = { telemetryEnabled };
   const service = createTelemetryService({
     getSettings: () => settings,
     isPackaged,
     appVersion: "0.3.0-test",
     osVersion: "darwin 24.6.0",
+    now,
     userDataPath,
     apiKey,
     fetchImpl: async (url, init) => {
@@ -48,27 +50,60 @@ test("sanitizeProps drops unknown properties and long values", () => {
   assert.deepEqual(sanitizeProps(EVENTS.APP_LAUNCHED, { anything: "else" }), {});
 });
 
-test("without consent nothing is queued or sent", async () => {
+test("when telemetry is off nothing is queued or sent", async () => {
   const { service, requests } = makeService({ telemetryEnabled: false });
   service.track(EVENTS.SESSION_STARTED, { tool: "claude" });
   service.markFirstAgentSignal("claude");
   await service.flush();
   assert.equal(service.queueLength(), 0);
   assert.equal(requests.length, 0);
-  assert.equal(service.isConsented(), false);
+  assert.equal(service.isEnabled(), false);
 });
 
-test("a launch can be recorded only after the user consents", () => {
+test("unknown event names are rejected before they reach the queue", () => {
+  const { service } = makeService();
+  service.track("event_added_by_mistake", { secret: "must not leave disk" });
+  service.track("", null);
+  service.track(null, null);
+  assert.equal(service.queueLength(), 0);
+});
+
+test("persisted telemetry is validated before retrying uploads", async () => {
+  const userDataPath = mkdtempSync(join(tmpdir(), "workisland-telemetry-persisted-"));
+  const telemetryPath = join(userDataPath, "telemetry");
+  mkdirSync(telemetryPath, { recursive: true });
+  writeFileSync(join(telemetryPath, "state.json"), JSON.stringify({
+    anonId: 42,
+    activationSent: "yes"
+  }));
+  writeFileSync(join(telemetryPath, "pending.json"), JSON.stringify([
+    { event: EVENTS.APP_LAUNCHED, props: { secret: "must be removed" }, ts: 1_700_000_000_000 },
+    { event: "retired_event", props: {}, ts: 1_700_000_000_000 },
+    { event: EVENTS.SESSION_STARTED, props: { tool: "claude" }, ts: "invalid" },
+    "not-an-event"
+  ]));
+
+  const { service, requests } = makeService({ userDataPath });
+  assert.equal(service.queueLength(), 1, "only a current, well-formed event is retained");
+  await service.flush();
+
+  assert.equal(requests.length, 1);
+  assert.deepEqual(requests[0].body.batch.map((event) => event.event), [EVENTS.APP_LAUNCHED]);
+  assert.equal(typeof requests[0].body.batch[0].distinct_id, "string");
+  assert.equal("secret" in requests[0].body.batch[0].properties, false);
+});
+
+test("a launch can be recorded only while telemetry is enabled", () => {
   const { service, settings } = makeService({ telemetryEnabled: false });
   service.track(EVENTS.APP_LAUNCHED);
-  assert.equal(service.queueLength(), 0, "pre-consent launch is never retained");
+  assert.equal(service.queueLength(), 0, "disabled launch is never retained");
 
   settings.telemetryEnabled = true;
   service.track(EVENTS.APP_LAUNCHED);
-  assert.equal(service.queueLength(), 1, "first-launch consent can create an activation cohort");
+  assert.equal(service.queueLength(), 1, "re-enabling telemetry permits the activation event");
 });
 
-test("consent queues whitelisted events and flush clears them on success", async () => {
+test("enabled telemetry queues whitelisted events and flush clears them on success", async () => {
   const { service, requests } = makeService();
   service.track(EVENTS.SESSION_STARTED, { tool: "claude", evil: "drop-me" });
   service.track(EVENTS.JUMP_BACK, { tool: "codex", target: "ghostty" });
@@ -82,7 +117,50 @@ test("consent queues whitelisted events and flush clears them on success", async
   assert.deepEqual(batch[0].properties.tool, "claude");
   assert.equal("evil" in batch[0].properties, false);
   assert.equal(batch[0].properties.appVersion, "0.3.0-test");
+  assert.equal(batch[0].properties[DISABLE_GEOIP_PROPERTY], true, "every upload must disable server-side GeoIP enrichment");
   assert.equal(typeof batch[0].distinct_id, "string");
+  assert.equal(service.queueLength(), 0);
+});
+
+test("GeoIP is disabled for every event in a batch", async () => {
+  const { service, requests } = makeService();
+  service.track(EVENTS.APP_LAUNCHED);
+  service.track(EVENTS.SESSION_STARTED, { tool: "claude" });
+  await service.flush();
+
+  assert.equal(requests.length, 1);
+  for (const event of requests[0].body.batch) {
+    assert.equal(event.properties[DISABLE_GEOIP_PROPERTY], true);
+  }
+});
+
+test("lifecycle telemetry counts a turn once across duplicate reports and counts the next turn", async () => {
+  let timestamp = 1_700_000_000_000;
+  const { service, requests } = makeService({ now: () => timestamp });
+
+  assert.equal(service.trackLifecycleEvent(EVENTS.SESSION_STARTED, { sessionId: "local-session-a", tool: "claude" }), true);
+  timestamp += 100;
+  assert.equal(service.trackLifecycleEvent(EVENTS.SESSION_STARTED, { sessionId: "local-session-a", tool: "claude" }), false);
+  assert.equal(service.trackLifecycleEvent(EVENTS.SESSION_COMPLETED, { sessionId: "local-session-a", tool: "claude" }), true);
+  timestamp += 100;
+  assert.equal(service.trackLifecycleEvent(EVENTS.SESSION_COMPLETED, { sessionId: "local-session-a", tool: "claude" }), false);
+  assert.equal(service.trackLifecycleEvent(EVENTS.SESSION_STARTED, { sessionId: "local-session-a", tool: "claude" }), true);
+
+  await service.flush();
+  const batch = requests[0].body.batch;
+  assert.deepEqual(batch.map((event) => event.event), [
+    EVENTS.SESSION_STARTED,
+    EVENTS.SESSION_COMPLETED,
+    EVENTS.SESSION_STARTED
+  ]);
+  for (const event of batch) {
+    assert.equal("sessionId" in event.properties, false, "internal deduplication keys never upload");
+  }
+});
+
+test("lifecycle tracking is fail-closed without a local session id", () => {
+  const { service } = makeService();
+  assert.equal(service.trackLifecycleEvent(EVENTS.SESSION_STARTED, { tool: "claude" }), false);
   assert.equal(service.queueLength(), 0);
 });
 
@@ -96,7 +174,7 @@ test("first agent signal is emitted at most once per installation", async () => 
   assert.equal(signals[0].properties.tool, "claude");
 });
 
-test("first agent signal is not consumed before telemetry consent", () => {
+test("first agent signal is not consumed while telemetry is off", () => {
   const { service, settings } = makeService({ telemetryEnabled: false });
   service.markFirstAgentSignal("claude");
   assert.equal(service.queueLength(), 0);
@@ -129,7 +207,7 @@ test("missing api key disables uploads but keeps local queueing", async () => {
   assert.equal(requests.length, 0);
 });
 
-test("disabling consent wipes the pending queue immediately", async () => {
+test("disabling telemetry wipes the pending queue immediately", async () => {
   const { service, settings } = makeService();
   service.track(EVENTS.SESSION_STARTED, { tool: "claude" });
   settings.telemetryEnabled = false;
@@ -146,6 +224,24 @@ test("queue caps at the configured maximum by dropping the oldest", () => {
     service.track(EVENTS.SESSION_STARTED, { tool: `agent-${index}` });
   }
   assert.equal(service.queueLength(), 500);
+});
+
+test("status records only a successful PostHog batch acknowledgement", async () => {
+  const { service } = makeService();
+  assert.deepEqual(service.getStatus(), {
+    enabled: true,
+    canUpload: true,
+    pendingEventCount: 0,
+    lastSuccessAt: null,
+    status: "ready"
+  });
+
+  service.track(EVENTS.APP_LAUNCHED);
+  await service.flush();
+  const status = service.getStatus();
+  assert.equal(status.pendingEventCount, 0);
+  assert.equal(status.status, "ready");
+  assert.equal(typeof status.lastSuccessAt, "number");
 });
 
 test("trackSettingChange only reports whitelisted keys without values", async () => {

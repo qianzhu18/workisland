@@ -23,6 +23,14 @@ test("general settings expose all completion notification duration options", () 
   assert.match(source, /save\(\{ completionPopupDurationSec: Number\(v\) \}\)/);
 });
 
+test("the default General page offers a confirmed safe quit action", () => {
+  assert.match(source, /function requestQuitApp\(\)/);
+  assert.match(source, /window\.confirm\("退出 WorkIsland？\\n\\n这会关闭 Island、桌宠与后台监听。"\)/);
+  assert.match(source, /section\("应用", "关闭 WorkIsland 会同时关闭 Island、桌宠与后台监听。"\)/);
+  assert.match(source, /button\("退出应用", requestQuitApp, "danger"\)/);
+  assert.doesNotMatch(source, /button\("退出应用", \(\) => api\.quitApp\(\), "danger"\)/);
+});
+
 test("about settings route the manual, feedback and beta community through stable website URLs", () => {
   assert.match(source, /帮助与内测/);
   assert.match(source, /https:\/\/workisland\.yanglaishe\.cn\/guide\//);

@@ -33,13 +33,41 @@ function canonicalTerminalApp(value) {
   return TERMINAL_APP_ALIASES[normalized] || value.trim();
 }
 
+// 顺序有意义：更具体的放前面，先匹配到的先返回。
+const HOST_APP_MATCHERS = Object.freeze([
+  ["/codebuddy cn.app/", "CodeBuddy CN"],
+  ["/workbuddy.app/", "WorkBuddy"],
+  ["/trae solo.app/", "TraeWork"],
+  ["/trae cn.app/", "Trae CN"],
+  ["/trae.app/", "Trae"],
+  ["/claude.app/", "Claude"],
+  ["/cursor.app/", "Cursor"],
+  ["/windsurf.app/", "Windsurf"],
+  ["/visual studio code.app/", "VS Code"],
+  ["/ghostty.app/", "Ghostty"],
+  ["/iterm.app/", "iTerm"],
+  ["/terminal.app/", "Terminal"],
+  ["/warp.app/", "Warp"],
+  ["/wezterm.app/", "WezTerm"],
+  ["/alacritty.app/", "Alacritty"],
+  ["/kitty.app/", "kitty"]
+]);
+
+/**
+ * 从进程命令行认出承载会话的宿主 App。
+ *
+ * 除了几个 Agent 桌面端，还必须认出 Claude Desktop 与各终端：Claude Code 跑在
+ * Claude Desktop 里时 TERM_PROGRAM 为空，terminal_app 便恒为 undefined，
+ * bridge-server 的 updateJumpTarget 拿不到 app 会直接 return —— jumpTarget 永远
+ * 不生成，表现为「点击卡片不跳转」，且存活探测以 jumpTarget 为前提，会话也不会
+ * 自动结束。
+ */
 function desktopHostForCommand(command) {
   if (typeof command !== "string") return undefined;
   const normalized = command.toLowerCase();
-  if (normalized.includes("/codebuddy cn.app/")) return "CodeBuddy CN";
-  if (normalized.includes("/workbuddy.app/")) return "WorkBuddy";
-  if (normalized.includes("/trae solo.app/")) return "TraeWork";
-  if (normalized.includes("/trae.app/")) return "Trae";
+  for (const [needle, app] of HOST_APP_MATCHERS) {
+    if (normalized.includes(needle)) return app;
+  }
   return undefined;
 }
 

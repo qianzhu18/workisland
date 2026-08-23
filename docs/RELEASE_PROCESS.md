@@ -4,8 +4,8 @@
 
 ## 发布渠道
 
-- 稳定版：`vX.Y.Z`，例如 `v0.3.0`
-- 预发布版：`vX.Y.Z-beta.N`，例如 `v0.3.0-beta.1`
+- 稳定版：`vX.Y.Z`，例如 `v3.0.0`
+- 预发布版：`vX.Y.Z-beta.N`，例如 `v3.0.1-beta.1`
 - 用户端更新检测只读取 GitHub 的稳定版 `releases/latest`
 - GitHub Release 是安装包的唯一事实来源，官网只负责展示和引导下载
 
@@ -26,7 +26,7 @@
 ```bash
 npm ci
 npm run check
-npm run release:check -- --tag v0.3.0
+npm run release:check -- --tag v3.0.0
 ```
 
 将示例版本替换为 `package.json` 中的实际版本。`release:check` 会确认：
@@ -43,8 +43,8 @@ npm run release:check -- --tag v0.3.0
 3. 创建并推送与版本一致的 Tag：
 
    ```bash
-   git tag -a v0.3.0 -m "Release v0.3.0"
-   git push origin v0.3.0
+   git tag -a v3.0.0 -m "Release v3.0.0"
+   git push origin v3.0.0
    ```
 
 4. `release.yml` 自动执行：
@@ -80,7 +80,7 @@ https://api.github.com/repos/qianzhu18/workisland/releases/latest
 
 用户可以在“关于 → 更新”中关闭自动检查，仍然可以手动检查。网络失败不会影响应用启动和本地 Agent 监控。
 
-另有独立的匿名使用统计通道：默认关闭，仅在用户于首次启动或设置页明确开启后才会上报白名单事件（见 [遥测说明](./TELEMETRY.md)）。两个通道互不影响，关闭任一通道均不影响应用功能。
+另有独立的匿名使用统计通道：默认开启，并在「设置 → 关于」公开披露与提供一键关闭；关闭立即清空未上传队列，此后不再上报白名单事件（见 [遥测说明](./TELEMETRY.md)）。两个通道互不影响，关闭任一通道均不影响应用功能。
 
 ## 手动运行工作流
 

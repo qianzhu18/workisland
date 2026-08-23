@@ -77,7 +77,7 @@ On Windows, the MVP can activate the originating application but cannot yet sele
 
 ## Privacy
 
-WorkIsland is designed for local workflows. It does not upload Agent sessions, project files, or terminal content. Installed releases can check GitHub Releases for updates; optional anonymous telemetry is off by default and only starts after an explicit opt-in. Read the [product guide](https://workisland.yanglaishe.cn/guide/#privacy) before enabling it.
+WorkIsland is designed for local workflows. It does not upload Agent sessions, project files, or terminal content. Installed releases can check GitHub Releases for updates. Anonymous usage telemetry is on by default, is disclosed in Settings → About, and can be turned off at any time; turning it off clears unsent events immediately. Read the [telemetry guide](docs/TELEMETRY.md) for the complete event whitelist and privacy guarantees.
 
 ## Community and Support
 

@@ -88,12 +88,16 @@ jobs:
           const settings = asar.extractFile(archive, 'src/renderer/settings-app.js').toString('utf8');
           if (!settings.includes('AGENT_ICON_URLS')) missing.push('/src/renderer/settings-app.js:AGENT_ICON_URLS');
           const main = asar.extractFile(archive, 'src/main/index.cjs').toString('utf8');
-          if (!main.includes('isTelemetryConsentPending')) missing.push('/src/main/index.cjs:isTelemetryConsentPending');
+          if (main.includes('isTelemetryConsentPending')) missing.push('/src/main/index.cjs:legacy telemetry consent flow must not ship');
+          const telemetry = asar.extractFile(archive, 'src/main/telemetry-service.cjs').toString('utf8');
+          const telemetryContract = asar.extractFile(archive, 'src/shared/telemetry.cjs').toString('utf8');
+          if (!telemetry.includes('trackLifecycleEvent')) missing.push('/src/main/telemetry-service.cjs:turn lifecycle coalescing');
+          if (!telemetryContract.includes('DISABLE_GEOIP_PROPERTY')) missing.push('/src/shared/telemetry.cjs:GeoIP disable contract');
           if (missing.length) {
             console.error(`Packaged payload is incomplete:\n${missing.map((file) => `- ${file}`).join('\n')}`);
             process.exit(1);
           }
-          console.log(`Packaged payload OK: ${required.length} assets and telemetry consent wiring present.`);
+          console.log(`Packaged payload OK: ${required.length} assets, default-on telemetry, and privacy guards present.`);
           NODE
       - name: Notarize and staple tagged release
         if: startsWith(github.ref, 'refs/tags/v')

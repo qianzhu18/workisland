@@ -42,7 +42,9 @@ test("website links a user manual that covers first use and privacy", () => {
   assert.match(html, /href="guide\/"/);
   assert.match(guide, /WorkIsland 产品手册/);
   assert.match(guide, /开始第一个任务/);
-  assert.match(guide, /匿名使用统计/);
+  assert.match(guide, /匿名统计默认开启/);
+  assert.match(guide, /随时由你关闭/);
+  assert.doesNotMatch(guide, /匿名使用统计默认关闭/);
   assert.match(guide, /提交反馈/);
 });
 

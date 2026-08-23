@@ -13,6 +13,14 @@
 - [PRDs](./prd/)
 - [Product Operating System](../PRODUCT_OPERATING_SYSTEM.md)
 
+## Active Initiatives
+
+- [EPIC-007: Focus-Aware Notifications](./epics/EPIC-007-FOCUS-AWARE-NOTIFICATIONS.md)
+- [PRD-007: Focus-Aware Notifications](./prd/PRD-007-FOCUS-AWARE-NOTIFICATIONS.md)
+- [EPIC-008: Skin UGC Marketplace](./epics/EPIC-008-SKIN-UGC-MARKETPLACE.md)
+- [PRD-008: Skin Creator MCP and Marketplace Intake](./prd/PRD-008-SKIN-MCP-UPLOAD.md)
+- [EPIC-009: Windows Cross-Platform Client](./epics/EPIC-009-WINDOWS-CROSS-PLATFORM.md)
+
 ## 状态与命名
 
 - 状态只能使用：`draft`、`ready`、`in-progress`、`validated`、`deprecated`。

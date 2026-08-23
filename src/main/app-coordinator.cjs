@@ -85,6 +85,11 @@ function createAppCoordinatorClass({
     fullscreenOverrideForNotification = false;
     logDirEnsured = false;
     pidWatchers = /* @__PURE__ */ new Map();
+    // Hook and transcript channels can report one submitted prompt twice
+    // (sessionStarted followed by activityUpdated). Keep the notification
+    // edge idempotent within a short window without suppressing a later,
+    // identical prompt.
+    submissionNotificationBySession = /* @__PURE__ */ new Map();
     /**
      * Codex 会话元数据（transcript_path + 当前 turn_id），由 hookProcessed 事件维护，
      * 供 sweepInterruptedCodexSessions 读 transcript 末尾的 turn_aborted/interrupted 用。
@@ -133,7 +138,7 @@ function createAppCoordinatorClass({
     /**
      * 匿名遥测服务（ADR-0003 / PRD-005）。由入口在构造完成后通过
      * setTelemetryService 注入（与 updateService 同一时序）；所有埋点调用都
-     * 经由可选链发出，服务缺席或未同意时为 no-op。
+     * 经由可选链发出，服务缺席或用户关闭统计时为 no-op。
      */
     telemetry = null;
     constructor() {
@@ -244,11 +249,15 @@ function createAppCoordinatorClass({
             log.warn("[AppCoordinator] failed to record Agent verification: %s", error?.message || error);
           });
         }
-        // 匿名遥测：激活信号每安装只报一次；会话开始按 tool 计数。
-        // 服务内部完成白名单过滤与未同意 no-op。
+        // 匿名遥测：激活信号每安装只报一次；会话生命周期在服务内
+        // 按本地当前轮次合并 Hook / transcript 的重复报告。sessionId
+        // 仅作内存去重键，不会进入遥测队列或上传 payload。
         this.telemetry?.markFirstAgentSignal(event.tool);
         if (event.type === "sessionStarted") {
-          this.telemetry?.track(EVENTS.SESSION_STARTED, { tool: event.tool });
+          this.telemetry?.trackLifecycleEvent?.(EVENTS.SESSION_STARTED, {
+            sessionId: event.sessionId,
+            tool: event.tool
+          });
         }
         const prevSession = event.type === "sessionCompleted" ? getSession(this.state, event.sessionId) : void 0;
         this.state = apply(this.state, event);
@@ -267,7 +276,10 @@ function createAppCoordinatorClass({
           if (session) {
             this.statsService.recordSession(event.tool, session.createdAt, event.timestamp);
           }
-          this.telemetry?.track(EVENTS.SESSION_COMPLETED, { tool: event.tool });
+          this.telemetry?.trackLifecycleEvent?.(EVENTS.SESSION_COMPLETED, {
+            sessionId: event.sessionId,
+            tool: event.tool
+          });
         }
         this.broadcastSessionUpdate();
         this.maybePresentSurface(event);
@@ -646,6 +658,9 @@ function createAppCoordinatorClass({
     setIslandWin(iw) {
       this.islandWin = iw;
       this.petMode.setIslandWindow(iw);
+      // `start()` runs before the Island window is created. Re-evaluate here
+      // so notification-only mode is applied on the first launch as well.
+      this.evaluateFullscreenVisibility();
     }
     setDisplayManager(dm) {
       this.displayMgr = dm;
@@ -656,6 +671,15 @@ function createAppCoordinatorClass({
     /** 注入匿名遥测服务（index.cjs 在构造后调用，时序与 updateService 一致）。 */
     setTelemetryService(service) {
       this.telemetry = service;
+    }
+    getTelemetryStatus() {
+      return this.telemetry?.getStatus?.() ?? {
+        enabled: this.settings.telemetryEnabled === true,
+        canUpload: false,
+        pendingEventCount: 0,
+        lastSuccessAt: null,
+        status: "unavailable"
+      };
     }
     openSettingsWindow() {
       if (this.settingsWindow) {
@@ -802,7 +826,7 @@ function createAppCoordinatorClass({
       const prevClaudeSubscriptionEnabled = this.settings.pillFirstRow.claudeSubscription;
       this.settings = { ...this.settings, ...partial };
       this.settingsRepository.scheduleSave(this.settings);
-      // 匿名遥测：同意状态变化必须立即同步给服务（关闭即清空未上报队列）；
+      // 匿名遥测：开关变化必须立即同步给服务（关闭即清空未上报队列）；
       // 其余白名单 key 只上报 key 本身，值永不离开本机。
       if (this.telemetry) {
         if ("telemetryEnabled" in partial) {
@@ -845,7 +869,7 @@ function createAppCoordinatorClass({
       if ("autoCollapseOnMouseLeave" in partial && !this.settings.autoCollapseOnMouseLeave) {
         this.islandWin?.setFocusHidden(false);
       }
-      if ("hideWhenFullscreen" in partial || "alwaysHide" in partial || "hideWhenNoActiveSessions" in partial) {
+      if ("hideWhenFullscreen" in partial || "islandDisplayMode" in partial) {
         this.evaluateFullscreenVisibility();
       }
       if ("petScale" in partial) this.petMode.resize(this.settings.petScale);
@@ -1198,9 +1222,6 @@ function createAppCoordinatorClass({
       );
       this.islandWindow.webContents.send(IPC.ISLAND_SESSION_UPDATE, sessions);
       this.petMode.send(IPC.PET_SESSION_UPDATE, sessions);
-      // Keep the visibility setting synchronized with the live session list.
-      // This used to be a renderer-only setting, so toggling it had no effect.
-      if (this.settings.hideWhenNoActiveSessions) this.evaluateFullscreenVisibility();
       this.detectApprovalEdge();
       this.detectJumpEdge();
     }
@@ -1220,6 +1241,16 @@ function createAppCoordinatorClass({
       const session = this.state.sessions.get(event.sessionId);
       const request = createPresentationRequest({ ...event, error: event.error ?? session?.error }, this.settings);
       if (!request) return;
+      if (request.priority === "submission") {
+        const prompt = String(event.latestUserPrompt || "").trim();
+        const timestamp = Number.isFinite(event.timestamp) ? event.timestamp : Date.now();
+        const previous = this.submissionNotificationBySession.get(event.sessionId);
+        if (previous && previous.prompt === prompt && Math.abs(timestamp - previous.timestamp) < 10e3) return;
+        this.submissionNotificationBySession.set(event.sessionId, { prompt, timestamp });
+        if (this.submissionNotificationBySession.size > 256) {
+          this.submissionNotificationBySession.delete(this.submissionNotificationBySession.keys().next().value);
+        }
+      }
       if (request.suppressWhenFocused && this.settings.suppressNotificationWhenFocused) {
         const sessionBundleIds = session ? getSessionBundleIds(session) : [];
         const frontmostBundleId = getFrontmostAppBundleId();
@@ -1419,6 +1450,9 @@ function createAppCoordinatorClass({
       for (const session of this.state.sessions.values()) {
         if (session.tool !== "claude") continue;
         if (session.phase !== "running") continue;
+        // 启动时从 transcript 恢复的会话没有 hook 的 activeTool；在下一次
+        // hook 到来前不能把“暂时无输出”的长任务误判成 ESC 中断。
+        if (session.recoveredFromTranscript) continue;
         if (session.activeTool) continue;
         if (now - session.updatedAt < IDLE_INTERRUPT_THRESHOLD_MS) continue;
         log.info(
@@ -1586,16 +1620,14 @@ function createAppCoordinatorClass({
     }
     /**
      * 计算灵动岛是否应当收敛为 1px hotspot 形态。
-     * 三条独立触发路径，任一为真即隐藏：
-     *   1. alwaysHide：用户开启「始终隐藏」，与屏幕/全屏状态无关。
+     * 两条独立触发路径，任一为真即隐藏：
+     *   1. islandDisplayMode === "minimal"：用户选择极简模式，空闲时不占用可见顶部空间。
      *   2. hideWhenFullscreen：仅在无刘海屏幕、有全屏应用且菜单栏隐藏时触发。
-     *   3. hideWhenNoActiveSessions：没有可展示的 Agent 会话时隐藏。
      * 隐藏后由 fullscreenOverrideForNotification 配合 broadcastSurface/toggleIslandExpand 临时显现，
      * surfaceDismissed 后再次 evaluate 回到隐藏。
      */
     computeShouldConceal() {
-      if (this.settings.alwaysHide) return true;
-      if (this.settings.hideWhenNoActiveSessions && this.getSessions().length === 0) return true;
+      if (this.settings.islandDisplayMode === "minimal") return true;
       if (!this.settings.hideWhenFullscreen) return false;
       const target = this.displayMgr?.getCurrentTarget();
       if (!target) return false;
