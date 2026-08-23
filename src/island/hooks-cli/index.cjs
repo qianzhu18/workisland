@@ -5,6 +5,7 @@ const net = require("node:net");
 const os = require("node:os");
 const path = require("node:path");
 const { execFileSync } = require("node:child_process");
+const { getSocketPath } = require("../../main/bridge-protocol.cjs");
 
 const TERMINAL_APP_ALIASES = Object.freeze({
   apple_terminal: "Terminal",
@@ -18,7 +19,12 @@ const TERMINAL_APP_ALIASES = Object.freeze({
   wezterm: "WezTerm",
   alacritty: "Alacritty",
   kitty: "kitty",
-  cmux: "cmux"
+  cmux: "cmux",
+  windows_terminal: "Windows Terminal",
+  "windows terminal": "Windows Terminal",
+  vscode: "VS Code",
+  powershell: "PowerShell",
+  pwsh: "PowerShell"
 });
 
 function canonicalTerminalApp(value) {
@@ -57,6 +63,7 @@ function detectDesktopHostFromProcessList(raw, startPid = process.ppid) {
 }
 
 function detectDesktopHostApp() {
+  if (process.platform === "win32") return undefined;
   try {
     const raw = execFileSync("/bin/ps", ["-Ao", "pid=,ppid=,command="], {
       encoding: "utf8",
@@ -78,11 +85,13 @@ function enrichTerminalContext(payload, env = process.env) {
   const next = payload;
   const terminalApp = canonicalTerminalApp(next.terminal_app)
     || canonicalTerminalApp(env.TERM_PROGRAM)
+    || (env.WT_SESSION ? "Windows Terminal" : undefined)
     || (env.WARP_CLI_AGENT_PROTOCOL_VERSION ? "Warp" : undefined)
     || detectDesktopHostApp();
   if (terminalApp && !next.terminal_app) next.terminal_app = terminalApp;
 
-  const sessionId = env.WARP_SESSION_ID
+  const sessionId = env.WT_SESSION
+    || env.WARP_SESSION_ID
     || env.WARP_TAB_ID
     || env.WARP_TERMINAL_SESSION_ID
     || env.ITERM_SESSION_ID
@@ -188,7 +197,7 @@ async function main() {
   const raw = await readStdin();
   const payload = enrichPayload(raw.trim() ? JSON.parse(raw) : {}, eventName);
   const effectiveSource = resolveHookSource(source, payload);
-  const socketPath = process.env.FLUX_SOCKET_PATH || path.join(os.homedir(), ".flux", "run", "bridge.sock");
+  const socketPath = getSocketPath(process.env, os.homedir());
   const response = await sendHook(socketPath, effectiveSource, payload);
   if (response?.type === "hookDirective" && response.directive) {
     process.stdout.write(`${JSON.stringify(response.directive)}\n`);
