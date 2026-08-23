@@ -6,7 +6,7 @@ import { c as create } from "../vendor/store.js";
 import { I as IslandPanel } from "./components/IslandPanel.js";
 import { isVisibleInIsland } from "./session-model.mjs";
 import { resolveFocusLossPresentation, shouldCollapseOnFocusLoss } from "./focus-policy.mjs";
-import { b as buildDockClipPath } from "./dock-shape.js";
+import { u as useIslandDock, D as DockStatusDot } from "./dock/use-island-dock.js";
 const useSessionStore = create((set) => ({
   sessions: [],
   notchInfo: window.islandBridge?.__initialNotchInfo ?? DEFAULT_NOTCH_INFO,
@@ -105,9 +105,6 @@ const CLOSE_WINDOW_RESIZE_DELAY_MS = 300;
 // 唤醒热区在胶囊两侧各留的容错余量（pt）。
 const HOTSPOT_SIDE_PADDING_PX = 48;
 const OPEN_WINDOW_SHADOW_MARGIN_PX = 32;
-// 贴边轮廓：与屏幕边缘相接处的内凹半径，以及自由端的凸圆角半径。
-const DOCK_CONCAVE_R = 14;
-const DOCK_CONVEX_R = 14;
 function IslandApp() {
   useIslandState();
   const {
@@ -130,56 +127,6 @@ function IslandApp() {
   const { notchStatus, transitionClass, isPopping, open, close } = useIslandAnimation();
   const panelLayerRef = reactExports.useRef(null);
   const [panelHeight, setPanelHeight] = reactExports.useState(300);
-  // dock 状态完全由主进程给定：{placement, edge, mode}。
-  // 渲染层不自行推断形状 —— 窗口尺寸和这里画的形状必须同源，
-  // 各算各的正是此前「看不见 / 长条 / 竖侧边栏」的共同成因。
-  const [dock, setDock] = reactExports.useState({ placement: "notch", edge: "right", mode: "notch" });
-  reactExports.useEffect(() => {
-    window.islandBridge?.onPlacement?.((d) => d && setDock(d));
-    // 主动拉一次：did-finish-load 的补发与 React 挂载之间仍有空隙，
-    // 落在空隙里的那一次推送会丢。
-    void window.islandBridge?.getPlacement?.().then((d) => d && setDock(d)).catch(() => {});
-  }, []);
-  const isDocked = dock.placement === "docked";
-  const isSideDock = isDocked && dock.edge !== "top";
-  const isDragging = isDocked && dock.mode === "dragging";
-  const [winSize, setWinSize] = reactExports.useState([window.innerWidth, window.innerHeight]);
-  reactExports.useEffect(() => {
-    const onResize = () => setWinSize([window.innerWidth, window.innerHeight]);
-    window.addEventListener("resize", onResize);
-    onResize();
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
-  // 主进程一旦进入拖动形态，渲染层必须同步收起：窗口已经缩成 56×56 小方块，
-  // 若渲染层还在画展开面板，就又回到了「窗口与形状不同源」的老问题。
-  // Command + 拖动 = 移动贴边岛。
-  // 用 window 捕获阶段监听，而不是铺一层覆盖 div：覆盖层会连带吃掉面板内部的
-  // 点击，正是前两版「拖不动又点不了」的成因。按住 Command 才拦截，其余情况
-  // 事件原样流向面板内容。
-  reactExports.useEffect(() => {
-    if (!isDocked) return;
-    const onDown = (e) => {
-      if (!e.metaKey) return;
-      e.preventDefault();
-      e.stopPropagation();
-      window.islandBridge?.dragStart?.();
-      const onUp = () => {
-        window.removeEventListener("mouseup", onUp, true);
-        window.islandBridge?.dragEnd?.();
-      };
-      window.addEventListener("mouseup", onUp, true);
-    };
-    window.addEventListener("mousedown", onDown, true);
-    return () => window.removeEventListener("mousedown", onDown, true);
-  }, [isDocked]);
-  reactExports.useEffect(() => {
-    if (!isDragging) return;
-    if (hoverOpenTimer.current) {
-      clearTimeout(hoverOpenTimer.current);
-      hoverOpenTimer.current = null;
-    }
-    useSessionStore.getState().requestCollapse();
-  }, [isDragging]);
   const [mounted, setMounted] = reactExports.useState(false);
   const autoCollapseTimer = reactExports.useRef(null);
   const attentionNotifTimer = reactExports.useRef(null);
@@ -567,44 +514,10 @@ function IslandApp() {
     topRadius: openedTopR,
     windowWidth: WINDOW_W
   });
-  const notchClip = mounted ? isOpen ? openedShape.clipPath : closedShape.clipPath : closedShape.clipPath;
-  // 贴边态的两个形状：条形与面板形，同一（面板大小的）窗口坐标系下生成，
-  // 路径指令结构一致，CSS clip-path 过渡可以直接插值 —— 形变全在渲染层，
-  // 窗口 bounds 不动，这正是刘海模式丝滑的原因。
-  const dockClips = reactExports.useMemo(() => {
-    if (!isDocked || isDragging || !dock.strip) return null;
-    const [w, h] = winSize;
-    const top = dock.edge === "top";
-    const span = top ? w : h;
-    const strip = buildDockClipPath({
-      edge: dock.edge,
-      winW: w,
-      winH: h,
-      bodyLen: Math.max(0, dock.strip.len - 2 * DOCK_CONCAVE_R),
-      depth: dock.strip.depth,
-      concaveR: DOCK_CONCAVE_R,
-      convexR: DOCK_CONVEX_R,
-      spanStart: dock.strip.spanOffset
-    });
-    const panelDepth = top ? Math.min(actualPanelH + 8, h) : w;
-    // 侧边面板的纵向跨度跟随内容高度：内容短时不至于拖一大块空黑到屏幕下方。
-    const panelSpan = top ? span : Math.max(dock.strip.len, Math.min(panelHeight + 16, span));
-    const panel = buildDockClipPath({
-      edge: dock.edge,
-      winW: w,
-      winH: h,
-      bodyLen: Math.max(0, panelSpan - 2 * DOCK_CONCAVE_R),
-      depth: panelDepth,
-      concaveR: DOCK_CONCAVE_R,
-      convexR: DOCK_CONVEX_R,
-      spanStart: 0
-    });
-    return { strip, panel };
-  }, [isDocked, isDragging, dock, winSize, actualPanelH, panelHeight]);
-  const clipPath = isDocked
-    ? isDragging ? "none" : dockClips ? (mounted && isOpen ? dockClips.panel : dockClips.strip) : "none"
-    : notchClip;
+  const clipPath = mounted ? isOpen ? openedShape.clipPath : closedShape.clipPath : closedShape.clipPath;
   const transition = mounted ? transitionClass : "";
+  // 贴边落位（可选附件）：落位是 notch 时下面每个表达式都退回原样。
+  const dock = useIslandDock({ mounted, isOpen, transitionClass, actualPanelH, panelHeight, pillWidth, notchH, hoverOpenTimer, requestCollapse: useSessionStore.getState().requestCollapse });
   /**
    * 全宽热区的进入处理：只负责「唤醒」，不负责「展开」。
    *
@@ -641,7 +554,7 @@ function IslandApp() {
         open();
       }, HOVER_OPEN_DELAY_MS);
     }
-  }, [hoverToOpen, notchStatus, open, presentSurface, surface, isDocked]);
+  }, [hoverToOpen, notchStatus, open, presentSurface, surface]);
   const handleMouseLeave = reactExports.useCallback(() => {
     if (hoverOpenTimer.current) {
       clearTimeout(hoverOpenTimer.current);
@@ -753,7 +666,7 @@ function IslandApp() {
     // 主进程那侧其实早就把窗口铺满屏幕宽度并 setIgnoreMouseEvents(false) 了，
     // 缺的只是渲染层没有对应的可命中区域。展开后撤掉，避免挡住面板自身的交互。
     // notch 下才需要顶部隐形唤醒热区；贴边态是常驻可见的，不需要。
-    !isDocked && !isOpen && /* @__PURE__ */ React.createElement(
+    !dock.active && !isOpen && /* @__PURE__ */ React.createElement(
       "div",
       {
         className: "island-hotspot",
@@ -769,8 +682,8 @@ function IslandApp() {
     /* @__PURE__ */ React.createElement(
       "div",
       {
-        className: `island ${transition}${isDocked ? ` is-docked is-dock-${dock.edge} is-dock-${dock.mode}` : ""}`,
-        style: { clipPath },
+        className: `island ${transition}${dock.islandClass}`,
+        style: { clipPath: dock.active ? dock.clipPath : clipPath },
         onMouseEnter: handleMouseEnter,
         onMouseLeave: handleMouseLeave
       },
@@ -778,28 +691,9 @@ function IslandApp() {
         "div",
         {
           className: `island-pill-layer${isOpen ? " is-hidden" : ""}`,
-          style: isDocked
-            ? isDragging
-              ? { left: 0, top: 0, transform: "none", width: "100%", height: "100%" }
-              : dock.edge === "top"
-                ? { left: dock.strip?.spanOffset ?? 0, top: 0, transform: "none", width: dock.strip?.len ?? 160, height: dock.strip?.depth ?? 44 }
-                : {
-                    left: dock.edge === "left" ? 0 : "auto",
-                    right: dock.edge === "right" ? 0 : "auto",
-                    top: dock.strip?.spanOffset ?? 0,
-                    transform: "none",
-                    width: dock.strip?.depth ?? 44,
-                    height: dock.strip?.len ?? 160
-                  }
-            : { width: pillWidth, height: notchH }
+          style: dock.pillLayerStyle ?? { width: pillWidth, height: notchH }
         },
-        isDocked && !isDragging && /* @__PURE__ */ React.createElement(
-          "div",
-          {
-            className: `dock-status-dot is-${phase ?? "idle"} dock-dot-${dock.edge}`,
-            title: phase ?? "idle"
-          }
-        ),
+        /* @__PURE__ */ React.createElement(DockStatusDot, { dock, phase }),
         /* @__PURE__ */ React.createElement(
           IslandPill,
           {
@@ -818,10 +712,8 @@ function IslandApp() {
         "div",
         {
           ref: panelLayerRef,
-          className: `island-panel-layer${isOpen ? "" : " is-hidden"}${isSideDock ? " is-side-dock" : ""}`,
-          style: isSideDock
-            ? { left: 0, transform: "none", width: winSize[0] }
-            : { width: panelWidth }
+          className: `island-panel-layer${isOpen ? "" : " is-hidden"}${dock.panelLayerClass}`,
+          style: dock.panelLayerStyle ?? { width: panelWidth }
         },
         /* @__PURE__ */ React.createElement(
           IslandPanel,

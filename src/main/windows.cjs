@@ -17,33 +17,12 @@ function createWindowClasses(dependencies) {
   // 隐身热区：光标轮询间隔，以及热区在胶囊两侧的容错余量（与渲染层保持一致）。
   const HOTSPOT_POLL_INTERVAL_MS = 80;
   const HOTSPOT_SIDE_PADDING_PX = 48;
-  // ── dock（贴边）落位 ────────────────────────────────────────────────────
-  // 唯一状态源：主进程持有 edge + mode，窗口尺寸与渲染层形状都由它推导。
-  // 分开各算各的正是此前「找不到 / 长条 / 竖侧边栏」的共同成因。
-  const DOCK_SQUARE = 56;        // 拖动中的小方块
-  // 条的几何在两个方向上完全对称：厚 44、长 160。
-  const DOCK_STRIP_W = 44;       // 左右竖条（厚 × 长）
-  const DOCK_STRIP_H = 160;
-  const DOCK_TOP_W = 160;        // 顶部横条（长 × 厚）
-  const DOCK_TOP_H = 44;
-  const DOCK_VPANEL_W = 380;     // 侧边展开的竖长面板
-  const DOCK_VPANEL_H = 560;
-  const DOCK_TOP_WINDOW_H = 620;
-  const DOCK_HPANEL_W = 740;     // 顶部展开的横向面板
-  const DOCK_DRAG_POLL_MS = 16;
-  const DOCK_DRAG_MAX_MS = 15e3; // mouseup 丢失时的安全上限
   const ISLAND_WIDTH = 740;
   const ISLAND_HEIGHT = 750;
   class IslandWindow {
     win;
     currentTarget;
     _hotspotTimer = null;
-    _placement = "notch";
-    _dockEdge = "right";        // "top" | "left" | "right"
-    _dockOffset = 0.25;         // 沿边的位置，0-1 比例，跨分辨率仍成立
-    _dockDragging = false;
-    _dragTimer = null;
-    _dragOrigin = null;
     // 渲染层是否处于展开态。只由渲染层的 PANEL_EXPANDED/COLLAPSED 上报驱动，
     // 不受主进程自己的 isPanelExpanded 推测影响 —— 后者会被隐藏路径提前置 false。
     _rendererExpanded = false;
@@ -93,63 +72,17 @@ function createWindowClasses(dependencies) {
       }
       this.landClosedWindow();
     };
-    handleDragStart = (event) => {
-      if (this.win.isDestroyed()) return;
-      if (event.sender !== this.win.webContents) return;
-      if (!this.isDocked) return;
-      const c = electron.screen.getCursorScreenPoint();
-      // 按下即收成小方块，方块中心落在光标下（窗口是面板大小，保留原位置会让
-      // 方块出现在面板左上角、离光标很远）。
-      this._dockDragging = true;
-      const sx = c.x - Math.round(DOCK_SQUARE / 2);
-      const sy = c.y - Math.round(DOCK_SQUARE / 2);
-      this.win.setBounds({ x: sx, y: sy, width: DOCK_SQUARE, height: DOCK_SQUARE });
-      this._dragOrigin = { cx: c.x, cy: c.y, wx: sx, wy: sy, startedAt: Date.now() };
-      this.sendDockState();
-      // 主进程轮询光标来跟手，而不是依赖渲染层持续上报 mousemove：
-      // 拖动中鼠标常常已经移出窗口范围，渲染层就收不到事件了。
-      this.stopDragFollow();
-      this._dragTimer = setInterval(() => {
-        if (this.win.isDestroyed() || !this._dragOrigin) {
-          this.stopDragFollow();
-          return;
-        }
-        if (Date.now() - this._dragOrigin.startedAt > DOCK_DRAG_MAX_MS) {
-          // mouseup 没能传回来（例如鼠标在别的窗口上松开），别无限跟随。
-          this.stopDragFollow();
-          this._dragOrigin = null;
-          this.snapToNearestEdge();
-          return;
-        }
-        const now = electron.screen.getCursorScreenPoint();
-        this.win.setPosition(
-          this._dragOrigin.wx + (now.x - this._dragOrigin.cx),
-          this._dragOrigin.wy + (now.y - this._dragOrigin.cy)
-        );
-      }, DOCK_DRAG_POLL_MS);
-    };
-    handleDragEnd = (event) => {
-      if (this.win.isDestroyed()) return;
-      if (event.sender !== this.win.webContents) return;
-      this.stopDragFollow();
-      if (!this.isDocked) return;
-      this._dragOrigin = null;
-      this.snapToNearestEdge();
-    };
     handlePanelExpanded = (event) => {
       if (this.win.isDestroyed()) return;
       if (event.sender !== this.win.webContents) return;
       this.isPanelExpanded = true;
       this._rendererExpanded = true;
-      // mode 变了（strip→panel），渲染层的形态类名要跟上
-      if (this.isDocked) this.sendDockState();
     };
     handlePanelCollapsed = (event) => {
       if (this.win.isDestroyed()) return;
       if (event.sender !== this.win.webContents) return;
       this.isPanelExpanded = false;
       this._rendererExpanded = false;
-      if (this.isDocked) this.sendDockState();
     };
     constructor(target, options = {}) {
       this.currentTarget = target;
@@ -199,16 +132,7 @@ function createWindowClasses(dependencies) {
       this.win.webContents.on("did-finish-load", () => {
         const notchInfo = this.buildNotchInfo(this.currentTarget);
         this.win.webContents.send(IPC.ISLAND_NOTCH_INFO, notchInfo);
-        // 补发落位状态。setPlacement 可能在页面加载完成前就调用过（启动时按设置
-        // 落位），那时 webContents.send 会被直接丢弃，渲染层便一直以为自己是
-        // notch 模式：窗口已按卡片尺寸缩小，渲染层却仍按刘海 clip-path 裁切，
-        // 裁切区落在可见范围外 —— 表现为「卡片彻底看不见」或各种条状残影。
-        this.send(IPC.ISLAND_PLACEMENT, this.dockState());
-        if (this.isDocked) {
-          this.applyDockBounds();
-        } else {
-          this.applyRequestedHeight(this.getClosedHeight());
-        }
+        this.applyRequestedHeight(this.getClosedHeight());
         this.win.show();
         // 调试开关：WORKISLAND_CAPTURE=1 启动时，2s 后把渲染帧写到 /tmp。
         // 外部截屏工具抓不到面板级窗口，这是验证实际渲染的唯一手段；平时不跑。
@@ -253,21 +177,12 @@ function createWindowClasses(dependencies) {
         electron.ipcMain.removeListener(IPC.ISLAND_PANEL_EXPANDED, this.handlePanelExpanded);
         electron.ipcMain.removeListener(IPC.ISLAND_PANEL_COLLAPSED, this.handlePanelCollapsed);
         electron.ipcMain.removeListener(IPC.ISLAND_SYNC_CLOSED_WINDOW, this.handleSyncClosedWindow);
-        electron.ipcMain.removeHandler(IPC.ISLAND_GET_PLACEMENT);
-        electron.ipcMain.removeListener(IPC.ISLAND_DRAG_START, this.handleDragStart);
-        electron.ipcMain.removeListener(IPC.ISLAND_DRAG_END, this.handleDragEnd);
         this.stopHotspotCursorWatch();
-        this.stopDragFollow();
         log.warn("[IslandWindow] window closed");
       });
       electron.ipcMain.on(IPC.ISLAND_ENTER, this.handleIslandEnter);
       electron.ipcMain.on(IPC.ISLAND_LEAVE, this.handleIslandLeave);
       electron.ipcMain.on(IPC.ISLAND_RESIZE, this.handleIslandResize);
-      // 必须返回完整 dock 状态。只回 {placement} 会把推送过的 edge/mode/strip
-      // 覆盖成 undefined，渲染层直接退化成一整块无裁切的黑矩形。
-      electron.ipcMain.handle(IPC.ISLAND_GET_PLACEMENT, () => this.dockState());
-      electron.ipcMain.on(IPC.ISLAND_DRAG_START, this.handleDragStart);
-      electron.ipcMain.on(IPC.ISLAND_DRAG_END, this.handleDragEnd);
       electron.ipcMain.on(IPC.ISLAND_PANEL_EXPANDED, this.handlePanelExpanded);
       electron.ipcMain.on(IPC.ISLAND_PANEL_COLLAPSED, this.handlePanelCollapsed);
       electron.ipcMain.on(IPC.ISLAND_SYNC_CLOSED_WINDOW, this.handleSyncClosedWindow);
@@ -303,8 +218,6 @@ function createWindowClasses(dependencies) {
      */
     setFullscreenHidden(hidden) {
       if (this.win.isDestroyed()) return;
-      // floating 是常驻卡片，不参与全屏/失焦隐身。
-      if (this.isDocked) return;
       if (this._isFullscreenHidden === hidden) return;
       this._isFullscreenHidden = hidden;
       this.shouldConcealAfterCloseAnimation = false;
@@ -329,8 +242,6 @@ function createWindowClasses(dependencies) {
     /** Hide the Island after focus leaves the WorkIsland surface. */
     setFocusHidden(hidden) {
       if (this.win.isDestroyed()) return;
-      // floating 是常驻卡片，不参与全屏/失焦隐身。
-      if (this.isDocked) return;
       const next = Boolean(hidden);
       if (this._isFocusHidden === next && (!next || this.shouldStayConcealed)) return;
       this._isFocusHidden = next;
@@ -485,14 +396,6 @@ function createWindowClasses(dependencies) {
     }
     applyClosedWindowTarget(target, options) {
       if (this.win.isDestroyed()) return;
-      // floating 下没有「隐身到顶部热区」这回事：卡片常驻可见，收起只是变回卡片尺寸。
-      if (this.isDocked) {
-        // 贴边态窗口固定为面板大小，这里不改尺寸；收起后回到穿透，
-        // 让面板区域下方的应用可以正常点击。
-        this.win.setOpacity(1);
-        this.win.setIgnoreMouseEvents(true, { forward: true });
-        return;
-      }
       const interactive = options?.interactive ?? false;
       const [width] = this.win.getSize();
       const closedHeight = this.getClosedHeight();
@@ -547,7 +450,6 @@ function createWindowClasses(dependencies) {
      */
     startHotspotCursorWatch() {
       this.stopHotspotCursorWatch();
-      if (this.isDocked) return;
       this._hotspotTimer = setInterval(() => {
         if (this.win.isDestroyed() || !this.shouldStayConcealed) {
           this.stopHotspotCursorWatch();
@@ -568,144 +470,10 @@ function createWindowClasses(dependencies) {
         this._hotspotTimer = null;
       }
     }
-    stopDragFollow() {
-      if (this._dragTimer) {
-        clearInterval(this._dragTimer);
-        this._dragTimer = null;
-      }
-    }
-    get isDocked() {
-      return this._placement === "docked";
-    }
-    /**
-     * 切换落位形态。
-     * notch   = 顶部刘海居中（原有形态，走 fixPanel + 菜单栏对齐那套几何）
-     * docked  = 贴边（不碰 fixPanel，位置由 edge + offset 决定）
-     */
-    setPlacement(placement, dock) {
-      if (this.win.isDestroyed()) return;
-      const next = placement === "docked" ? "docked" : "notch";
-      const changed = this._placement !== next;
-      this._placement = next;
-      if (next === "docked") {
-        // 贴边态是常驻可见的，「隐身到顶部热区」那套整体停用。
-        this.stopHotspotCursorWatch();
-        this._isFullscreenHidden = false;
-        this._isFocusHidden = false;
-        if (dock?.edge) this._dockEdge = dock.edge;
-        if (typeof dock?.offset === "number") this._dockOffset = dock.offset;
-        this.applyDockBounds();
-        this.win.setOpacity(1);
-        // 空闲态穿透 + 转发：条的可点击性由渲染层 mouseenter → ISLAND_ENTER 开启，
-        // 和刘海模式同一套机制。
-        this.win.setIgnoreMouseEvents(true, { forward: true });
-      } else {
-        this.stopDragFollow();
-        this._dragOrigin = null;
-        this._dockDragging = false;
-        const { display } = this.currentTarget;
-        fixPanel(this.win.getNativeWindowHandle(), display.id);
-        this.applyRequestedHeight(this.getClosedHeight());
-      }
-      if (changed) log.info("[IslandWindow] placement ->", next, next === "docked" ? this._dockEdge : "");
-      this.sendDockState();
-    }
-    /** 当前 dock 形态：dragging | strip | panel。窗口尺寸与渲染层形状都由它推导。 */
-    get dockMode() {
-      if (this._dockDragging) return "dragging";
-      return this._rendererExpanded ? "panel" : "strip";
-    }
-    /**
-     * 贴边几何。窗口在整个贴边生命周期里**固定为面板大小**（贴边锚定），
-     * 条↔面板的切换全部交给渲染层的 clip-path 形变 —— 和刘海模式同构。
-     * 此前让主进程逐帧改窗口 bounds 来做动画，渲染层的形状异步追着重算，
-     * 两边永远差几帧，就是「小块冲出去一下再展开」的成因。
-     * 窗口 bounds 只在拖动（小方块跟手）和吸附换边时变化。
-     */
-    dockGeometry() {
-      const d = this.currentTarget.display;
-      const wa = d.workArea;
-      const b = d.bounds;
-      const edge = this._dockEdge;
-      if (edge === "top") {
-        const w = DOCK_HPANEL_W;
-        const winX = Math.max(b.x, Math.min(
-          b.x + Math.round((b.width - w) * this._dockOffset),
-          b.x + b.width - w
-        ));
-        const stripX = Math.max(b.x, Math.min(
-          b.x + Math.round((b.width - DOCK_TOP_W) * this._dockOffset),
-          b.x + b.width - DOCK_TOP_W
-        ));
-        return {
-          bounds: { x: winX, y: b.y, width: w, height: DOCK_TOP_WINDOW_H },
-          strip: { spanOffset: stripX - winX, len: DOCK_TOP_W, depth: DOCK_TOP_H }
-        };
-      }
-      const w = DOCK_VPANEL_W;
-      const h = DOCK_VPANEL_H;
-      const stripCenter = wa.y + this._dockOffset * wa.height;
-      const stripTop = Math.max(wa.y, Math.min(
-        Math.round(stripCenter - DOCK_STRIP_H / 2),
-        wa.y + wa.height - DOCK_STRIP_H
-      ));
-      const winY = Math.max(wa.y, Math.min(stripTop, wa.y + wa.height - h));
-      const x = edge === "left" ? wa.x : wa.x + wa.width - w;
-      return {
-        bounds: { x, y: winY, width: w, height: h },
-        strip: { spanOffset: stripTop - winY, len: DOCK_STRIP_H, depth: DOCK_STRIP_W }
-      };
-    }
-    /** 把窗口摆到当前 dock 几何（瞬时）。形变动画在渲染层。 */
-    applyDockBounds() {
-      if (this.win.isDestroyed() || !this.isDocked) return;
-      if (this._dockDragging) return;
-      this.win.setBounds(this.dockGeometry().bounds);
-      this.sendDockState();
-    }
-    /** 把完整 dock 状态推给渲染层。渲染层只照着画，不自行推断。 */
-    sendDockState() {
-      this.send(IPC.ISLAND_PLACEMENT, this.dockState());
-    }
-    dockState() {
-      const state = {
-        placement: this._placement,
-        edge: this._dockEdge,
-        mode: this.isDocked ? this.dockMode : "notch"
-      };
-      if (this.isDocked && !this._dockDragging) {
-        state.strip = this.dockGeometry().strip;
-      }
-      return state;
-    }
-    /** 松手：一定吸附到最近的边（上/左/右，不含底部），并记住位置。 */
-    snapToNearestEdge() {
-      if (this.win.isDestroyed() || !this.isDocked) return;
-      const [w, h] = this.win.getSize();
-      const [x, y] = this.win.getPosition();
-      const wa = electron.screen.getDisplayMatching({ x, y, width: w, height: h }).workArea;
-      const cx = x + w / 2;
-      const cy = y + h / 2;
-      const dTop = cy - wa.y;
-      const dLeft = cx - wa.x;
-      const dRight = wa.x + wa.width - cx;
-      const nearest = Math.min(dTop, dLeft, dRight);
-      this._dockEdge = nearest === dTop ? "top" : nearest === dLeft ? "left" : "right";
-      this._dockOffset = this._dockEdge === "top"
-        ? Math.max(0, Math.min(1, (cx - wa.x) / Math.max(1, wa.width)))
-        : Math.max(0, Math.min(1, (cy - wa.y) / Math.max(1, wa.height)));
-      this._dockDragging = false;
-      this.applyDockBounds();
-      // 吸附完成后回到穿透态：窗口是面板大小，空闲时绝不能挡住下面的点击。
-      this.win.setIgnoreMouseEvents(true, { forward: true });
-      this.onDockChange?.({ edge: this._dockEdge, offset: this._dockOffset });
-    }
     applyRequestedHeight(height) {
       if (this.win.isDestroyed()) return;
       const clamped = Math.max(1, Math.min(ISLAND_HEIGHT, Math.round(height)));
       this.requestedHeight = clamped;
-      // 贴边态窗口固定为面板大小，高度上报只记录、不改窗口。
-      if (this.isDocked) return;
       if (this.shouldStayConcealed) return;
       const [width] = this.win.getSize();
       this.win.setSize(width, clamped);

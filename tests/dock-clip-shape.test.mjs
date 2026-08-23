@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 // dock-shape.js 是浏览器侧 ESM（无 import、单一 export），在 node 测试里
 // 以文本载入并剥掉 export 后求值 —— 与仓库内读 settings-app.js 源文本的
 // 测试同一思路，避免给渲染层文件引入打包器依赖。
-const source = readFileSync(new URL("../src/renderer/island/dock-shape.js", import.meta.url), "utf8");
+const source = readFileSync(new URL("../src/renderer/island/dock/dock-shape.js", import.meta.url), "utf8");
 const buildDockClipPath = new Function(
   `${source.replace(/export\s*\{[^}]*\};?/, "")}\nreturn buildDockClipPath;`
 )();
