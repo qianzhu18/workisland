@@ -839,13 +839,6 @@ function createAppCoordinatorClass({
           this.telemetry.trackSettingChange("sound.enabled");
         }
       }
-      // 落位形态改了要立即生效，不能等重启。
-      if ("islandPlacement" in partial) {
-        this.islandWin?.setPlacement?.(
-          partial.islandPlacement,
-          this.settings.islandDock
-        );
-      }
       if ("launchAtLogin" in partial) {
         electron.app.setLoginItemSettings({
           openAtLogin: partial.launchAtLogin,
