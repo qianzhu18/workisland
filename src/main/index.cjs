@@ -241,7 +241,8 @@ const SOURCE_TO_TERMINAL_APP = {
   trae: "Trae",
   "trae-cn": "Trae CN",
   zcode: "ZCode",
-  workbuddy: "WorkBuddy"
+  workbuddy: "WorkBuddy",
+  codebuddy: "CodeBuddy CN"
 };
 const GENERIC_VSCODE_APPS = /* @__PURE__ */ new Set([
   "vs code",
@@ -567,6 +568,16 @@ const TOOL_JUMP_HANDLERS = {
     toolName: "trae-cn",
     defaultApp: "Trae CN",
     jump: (t) => jumpTraeAgentSession(t)
+  },
+  dsh: {
+    toolName: "dsh",
+    defaultApp: "dsh",
+    jump: async (target) => {
+      const url = typeof target?.url === "string" && target.url.startsWith("http://127.0.0.1:")
+        ? target.url
+        : "http://127.0.0.1:3080/";
+      await electron.shell.openExternal(url);
+    }
   }
 };
 const { createAppCoordinatorClass } = require("./app-coordinator.cjs");
@@ -578,6 +589,7 @@ const AppCoordinator = createAppCoordinatorClass({
   AgentEventDedup,
   ProcessMonitor,
   AGENT_PLUGINS,
+  adapterRegistry,
   adapterAgentIds: new Set(adapterRegistry.keys()),
   TOOL_JUMP_HANDLERS,
   createInitialState,
@@ -827,6 +839,22 @@ async function runIslandApp() {
           browserWindow.webContents.send(IPC.ISLAND_WINDOW_BLUR);
         }
       });
+      // floating 落位：读设置决定形态，拖动结束后把位置写回设置。
+      iw.onDockChange = (dock) => {
+        try {
+          coordinator.updateSettings({ islandDock: dock }, "island");
+        } catch (err) {
+          log.warn("[main] 保存贴边位置失败:", err);
+        }
+      };
+      try {
+        const s0 = coordinator.getSettings?.() ?? {};
+        if (s0.islandPlacement === "docked") {
+          iw.setPlacement("docked", s0.islandDock);
+        }
+      } catch (err) {
+        log.warn("[main] 应用初始落位失败:", err);
+      }
       coordinator.setIslandWindow(iw.browserWindow);
       coordinator.setIslandWin(iw);
       coordinator.setDisplayManager(displayManager);

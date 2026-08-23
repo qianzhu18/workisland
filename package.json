@@ -85,6 +85,10 @@
       {
         "from": "resources/scripts/collect-logs.sh",
         "to": "scripts/collect-logs.sh"
+      },
+      {
+        "from": "resources/dsh-workisland-bridge",
+        "to": "dsh-workisland-bridge"
       }
     ],
     "afterPack": "scripts/after-pack.cjs",

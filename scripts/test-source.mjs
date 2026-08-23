@@ -41,10 +41,11 @@ const {
   mergeHookGroups,
   removeHookGroups,
   verifyHookGroups,
-  getWorkBuddyConfigPaths
+  getWorkBuddyConfigPath,
+  getCodeBuddyConfigPath
 } = require("../src/main/hooks-work-agents.cjs");
 
-assert.equal(Object.keys(IPC).length, 92, "IPC contract changed; review both main and preload consumers");
+assert.equal(Object.keys(IPC).length, 95, "IPC contract changed; review both main and preload consumers");
 assert.equal(new Set(Object.values(IPC)).size, Object.keys(IPC).length, "IPC channels must be unique");
 assert.ok(Object.isFrozen(IPC), "IPC contract must be immutable");
 assert.equal(IPC.PET_DRAG_TO_ISLAND, "pet:drag-to-island");
@@ -196,9 +197,13 @@ assert.deepEqual(removeHookGroups(mergedZCodeHooks, "zcode"), {
 });
 assert.ok(WORKBUDDY_EVENTS.some(({ event }) => event === "PermissionRequest"));
 assert.ok(WORKBUDDY_EVENTS.some(({ event }) => event === "StopFailure"));
-assert.deepEqual(
-  getWorkBuddyConfigPaths("/tmp/workisland-no-workbuddy", { workBuddyInstalled: false }),
-  ["/tmp/workisland-no-workbuddy/.codebuddy/settings.json"]
+assert.equal(
+  getWorkBuddyConfigPath("/tmp/workisland-no-workbuddy"),
+  "/tmp/workisland-no-workbuddy/.workbuddy/settings.json"
+);
+assert.equal(
+  getCodeBuddyConfigPath("/tmp/workisland-no-workbuddy"),
+  "/tmp/workisland-no-workbuddy/.codebuddy/settings.json"
 );
 
 const settingsTestDirectory = mkdtempSync(join(tmpdir(), "flux-settings-"));

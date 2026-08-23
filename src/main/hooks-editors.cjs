@@ -230,7 +230,7 @@ class CocoHookManager {
     };
     await writeJson$f(getManifestPath$9(), manifest);
   }
-  async uninstall() {
+  async uninstall(options = {}) {
     const manifestPath = getManifestPath$9();
     const manifest = await readJson$c(manifestPath);
     await uninstallCocoHook(os.homedir(), {
@@ -785,26 +785,34 @@ async function writeJson$b(filePath, data) {
 }
 class BaseTraeHookManager {
   agentId;
+  configType;
+  commandSource;
   queue = Promise.resolve();
-  constructor(agentId) {
+  constructor(agentId, configType = agentId, commandSource = agentId) {
     this.agentId = agentId;
+    this.configType = configType;
+    this.commandSource = commandSource;
   }
   async install() {
     log.info("[TraeHookManager] install %s: events=%d", this.agentId, TRAE_EVENTS.length);
-    const hookCommand = buildCommand$5(this.agentId);
+    const hookCommand = buildCommand$5(this.commandSource);
     await this.enqueue(async () => {
-      await installTraeHook({ homeDir: os.homedir(), hookCommand }, this.agentId, { logger: log });
+      await installTraeHook({ homeDir: os.homedir(), hookCommand }, this.configType, { logger: log });
     });
     await this.enqueue(() => this.persistManifest());
   }
-  async uninstall() {
+  async uninstall(options = {}) {
     log.info("[TraeHookManager] uninstall %s", this.agentId);
-    await this.enqueue(async () => {
-      await uninstallTraeHook(os.homedir(), this.agentId, { logger: log });
-    });
-    try {
-      await promises.unlink(getManifestPath$7(this.agentId));
-    } catch {
+    if (!options.preserveSharedConfig) {
+      await this.enqueue(async () => {
+        await uninstallTraeHook(os.homedir(), this.configType, { logger: log });
+      });
+    }
+    if (!options.preserveVerification) {
+      try {
+        await promises.unlink(getManifestPath$7(this.agentId));
+      } catch {
+      }
     }
   }
   async checkHealth() {
@@ -813,23 +821,45 @@ class BaseTraeHookManager {
     if (!utils.is.dev && !fs.existsSync(binaryPath)) {
       issues.push(`Hook binary not found: ${binaryPath}`);
     }
-    const hookCommand = buildCommand$5(this.agentId);
-    const sharedIssues = await checkTraeHook(os.homedir(), hookCommand, this.agentId);
+    const hookCommand = buildCommand$5(this.commandSource);
+    const sharedIssues = await checkTraeHook(os.homedir(), hookCommand, this.configType);
     issues.push(...sharedIssues);
+    const manifest = await readJson$9(getManifestPath$7(this.agentId));
     return {
       agentId: this.agentId,
       installed: issues.length === 0,
+      connectionState: issues.length > 0 ? "disconnected" : manifest?.lastVerifiedAt ? "verified" : "configured",
+      lastVerifiedAt: manifest?.lastVerifiedAt,
       issues,
       manifestPath: getManifestPath$7(this.agentId)
     };
+  }
+  async recordEvent(event) {
+    await this.enqueue(async () => {
+      const manifestPath = getManifestPath$7(this.agentId);
+      const manifest = await readJson$9(manifestPath);
+      if (!manifest) return;
+      const now = new Date().toISOString();
+      await writeJson$b(manifestPath, {
+        ...manifest,
+        lastVerifiedAt: now,
+        lastVerifiedEvent: event.type,
+        updatedAt: now
+      });
+      log.info("[TraeHookManager] verified %s from %s", this.agentId, event.type);
+    });
   }
   async persistManifest() {
     const existing = await readJson$9(getManifestPath$7(this.agentId));
     const now = (/* @__PURE__ */ new Date()).toISOString();
     const manifest = {
-      configPath: getTraeConfigPath(os.homedir(), this.agentId),
+      configPath: getTraeConfigPath(os.homedir(), this.configType),
       events: TRAE_EVENTS.map((e) => e.event),
       installedAt: existing?.installedAt ?? now,
+      ...(existing?.lastVerifiedAt ? {
+        lastVerifiedAt: existing.lastVerifiedAt,
+        lastVerifiedEvent: existing.lastVerifiedEvent
+      } : {}),
       updatedAt: now
     };
     log.info("[TraeHookManager] manifest written for %s", this.agentId);

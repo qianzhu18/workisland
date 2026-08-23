@@ -6,19 +6,27 @@ const DEFAULT_HOOK_TOGGLES = {
   claude: true,
   codex: true,
   coco: true,
-  trae: true,
-  "trae-cn": true,
   opencode: true,
   cursor: true,
   zcode: true,
   workbuddy: true,
+  codebuddy: true,
   kimi: true,
   hermes: true,
   gemini: true,
   "copilot-cli": true,
   aiden: true,
   sara: true,
-  "traex": true
+  "traex": true,
+  // TraeCode's official Hooks require an explicit configuration write and a
+  // real event before WorkIsland can claim the connection works.
+  trae: false,
+  // TraeWork shares TraeCode's hooks.json, but its current desktop runtime
+  // executes Hooks in a sandbox. Keep it opt-in until a real event verifies it.
+  traework: false,
+  // DSH installation changes the active profile, so it must only run after
+  // the user clicks “连接”.
+  dsh: false
 };
 
 const {
@@ -82,6 +90,10 @@ const DEFAULT_SETTINGS = {
     events: { ...DEFAULT_SOUND_EVENTS },
     autoDetectProbing: false
   },
+  // 灵动岛落位：notch = 顶部刘海居中（原有形态）；docked = 贴边（上/左/右）。
+  islandPlacement: "notch",
+  // 贴边状态：edge 为所贴的边，offset 是沿边位置的 0-1 比例（跨分辨率仍成立）。
+  islandDock: { edge: "right", offset: 0.25 },
   hoverToOpen: true,
   autoCollapseDelayMs: 4e3,
   hideWhenFullscreen: true,

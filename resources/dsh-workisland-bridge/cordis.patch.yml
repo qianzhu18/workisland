@@ -1,0 +1,3 @@
+- insert:
+    - id: workisland-dsh-bridge
+      name: '@workisland/dsh-bridge'

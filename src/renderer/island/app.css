@@ -75,6 +75,31 @@ body {
   filter: drop-shadow(0 8px 8px rgba(0, 0, 0, 0.35)) drop-shadow(0 0 0 rgba(0, 0, 0, 0.23));
 }
 
+/* 形变期间摘掉 filter。
+ * 这个 wrapper 是 position:fixed; inset:0，铺满整个窗口；filter 会强制 Chromium
+ * 把整棵子树栅格化成纹理再做模糊，而子树里的 clip-path 每帧都在变 —— 于是每帧
+ * 都要按「展开后的完整窗口尺寸」重来一次。这是 hover 展开卡顿的主要来源。
+ * 原来还额外挂了 transition: filter 0.3s，等于把这份开销再单独跑一遍。 */
+.island-pop-wrapper.is-morphing {
+  filter: none;
+}
+
+/* 隐形唤醒热区：透明、不可见，只负责接住鼠标。
+ * 放在 .island 之前，z 序在其下方，所以不会抢走胶囊本体的点击。
+ *
+ * 宽度只比胶囊本体宽出两侧余量，不铺满整个岛窗口 —— 铺满时热区约占屏宽一半，
+ * 鼠标沿菜单栏移动几乎必然触发，胶囊会毫无理由地冒出来挡住菜单栏。
+ * 收窄不会让胶囊变难点：.island 自身就是 pointer-events:auto，命中它的可见轮廓
+ * 照样唤醒，热区只是轮廓周围的容错余量。 */
+.island-hotspot {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  background: transparent;
+  pointer-events: auto;
+}
+
 /* ── Island — the morphing black shape ────────────────────────────────────── */
 .island {
   position: absolute;
@@ -518,4 +543,237 @@ body {
 
 .island-markdown td {
   color: #d1d3db;
+}
+
+/* ── dock（贴边）落位 ──────────────────────────────────────────────────────
+ * 贴边态下窗口尺寸已经紧贴可见形状，所以一律不用 clip-path：
+ * 窗口和绘制形状同源，不会再出现「窗口缩了但裁切没跟上」的条状残影。 */
+.island.is-docked {
+  background: #000;
+  border-radius: 0;
+}
+
+/* 拖动中的小方块没有贴边关系，用普通圆角 */
+.island.is-dock-dragging {
+  clip-path: none !important;
+  border-radius: 14px;
+}
+
+/* 阴影只朝屏幕内侧投，不能往贴边那一侧糊。
+ * 四周均匀的大模糊阴影会在黑色形状外糊出一圈暗晕，浅色背景下看起来就像
+ * 四角都是圆的、而且和屏幕边缘之间还有条缝 —— 贴边那侧必须是干净的直边。 */
+.island.is-dock-dragging {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+/* 拖动中的小方块 */
+.island.is-dock-dragging {
+  border-radius: 14px;
+}
+
+
+
+
+
+/* 抓取区：只占贴边那一侧、宽度等于收起态竖条的那条带子。
+ *
+ * 不能盖住整个面板 —— 悬停就会展开，手一放上去面板已经是 380×620，
+ * 若整块都是抓取区，就等于「永远抓在面板上」，既拖不动也点不了面板内容。
+ * 收窄成边缘带子后：带子上按下 = 拖动，面板其余部分照常交互。 */
+.island-drag-handle {
+  position: absolute;
+  z-index: 5;
+  cursor: grab;
+}
+
+.island-drag-handle:active {
+  cursor: grabbing;
+}
+
+.island-drag-handle.is-dock-right {
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 40px;
+}
+
+.island-drag-handle.is-dock-left {
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 40px;
+}
+
+.island-drag-handle.is-dock-top {
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 46px;
+}
+
+/* 拖动中是小方块，整块都能拖 */
+.island-drag-handle.is-dragging {
+  inset: 0;
+  width: auto;
+  height: auto;
+}
+
+/* ── 竖条收起态内容：只留头像，整体居中 ─────────────────────────────────
+ * 竖条只有 40pt 宽，胶囊那排「头像 + 标题 + 计时 + 按钮」放不下。
+ * 定位由 JSX 按主进程下发的条几何内联给出，这里只管内容排布。 */
+/* 左右竖条：40pt 宽放不下整排胶囊内容 —— 竖向排布，头像 + 状态点。
+ * 顶部横条保留原本胶囊的标题与状态。 */
+
+/* 顶条：两端内凹弧线各占 14pt，形状主体比胶囊层窄一圈 ——
+ * 内边距必须让开，否则头像会悬在弧线外面。右侧再多留出状态点的位置。 */
+.island.is-dock-top.is-dock-strip .pill {
+  padding: 0 40px 0 26px;
+}
+
+.island.is-dock-top.is-dock-strip .pill-label {
+  display: none;
+}
+
+
+/* 两个方向的收起态内容完全镜像：头像(距起点 26) → 数量 → 状态点(距终点 18)。
+ * 文字一律不显示 —— 窄条里截断的文字只是噪音，数量 + 状态点已足够。 */
+.island.is-dock-left.is-dock-strip .pill,
+.island.is-dock-right.is-dock-strip .pill {
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  padding: 26px 0 0;
+  gap: 10px;
+}
+
+.island.is-dock-left.is-dock-strip .pill-label,
+.island.is-dock-right.is-dock-strip .pill-label {
+  display: none;
+}
+
+.island.is-dock-left.is-dock-strip .pill-right,
+.island.is-dock-right.is-dock-strip .pill-right {
+  margin-left: 0;
+}
+
+/* 拖动中的小方块同样只显示头像 */
+.island.is-dock-dragging .pill {
+  justify-content: center;
+  padding: 0;
+  gap: 0;
+}
+
+.island.is-dock-dragging .pill-label,
+.island.is-dock-dragging .pill-right {
+  display: none;
+}
+
+/* ── 侧边窄幅面板排版 ──────────────────────────────────────────────────────
+ * 面板层占满 380 宽的窗口，内部按窄幅重排。会话行自身已有 min-width:0 +
+ * ellipsis，会自适应；需要动的是那些按 680+ 宽度设计的横向排布。 */
+
+/* 顶栏：配额格子和按钮组允许换行，行高放开 */
+/* 侧边面板兜底：内容永远不越出窗口（黑形状会盖住整窗高度时被裁切在形状内）。
+ * 用纯 CSS 而不是内联 height + React 状态：panelLayerRef 的 ResizeObserver
+ * 就挂在这个元素上，任何经 React 的高度反馈都有成环风险（实测会 #185 爆栈）。 */
+.island-panel-layer.is-side-dock {
+  max-height: 100%;
+  overflow: hidden;
+}
+
+.island-panel-layer.is-side-dock .usage-row {
+  flex-wrap: wrap;
+  /* 左右各让开 20px：贴边侧顶端有 14px 的内凹弧线，12px 内边距会让
+   * 顶栏最外侧的按钮被弧线削掉一角 */
+  padding: 8px 20px;
+  row-gap: 4px;
+  min-height: 0 !important;
+  height: auto;
+}
+
+.island-panel-layer.is-side-dock .usage-row-agents {
+  flex-basis: 100%;
+  overflow-x: auto;
+}
+
+.island-panel-layer.is-side-dock .usage-row-actions {
+  margin-left: auto;
+}
+
+/* 会话行：标题与元信息改为上下两行，不再左右争宽度 */
+.island-panel-layer.is-side-dock .session-headline {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.island-panel-layer.is-side-dock .session-meta {
+  margin-left: 0;
+}
+
+/* 提示语与活动行给窄幅多留点行数 */
+.island-panel-layer.is-side-dock .session-prompt,
+.island-panel-layer.is-side-dock .session-activity {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* 审批按钮组窄幅下允许换行 */
+.island-panel-layer.is-side-dock .approval-actions {
+  flex-wrap: wrap;
+}
+
+
+/* ── 竖条状态点 ───────────────────────────────────────────────────────────
+ * 相位配色与面板一致：running 蓝 / completed 绿 / 待批准橙 / 待回答黄。
+ * 挂在胶囊层内、头像下方；待处理相位加呼吸提醒。 */
+.dock-status-dot {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #5c564b;
+  pointer-events: none;
+}
+
+.dock-status-dot.is-running {
+  background: #6E9FFF;
+}
+
+.dock-status-dot.is-completed {
+  background: var(--isl-ok);
+}
+
+.dock-status-dot.is-waitingForApproval {
+  background: #FF9F0A;
+}
+
+.dock-status-dot.is-waitingForAnswer {
+  background: #FFD60A;
+}
+
+/* 顶条的状态点靠右垂直居中（竖条则是底部水平居中） */
+.dock-status-dot.dock-dot-top {
+  left: auto;
+  right: 18px;
+  bottom: auto;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* 呼吸只动透明度：transform 由各方位的定位持有，动画不能覆盖它 */
+@keyframes dock-dot-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.dock-status-dot.is-waitingForApproval,
+.dock-status-dot.is-waitingForAnswer {
+  animation: dock-dot-pulse 1.2s ease-in-out infinite;
 }

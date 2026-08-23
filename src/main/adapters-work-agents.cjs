@@ -44,4 +44,10 @@ class WorkBuddyAdapter extends ClaudeCompatibleWorkAgentAdapter {
   }
 }
 
-module.exports = { ZCodeAdapter, WorkBuddyAdapter };
+class CodeBuddyAdapter extends ClaudeCompatibleWorkAgentAdapter {
+  constructor() {
+    super("codebuddy", "CodeBuddy CN");
+  }
+}
+
+module.exports = { ZCodeAdapter, WorkBuddyAdapter, CodeBuddyAdapter };
