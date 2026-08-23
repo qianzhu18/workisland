@@ -2,6 +2,7 @@ import { r as reactExports, R as React } from "../vendor/react-runtime.js";
 
 const workIslandLogo = new URL("../../../resources/icon.png", import.meta.url).href;
 const telemetryConsentOnly = new URLSearchParams(window.location.search).get("mode") === "telemetry";
+const isWindows = window.welcomeBridge?.platform === "win32";
 
 function WelcomeApp() {
   const [visible, setVisible] = reactExports.useState(false);
@@ -39,7 +40,9 @@ function WelcomeApp() {
         { className: "welcome-description" },
         telemetryConsentOnly
           ? "WorkIsland 新增了默认关闭的匿名使用统计。请决定是否允许它帮助我们改进产品。"
-          : "在 Mac 顶部查看 Work Agent 工作状态、处理需要确认的事项，并在任务完成时获得声音与触觉提醒。"
+          : isWindows
+            ? "在 Windows 桌面顶部查看 Work Agent 工作状态、处理需要确认的事项，并在任务完成时获得系统声音提醒。"
+            : "在 Mac 顶部查看 Work Agent 工作状态、处理需要确认的事项，并在任务完成时获得声音与触觉提醒。"
       )
     ),
     telemetryConsentOnly ? null : React.createElement(
