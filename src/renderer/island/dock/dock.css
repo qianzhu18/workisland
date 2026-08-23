@@ -90,13 +90,20 @@
 .island-panel-layer.is-side-dock {
   max-height: 100%;
   overflow: hidden;
+  /* 上下各让开一个自由端圆角（DOCK_CONVEX_R = 14）。
+   * 侧边面板的形状本体从 y=14 才开始 —— 自由端两个角是 14pt 圆角 —— 而面板
+   * 内容默认从 y=0 排起，顶栏那一行会被形状的上边缘削掉半截字。
+   * 内容整体下移一个圆角后正好落在本体内；面板跨度按内容高度 +16 计算，
+   * 这里多出的 28pt 会一并算进去，底部同样不会被削。 */
+  padding-top: 14px;
+  padding-bottom: 14px;
 }
 
 .island-panel-layer.is-side-dock .usage-row {
   flex-wrap: wrap;
   /* 左右各让开 20px：贴边侧顶端有 14px 的内凹弧线，12px 内边距会让
    * 顶栏最外侧的按钮被弧线削掉一角 */
-  padding: 8px 20px;
+  padding: 2px 20px 8px;
   row-gap: 4px;
   min-height: 0 !important;
   height: auto;
