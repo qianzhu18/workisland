@@ -1418,6 +1418,9 @@ function createAppCoordinatorClass({
       for (const session of this.state.sessions.values()) {
         if (session.tool !== "claude") continue;
         if (session.phase !== "running") continue;
+        // 启动时从 transcript 恢复的会话没有 hook 的 activeTool；在下一次
+        // hook 到来前不能把“暂时无输出”的长任务误判成 ESC 中断。
+        if (session.recoveredFromTranscript) continue;
         if (session.activeTool) continue;
         if (now - session.updatedAt < IDLE_INTERRUPT_THRESHOLD_MS) continue;
         log.info(
