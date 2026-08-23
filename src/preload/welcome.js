@@ -2,6 +2,7 @@
 const electron = require("electron");
 const ipc = require("../../src/shared/ipc.cjs");
 electron.contextBridge.exposeInMainWorld("welcomeBridge", {
+  platform: process.platform,
   getLocale() {
     return electron.ipcRenderer.invoke(ipc.IPC.GET_LOCALE);
   },
