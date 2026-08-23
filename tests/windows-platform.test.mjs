@@ -42,7 +42,7 @@ test("Windows navigation activates an existing app before launching a fallback",
   const navigation = createWindowsNavigation({
     execFile: (command, args, options, callback) => {
       calls.push({ command, args, options });
-      callback(null, "", "");
+      callback(null, "RESULT:activated", "");
     }
   });
   assert.deepEqual(resolveWindowsApp("Windows Terminal"), { title: "Windows Terminal", executable: "wt.exe" });
@@ -51,6 +51,11 @@ test("Windows navigation activates an existing app before launching a fallback",
   assert.equal(calls[0].options.windowsHide, true);
   assert.equal(calls[0].options.env.WORKISLAND_APP_TITLE, "Windows Terminal");
   assert.equal(calls[0].options.env.WORKISLAND_APP_EXECUTABLE, "wt.exe");
+
+  const failedNavigation = createWindowsNavigation({
+    execFile: (command, args, options, callback) => callback(null, "RESULT:failed", "")
+  });
+  assert.equal(await failedNavigation.jumpToTarget({ app: "NoSuchApp" }), false);
 });
 
 test("Windows process discovery reads tasklist CSV without localized columns", () => {

@@ -34,7 +34,7 @@ WorkIsland keeps that loop in one local macOS surface. It watches task state, ra
 
 ## Install
 
-**For users:** download the Apple Silicon DMG or Windows x64 installer/portable EXE from [GitHub Releases](https://github.com/qianzhu18/workisland/releases). No cloud account is required. Windows packages are an unsigned Beta and may show a SmartScreen warning.
+**For users:** download the Apple Silicon DMG or Windows x64 installer/portable EXE from [GitHub Releases](https://github.com/qianzhu18/workisland/releases). No cloud account is required. Windows packages are an unsigned Alpha build for internal testing and may show a SmartScreen warning. The stable channel is macOS v3.0.0.
 
 **For contributors:** WorkIsland requires an Apple Silicon Mac or Windows 11 x64, plus Node.js 22 or later.
 

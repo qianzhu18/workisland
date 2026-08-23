@@ -2,7 +2,7 @@
 
 状态：`draft implementation`
 Owner：WorkIsland contributors
-目标版本：v0.3.x Beta
+目标版本：v1.0.0-alpha（Windows Alpha 内测通道）
 GitHub tracking Issue：待创建
 
 ## 1. 用户问题与证据
@@ -56,10 +56,10 @@ Windows 上并行使用 Claude Code、Codex、Cursor、VS Code 与 Windows Termi
 | Windows 运行时与 Hook 传输 | 工程 | 无 | 命名管道和命令测试通过 |
 | Windows 桌面集成 | 工程/设计 | 运行时 | 窗口、声音、回源、日志可用 |
 | Windows 打包与 CI | 工程/运营 | 前两项 | NSIS 和 portable 产物生成 |
-| Windows Beta 真机验收 | 测试 | 构建产物 | 完成上方验收矩阵 |
+| Windows Alpha 真机验收 | 测试 | 构建产物 | 完成上方验收矩阵 |
 
 ## 7. 发布与文档影响
 
 - README 与贡献指南增加 Windows 安装、开发和已知限制。
 - Release workflow 增加 Windows x64 产物和 SHA-256。
-- Beta Release Notes 必须明确未签名构建与 Windows Terminal 精确标签页限制。
+- Alpha Release Notes 必须明确未签名构建、内测性质与 Windows Terminal 精确标签页限制。

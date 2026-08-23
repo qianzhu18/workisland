@@ -36,15 +36,20 @@ function createWindowsNavigation({ execFile = childProcess.execFile, logger = co
   async function jumpToTarget(target) {
     const app = resolveWindowsApp(target?.app);
     if (!app) return false;
+    // AppActivate 按窗口标题前缀匹配，同名窗口（如多个 PowerShell）可能激活到
+    // 另一个；Windows Terminal 尚无按 WT_SESSION 精确定位的公开接口，先接受这个
+    // 近似。激活失败时回退到启动可执行文件，并把结果写回 stdout 供调用方判断。
     const script = [
       "$title = [Environment]::GetEnvironmentVariable('WORKISLAND_APP_TITLE')",
       "$executable = [Environment]::GetEnvironmentVariable('WORKISLAND_APP_EXECUTABLE')",
       "$shell = New-Object -ComObject WScript.Shell",
       "$activated = $shell.AppActivate($title)",
-      "if (-not $activated -and $executable) { Start-Process -FilePath $executable }"
+      "if (-not $activated -and $executable) { Start-Process -FilePath $executable; Write-Output 'RESULT:launched'; exit 0 }",
+      "if ($activated) { Write-Output 'RESULT:activated' } else { Write-Output 'RESULT:failed' }"
     ].join("; ");
     try {
-      await execFileAsync("powershell.exe", [
+      // promisify(execFile) 对多返回值的实现是数组（真实 child_process 为 {stdout}）
+      const result = await execFileAsync("powershell.exe", [
         "-NoProfile",
         "-NonInteractive",
         "-WindowStyle",
@@ -60,7 +65,10 @@ function createWindowsNavigation({ execFile = childProcess.execFile, logger = co
           WORKISLAND_APP_EXECUTABLE: app.executable || ""
         }
       });
-      return true;
+      const stdout = typeof result === "string"
+        ? result
+        : Array.isArray(result) ? result[0] : result?.stdout;
+      return /RESULT:(activated|launched)/.test(String(stdout));
     } catch (error) {
       logger.warn?.(`[WindowsNavigation] failed to activate ${app.title}:`, error.message);
       return false;

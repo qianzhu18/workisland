@@ -11,6 +11,8 @@ permissions:
 
 jobs:
   macos-arm64:
+    # Windows Alpha tag（v1.x-alpha.*）只出 Windows 产物，macOS 稳定通道不参与。
+    if: ${{ !(startsWith(github.ref, 'refs/tags/v') && contains(github.ref_name, '-alpha')) }}
     runs-on: macos-14
     timeout-minutes: 30
     env:
@@ -135,3 +137,48 @@ jobs:
             release/SHA256SUMS.txt
           prerelease: ${{ contains(github.ref_name, '-') }}
           generate_release_notes: true
+
+  # Windows Alpha 内测通道：仅在 v*-alpha.* tag 上构建，产物为未签名安装包，
+  # 一定会触发 SmartScreen 提示；正式签名分发另行评审。
+  windows-x64-alpha:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') && contains(github.ref_name, '-alpha') }}
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Verify release version
+        run: test "${GITHUB_REF_NAME#v}" = "$(node -p "require('./package.json').version")"
+        shell: bash
+      - run: npm ci --ignore-scripts
+      - name: Package Windows Setup and Portable
+        run: npm run package:win
+      - name: Generate checksums
+        shell: bash
+        run: cd release && sha256sum *.exe > SHA256SUMS-Windows.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WorkIsland-Windows-x64
+          path: |
+            release/*.exe
+            release/SHA256SUMS-Windows.txt
+          if-no-files-found: error
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/*.exe
+            release/SHA256SUMS-Windows.txt
+          prerelease: true
+          generate_release_notes: true
+          body: |
+            ⚠️ Windows Alpha 内测版本
+
+            这是 WorkIsland 的首个 Windows 桌面版本（Alpha 级别，正在测试与内测中）。产品可能存在问题，不建议作为日常主力工具使用；遇到 Bug 请通过 [Issue](https://github.com/qianzhu18/workisland/issues) 或内测群反馈。
+
+            - 支持 Windows 11 x64，提供 NSIS 安装包与便携版
+            - 安装包未签名，首次运行可能弹出 SmartScreen 警告（点击「仍要运行」）
+            - 已知限制：无法按 WT_SESSION 精确切换 Windows Terminal 标签页；不支持 Windows 10 / 32 位；暂无自动更新
+            - macOS 稳定版请前往 [v3.0.0](https://github.com/qianzhu18/workisland/releases/latest)

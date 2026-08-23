@@ -77,11 +77,14 @@ function createSoundService({
       return false;
     }
     const command = platform === "win32" ? "powershell.exe" : "afplay";
+    // SoundPlayer 不支持音量；用 PresentationCore 的 MediaPlayer 才能应用设置里的音量。
+    // Play() 是异步的，让 PowerShell 等待最长 5 秒，播完或超时后进程再退出。
     const args = platform === "win32"
-      ? ["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", "(New-Object System.Media.SoundPlayer ([Environment]::GetEnvironmentVariable('WORKISLAND_SOUND_FILE'))).PlaySync()"]
+      ? ["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command",
+        "$f=[Environment]::GetEnvironmentVariable('WORKISLAND_SOUND_FILE');$v=[double]::Parse([Environment]::GetEnvironmentVariable('WORKISLAND_SOUND_VOLUME'));Add-Type -AssemblyName PresentationCore;$p=New-Object System.Windows.Media.MediaPlayer;$p.Open([Uri]$f);$p.Volume=$v;Start-Sleep -Milliseconds 250;$p.Play();Start-Sleep -Seconds 5;$p.Close()"]
       : ["-v", String(volume), filePath];
     const options = platform === "win32"
-      ? { windowsHide: true, env: { ...process.env, WORKISLAND_SOUND_FILE: filePath } }
+      ? { windowsHide: true, env: { ...process.env, WORKISLAND_SOUND_FILE: filePath, WORKISLAND_SOUND_VOLUME: String(volume) } }
       : { windowsHide: true };
     execFile(command, args, options, (error) => {
       if (error) logger.error?.(`[SoundService] failed to play ${label}:`, error.message);
