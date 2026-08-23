@@ -96,6 +96,11 @@ class CodexTranscriptWatcher extends EventEmitter {
     this.running = false;
   }
 
+  /** 按 session id 查 rollout transcript 路径；未跟踪返回 null。 */
+  getTranscriptPath(sessionId) {
+    return this.files.get(sessionId)?.path ?? null;
+  }
+
   listTracked() {
     return Array.from(this.files.values());
   }
