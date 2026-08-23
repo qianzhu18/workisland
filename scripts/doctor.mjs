@@ -7,8 +7,9 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const require = createRequire(import.meta.url);
 const issues = [];
 
-if (process.platform !== "darwin") issues.push("WorkIsland's desktop window integration requires macOS.");
-if (process.arch !== "arm64") issues.push("The bundled native window module currently requires Apple Silicon.");
+if (!["darwin", "win32"].includes(process.platform)) issues.push("WorkIsland desktop currently supports macOS and Windows.");
+if (process.platform === "darwin" && process.arch !== "arm64") issues.push("The bundled macOS native window module currently requires Apple Silicon.");
+if (process.platform === "win32" && !["x64", "arm64"].includes(process.arch)) issues.push("Windows builds require x64 or arm64.");
 try {
   require.resolve("electron");
 } catch {
