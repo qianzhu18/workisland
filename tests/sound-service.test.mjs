@@ -21,12 +21,33 @@ function makeService() {
         getPath: () => userDir
       }
     },
+    platform: "darwin",
     execFile: (command, args, options, callback) => {
       calls.push({ command, args, options });
       callback?.(null);
     }
   });
   return { calls, service, userDir };
+}
+
+function makeWindowsService() {
+  const fixture = makeService();
+  const calls = [];
+  const service = createSoundService({
+    electronApi: {
+      app: {
+        isPackaged: false,
+        getAppPath: () => resolve("."),
+        getPath: () => fixture.userDir
+      }
+    },
+    platform: "win32",
+    execFile: (command, args, options, callback) => {
+      calls.push({ command, args, options });
+      callback?.(null);
+    }
+  });
+  return { calls, service };
 }
 
 test("sound playback uses bundled assets, clamped volume, and canonical afplay args", () => {
@@ -44,6 +65,16 @@ test("sound playback respects disabled events and rejects unknown preview paths"
   assert.equal(service.previewSound("../task_complete.wav", 50), true);
   assert.equal(service.previewSound("../../private.wav", 50), false);
   assert.equal(calls.length, 1);
+});
+
+test("Windows sound playback uses the built-in hidden PowerShell player", () => {
+  const { calls, service } = makeWindowsService();
+  service.initSoundDirs();
+  assert.equal(service.playSoundEvent("taskComplete", { sound: { enabled: true, volume: 75 } }), true);
+  assert.equal(calls[0].command, "powershell.exe");
+  assert.deepEqual(calls[0].args.slice(0, 4), ["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden"]);
+  assert.equal(calls[0].options.windowsHide, true);
+  assert.equal(calls[0].options.env.WORKISLAND_SOUND_FILE, service.resolveSoundFile(SOUND_FILES.taskComplete));
 });
 
 test("partial persisted sound settings retain every default event", () => {
