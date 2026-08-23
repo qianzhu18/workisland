@@ -7,7 +7,7 @@
 <p align="center"><strong>Keep your AI coding agents moving, without losing your own flow.</strong></p>
 
 <p align="center">
-  A local-first macOS task monitor for Claude Code, Codex, Cursor, and other coding agents. See what needs attention, approve or answer it, then return to the exact source session in one step.
+  A local-first macOS and Windows task monitor for Claude Code, Codex, Cursor, and other coding agents. See what needs attention, approve or answer it, then return to the source app in one step.
 </p>
 
 <p align="center">
@@ -19,6 +19,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/macOS-Apple%20Silicon-000000?logo=apple&logoColor=white" alt="macOS Apple Silicon">
+  <img src="https://img.shields.io/badge/Windows-11%20x64-0078D4?logo=windows11&logoColor=white" alt="Windows 11 x64">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue.svg" alt="Apache 2.0 license"></a>
   <a href="https://workisland.yanglaishe.cn/"><img src="https://img.shields.io/badge/website-workisland.yanglaishe.cn-0ea5e9" alt="WorkIsland website"></a>
 </p>
@@ -33,9 +34,9 @@ WorkIsland keeps that loop in one local macOS surface. It watches task state, ra
 
 ## Install
 
-**For users:** download the Apple Silicon DMG from [GitHub Releases](https://github.com/qianzhu18/workisland/releases), move `WorkIsland.app` to Applications, then launch it. No cloud account is required.
+**For users:** download the Apple Silicon DMG or Windows x64 installer/portable EXE from [GitHub Releases](https://github.com/qianzhu18/workisland/releases). No cloud account is required. Windows packages are an unsigned Beta and may show a SmartScreen warning.
 
-**For contributors:** WorkIsland requires an Apple Silicon Mac and Node.js 22 or later.
+**For contributors:** WorkIsland requires an Apple Silicon Mac or Windows 11 x64, plus Node.js 22 or later.
 
 ```bash
 git clone https://github.com/qianzhu18/workisland.git
@@ -44,6 +45,8 @@ npm run setup
 npm run dev:isolated
 ```
 
+Build a Windows installer and portable executable with `npm run package:win`.
+
 Use `npm run dev` only when you deliberately want to connect the app to your real local Agent Hook configuration. The isolated mode keeps development data inside the repository.
 
 ## What You Can Do
@@ -51,6 +54,7 @@ Use `npm run dev` only when you deliberately want to connect the app to your rea
 - **See the state that matters** - running, approval needed, question waiting, completed, or failed tasks stay visible near the macOS notch.
 - **Handle approvals and questions in place** - respond when an agent needs a decision instead of polling every terminal.
 - **Return to the right source session** - jump back to the matching Terminal, iTerm2, Ghostty, or Warp conversation.
+- **Use a native Windows workflow** - Windows builds use a top-centered floating island, Windows system sound, per-user named-pipe Hooks, and app activation for Windows Terminal, PowerShell, Cursor, and VS Code.
 - **Monitor through two local signals** - Hooks and transcript watching complement each other, so task completion remains observable when one channel is unavailable.
 - **Keep the workflow local-first** - task content stays on the Mac; the app does not require a cloud account to monitor local work.
 - **Make notifications fit your attention** - choose the island, desktop companion, sounds, shortcuts, and notification timing that suit your workflow.
@@ -58,6 +62,8 @@ Use `npm run dev` only when you deliberately want to connect the app to your rea
 ## Agent Compatibility
 
 WorkIsland has first-party adapters for Claude Code, Codex, Coco, Cursor, TraeCode, ZCode, WorkBuddy / CodeBuddy, OpenCode, Sara, Kimi Code, Gemini CLI, GitHub Copilot CLI, Hermes, Aiden, DeepSeek Harness, and TRAE CLI. MiMo, Trae Work, Trae CN, and generic custom-Hook connections are not advertised because they have not passed a real end-to-end integration test. TraeCode requires its in-app Hooks switch and local automatic execution mode to be enabled before events can reach WorkIsland.
+
+On Windows, the MVP can activate the originating application but cannot yet select an existing Windows Terminal tab by `WT_SESSION`; approval or follow-up text injection remains in the terminal's native UI.
 
 ## Product Links
 

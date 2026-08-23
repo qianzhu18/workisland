@@ -2,7 +2,7 @@
   "name": "workisland",
   "productName": "WorkIsland",
   "version": "0.3.0-beta.1",
-  "description": "macOS 本地 Work Agent 工作状态与注意力路由器",
+  "description": "macOS 与 Windows 本地 Work Agent 工作状态与注意力路由器",
   "private": true,
   "main": "./src/main/index.cjs",
   "author": "WorkIsland contributors",
@@ -10,6 +10,7 @@
   "keywords": [
     "electron",
     "macos",
+    "windows",
     "work-agent",
     "dynamic-island"
   ],
@@ -24,6 +25,7 @@
     "setup:electron": "npm install --prefix ./.tools/electron-shell --no-save electron@43.3.0 --cache ./.npm-cache",
     "build:native": "node ./scripts/build-native.mjs",
     "package:mac": "npm run build:assets && npm run build:native && npm run check && electron-builder --mac --arm64 --publish never",
+    "package:win": "npm run build:assets && npm run check && electron-builder --win nsis portable --x64 --publish never",
     "release:check": "node ./scripts/release-check.mjs",
     "check": "npm run build:renderer && node ./scripts/check.mjs && node ./scripts/test-source.mjs && npm run test:unit",
     "test:unit": "node --test tests/*.test.mjs",
@@ -87,6 +89,10 @@
         "to": "scripts/collect-logs.sh"
       },
       {
+        "from": "resources/scripts/collect-logs.ps1",
+        "to": "scripts/collect-logs.ps1"
+      },
+      {
         "from": "resources/dsh-workisland-bridge",
         "to": "dsh-workisland-bridge"
       }
@@ -113,6 +119,20 @@
     },
     "dmg": {
       "title": "WorkIsland"
+    },
+    "win": {
+      "target": ["nsis", "portable"],
+      "icon": "resources/icon.png"
+    },
+    "nsis": {
+      "artifactName": "${productName}-Setup-${version}-${arch}.${ext}",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "portable": {
+      "artifactName": "${productName}-Portable-${version}-${arch}.${ext}"
     }
   }
 }
