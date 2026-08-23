@@ -6,11 +6,12 @@ const os = require("node:os");
 const child_process = require("node:child_process");
 const util = require("node:util");
 const log = require("electron-log");
+const { createWindowsNavigation } = require("./windows-navigation.cjs");
 const fs__namespace = fs;
 const path__namespace = path;
 const os__namespace = os;
 
-function createTerminalNavigation({ isPluginAgentTool, PLUGIN_BY_TOOL }) {
+function createTerminalNavigation({ isPluginAgentTool, PLUGIN_BY_TOOL, platform = process.platform, windowsNavigation = createWindowsNavigation({ logger: log }) }) {
   const COMMON_TMUX_PATHS = ["/opt/homebrew/bin/tmux", "/usr/local/bin/tmux"];
   function firstAbsoluteLine(stdout) {
     const text = String(stdout ?? "");
@@ -889,6 +890,7 @@ function createTerminalNavigation({ isPluginAgentTool, PLUGIN_BY_TOOL }) {
     return windowTitleMatchNameForPath(ideWorkspaceOpenPath(target)) ?? windowTitleMatchNameForPath(target.workingDirectory);
   }
   async function jumpVSCodeFamily(target, cli) {
+    if (platform === "win32") return windowsNavigation.jumpToTarget(target);
     const pathToOpen = ideWorkspaceOpenPath(target) ?? target.workingDirectory;
     if (!pathToOpen) return jumpFallback(target);
     const { appName, bundleId } = getVSCodeFamilyMetadata(cli);
@@ -930,6 +932,7 @@ function createTerminalNavigation({ isPluginAgentTool, PLUGIN_BY_TOOL }) {
     await execFileAsync$6("open", ["-a", appName], { timeout: 5e3 });
   }
   async function jumpCursorAgentSession(target) {
+    if (platform === "win32") return windowsNavigation.jumpToTarget({ ...target, app: "Cursor" });
     log.debug("[TerminalJumpService] jumpCursorAgentSession:", target);
     const folderName = ideWorkspaceWindowTitleMatchName(target);
     if (folderName) {
@@ -983,6 +986,7 @@ function createTerminalNavigation({ isPluginAgentTool, PLUGIN_BY_TOOL }) {
     }
   }
   async function jumpCodexAgentSession(target, threadId, needAlreadyOpened) {
+    if (platform === "win32") return windowsNavigation.jumpToTarget({ ...target, app: "Codex" });
     log.debug(
       "[TerminalJumpService] jumpCodexAgentSession:",
       target,
@@ -1032,6 +1036,7 @@ function createTerminalNavigation({ isPluginAgentTool, PLUGIN_BY_TOOL }) {
     }
   }
   async function jumpClaudeAgentSession(target) {
+    if (platform === "win32") return windowsNavigation.jumpToTarget({ ...target, app: "Claude" });
     log.debug("[TerminalJumpService] jumpClaudeAgentSession:", target);
     // Claude Desktop 是单窗口应用，会话都在侧边栏里 —— 按窗口标题匹配那套
     // （jumpTraeAgentSession 用的办法）在这里根本无从下手，一共就一个窗口。
@@ -1098,6 +1103,7 @@ function createTerminalNavigation({ isPluginAgentTool, PLUGIN_BY_TOOL }) {
     }
   }
   async function jumpTraeAgentSession(target) {
+    if (platform === "win32") return windowsNavigation.jumpToTarget({ ...target, app: target.app || "Trae" });
     log.debug("[TerminalJumpService] jumpTraeAgentSession:", target);
     const preferred = findTraeVariantInfo(target.traeVariant) ?? findTraeVariantByApp(target.app);
     const candidates = preferred ? [preferred, ...TRAE_VARIANTS_INFO.filter((v) => v !== preferred)] : [...TRAE_VARIANTS_INFO];
@@ -1223,6 +1229,7 @@ function createTerminalNavigation({ isPluginAgentTool, PLUGIN_BY_TOOL }) {
     }
   }
   async function jumpTraeTerminalHost(target) {
+    if (platform === "win32") return windowsNavigation.jumpToTarget(target);
     log.debug("[TerminalJumpService] jumpTraeTerminalHost:", target);
     const variant = findTraeVariantInfo(target.traeVariant) ?? findTraeVariantByApp(target.app);
     if (!variant) {
@@ -1289,6 +1296,7 @@ function createTerminalNavigation({ isPluginAgentTool, PLUGIN_BY_TOOL }) {
     }
   }
   async function jumpOpenCodeAgentSession(target) {
+    if (platform === "win32") return windowsNavigation.jumpToTarget({ ...target, app: "OpenCode" });
     log.debug("[TerminalJumpService] jumpOpenCodeAgentSession:", target);
     const projectName = target.workingDirectory?.split("/").filter(Boolean).pop();
     if (projectName) {
@@ -1335,6 +1343,7 @@ function createTerminalNavigation({ isPluginAgentTool, PLUGIN_BY_TOOL }) {
     }
   }
   async function jumpJetBrains(target, app) {
+    if (platform === "win32") return windowsNavigation.jumpToTarget(target);
     const PROCESS_NAME_MAP = {
       "intellij idea": "idea",
       "webstorm": "webstorm",
@@ -1622,6 +1631,10 @@ function createTerminalNavigation({ isPluginAgentTool, PLUGIN_BY_TOOL }) {
   }
   async function jumpToTarget(target) {
     log.debug("[TerminalJumpService] jumping to:", target);
+    if (platform === "win32") {
+      await windowsNavigation.jumpToTarget(target);
+      return;
+    }
     const app = target.app.toLowerCase();
     try {
       if (app === "ghostty") {
@@ -1663,6 +1676,7 @@ function createTerminalNavigation({ isPluginAgentTool, PLUGIN_BY_TOOL }) {
     }
   }
   function isSessionTabFocused(jumpTarget) {
+    if (platform === "win32") return "skipped";
     const app = jumpTarget.app.toLowerCase();
     try {
       if (app === "tmux" && jumpTarget.tmuxOuterHost && jumpTarget.tmuxClientTty) {
@@ -1807,6 +1821,9 @@ function createTerminalNavigation({ isPluginAgentTool, PLUGIN_BY_TOOL }) {
   const execFileAsync$3 = util.promisify(child_process.execFile);
   async function sendTextToTerminal(target, text) {
     try {
+      if (platform === "win32") {
+        return { ok: false, reason: "unsupported", error: "Windows does not support background terminal text injection" };
+      }
       if (target.tmuxTarget) {
         log.info("[TerminalInput] using tmux, target=%s", target.tmuxTarget);
         return await sendTextViaTmux(target.tmuxTarget, text);

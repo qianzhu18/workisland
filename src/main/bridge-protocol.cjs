@@ -3,6 +3,7 @@
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
+const crypto = require("node:crypto");
 
 const SOCKET_NAME = "bridge.sock";
 
@@ -31,15 +32,22 @@ function getSocketDir(homeDir = os.homedir()) {
   return path.join(homeDir, ".flux", "run");
 }
 
-function getSocketPath(env = process.env, homeDir = os.homedir()) {
-  return env.FLUX_SOCKET_PATH || path.join(getSocketDir(homeDir), SOCKET_NAME);
+function getSocketPath(env = process.env, homeDir = os.homedir(), platform = process.platform) {
+  if (env.FLUX_SOCKET_PATH) return env.FLUX_SOCKET_PATH;
+  if (platform === "win32") {
+    const userKey = crypto.createHash("sha256").update(path.resolve(homeDir).toLowerCase()).digest("hex").slice(0, 12);
+    return `\\\\.\\pipe\\workisland-${userKey}`;
+  }
+  return path.posix.join(homeDir, ".flux", "run", SOCKET_NAME);
 }
 
-function ensureSocketDir(homeDir = os.homedir()) {
+function ensureSocketDir(homeDir = os.homedir(), platform = process.platform) {
+  if (platform === "win32") return;
   fs.mkdirSync(getSocketDir(homeDir), { recursive: true });
 }
 
 function cleanupSocket(socketPath) {
+  if (String(socketPath).startsWith("\\\\.\\pipe\\")) return;
   try {
     if (fs.existsSync(socketPath)) fs.unlinkSync(socketPath);
   } catch {

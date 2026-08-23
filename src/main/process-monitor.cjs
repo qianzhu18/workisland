@@ -4,7 +4,14 @@ const childProcess = require("child_process");
 const { promisify } = require("util");
 const log = require("electron-log");
 
-function createProcessMonitorClass({ isVisibleInIsland }) {
+function parseWindowsTasklist(stdout) {
+  return new Set(String(stdout || "").split(/\r?\n/).map((line) => {
+    const match = line.match(/^"([^"]+)"/);
+    return match?.[1]?.toLowerCase();
+  }).filter(Boolean));
+}
+
+function createProcessMonitorClass({ isVisibleInIsland, platform = process.platform, execFile = childProcess.execFile }) {
   function hasAppBundlePathSegment(command, appBundleNames) {
     const segments = command.toLowerCase().split("/");
     return appBundleNames.some((appBundleName) => segments.includes(appBundleName.toLowerCase()));
@@ -24,17 +31,30 @@ function createProcessMonitorClass({ isVisibleInIsland }) {
   function isTraeDesktopAppCommand(command) {
     return hasAppBundlePathSegment(command, ["Trae CN.app", "Trae.app", "Trae - Dev.app", "Trae CN - Dev.app", "Trae CN - Alpha.app"]);
   }
-  const execFileAsync$7 = promisify(childProcess.execFile);
-  const PS_TIMEOUT_MS$1 = 500;
+  const execFileAsync$7 = promisify(execFile);
+  const PS_TIMEOUT_MS$1 = platform === "win32" ? 5e3 : 500;
   const POLL_INTERVAL_MS$2 = 15e3;
   const APP_EXIT_GRACE_MS = 14e3;
+  let desktopDetectionAvailable = true;
   async function detectDesktopApps() {
+    if (!desktopDetectionAvailable) return null;
     let isCursorRunning = false;
     let isClaudeDesktopAppRunning = false;
     let isCodexDesktopAppRunning = false;
     let isOpenCodeRunning = false;
     let isTraeRunning = false;
     try {
+      if (platform === "win32") {
+        const { stdout } = await execFileAsync$7("tasklist.exe", ["/FO", "CSV", "/NH"], { timeout: PS_TIMEOUT_MS$1, windowsHide: true });
+        const names = parseWindowsTasklist(stdout);
+        return {
+          isCursorRunning: names.has("cursor.exe"),
+          isClaudeDesktopAppRunning: names.has("claude.exe"),
+          isCodexDesktopAppRunning: names.has("codex.exe"),
+          isOpenCodeRunning: names.has("opencode.exe"),
+          isTraeRunning: names.has("trae.exe")
+        };
+      }
       const { stdout } = await execFileAsync$7(
         "/bin/ps",
         ["-Ao", "command="],
@@ -49,7 +69,12 @@ function createProcessMonitorClass({ isVisibleInIsland }) {
         if (isCursorRunning && isClaudeDesktopAppRunning && isCodexDesktopAppRunning && isOpenCodeRunning && isTraeRunning) break;
       }
     } catch (err) {
-      log.error("[ProcessMonitor] ps failed:", err);
+      if (platform === "win32") {
+        desktopDetectionAvailable = false;
+        log.warn("[ProcessMonitor] Windows process listing unavailable; desktop-app exit cleanup is disabled:", err.message);
+      } else {
+        log.error("[ProcessMonitor] ps failed:", err);
+      }
       return null;
     }
     const result = { isCursorRunning, isClaudeDesktopAppRunning, isCodexDesktopAppRunning, isOpenCodeRunning, isTraeRunning };
@@ -172,4 +197,4 @@ function createProcessMonitorClass({ isVisibleInIsland }) {
   return ProcessMonitor;
 }
 
-module.exports = { createProcessMonitorClass };
+module.exports = { createProcessMonitorClass, parseWindowsTasklist };

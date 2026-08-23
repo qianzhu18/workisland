@@ -19,6 +19,7 @@ function saveSessions(sessions) {
   }
 }
 function shellQuote(p) {
+  if (process.platform === "win32") return `"${String(p).replaceAll('"', '\\"')}"`;
   return `'${p}'`;
 }
 function buildDevHooksCliCommand(source) {
@@ -30,6 +31,10 @@ function buildDevHooksCliCommand(source) {
   });
 }
 function wrapWithInstallCheck(guardPath, command) {
+  if (process.platform === "win32") {
+    const normalized = command.replace(/^ELECTRON_RUN_AS_NODE=1\s+/, 'set "ELECTRON_RUN_AS_NODE=1"&& ');
+    return `if not exist ${shellQuote(guardPath)} exit /b 0 & ${normalized}`;
+  }
   return `[ -e ${shellQuote(guardPath)} ] || exit 0; ${command}`;
 }
 // Migration-only marker: installers remove obsolete private reporting hooks

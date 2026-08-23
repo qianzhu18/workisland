@@ -371,6 +371,7 @@ function createAppCoordinatorClass({
      * 该会话的下一个 hook 事件会自然补上。
      */
     async discoverRunningClaudeSessions() {
+      if (process.platform !== "darwin") return;
       const RECOVERY_LOOKBACK_MS = 24 * 60 * 60 * 1e3;
       const cp = require("child_process");
       const { promisify: pify } = require("util");

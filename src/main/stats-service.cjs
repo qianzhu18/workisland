@@ -5,9 +5,14 @@ const fs = require("fs");
 const path = require("path");
 const log = require("electron-log");
 
-const STATS_DIR = path.join(electron.app.getPath("userData"), "stats");
-const SESSIONS_FILE = path.join(STATS_DIR, "session_records.json");
-const TOKENS_FILE = path.join(STATS_DIR, "token_records.json");
+function getStatsPaths() {
+  const statsDir = path.join(electron.app.getPath("userData"), "stats");
+  return {
+    statsDir,
+    sessionsFile: path.join(statsDir, "session_records.json"),
+    tokensFile: path.join(statsDir, "token_records.json")
+  };
+}
 const MAX_RECORDS = 1e4;
 const SAVE_DEBOUNCE_MS = 3e5;
 const RETENTION_DAYS = 8;
@@ -180,9 +185,10 @@ class StatsService {
     return `${y}-${m}-${day}`;
   }
   loadFromDisk() {
+    const { sessionsFile, tokensFile } = getStatsPaths();
     try {
-      if (fs.existsSync(SESSIONS_FILE)) {
-        const raw = fs.readFileSync(SESSIONS_FILE, "utf-8");
+      if (fs.existsSync(sessionsFile)) {
+        const raw = fs.readFileSync(sessionsFile, "utf-8");
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
           this.sessions = parsed;
@@ -193,8 +199,8 @@ class StatsService {
       log.warn("[StatsService] failed to load session records:", err);
     }
     try {
-      if (fs.existsSync(TOKENS_FILE)) {
-        const raw = fs.readFileSync(TOKENS_FILE, "utf-8");
+      if (fs.existsSync(tokensFile)) {
+        const raw = fs.readFileSync(tokensFile, "utf-8");
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
           this.tokens = parsed;
@@ -224,21 +230,22 @@ class StatsService {
     if (this.tokens.length > MAX_RECORDS) {
       this.tokens = this.tokens.slice(-MAX_RECORDS);
     }
+    const { statsDir, sessionsFile, tokensFile } = getStatsPaths();
     try {
-      fs.mkdirSync(STATS_DIR, { recursive: true });
+      fs.mkdirSync(statsDir, { recursive: true });
     } catch {
     }
     try {
-      const tmp = SESSIONS_FILE + ".tmp";
+      const tmp = sessionsFile + ".tmp";
       fs.writeFileSync(tmp, JSON.stringify(this.sessions), "utf-8");
-      fs.renameSync(tmp, SESSIONS_FILE);
+      fs.renameSync(tmp, sessionsFile);
     } catch (err) {
       log.warn("[StatsService] failed to save session records:", err);
     }
     try {
-      const tmp = TOKENS_FILE + ".tmp";
+      const tmp = tokensFile + ".tmp";
       fs.writeFileSync(tmp, JSON.stringify(this.tokens), "utf-8");
-      fs.renameSync(tmp, TOKENS_FILE);
+      fs.renameSync(tmp, tokensFile);
     } catch (err) {
       log.warn("[StatsService] failed to save token records:", err);
     }

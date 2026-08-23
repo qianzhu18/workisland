@@ -29,6 +29,7 @@ function createSoundService({
   fsApi = fs,
   pathApi = path,
   execFile = childProcess.execFile,
+  platform = process.platform,
   logger = console
 } = {}) {
   let soundDirsInitialized = false;
@@ -75,9 +76,14 @@ function createSoundService({
       logger.warn?.(`[SoundService] sound asset is missing for ${label}: ${filePath}`);
       return false;
     }
-    // afplay accepts options before or after the file, but keeping options
-    // first avoids ambiguous parsing when a custom path starts with a dash.
-    execFile("afplay", ["-v", String(volume), filePath], { windowsHide: true }, (error) => {
+    const command = platform === "win32" ? "powershell.exe" : "afplay";
+    const args = platform === "win32"
+      ? ["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", "(New-Object System.Media.SoundPlayer ([Environment]::GetEnvironmentVariable('WORKISLAND_SOUND_FILE'))).PlaySync()"]
+      : ["-v", String(volume), filePath];
+    const options = platform === "win32"
+      ? { windowsHide: true, env: { ...process.env, WORKISLAND_SOUND_FILE: filePath } }
+      : { windowsHide: true };
+    execFile(command, args, options, (error) => {
       if (error) logger.error?.(`[SoundService] failed to play ${label}:`, error.message);
     });
     return true;

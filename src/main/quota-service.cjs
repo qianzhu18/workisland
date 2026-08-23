@@ -9,7 +9,7 @@ const util = require("node:util");
 const log = require("electron-log");
 const { IPC } = require("../shared/ipc.cjs");
 
-const CACHE_PATH = "/tmp/flux-rl.json";
+const CACHE_PATH = process.platform === "win32" ? path.join(os.tmpdir(), "flux-rl.json") : "/tmp/flux-rl.json";
 function formatMinutes$1(minutes) {
   if (minutes <= 0) return "0m";
   const days = Math.floor(minutes / 1440);
@@ -398,8 +398,8 @@ function stripElectronAsNode(env) {
   delete copy.ELECTRON_RUN_AS_NODE;
   return copy;
 }
-const CLAUDE_CACHE_PATH = "/tmp/flux-rl.json";
-const CLAUDE_CACHE_DIR = "/tmp";
+const CLAUDE_CACHE_PATH = process.platform === "win32" ? path.join(os.tmpdir(), "flux-rl.json") : "/tmp/flux-rl.json";
+const CLAUDE_CACHE_DIR = process.platform === "win32" ? os.tmpdir() : "/tmp";
 const CLAUDE_CACHE_FILENAME = "flux-rl.json";
 const CODEX_SESSIONS_DIR = path.join(os.homedir(), ".codex", "sessions");
 const DEBOUNCE_MS = 100;
