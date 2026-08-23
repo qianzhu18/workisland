@@ -1,8 +1,8 @@
 # PRD-005: Anonymous Telemetry（默认开启、设置披露）
 
-状态：`in-progress`  
+状态：`release-candidate`
 优先级：`P0`  
-关联版本：[v0.3.0 Beta Pilot](./PRD-006-v0.3.0-Beta-Pilot.md)  
+关联版本：`v3.0.0`
 实现与运维：[Telemetry Guide](../../TELEMETRY.md)
 
 ## 1. 问题与目标
@@ -21,13 +21,13 @@ Pilot 需要验证首次价值、D7 留存、回源和 Agent 分布，但产品�
 | --- | --- | --- |
 | `app_launched` | 匿名使用统计开启时的应用启动 | 无 |
 | `first_agent_signal` | 安装后首次收到 Agent 信号 | `tool` |
-| `session_started` / `session_completed` | 会话开始 / 完成 | `tool` |
+| `session_started` / `session_completed` | 用户任务轮次开始 / 完成；本地合并同一轮来自 Hook、转录恢复的重复报告 | `tool` |
 | `approval_handled` | 处理审批 | `action`、`tool` |
 | `question_answered` | 回答提问 | `tool` |
 | `jump_back` | 回到终端或 IDE | `target`、`tool` |
 | `settings_changed` | 白名单设置项变更 | `key` |
 
-每条事件仅可附带随机 `distinct_id`、`appVersion`、`osVersion` 与时间戳。扩充事件或属性必须先更新本 PRD，再改 `src/shared/telemetry.cjs` 并补测试。
+每条事件仅可附带随机 `distinct_id`、`appVersion`、`osVersion` 与时间戳。生命周期去重使用会话编号仅作短暂内存键，不落盘、不作为事件属性上传。上传层固定附带 `$geoip_disable: true`，仅用于禁止服务端从请求 IP 推断位置，不含任何位置或身份值；项目级 IP 丢弃也必须保持开启。扩充事件或属性必须先更新本 PRD，再改 `src/shared/telemetry.cjs` 并补测试。
 
 ## 4. 披露与关闭语义（2026-08-22 政策改版：默认开启）
 
@@ -37,12 +37,12 @@ Pilot 需要验证首次价值、D7 留存、回源和 Agent 分布，但产品�
 2. 明确拒绝过（旧流程记录当前通知版本且值为关）：保持关闭，不得被迁移翻转。
 3. 关闭时：立即停止收集、清空待上传队列，之后不再上传；重新开启则恢复。
 4. 「设置 → 关于」显示本机队列状态与最近一次 PostHog 批量接口 HTTP 2xx 确认；它不表示、不推断 PostHog 后续分析处理结果，也不新增任何数据字段。
-4. 开发构建不出网（事件仅写入本地队列供检查）。
+5. 开发构建不出网（事件仅写入本地队列供检查）。
 
 ## 5. 验收与指标
 
-- [ ] 新装与未选择安装默认 `telemetryEnabled: true`；曾明确拒绝者保持 `false`。（测试已编写，待 `npm run test:unit` 实跑确认）
+- [x] 新装与未选择安装默认 `telemetryEnabled: true`；曾明确拒绝者保持 `false`。（`v3.0.0` RC 全量检查通过）
 - [x] 白名单之外的事件和属性不能离开设备（事件名与持久化队列同样 fail-closed；2026-08-21 已实跑验证）。
 - [x] 失败上传保留队列，应用保持可用。（已实跑验证）
-- [ ] 单元测试覆盖默认开启迁移、明确拒绝保留、关闭清队列、重试、队列上限与设置开关持久化。（已编写，待实跑确认）
+- [x] 单元测试覆盖默认开启迁移、明确拒绝保留、关闭清队列、重试、队列上限与设置开关持久化；生命周期重复上报本地合并且不上传会话编号。（`v3.0.0` RC 全量检查通过）
 - [ ] PostHog 可形成 `app_launched -> first_agent_signal`、D7、`jump_back` 和 Agent 分布看板。

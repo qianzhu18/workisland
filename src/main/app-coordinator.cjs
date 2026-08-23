@@ -249,11 +249,15 @@ function createAppCoordinatorClass({
             log.warn("[AppCoordinator] failed to record Agent verification: %s", error?.message || error);
           });
         }
-        // 匿名遥测：激活信号每安装只报一次；会话开始按 tool 计数。
-        // 服务内部完成白名单过滤与关闭状态下的 no-op。
+        // 匿名遥测：激活信号每安装只报一次；会话生命周期在服务内
+        // 按本地当前轮次合并 Hook / transcript 的重复报告。sessionId
+        // 仅作内存去重键，不会进入遥测队列或上传 payload。
         this.telemetry?.markFirstAgentSignal(event.tool);
         if (event.type === "sessionStarted") {
-          this.telemetry?.track(EVENTS.SESSION_STARTED, { tool: event.tool });
+          this.telemetry?.trackLifecycleEvent?.(EVENTS.SESSION_STARTED, {
+            sessionId: event.sessionId,
+            tool: event.tool
+          });
         }
         const prevSession = event.type === "sessionCompleted" ? getSession(this.state, event.sessionId) : void 0;
         this.state = apply(this.state, event);
@@ -272,7 +276,10 @@ function createAppCoordinatorClass({
           if (session) {
             this.statsService.recordSession(event.tool, session.createdAt, event.timestamp);
           }
-          this.telemetry?.track(EVENTS.SESSION_COMPLETED, { tool: event.tool });
+          this.telemetry?.trackLifecycleEvent?.(EVENTS.SESSION_COMPLETED, {
+            sessionId: event.sessionId,
+            tool: event.tool
+          });
         }
         this.broadcastSessionUpdate();
         this.maybePresentSurface(event);

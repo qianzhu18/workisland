@@ -19,19 +19,21 @@ WorkIsland 内置一套**默认开启**的匿名使用统计（2026-08-22 起的
 | --- | --- | --- |
 | `app_launched` | 应用启动 | — |
 | `first_agent_signal` | 本次安装首次收到 Agent 事件（激活信号，仅一次） | `tool` |
-| `session_started` / `session_completed` | 会话开始 / 完成 | `tool` |
+| `session_started` / `session_completed` | 用户任务轮次开始 / 完成（本地合并 Hook、转录恢复等重复报告） | `tool` |
 | `approval_handled` | 处理审批 | `action`、`tool` |
 | `question_answered` | 回答提问 | `tool` |
 | `jump_back` | 回源跳转（北极星指标） | `target`、`tool` |
 | `settings_changed` | 白名单设置项变更（只发 key） | `key` |
 
+每一条上传还会携带 PostHog 的技术指令 `$geoip_disable: true`，禁止服务端根据请求 IP 推断或写入地理位置。项目级「Discard IP data」也必须保持开启；它与该事件级保护共同构成发布前置条件。
+
 ## 部署：接入 PostHog Cloud（一次性，约 10 分钟）
 
 1. 注册 [PostHog Cloud](https://posthog.com) 免费版，创建 Project（如 `workisland-telemetry`）。
 2. 在 Settings → Project → API Keys 复制 **Project API key**（`phc_` 开头，只写权限，可随时轮换）。
-3. 填入 `src/shared/telemetry.cjs` 的 `POSTHOG_API_KEY`。**当前已配置（2026-08-17，key 已通过 `/batch/` 端到端验证）**；如使用 EU 区，把 `POSTHOG_HOST` 改为 `https://eu.i.posthog.com`。
+3. 填入 `src/shared/telemetry.cjs` 的 `POSTHOG_API_KEY`。**当前已配置（2026-08-17，key 已通过 `/batch/` 端到端验证）**；如使用 EU 区，把 `POSTHOG_HOST` 改为 `https://eu.i.posthog.com`。在 Settings → Project → Data capture 启用 **Discard IP data**；不可仅依赖客户端代码。
 4. 打包构建（`app.isPackaged` 为 true）后，匿名使用统计默认开启，PostHog Live events 即可看到 `app_launched`（用户在设置中关闭则停止）。
-5. 开发调试：开发模式不出网，但同意后事件会写入 `<userData>/telemetry/pending.json`，可直接检查将要上报的内容。
+5. 开发调试：开发模式不出网；匿名统计开启时事件会写入 `<userData>/telemetry/pending.json`，可直接检查将要上报的内容。
 
 免费版额度备忘：1 个 Project、约 2 万事件/月。内测 50 人 × 每天约 10–20 个事件 ≈ 1.5–3 万/月，可能触顶；触顶时优先做事件降频（如 `session_started` 聚合为按天计数）或迁移自建端（见下）。单 Project 足够：多版本用 `appVersion` 属性区分。
 

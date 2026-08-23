@@ -11,6 +11,7 @@ const {
   TELEMETRY_REQUEST_TIMEOUT_MS,
   TELEMETRY_QUEUE_MAX,
   TELEMETRY_BATCH_MAX,
+  DISABLE_GEOIP_PROPERTY,
   EVENTS,
   PROPERTY_WHITELIST,
   SETTINGS_KEY_WHITELIST,
@@ -19,6 +20,11 @@ const {
 
 const STATE_FILE = "state.json";
 const PENDING_FILE = "pending.json";
+// Agent lifecycle messages can arrive through a hook and a transcript watcher.
+// This short in-memory window only coalesces the two reports for one active
+// turn; it is deliberately never persisted or included in telemetry payloads.
+const LIFECYCLE_COALESCE_WINDOW_MS = 5e3;
+const LIFECYCLE_TRACKING_CAPACITY = 1024;
 
 /**
  * Anonymous usage telemetry (PRD-005; default-on policy since 2026-08-22,
@@ -79,6 +85,8 @@ function createTelemetryService({
   let saveTimer = null;
   let flushTimer = null;
   let inFlight = null;
+  /** @type {Map<string, { startedAt: number, completed: boolean, seenAt: number }>} */
+  const lifecycleTurnsBySession = new Map();
 
   function readJson(filePath, fallback) {
     try {
@@ -147,6 +155,74 @@ function createTelemetryService({
     scheduleSave();
   }
 
+  /**
+   * Record a lifecycle event once per active local turn.
+   *
+   * sessionId is an internal, in-memory deduplication key only. It is neither
+   * passed to track() nor persisted, so the upload contract remains the
+   * event/property whitelist in shared/telemetry.cjs.
+   */
+  function trackLifecycleEvent(eventName, { sessionId, tool } = {}) {
+    if (!enabled()) return false;
+    if (
+      (eventName !== EVENTS.SESSION_STARTED && eventName !== EVENTS.SESSION_COMPLETED) ||
+      typeof sessionId !== "string" ||
+      sessionId.length === 0 ||
+      sessionId.length > 512
+    ) return false;
+
+    const capturedAt = now();
+    pruneLifecycleTurns(capturedAt);
+    const previous = lifecycleTurnsBySession.get(sessionId);
+
+    if (eventName === EVENTS.SESSION_STARTED) {
+      // A second source may report the same just-started turn. Once a terminal
+      // event was seen, however, the next start is a genuine new user turn and
+      // must count even if it happens immediately.
+      if (previous && !previous.completed && capturedAt - previous.startedAt < LIFECYCLE_COALESCE_WINDOW_MS) {
+        previous.seenAt = capturedAt;
+        return false;
+      }
+      lifecycleTurnsBySession.set(sessionId, {
+        startedAt: capturedAt,
+        completed: false,
+        seenAt: capturedAt
+      });
+      track(eventName, { tool });
+      return true;
+    }
+
+    // The first terminal event closes the locally observed turn. A later
+    // duplicate completion cannot inflate completion/retention metrics.
+    if (previous?.completed) {
+      previous.seenAt = capturedAt;
+      return false;
+    }
+    lifecycleTurnsBySession.set(sessionId, {
+      startedAt: previous?.startedAt ?? capturedAt,
+      completed: true,
+      seenAt: capturedAt
+    });
+    track(eventName, { tool });
+    return true;
+  }
+
+  function pruneLifecycleTurns(capturedAt) {
+    const expiry = capturedAt - LIFECYCLE_COALESCE_WINDOW_MS;
+    for (const [sessionId, state] of lifecycleTurnsBySession) {
+      // A completed turn can be released quickly. Running turns stay long
+      // enough to collapse hook/transcript fan-out, then a later start is
+      // treated as a new turn rather than retaining an identifier indefinitely.
+      if (state.seenAt < expiry) lifecycleTurnsBySession.delete(sessionId);
+    }
+    if (lifecycleTurnsBySession.size <= LIFECYCLE_TRACKING_CAPACITY) return;
+    const overflow = lifecycleTurnsBySession.size - LIFECYCLE_TRACKING_CAPACITY;
+    const oldest = Array.from(lifecycleTurnsBySession.entries())
+      .sort(([, a], [, b]) => a.seenAt - b.seenAt)
+      .slice(0, overflow);
+    for (const [sessionId] of oldest) lifecycleTurnsBySession.delete(sessionId);
+  }
+
   /** Activation signal — emitted at most once per installation. */
   function markFirstAgentSignal(tool) {
     // Do not consume the one-shot marker while collection is turned off.
@@ -170,7 +246,9 @@ function createTelemetryService({
       batch: batch.map((entry) => ({
         event: entry.event,
         distinct_id: anonId(),
-        properties: { ...baseProperties(), ...(entry.props || {}) },
+        // No location must be inferred from the request IP. This is applied at
+        // upload time rather than persisted with the product-event whitelist.
+        properties: { [DISABLE_GEOIP_PROPERTY]: true, ...baseProperties(), ...(entry.props || {}) },
         timestamp: new Date(entry.ts).toISOString()
       }))
     };
@@ -222,6 +300,7 @@ function createTelemetryService({
   function setEnabled(enabled) {
     if (enabled) return;
     queue = [];
+    lifecycleTurnsBySession.clear();
     if (saveTimer) {
       clearTimeout(saveTimer);
       saveTimer = null;
@@ -269,6 +348,7 @@ function createTelemetryService({
 
   return {
     track,
+    trackLifecycleEvent,
     markFirstAgentSignal,
     trackSettingChange,
     setEnabled,

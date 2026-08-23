@@ -130,6 +130,11 @@ async function loadCodexPets() {
   }
 }
 
+function requestQuitApp() {
+  const confirmed = window.confirm("退出 WorkIsland？\n\n这会关闭 Island、桌宠与后台监听。");
+  if (confirmed) api.quitApp();
+}
+
 function generalPage() {
   const root = document.createDocumentFragment();
   const behavior = section("Island 行为", "控制灵动岛何时出现以及如何收起。");
@@ -211,7 +216,11 @@ function generalPage() {
     row("显示额度信息", "在面板顶部展示本地可读取的额度数据。", toggle(state.settings.showUsageQuota, v => save({ showUsageQuota: v }), "显示额度")),
     row("触感反馈", "执行审批等关键操作时提供轻微触感。", toggle(state.settings.hapticFeedback, v => save({ hapticFeedback: v }), "触感反馈"))
   );
-  root.append(behavior, display);
+  const lifecycle = section("应用", "关闭 WorkIsland 会同时关闭 Island、桌宠与后台监听。");
+  lifecycle.append(
+    row("退出 WorkIsland", "需要重新打开应用后才会继续监测本机 Agent 状态。", button("退出应用", requestQuitApp, "danger"))
+  );
+  root.append(behavior, display, lifecycle);
   return root;
 }
 
@@ -443,9 +452,10 @@ function aboutPage() {
     row("自动检查更新", "安装版每天检查一次 GitHub Release；关闭后仍可手动检查。", toggle(state.settings.updateChecksEnabled, v => save({ updateChecksEnabled: v }), "自动检查更新")),
     row("版本检查", "发现新版本后会提醒，并提供官方下载页。", updateControls)
   );
+  const diagnostics = section("诊断", "导出仅包含本机诊断信息的日志；退出操作位于默认的“通用”页面。");
   const actions = el("div", "section-actions");
-  actions.append(button("导出诊断日志", async () => { const path = await api.collectLogs(); showToast(path ? "日志已导出" : "日志导出完成"); }), button("退出应用", () => api.quitApp(), "danger"));
-  about.append(actions);
+  actions.append(button("导出诊断日志", async () => { const path = await api.collectLogs(); showToast(path ? "日志已导出" : "日志导出完成"); }));
+  diagnostics.append(actions);
   const privacy = section("匿名使用统计", "默认开启。仅上报事件类型与 Agent 名称等匿名统计，可在下方随时关闭。");
   const telemetryStatus = state.telemetryStatus;
   const statusText = !telemetryStatus
@@ -467,7 +477,7 @@ function aboutPage() {
     ),
     row("本机发送状态", "仅显示本机队列与 PostHog 批量接口最近一次 HTTP 2xx 确认，不展示或上传任何额外内容。", el("div", "setting-description", statusText))
   );
-  root.append(about, support, privacy, updates);
+  root.append(about, support, privacy, updates, diagnostics);
   return root;
 }
 

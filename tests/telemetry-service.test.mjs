@@ -7,7 +7,7 @@ import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 const { createTelemetryService } = require("../src/main/telemetry-service.cjs");
-const { EVENTS, sanitizeProps } = require("../src/shared/telemetry.cjs");
+const { DISABLE_GEOIP_PROPERTY, EVENTS, sanitizeProps } = require("../src/shared/telemetry.cjs");
 
 function makeService({
   telemetryEnabled = true,
@@ -15,6 +15,7 @@ function makeService({
   apiKey = "phc-test-key",
   requests = [],
   fetchImpl = async () => ({ ok: true }),
+  now = () => Date.now(),
   userDataPath = mkdtempSync(join(tmpdir(), "workisland-telemetry-"))
 } = {}) {
   const settings = { telemetryEnabled };
@@ -23,6 +24,7 @@ function makeService({
     isPackaged,
     appVersion: "0.3.0-test",
     osVersion: "darwin 24.6.0",
+    now,
     userDataPath,
     apiKey,
     fetchImpl: async (url, init) => {
@@ -115,7 +117,50 @@ test("enabled telemetry queues whitelisted events and flush clears them on succe
   assert.deepEqual(batch[0].properties.tool, "claude");
   assert.equal("evil" in batch[0].properties, false);
   assert.equal(batch[0].properties.appVersion, "0.3.0-test");
+  assert.equal(batch[0].properties[DISABLE_GEOIP_PROPERTY], true, "every upload must disable server-side GeoIP enrichment");
   assert.equal(typeof batch[0].distinct_id, "string");
+  assert.equal(service.queueLength(), 0);
+});
+
+test("GeoIP is disabled for every event in a batch", async () => {
+  const { service, requests } = makeService();
+  service.track(EVENTS.APP_LAUNCHED);
+  service.track(EVENTS.SESSION_STARTED, { tool: "claude" });
+  await service.flush();
+
+  assert.equal(requests.length, 1);
+  for (const event of requests[0].body.batch) {
+    assert.equal(event.properties[DISABLE_GEOIP_PROPERTY], true);
+  }
+});
+
+test("lifecycle telemetry counts a turn once across duplicate reports and counts the next turn", async () => {
+  let timestamp = 1_700_000_000_000;
+  const { service, requests } = makeService({ now: () => timestamp });
+
+  assert.equal(service.trackLifecycleEvent(EVENTS.SESSION_STARTED, { sessionId: "local-session-a", tool: "claude" }), true);
+  timestamp += 100;
+  assert.equal(service.trackLifecycleEvent(EVENTS.SESSION_STARTED, { sessionId: "local-session-a", tool: "claude" }), false);
+  assert.equal(service.trackLifecycleEvent(EVENTS.SESSION_COMPLETED, { sessionId: "local-session-a", tool: "claude" }), true);
+  timestamp += 100;
+  assert.equal(service.trackLifecycleEvent(EVENTS.SESSION_COMPLETED, { sessionId: "local-session-a", tool: "claude" }), false);
+  assert.equal(service.trackLifecycleEvent(EVENTS.SESSION_STARTED, { sessionId: "local-session-a", tool: "claude" }), true);
+
+  await service.flush();
+  const batch = requests[0].body.batch;
+  assert.deepEqual(batch.map((event) => event.event), [
+    EVENTS.SESSION_STARTED,
+    EVENTS.SESSION_COMPLETED,
+    EVENTS.SESSION_STARTED
+  ]);
+  for (const event of batch) {
+    assert.equal("sessionId" in event.properties, false, "internal deduplication keys never upload");
+  }
+});
+
+test("lifecycle tracking is fail-closed without a local session id", () => {
+  const { service } = makeService();
+  assert.equal(service.trackLifecycleEvent(EVENTS.SESSION_STARTED, { tool: "claude" }), false);
   assert.equal(service.queueLength(), 0);
 });
 
