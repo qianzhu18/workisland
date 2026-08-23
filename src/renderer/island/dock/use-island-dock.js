@@ -32,7 +32,7 @@ const INACTIVE = Object.freeze({
  * @param hoverOpenTimer                      宿主的 hover 展开计时器 ref（拖动开始时要清掉）
  * @param requestCollapse                     宿主的收起动作（窗口已缩成小方块，渲染层必须同步收起）
  */
-function useIslandDock({ mounted, isOpen, transitionClass, actualPanelH, panelHeight, hoverOpenTimer, requestCollapse }) {
+function useIslandDock({ mounted, isOpen, transitionClass, actualPanelH, panelHeight, pillWidth, notchH, hoverOpenTimer, requestCollapse }) {
   const [dock, setDock] = reactExports.useState({ placement: "notch", edge: "right", mode: "notch" });
   reactExports.useEffect(() => {
     const bridge = window.islandBridge;
@@ -91,8 +91,24 @@ function useIslandDock({ mounted, isOpen, transitionClass, actualPanelH, panelHe
   // 贴边态的两个形状：条形与面板形，在同一（面板大小的）窗口坐标系下生成，
   // 路径指令结构一致，CSS clip-path 过渡可以直接插值 —— 形变全在渲染层，
   // 窗口 bounds 不动，这正是刘海模式丝滑的原因。
-  const clips = reactExports.useMemo(() => {
+  // 顶边贴边时，条就是那颗刘海胶囊：长度直接跟随渲染层算出的 pillWidth
+  // （它会随会话相位变长，要装下标题和计时），主进程给的 spanOffset 只当锚点。
+  // 左右竖条不走这条路 —— 竖排内容有自己的一套留白，保持原样。
+  const stripBox = reactExports.useMemo(() => {
     if (!active || dragging || !dock.strip) return null;
+    if (dock.edge !== "top") return { start: dock.strip.spanOffset, len: dock.strip.len, depth: dock.strip.depth };
+    const depth = Math.max(1, Math.round(notchH ?? dock.strip.depth));
+    // 两端弧线各吃掉 cR，所以外沿要比胶囊本体宽 2×cR —— 这样平直本体才正好
+    // 等于 pillWidth，内容位置与刘海模式逐点对齐。
+    const cR = Math.min(DOCK_CONCAVE_R, depth / 4);
+    const body = Math.max(1, Math.round(pillWidth ?? dock.strip.len));
+    const len = Math.min(body + 2 * cR, winSize[0]);
+    const start = Math.max(0, Math.min(dock.strip.spanOffset, winSize[0] - len));
+    return { start, len, depth };
+  }, [active, dragging, dock, winSize, pillWidth, notchH]);
+
+  const clips = reactExports.useMemo(() => {
+    if (!active || dragging || !stripBox) return null;
     const [w, h] = winSize;
     const top = dock.edge === "top";
     const span = top ? w : h;
@@ -100,15 +116,15 @@ function useIslandDock({ mounted, isOpen, transitionClass, actualPanelH, panelHe
       edge: dock.edge,
       winW: w,
       winH: h,
-      bodyLen: Math.max(0, dock.strip.len - 2 * DOCK_CONCAVE_R),
-      depth: dock.strip.depth,
+      bodyLen: Math.max(0, stripBox.len - 2 * DOCK_CONCAVE_R),
+      depth: stripBox.depth,
       concaveR: DOCK_CONCAVE_R,
       convexR: DOCK_CONVEX_R,
-      spanStart: dock.strip.spanOffset
+      spanStart: stripBox.start
     });
     const panelDepth = top ? Math.min(actualPanelH + 8, h) : w;
     // 侧边面板的纵向跨度跟随内容高度：内容短时不至于拖一大块空黑到屏幕下方。
-    const panelSpan = top ? span : Math.max(dock.strip.len, Math.min(panelHeight + 16, span));
+    const panelSpan = top ? span : Math.max(stripBox.len, Math.min(panelHeight + 16, span));
     const panel = buildDockClipPath({
       edge: dock.edge,
       winW: w,
@@ -120,18 +136,28 @@ function useIslandDock({ mounted, isOpen, transitionClass, actualPanelH, panelHe
       spanStart: 0
     });
     return { strip, panel };
-  }, [active, dragging, dock, winSize, actualPanelH, panelHeight]);
+  }, [active, dragging, dock, stripBox, winSize, actualPanelH, panelHeight]);
 
   if (!active) return INACTIVE;
-  const strip = dock.strip;
+  const strip = stripBox;
+  // 胶囊层要贴的是形状的**平直本体**，不是含两端弧线的外沿：
+  // 直接用外沿会让头像压在弧线上（看起来像贴着边缘、中间空一大块）。
+  // 这个内缩量与 buildDockClipPath 内部对 concaveR 的收敛保持一致。
+  const concave = strip ? Math.min(DOCK_CONCAVE_R, strip.len / 4, strip.depth / 4) : 0;
   const pillLayerStyle = dragging
     ? { left: 0, top: 0, transform: "none", width: "100%", height: "100%" }
     : dock.edge === "top"
-      ? { left: strip?.spanOffset ?? 0, top: 0, transform: "none", width: strip?.len ?? 160, height: strip?.depth ?? 44 }
+      ? {
+          left: (strip?.start ?? 0) + concave,
+          top: 0,
+          transform: "none",
+          width: Math.max(0, (strip?.len ?? 160) - 2 * concave),
+          height: strip?.depth ?? 44
+        }
       : {
           left: dock.edge === "left" ? 0 : "auto",
           right: dock.edge === "right" ? 0 : "auto",
-          top: strip?.spanOffset ?? 0,
+          top: strip?.start ?? 0,
           transform: "none",
           width: strip?.depth ?? 44,
           height: strip?.len ?? 160

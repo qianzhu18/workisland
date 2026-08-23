@@ -517,7 +517,7 @@ function IslandApp() {
   const clipPath = mounted ? isOpen ? openedShape.clipPath : closedShape.clipPath : closedShape.clipPath;
   const transition = mounted ? transitionClass : "";
   // 贴边落位（可选附件）：落位是 notch 时下面每个表达式都退回原样。
-  const dock = useIslandDock({ mounted, isOpen, transitionClass, actualPanelH, panelHeight, hoverOpenTimer, requestCollapse: useSessionStore.getState().requestCollapse });
+  const dock = useIslandDock({ mounted, isOpen, transitionClass, actualPanelH, panelHeight, pillWidth, notchH, hoverOpenTimer, requestCollapse: useSessionStore.getState().requestCollapse });
   /**
    * 全宽热区的进入处理：只负责「唤醒」，不负责「展开」。
    *
