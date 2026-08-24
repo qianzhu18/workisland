@@ -15,6 +15,7 @@
   ],
   "scripts": {
     "setup": "npm install && npm run build:assets && npm run build:native",
+    "postinstall": "node ./scripts/prepare-node-pty.mjs",
     "build:renderer": "node ./scripts/build-renderer.mjs",
     "build:assets": "node ./scripts/generate-assets.mjs",
     "dev": "npm run build:renderer && node ./scripts/dev.mjs --full",
@@ -40,8 +41,10 @@
   "dependencies": {
     "@electron-toolkit/utils": "4.0.0",
     "@iarna/toml": "2.2.5",
+    "@xterm/xterm": "6.0.0",
     "electron-log": "5.4.4",
-    "js-yaml": "4.3.1"
+    "js-yaml": "4.3.1",
+    "node-pty": "1.1.0"
   },
   "devDependencies": {
     "electron": "43.3.0",
@@ -57,7 +60,8 @@
     },
     "asar": true,
     "asarUnpack": [
-      "resources/bin/panel_fix.node"
+      "resources/bin/panel_fix.node",
+      "node_modules/node-pty/**/*"
     ],
     "files": [
       "src/**/*",
