@@ -63,6 +63,20 @@ After success, the performance service samples immediately so the row
 disappears without waiting for the regular interval. While a request is in
 progress, both action buttons are disabled to prevent duplicate signals.
 
+## Collapsed notch media treatment
+
+On a Mac with a physical notch, the collapsed media state uses two independent
+safe zones around the camera cutout. The existing 28-pixel artwork keeps its
+size and moves slightly left so its right edge never overlaps the detected
+notch width. A four-bar playback indicator occupies the matching right safe
+zone.
+
+Playing artwork receives a subtle scale-and-float motion plus a short 3D
+transition when the track changes. The playback bars animate at staggered
+heights while playing and settle into short static bars while paused. Reduced
+motion disables both effects. Non-notch and docked placements retain their
+existing compact pill layout.
+
 ## Testing
 
 Tests cover:
@@ -73,6 +87,7 @@ Tests cover:
 - correct `SIGTERM` and `SIGKILL` selection;
 - IPC/preload contract exposure;
 - confirmation and result-state behavior in pure renderer models;
+- notch safe-zone positioning and media animation markup;
 - the complete existing unit suite and packaged macOS build.
 
 No code is merged until the locally installed application is visually checked
