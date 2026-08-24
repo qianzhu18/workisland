@@ -30,6 +30,14 @@ const IPC = Object.freeze({
   ISLAND_SWITCH_SESSION: "island:switch-session",
   ISLAND_CONFIRM_SESSION: "island:confirm-session",
 
+  MEDIA_GET_STATE: "media:get-state",
+  MEDIA_STATE_UPDATE: "media:state-update",
+  MEDIA_COMMAND: "media:command",
+  PERFORMANCE_GET_STATE: "performance:get-state",
+  PERFORMANCE_STATE_UPDATE: "performance:state-update",
+  PERFORMANCE_DETAILS_VISIBLE: "performance:details-visible",
+  PERFORMANCE_PROCESS_ACTION: "performance:process-action",
+
   PET_ENTER: "pet:enter",
   PET_LEAVE: "pet:leave",
   PET_DRAG_TO_ISLAND: "pet:drag-to-island",

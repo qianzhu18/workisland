@@ -1,5 +1,16 @@
 # Third-party notices
 
+## MediaRemote Adapter
+
+WorkIsland bundles MediaRemote Adapter v0.7.6 by Jonas van den Berg to read and
+control the macOS system media session. It is distributed under the BSD
+3-Clause License. The complete license text is included beside the bundled
+framework at `Resources/mediaremote-adapter/LICENSE`.
+
+Source: https://github.com/ungive/mediaremote-adapter
+
+## Renderer libraries
+
 WorkIsland includes browser-ready copies of the following open-source libraries under
 `src/renderer/vendor/`:
 

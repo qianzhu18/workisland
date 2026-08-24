@@ -83,6 +83,10 @@
         "to": "bin/flux-hooks"
       },
       {
+        "from": "resources/mediaremote-adapter",
+        "to": "mediaremote-adapter"
+      },
+      {
         "from": "resources/scripts/collect-logs.sh",
         "to": "scripts/collect-logs.sh"
       },

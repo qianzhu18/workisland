@@ -105,6 +105,11 @@ const DEFAULT_SETTINGS = {
   islandDisplayModeVersion: 1,
   autoCollapseOnMouseLeave: true,
   completionPopupDurationSec: 5,
+  mediaEnabled: true,
+  mediaTrackChangeNotifications: true,
+  performanceEnabled: true,
+  // Resource alerts are opt-in so a workstation dashboard never becomes noisy.
+  performanceAlertsEnabled: false,
   showUsageQuota: true,
   usageDisplayValue: "used",
   disableClaudeTerminalTitle: true,

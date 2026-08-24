@@ -25,6 +25,9 @@ const { reportTokenUsage, getHermesCumulativeTokens, diffHermesCumulativeTokens 
 const { getAgentDescriptor, validateAgentWiring } = require("../shared/agent-catalog.cjs");
 const { createPresentationRequest } = require("./presentation-policy.cjs");
 const { EVENTS } = require("../shared/telemetry.cjs");
+const { MediaService } = require("./media-service.cjs");
+const { createAppIconResolver } = require("./app-icon-resolver.cjs");
+const { PerformanceService } = require("./performance-service.cjs");
 
 function createAppCoordinatorClass({
   BridgeServer,
@@ -78,6 +81,8 @@ function createAppCoordinatorClass({
     saveTimer = null;
     quotaService = new QuotaService();
     statsService = getStatsService();
+    mediaService;
+    performanceService;
     processMonitor;
     onSettingsChangeCallback = null;
     reconcileTimer = null;
@@ -148,6 +153,18 @@ function createAppCoordinatorClass({
       );
       this.state = createInitialState();
       this.settings = this.settingsRepository.load();
+      const mediaResourceDir = electron.app.isPackaged
+        ? path.join(process.resourcesPath, "mediaremote-adapter")
+        : path.join(electron.app.getAppPath(), "resources", "mediaremote-adapter");
+      const resolveAppIcon = createAppIconResolver({
+        getFileIcon: (appPath) => electron.app.getFileIcon(appPath, { size: "normal" })
+      });
+      this.mediaService = new MediaService({ resourceDir: mediaResourceDir, resolveAppIcon });
+      this.performanceService = new PerformanceService();
+      this.mediaService.setEnabled(this.settings.mediaEnabled !== false);
+      this.performanceService.enabled = this.settings.performanceEnabled !== false;
+      this.mediaService.on("update", (state) => this.broadcastWorkstationState(IPC.MEDIA_STATE_UPDATE, state));
+      this.performanceService.on("update", (state) => this.broadcastWorkstationState(IPC.PERFORMANCE_STATE_UPDATE, state));
       this.petMode = new PetModeController({
         registerReady: (callback) => electron.ipcMain.once(IPC.PET_READY, callback),
         sessionUpdateChannel: IPC.PET_SESSION_UPDATE,
@@ -323,6 +340,8 @@ function createAppCoordinatorClass({
       this.bridge.start();
       this.quotaService.start();
       this.processMonitor.start();
+      this.mediaService.start();
+      this.performanceService.start();
       this.startCodexTranscriptWatcher();
       // 启动发现：WorkIsland 只靠 hook 被动感知会话，它启动之前就在跑的对话
       // 要等下一个 hook 事件才会现身。主动扫一次正在运行的 claude CLI 进程
@@ -608,6 +627,8 @@ function createAppCoordinatorClass({
       this.bridge.stop();
       this.quotaService.stop();
       this.processMonitor.stop();
+      this.mediaService.stop();
+      this.performanceService.stop();
       if (this.codexTranscriptWatcher) {
         this.codexTranscriptWatcher.stop();
         this.codexTranscriptWatcher = null;
@@ -648,6 +669,8 @@ function createAppCoordinatorClass({
         this.broadcastSessionUpdate();
         this.broadcastSoundState();
         this.pushTodayBurnToWindows();
+        this.broadcastWorkstationState(IPC.MEDIA_STATE_UPDATE, this.mediaService.getSnapshot());
+        this.broadcastWorkstationState(IPC.PERFORMANCE_STATE_UPDATE, this.performanceService.getSnapshot());
       });
     }
     /**
@@ -865,6 +888,11 @@ function createAppCoordinatorClass({
         this.evaluateFullscreenVisibility();
       }
       if ("petScale" in partial) this.petMode.resize(this.settings.petScale);
+      if ("mediaEnabled" in partial) {
+        this.mediaService.setEnabled(this.settings.mediaEnabled !== false);
+        if (this.settings.mediaEnabled !== false) this.mediaService.start();
+      }
+      if ("performanceEnabled" in partial) this.performanceService.setEnabled(this.settings.performanceEnabled !== false);
       if ("approvalModes" in partial) {
         this.autoReInstallHooks();
       }
@@ -1060,6 +1088,15 @@ function createAppCoordinatorClass({
     }
     getStatsSnapshot(timeRange) {
       return this.statsService.getSnapshot(timeRange);
+    }
+    getMediaState() { return this.mediaService.getSnapshot(); }
+    sendMediaCommand(command) { return this.mediaService.sendCommand(command); }
+    getPerformanceState() { return this.performanceService.getSnapshot(); }
+    setPerformanceDetailsVisible(visible) { this.performanceService.setDetailsVisible(visible); }
+    actOnProcess(request) { return this.performanceService.actOnProcess(request); }
+    broadcastWorkstationState(channel, state) {
+      if (!this.islandWindow || this.islandWindow.isDestroyed()) return;
+      this.islandWindow.webContents.send(channel, state);
     }
     /**
      * 排到下一个本地 0 点触发 push，触发后重新排下一次。

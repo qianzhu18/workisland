@@ -58,6 +58,16 @@ electron.contextBridge.exposeInMainWorld("islandBridge", {
       electron.ipcRenderer.off(ipc.IPC.ISLAND_TODAY_BURN_UPDATE, handler);
     };
   },
+  onMediaStateUpdate(cb) {
+    const handler = (_event, state) => cb(state);
+    electron.ipcRenderer.on(ipc.IPC.MEDIA_STATE_UPDATE, handler);
+    return () => electron.ipcRenderer.off(ipc.IPC.MEDIA_STATE_UPDATE, handler);
+  },
+  onPerformanceUpdate(cb) {
+    const handler = (_event, state) => cb(state);
+    electron.ipcRenderer.on(ipc.IPC.PERFORMANCE_STATE_UPDATE, handler);
+    return () => electron.ipcRenderer.off(ipc.IPC.PERFORMANCE_STATE_UPDATE, handler);
+  },
   onWindowBlur(cb) {
     const handler = () => cb();
     electron.ipcRenderer.on(ipc.IPC.ISLAND_WINDOW_BLUR, handler);
@@ -175,6 +185,26 @@ electron.contextBridge.exposeInMainWorld("islandBridge", {
   },
   getStatsSnapshot(timeRange) {
     return electron.ipcRenderer.invoke(ipc.IPC.STATS_GET_SNAPSHOT, { timeRange });
+  },
+  getMediaState() {
+    return electron.ipcRenderer.invoke(ipc.IPC.MEDIA_GET_STATE);
+  },
+  mediaCommand(command) {
+    return electron.ipcRenderer.invoke(ipc.IPC.MEDIA_COMMAND, command);
+  },
+  getPerformanceState() {
+    return electron.ipcRenderer.invoke(ipc.IPC.PERFORMANCE_GET_STATE);
+  },
+  setPerformanceDetailsVisible(visible) {
+    electron.ipcRenderer.send(ipc.IPC.PERFORMANCE_DETAILS_VISIBLE, { visible: Boolean(visible) });
+  },
+  actOnProcess({ pid, name, fingerprint, action }) {
+    return electron.ipcRenderer.invoke(ipc.IPC.PERFORMANCE_PROCESS_ACTION, {
+      pid: Number(pid),
+      name: String(name || ""),
+      fingerprint: String(fingerprint || ""),
+      action: action === "force" ? "force" : "terminate"
+    });
   },
   // Plugin meta：renderer 缓存供 AgentToolBadge 等做 label/badgeColor 兜底。
   getPluginAgentMeta() {
