@@ -26,6 +26,7 @@ const { getAgentDescriptor, validateAgentWiring } = require("../shared/agent-cat
 const { createPresentationRequest } = require("./presentation-policy.cjs");
 const { EVENTS } = require("../shared/telemetry.cjs");
 const { MediaService } = require("./media-service.cjs");
+const { createAppIconResolver } = require("./app-icon-resolver.cjs");
 const { PerformanceService } = require("./performance-service.cjs");
 
 function createAppCoordinatorClass({
@@ -155,7 +156,10 @@ function createAppCoordinatorClass({
       const mediaResourceDir = electron.app.isPackaged
         ? path.join(process.resourcesPath, "mediaremote-adapter")
         : path.join(electron.app.getAppPath(), "resources", "mediaremote-adapter");
-      this.mediaService = new MediaService({ resourceDir: mediaResourceDir });
+      const resolveAppIcon = createAppIconResolver({
+        getFileIcon: (appPath) => electron.app.getFileIcon(appPath, { size: "normal" })
+      });
+      this.mediaService = new MediaService({ resourceDir: mediaResourceDir, resolveAppIcon });
       this.performanceService = new PerformanceService();
       this.mediaService.setEnabled(this.settings.mediaEnabled !== false);
       this.performanceService.enabled = this.settings.performanceEnabled !== false;

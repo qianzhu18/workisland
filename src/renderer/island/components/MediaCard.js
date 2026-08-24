@@ -27,7 +27,9 @@ export function MediaCard({ media }) {
       media?.artworkDataUrl
         ? React.createElement("img", { key: `${media?.title}:${media?.artworkDataUrl.length}`, className: "media-artwork", src: media.artworkDataUrl, alt: "", draggable: false })
         : React.createElement("div", { className: "media-artwork media-artwork-placeholder", "aria-hidden": "true" }, "♪"),
-      React.createElement("span", { className: "media-source-badge" }, media?.appName || "macOS")
+      media?.appIconDataUrl && React.createElement("span", { className: "media-source-badge", title: media?.appName || "媒体来源", "aria-label": media?.appName || "媒体来源" },
+        React.createElement("img", { key: media.appBundleId, className: "media-source-icon", src: media.appIconDataUrl, alt: "", draggable: false })
+      )
     ),
     React.createElement("div", { className: "media-copy" },
       React.createElement("div", { className: "media-title", title: media?.title }, media?.title || "正在播放"),

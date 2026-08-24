@@ -4,7 +4,7 @@
 
 **Goal:** Show the native icon of the application owning the current macOS media session instead of a text source badge.
 
-**Architecture:** Add an injected, cached main-process resolver that maps a validated bundle identifier to a local `.app` icon data URL. Enrich media snapshots asynchronously and render a bounded 32 px icon overlay with a neutral fallback.
+**Architecture:** Add an injected, cached main-process resolver that maps a validated bundle identifier to a local `.app` icon data URL. Enrich media snapshots asynchronously and render a bounded 32 px icon overlay, omitting the badge when macOS cannot resolve the application.
 
 **Tech Stack:** Electron main process, Node.js child processes and filesystem, React renderer, CSS, Node test runner.
 
@@ -74,7 +74,7 @@ Expected: PASS.
 
 - [ ] **Step 1: Write failing renderer contract test**
 
-Assert the media card uses an image source icon, includes a neutral fallback class, and no longer renders `media.appName` inside the artwork badge.
+Assert the media card uses an image source icon, omits the badge when no icon is available, and no longer renders `media.appName` inside the artwork badge.
 
 - [ ] **Step 2: Run the renderer test and verify RED**
 
@@ -84,7 +84,7 @@ Expected: FAIL because the text badge is still present.
 
 - [ ] **Step 3: Implement the overlay**
 
-Render a 32 px image when `appIconDataUrl` exists and a neutral bundled media mark otherwise. Add lower-right positioning, border, shadow, a one-shot scale/fade entrance, and reduced-motion handling.
+Render a 32 px image when `appIconDataUrl` exists and omit the badge otherwise. Add lower-right positioning, border, shadow, a one-shot scale/fade entrance, and reduced-motion handling.
 
 - [ ] **Step 4: Run renderer and full tests**
 
@@ -114,4 +114,3 @@ Play media, expand WorkIsland, and confirm the lower-right overlay is the owning
 - [ ] **Step 4: Stop before publishing**
 
 Do not push or update PR #45 until the user accepts the installed visual result.
-

@@ -50,6 +50,17 @@ test("invalid or oversized artwork is discarded", () => {
   assert.equal(oversized.artworkDataUrl, "");
 });
 
+test("media application icons accept only bounded PNG data URLs", () => {
+  const valid = normalizeMediaSnapshot({
+    active: true,
+    appIconDataUrl: "data:image/png;base64,aWNvbg=="
+  });
+  assert.equal(valid.appIconDataUrl, "data:image/png;base64,aWNvbg==");
+  assert.equal(normalizeMediaSnapshot({ appIconDataUrl: "data:image/jpeg;base64,aWNvbg==" }).appIconDataUrl, "");
+  assert.equal(normalizeMediaSnapshot({ appIconDataUrl: "https://example.com/icon.png" }).appIconDataUrl, "");
+  assert.equal(normalizeMediaSnapshot({ appIconDataUrl: `data:image/png;base64,${"a".repeat(512 * 1024)}` }).appIconDataUrl, "");
+});
+
 test("unknown media events leave state unchanged", () => {
   const state = normalizeMediaSnapshot({ active: true, title: "Keep me" });
   assert.equal(reduceMediaEvent(state, { kind: "mystery" }), state);

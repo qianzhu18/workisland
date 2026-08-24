@@ -1,6 +1,7 @@
 "use strict";
 
 const MAX_ARTWORK_DATA_URL_LENGTH = 8 * 1024 * 1024;
+const MAX_APP_ICON_DATA_URL_LENGTH = 512 * 1024;
 
 const EMPTY_MEDIA_STATE = Object.freeze({
   active: false,
@@ -14,6 +15,7 @@ const EMPTY_MEDIA_STATE = Object.freeze({
   elapsedSec: 0,
   playbackRate: 0,
   artworkDataUrl: "",
+  appIconDataUrl: "",
   canPlayPause: false,
   canNext: false,
   canPrevious: false,
@@ -33,6 +35,11 @@ function artwork(value) {
   return value.length <= MAX_ARTWORK_DATA_URL_LENGTH ? value : "";
 }
 
+function appIcon(value) {
+  if (typeof value !== "string" || !value.startsWith("data:image/png;base64,")) return "";
+  return value.length <= MAX_APP_ICON_DATA_URL_LENGTH ? value : "";
+}
+
 function normalizeMediaSnapshot(value = {}) {
   const durationSec = Math.max(0, number(value.durationSec));
   const elapsedSec = Math.max(0, Math.min(number(value.elapsedSec), durationSec || Number.MAX_SAFE_INTEGER));
@@ -48,6 +55,7 @@ function normalizeMediaSnapshot(value = {}) {
     elapsedSec,
     playbackRate: Math.max(0, number(value.playbackRate)),
     artworkDataUrl: artwork(value.artworkDataUrl),
+    appIconDataUrl: appIcon(value.appIconDataUrl),
     canPlayPause: Boolean(value.canPlayPause ?? value.capabilities?.playPause),
     canNext: Boolean(value.canNext ?? value.capabilities?.next),
     canPrevious: Boolean(value.canPrevious ?? value.capabilities?.previous),
@@ -99,6 +107,7 @@ function reduceMediaEvent(state = EMPTY_MEDIA_STATE, event = {}) {
 
 module.exports = {
   EMPTY_MEDIA_STATE,
+  MAX_APP_ICON_DATA_URL_LENGTH,
   MAX_ARTWORK_DATA_URL_LENGTH,
   normalizeAdapterPayload,
   normalizeMediaSnapshot,

@@ -22,7 +22,7 @@ Atoll resolves the application from the media session bundle identifier, asks ma
 - Process execution uses argument arrays, never a shell.
 - Resolver output must be an existing `.app` path. Results outside application bundles are rejected.
 - Icon data is accepted only as a bounded `data:image/png;base64,...` URL.
-- Failed resolution is cached briefly and renders a neutral bundled media icon; the app name is never restored as text.
+- Failed resolution is cached for the current process and omits the overlay; the app name is never restored as text.
 - No icon or media metadata leaves the machine.
 
 ## Visual behavior
@@ -38,4 +38,3 @@ Atoll resolves the application from the media session bundle identifier, asks ma
 - Media state tests cover icon-data validation and normalization.
 - Media service tests prove immediate metadata publication followed by icon enrichment without leaking a stale icon into a new source.
 - Renderer source tests prove the text badge is gone and the image/fallback badge is present.
-

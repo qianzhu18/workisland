@@ -3,7 +3,7 @@
 const { EventEmitter } = require("node:events");
 const childProcess = require("node:child_process");
 const path = require("node:path");
-const { EMPTY_MEDIA_STATE, normalizeAdapterPayload } = require("../shared/media-state.cjs");
+const { EMPTY_MEDIA_STATE, normalizeAdapterPayload, normalizeMediaSnapshot } = require("../shared/media-state.cjs");
 
 const COMMANDS = new Set(["toggle", "play", "pause", "next", "previous", "seek", "openSource"]);
 const REMOTE_COMMANDS = Object.freeze({ play: "0", pause: "1", toggle: "2", next: "4", previous: "5" });
@@ -12,11 +12,13 @@ class MediaService extends EventEmitter {
   constructor({
     spawnChild = (executable, args, options) => childProcess.spawn(executable, args, options),
     execute = (executable, args) => childProcess.execFile(executable, args, () => {}),
+    resolveAppIcon = async () => "",
     resourceDir = path.join(__dirname, "../../resources/mediaremote-adapter")
   } = {}) {
     super();
     this.spawnChild = spawnChild;
     this.execute = execute;
+    this.resolveAppIcon = resolveAppIcon;
     this.resourceDir = resourceDir;
     this.scriptPath = path.join(resourceDir, "mediaremote-adapter.pl");
     this.frameworkPath = path.join(resourceDir, "MediaRemoteAdapter.framework");
@@ -88,10 +90,21 @@ class MediaService extends EventEmitter {
       try {
         const event = JSON.parse(line);
         if (event?.type === "data" && event?.diff === false) {
-          this.#setState(normalizeAdapterPayload(event.payload));
+          const next = normalizeAdapterPayload(event.payload);
+          this.#setState(next);
+          this.#enrichAppIcon(next);
         }
       } catch {}
     }
+  }
+
+  #enrichAppIcon(snapshot) {
+    const bundleId = snapshot.appBundleId;
+    if (!bundleId) return;
+    Promise.resolve(this.resolveAppIcon(bundleId)).then((appIconDataUrl) => {
+      if (!appIconDataUrl || this.state.appBundleId !== bundleId) return;
+      this.#setState(normalizeMediaSnapshot({ ...this.state, appIconDataUrl }));
+    }).catch(() => {});
   }
 
   #setState(next) {
