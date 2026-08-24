@@ -3,18 +3,23 @@
 const { EventEmitter } = require("node:events");
 const childProcess = require("node:child_process");
 const path = require("node:path");
-const { EMPTY_MEDIA_STATE, reduceMediaEvent } = require("../shared/media-state.cjs");
+const { EMPTY_MEDIA_STATE, normalizeAdapterPayload } = require("../shared/media-state.cjs");
 
 const COMMANDS = new Set(["toggle", "play", "pause", "next", "previous", "seek", "openSource"]);
+const REMOTE_COMMANDS = Object.freeze({ play: "0", pause: "1", toggle: "2", next: "4", previous: "5" });
 
 class MediaService extends EventEmitter {
   constructor({
-    spawnChild = (helperPath) => childProcess.spawn(helperPath, [], { stdio: ["pipe", "pipe", "ignore"] }),
-    helperPath = path.join(__dirname, "../../resources/bin/media-bridge")
+    spawnChild = (executable, args, options) => childProcess.spawn(executable, args, options),
+    execute = (executable, args) => childProcess.execFile(executable, args, () => {}),
+    resourceDir = path.join(__dirname, "../../resources/mediaremote-adapter")
   } = {}) {
     super();
     this.spawnChild = spawnChild;
-    this.helperPath = helperPath;
+    this.execute = execute;
+    this.resourceDir = resourceDir;
+    this.scriptPath = path.join(resourceDir, "mediaremote-adapter.pl");
+    this.frameworkPath = path.join(resourceDir, "MediaRemoteAdapter.framework");
     this.enabled = true;
     this.child = null;
     this.buffer = "";
@@ -23,7 +28,9 @@ class MediaService extends EventEmitter {
 
   start() {
     if (!this.enabled || this.child) return;
-    const child = this.spawnChild(this.helperPath);
+    const child = this.spawnChild("/usr/bin/perl", [
+      this.scriptPath, this.frameworkPath, "stream", "--no-diff", "--debounce=100"
+    ], { stdio: ["ignore", "pipe", "pipe"] });
     this.child = child;
     child.stdout?.on("data", (chunk) => this.#receive(chunk));
     child.on?.("exit", () => {
@@ -56,14 +63,19 @@ class MediaService extends EventEmitter {
   }
 
   sendCommand(payload = {}) {
-    if (!this.child?.stdin || !COMMANDS.has(payload.command)) return false;
-    const command = { command: payload.command };
+    if (!COMMANDS.has(payload.command)) return false;
+    if (payload.command === "openSource") {
+      if (!this.state.appBundleId) return false;
+      this.execute("/usr/bin/open", ["-b", this.state.appBundleId]);
+      return true;
+    }
     if (payload.command === "seek") {
       const positionSec = Number(payload.positionSec);
       if (!Number.isFinite(positionSec) || positionSec < 0) return false;
-      command.positionSec = positionSec;
+      this.execute("/usr/bin/perl", [this.scriptPath, this.frameworkPath, "seek", String(Math.round(positionSec * 1_000_000))]);
+      return true;
     }
-    this.child.stdin.write(`${JSON.stringify(command)}\n`);
+    this.execute("/usr/bin/perl", [this.scriptPath, this.frameworkPath, "send", REMOTE_COMMANDS[payload.command]]);
     return true;
   }
 
@@ -75,7 +87,9 @@ class MediaService extends EventEmitter {
       if (!line.trim()) continue;
       try {
         const event = JSON.parse(line);
-        this.#setState(reduceMediaEvent(this.state, event));
+        if (event?.type === "data" && event?.diff === false) {
+          this.#setState(normalizeAdapterPayload(event.payload));
+        }
       } catch {}
     }
   }

@@ -12,6 +12,7 @@ release/
 .native-build/
 resources/bin/panel_fix.node
 resources/bin/media-bridge
+resources/mediaremote-adapter
 
 # Package-manager and editor noise
 .npm/

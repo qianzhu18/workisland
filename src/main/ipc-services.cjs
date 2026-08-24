@@ -288,6 +288,9 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, checkF
     electron.ipcMain.on(IPC.PERFORMANCE_DETAILS_VISIBLE, (_event, { visible }) => {
       coordinator.setPerformanceDetailsVisible(Boolean(visible));
     });
+    electron.ipcMain.handle(IPC.PERFORMANCE_PROCESS_ACTION, (_event, request) => {
+      return coordinator.actOnProcess(request);
+    });
     electron.ipcMain.handle(IPC.WELCOME_GET_FIRST_LAUNCH_AT, () => {
       return coordinator.getSettings().firstLaunchAt;
     });

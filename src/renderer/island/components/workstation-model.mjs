@@ -13,3 +13,16 @@ export function formatMediaTime(value) {
     ? `${hours}:${String(minutes).padStart(2, "0")}:${seconds}`
     : `${minutes}:${seconds}`;
 }
+
+export function getNotchMediaLayout(notchWidth, artworkSize = 28, gap = 6) {
+  const halfNotch = Math.max(0, Number(notchWidth) || 0) / 2;
+  const safeGap = Math.max(0, Number(gap) || 0);
+  const size = Math.max(0, Number(artworkSize) || 0);
+  const artworkRight = -(halfNotch + safeGap);
+  return {
+    artworkLeft: artworkRight - size,
+    artworkRight,
+    artworkSize: size,
+    indicatorLeft: halfNotch + safeGap
+  };
+}

@@ -198,6 +198,14 @@ electron.contextBridge.exposeInMainWorld("islandBridge", {
   setPerformanceDetailsVisible(visible) {
     electron.ipcRenderer.send(ipc.IPC.PERFORMANCE_DETAILS_VISIBLE, { visible: Boolean(visible) });
   },
+  actOnProcess({ pid, name, fingerprint, action }) {
+    return electron.ipcRenderer.invoke(ipc.IPC.PERFORMANCE_PROCESS_ACTION, {
+      pid: Number(pid),
+      name: String(name || ""),
+      fingerprint: String(fingerprint || ""),
+      action: action === "force" ? "force" : "terminate"
+    });
+  },
   // Plugin meta：renderer 缓存供 AgentToolBadge 等做 label/badgeColor 兜底。
   getPluginAgentMeta() {
     return electron.ipcRenderer.invoke(ipc.IPC.PLUGIN_AGENT_META);

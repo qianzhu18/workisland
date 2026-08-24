@@ -10,14 +10,22 @@ const ICONS = {
 };
 
 export function MediaCard({ media }) {
+  const [clock, setClock] = React.useState(Date.now());
+  React.useEffect(() => {
+    setClock(Date.now());
+    if (!media?.playing) return undefined;
+    const timer = window.setInterval(() => setClock(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [media?.playing, media?.title, media?.updatedAt]);
   const duration = Math.max(0, Number(media?.durationSec) || 0);
-  const elapsed = Math.min(duration || Infinity, Math.max(0, Number(media?.elapsedSec) || 0));
+  const projected = Number(media?.elapsedSec) || 0;
+  const elapsed = Math.min(duration || Infinity, Math.max(0, projected + (media?.playing ? Math.max(0, clock - (Number(media?.updatedAt) || clock)) / 1000 * (Number(media?.playbackRate) || 1) : 0)));
   const send = (command, extra) => window.islandBridge?.mediaCommand?.({ command, ...extra });
   return React.createElement("section", { className: `media-card${media?.playing ? " is-playing" : " is-paused"}`, "aria-label": "正在播放" },
     React.createElement("button", { type: "button", className: "media-artwork-stage", onClick: () => send("openSource"), "aria-label": `打开 ${media?.appName || "媒体来源"}` },
       media?.artworkDataUrl && React.createElement("div", { className: "media-artwork-glow", style: { backgroundImage: `url(${media.artworkDataUrl})` } }),
       media?.artworkDataUrl
-        ? React.createElement("img", { className: "media-artwork", src: media.artworkDataUrl, alt: "", draggable: false })
+        ? React.createElement("img", { key: `${media?.title}:${media?.artworkDataUrl.length}`, className: "media-artwork", src: media.artworkDataUrl, alt: "", draggable: false })
         : React.createElement("div", { className: "media-artwork media-artwork-placeholder", "aria-hidden": "true" }, "♪"),
       React.createElement("span", { className: "media-source-badge" }, media?.appName || "macOS")
     ),

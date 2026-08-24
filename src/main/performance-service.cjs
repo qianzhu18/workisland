@@ -1,6 +1,7 @@
 "use strict";
 
 const { EventEmitter } = require("node:events");
+const { createHash } = require("node:crypto");
 const os = require("node:os");
 const path = require("node:path");
 const util = require("node:util");
@@ -44,18 +45,33 @@ function parseProcessRows(output = "") {
   return String(output).split(/\r?\n/).map((line) => {
     const match = line.trim().match(/^(\d+)\s+([\d.]+)\s+([\d.]+)\s+(.+)$/);
     if (!match) return null;
-    let name = match[4].split(/\s+--/)[0].trim();
+    const command = match[4].trim();
+    let name = command.split(/\s+--/)[0].trim();
     if (name.startsWith("/")) name = path.basename(name);
-    return { pid: Number(match[1]), cpuPct: Number(match[2]), memoryPct: Number(match[3]), name: name.slice(0, 48) };
+    return {
+      pid: Number(match[1]),
+      cpuPct: Number(match[2]),
+      memoryPct: Number(match[3]),
+      name: name.slice(0, 48),
+      fingerprint: createHash("sha256").update(command).digest("hex")
+    };
   }).filter(Boolean).sort((a, b) => b.cpuPct - a.cpuPct).slice(0, 5);
 }
 
 class PerformanceService extends EventEmitter {
-  constructor({ osApi = os, execFile = execFileDefault, intervalMs = 2e3 } = {}) {
+  constructor({
+    osApi = os,
+    execFile = execFileDefault,
+    intervalMs = 2e3,
+    currentUid = typeof process.getuid === "function" ? process.getuid() : -1,
+    killProcess = (pid, signal) => process.kill(pid, signal)
+  } = {}) {
     super();
     this.osApi = osApi;
     this.execFile = execFile;
     this.intervalMs = intervalMs;
+    this.currentUid = currentUid;
+    this.killProcess = killProcess;
     this.enabled = true;
     this.detailsVisible = false;
     this.timer = null;
@@ -90,6 +106,39 @@ class PerformanceService extends EventEmitter {
   }
 
   getSnapshot() { return this.state; }
+
+  async actOnProcess({ pid, fingerprint, action } = {}) {
+    const targetPid = Number(pid);
+    if (!Number.isInteger(targetPid) || targetPid <= 1 || !["terminate", "force"].includes(action)) {
+      return { ok: false, reason: "protected" };
+    }
+    let stdout = "";
+    try {
+      ({ stdout } = await this.execFile("/bin/ps", ["-p", String(targetPid), "-o", "uid=,command="]));
+    } catch (error) {
+      if (error?.code === 1 || error?.code === "ESRCH") return { ok: false, reason: "ended" };
+      return { ok: false, reason: "failed" };
+    }
+    const match = String(stdout).trim().match(/^(\d+)\s+(.+)$/s);
+    if (!match) return { ok: false, reason: "ended" };
+    const uid = Number(match[1]);
+    const command = match[2].trim();
+    if (uid !== this.currentUid) return { ok: false, reason: "permission" };
+    if (/\/WorkIsland\.app\/|(^|\/)WorkIsland(?: Helper)?(?:\s|$)/i.test(command)) {
+      return { ok: false, reason: "protected" };
+    }
+    const currentFingerprint = createHash("sha256").update(command).digest("hex");
+    if (!fingerprint || currentFingerprint !== fingerprint) return { ok: false, reason: "identity-changed" };
+    try {
+      this.killProcess(targetPid, action === "force" ? "SIGKILL" : "SIGTERM");
+    } catch (error) {
+      if (error?.code === "ESRCH") return { ok: false, reason: "ended" };
+      if (error?.code === "EPERM") return { ok: false, reason: "permission" };
+      return { ok: false, reason: "failed" };
+    }
+    await this.sample();
+    return { ok: true, reason: "signaled" };
+  }
 
   async sample() {
     const cpus = this.osApi.cpus();

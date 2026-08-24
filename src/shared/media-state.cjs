@@ -55,6 +55,42 @@ function normalizeMediaSnapshot(value = {}) {
   };
 }
 
+const APP_NAMES = Object.freeze({
+  "com.apple.Music": "Apple Music",
+  "com.netease.163music": "网易云音乐",
+  "com.apple.podcasts": "播客",
+  "com.spotify.client": "Spotify",
+  "com.colliderli.iina": "IINA"
+});
+
+function normalizeAdapterPayload(payload = {}) {
+  const title = text(payload.title);
+  const bundleId = text(payload.bundleIdentifier || payload.parentApplicationBundleIdentifier);
+  if (!title || !bundleId) return EMPTY_MEDIA_STATE;
+  const mimeType = text(payload.artworkMimeType);
+  const artworkData = text(payload.artworkData);
+  const timestamp = Date.parse(payload.timestamp);
+  const inferredName = bundleId.split(".").at(-1)?.replace(/[-_]/g, " ") || "macOS";
+  return normalizeMediaSnapshot({
+    active: true,
+    playing: payload.playing,
+    title,
+    artist: payload.artist,
+    album: payload.album,
+    appBundleId: bundleId,
+    appName: APP_NAMES[bundleId] || inferredName,
+    durationSec: payload.duration,
+    elapsedSec: payload.elapsedTimeNow ?? payload.elapsedTime,
+    playbackRate: payload.playbackRate ?? (payload.playing ? 1 : 0),
+    artworkDataUrl: mimeType.startsWith("image/") && artworkData
+      ? `data:${mimeType};base64,${artworkData}` : "",
+    canPlayPause: true,
+    canNext: payload.prohibitsSkip !== true,
+    canPrevious: payload.prohibitsSkip !== true,
+    updatedAt: Number.isFinite(timestamp) ? timestamp : Date.now()
+  });
+}
+
 function reduceMediaEvent(state = EMPTY_MEDIA_STATE, event = {}) {
   if (event.kind === "state") return normalizeMediaSnapshot(event.state);
   if (event.kind === "cleared" || event.kind === "unavailable") return EMPTY_MEDIA_STATE;
@@ -64,6 +100,7 @@ function reduceMediaEvent(state = EMPTY_MEDIA_STATE, event = {}) {
 module.exports = {
   EMPTY_MEDIA_STATE,
   MAX_ARTWORK_DATA_URL_LENGTH,
+  normalizeAdapterPayload,
   normalizeMediaSnapshot,
   reduceMediaEvent
 };

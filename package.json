@@ -83,8 +83,8 @@
         "to": "bin/flux-hooks"
       },
       {
-        "from": "resources/bin/media-bridge",
-        "to": "bin/media-bridge"
+        "from": "resources/mediaremote-adapter",
+        "to": "mediaremote-adapter"
       },
       {
         "from": "resources/scripts/collect-logs.sh",

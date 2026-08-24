@@ -5,6 +5,7 @@ import { test } from "node:test";
 const require = createRequire(import.meta.url);
 const {
   EMPTY_MEDIA_STATE,
+  normalizeAdapterPayload,
   normalizeMediaSnapshot,
   reduceMediaEvent
 } = require("../src/shared/media-state.cjs");
@@ -52,4 +53,41 @@ test("invalid or oversized artwork is discarded", () => {
 test("unknown media events leave state unchanged", () => {
   const state = normalizeMediaSnapshot({ active: true, title: "Keep me" });
   assert.equal(reduceMediaEvent(state, { kind: "mystery" }), state);
+});
+
+test("MediaRemote Adapter payload becomes a renderable media snapshot", () => {
+  const state = normalizeAdapterPayload({
+    bundleIdentifier: "com.apple.Music",
+    playing: true,
+    title: "The Genesis",
+    artist: "Nas",
+    album: "Illmatic",
+    duration: 105.368,
+    elapsedTime: 32.617,
+    playbackRate: 1,
+    timestamp: "2026-08-24T10:00:00.000Z",
+    artworkMimeType: "image/jpeg",
+    artworkData: "YWJj"
+  });
+
+  assert.equal(state.active, true);
+  assert.equal(state.title, "The Genesis");
+  assert.equal(state.appName, "Apple Music");
+  assert.equal(state.durationSec, 105.368);
+  assert.equal(state.elapsedSec, 32.617);
+  assert.equal(state.artworkDataUrl, "data:image/jpeg;base64,YWJj");
+  assert.equal(state.canPlayPause, true);
+});
+
+test("NetEase media uses its recognizable product name", () => {
+  const state = normalizeAdapterPayload({
+    bundleIdentifier: "com.netease.163music",
+    playing: true,
+    title: "Going Down"
+  });
+  assert.equal(state.appName, "网易云音乐");
+});
+
+test("an empty MediaRemote Adapter payload clears an ended session", () => {
+  assert.deepEqual(normalizeAdapterPayload({}), EMPTY_MEDIA_STATE);
 });

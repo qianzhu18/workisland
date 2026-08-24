@@ -36,6 +36,7 @@ const IPC = Object.freeze({
   PERFORMANCE_GET_STATE: "performance:get-state",
   PERFORMANCE_STATE_UPDATE: "performance:state-update",
   PERFORMANCE_DETAILS_VISIBLE: "performance:details-visible",
+  PERFORMANCE_PROCESS_ACTION: "performance:process-action",
 
   PET_ENTER: "pet:enter",
   PET_LEAVE: "pet:leave",

@@ -152,10 +152,10 @@ function createAppCoordinatorClass({
       );
       this.state = createInitialState();
       this.settings = this.settingsRepository.load();
-      const mediaHelperPath = electron.app.isPackaged
-        ? path.join(process.resourcesPath, "bin", "media-bridge")
-        : path.join(electron.app.getAppPath(), "resources", "bin", "media-bridge");
-      this.mediaService = new MediaService({ helperPath: mediaHelperPath });
+      const mediaResourceDir = electron.app.isPackaged
+        ? path.join(process.resourcesPath, "mediaremote-adapter")
+        : path.join(electron.app.getAppPath(), "resources", "mediaremote-adapter");
+      this.mediaService = new MediaService({ resourceDir: mediaResourceDir });
       this.performanceService = new PerformanceService();
       this.mediaService.setEnabled(this.settings.mediaEnabled !== false);
       this.performanceService.enabled = this.settings.performanceEnabled !== false;
@@ -1089,6 +1089,7 @@ function createAppCoordinatorClass({
     sendMediaCommand(command) { return this.mediaService.sendCommand(command); }
     getPerformanceState() { return this.performanceService.getSnapshot(); }
     setPerformanceDetailsVisible(visible) { this.performanceService.setDetailsVisible(visible); }
+    actOnProcess(request) { return this.performanceService.actOnProcess(request); }
     broadcastWorkstationState(channel, state) {
       if (!this.islandWindow || this.islandWindow.isDestroyed()) return;
       this.islandWindow.webContents.send(channel, state);

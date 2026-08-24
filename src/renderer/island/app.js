@@ -488,7 +488,7 @@ function IslandApp() {
   function getPillExtra() {
     let extra;
     if (notchInfo.hasNotch) {
-      extra = visibleCount > 0 ? 72 : 62;
+      extra = visibleCount > 0 ? 72 : mediaState?.active && mediaState?.title ? 96 : 62;
     } else if (visibleCount === 0 || phase === null) {
       extra = 72;
     } else {
@@ -710,6 +710,8 @@ function IslandApp() {
             sessions,
             hasAttention,
             hasNotch: notchInfo.hasNotch,
+            notchWidth: notchW,
+            useNotchMedia: notchInfo.hasNotch && !isDocked,
             visibleCount,
             hasUpdate,
             tokenBurnTotal,
