@@ -12,10 +12,26 @@ test("performance helpers calculate bounded CPU and safe process rows", () => {
   assert.equal(parseMemoryPressure("System-wide memory free percentage: 42%"), "normal");
   assert.equal(parseMemoryPressure("System-wide memory free percentage: 7%"), "critical");
   assert.equal(parseVmStat("Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages active: 100.\nPages wired down: 25.\nPages occupied by compressor: 10.", 4_000_000), 2_211_840);
-  const row = parseProcessRows("123 18.2 9.1 Safari Web Content --secret\n456 4.0 2.0 node task.js")[0];
-  assert.deepEqual({ pid: row.pid, cpuPct: row.cpuPct, memoryPct: row.memoryPct, name: row.name },
-    { pid: 123, cpuPct: 18.2, memoryPct: 9.1, name: "Safari Web Content" });
+  const rows = parseProcessRows([
+    "123 501 18.2 9.1 1048576 Safari Web Content --secret",
+    "456 501 4.0 2.0 65536 node task.js",
+    "789 0 99.0 4.0 32768 WindowServer -daemon"
+  ].join("\n"), { currentUid: 501 });
+  const row = rows[0];
+  assert.deepEqual({ pid: row.pid, uid: row.uid, cpuPct: row.cpuPct, memoryPct: row.memoryPct, memoryBytes: row.memoryBytes, name: row.name },
+    { pid: 123, uid: 501, cpuPct: 18.2, memoryPct: 9.1, memoryBytes: 1073741824, name: "Safari Web Content" });
+  assert.deepEqual(rows.map((process) => process.pid), [123, 456], "foreign processes are excluded");
   assert.match(row.fingerprint, /^[a-f0-9]{64}$/);
+});
+
+test("process parsing keeps every current-user row and marks WorkIsland protected", () => {
+  const lines = Array.from({ length: 7 }, (_, index) => `${100 + index} 501 ${20 - index}.0 ${index}.0 ${1024 + index} /Applications/App${index}.app/Contents/MacOS/App${index}`);
+  lines.push("999 501 1.0 1.0 2048 /Applications/WorkIsland.app/Contents/MacOS/WorkIsland");
+
+  const rows = parseProcessRows(lines.join("\n"), { currentUid: 501 });
+
+  assert.equal(rows.length, 8);
+  assert.equal(rows.at(-1).protected, true);
 });
 
 function processActionService({ command = "/Applications/Safari.app/Contents/MacOS/Safari", uid = 501, killError } = {}) {
@@ -38,7 +54,7 @@ function processActionService({ command = "/Applications/Safari.app/Contents/Mac
 
 test("performance service sends TERM and KILL only to the sampled owned process", async () => {
   const command = "/Applications/Safari.app/Contents/MacOS/Safari";
-  const sampled = parseProcessRows(`321 50.0 2.0 ${command}`)[0];
+  const sampled = parseProcessRows(`321 501 50.0 2.0 4096 ${command}`, { currentUid: 501 })[0];
   const { service, signals, refreshed } = processActionService({ command });
 
   assert.deepEqual(await service.actOnProcess({ ...sampled, action: "terminate" }), { ok: true, reason: "signaled" });
@@ -48,8 +64,8 @@ test("performance service sends TERM and KILL only to the sampled owned process"
 });
 
 test("performance service rejects protected, foreign, and changed processes", async () => {
-  const normal = parseProcessRows("321 50.0 2.0 /Applications/Safari.app/Contents/MacOS/Safari")[0];
-  const workIsland = parseProcessRows("444 50.0 2.0 /Applications/WorkIsland.app/Contents/MacOS/WorkIsland")[0];
+  const normal = parseProcessRows("321 501 50.0 2.0 4096 /Applications/Safari.app/Contents/MacOS/Safari", { currentUid: 501 })[0];
+  const workIsland = parseProcessRows("444 501 50.0 2.0 4096 /Applications/WorkIsland.app/Contents/MacOS/WorkIsland", { currentUid: 501 })[0];
 
   assert.equal((await processActionService().service.actOnProcess({ ...normal, pid: 1, action: "force" })).reason, "protected");
   assert.equal((await processActionService({ uid: 0 }).service.actOnProcess({ ...normal, action: "force" })).reason, "permission");

@@ -21,6 +21,11 @@ test("Island preload exposes narrow media and performance contracts", () => {
   const popover = readFileSync(new URL("../src/renderer/island/components/PerformancePopover.js", import.meta.url), "utf8");
   assert.match(popover, /强制退出/);
   assert.match(popover, /actOnProcess/);
+  assert.match(popover, /aria-pressed/);
+  assert.match(popover, /查看全部/);
+  assert.match(popover, /formatProcessMemory/);
+  assert.match(popover, /performance-process-list/);
+  assert.match(popover, /process\.protected/);
   const pill = readFileSync(new URL("../src/renderer/island/components/IslandPill.js", import.meta.url), "utf8");
   assert.match(pill, /media-wave-bar/);
   assert.match(pill, /getNotchMediaLayout/);
@@ -31,4 +36,7 @@ test("Island preload exposes narrow media and performance contracts", () => {
   assert.match(mediaCard, /appIconDataUrl/);
   assert.match(mediaCard, /media-source-icon/);
   assert.doesNotMatch(mediaCard, /media-source-badge"\s*},\s*media\?\.appName/, "source badge must not render the application name as visible text");
+  const css = readFileSync(new URL("../src/renderer/island/app.css", import.meta.url), "utf8");
+  assert.match(css, /workspace-content\.has-media\s*\{[^}]*grid-template-columns:\s*300px minmax\(0,\s*1fr\)/s);
+  assert.match(css, /performance-process-list[^}]*overflow-y:\s*auto/s);
 });

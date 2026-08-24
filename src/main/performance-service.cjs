@@ -41,21 +41,26 @@ function parseVmStat(output = "", totalBytes = 0) {
   return Math.max(0, Math.min(Number(totalBytes) || used, used));
 }
 
-function parseProcessRows(output = "") {
+function parseProcessRows(output = "", { currentUid } = {}) {
   return String(output).split(/\r?\n/).map((line) => {
-    const match = line.trim().match(/^(\d+)\s+([\d.]+)\s+([\d.]+)\s+(.+)$/);
+    const match = line.trim().match(/^(\d+)\s+(\d+)\s+([\d.]+)\s+([\d.]+)\s+(\d+)\s+(.+)$/);
     if (!match) return null;
-    const command = match[4].trim();
+    const uid = Number(match[2]);
+    if (Number.isInteger(currentUid) && currentUid >= 0 && uid !== currentUid) return null;
+    const command = match[6].trim();
     let name = command.split(/\s+--/)[0].trim();
     if (name.startsWith("/")) name = path.basename(name);
     return {
       pid: Number(match[1]),
-      cpuPct: Number(match[2]),
-      memoryPct: Number(match[3]),
+      uid,
+      cpuPct: Number(match[3]),
+      memoryPct: Number(match[4]),
+      memoryBytes: Number(match[5]) * 1024,
       name: name.slice(0, 48),
+      protected: /\/WorkIsland\.app\/|(^|\/)WorkIsland(?: Helper)?(?:\s|$)/i.test(command),
       fingerprint: createHash("sha256").update(command).digest("hex")
     };
-  }).filter(Boolean).sort((a, b) => b.cpuPct - a.cpuPct).slice(0, 5);
+  }).filter(Boolean);
 }
 
 class PerformanceService extends EventEmitter {
@@ -158,8 +163,8 @@ class PerformanceService extends EventEmitter {
     } catch {}
     if (this.detailsVisible) {
       try {
-        const result = await this.execFile("/bin/ps", ["-axo", "pid=,%cpu=,%mem=,command="]);
-        processes = parseProcessRows(result.stdout);
+        const result = await this.execFile("/bin/ps", ["-axo", "pid=,uid=,%cpu=,%mem=,rss=,command="]);
+        processes = parseProcessRows(result.stdout, { currentUid: this.currentUid });
       } catch {}
     }
     this.state = {
