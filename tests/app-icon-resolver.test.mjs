@@ -42,6 +42,33 @@ test("app icon resolver returns a cached bounded PNG data URL for an installed b
   assert.deepEqual(image.resizeCalls, [{ width: 64, height: 64, quality: "best" }]);
 });
 
+test("app icon resolver prefers the icon declared by the application bundle", async () => {
+  const fallbackReads = [];
+  const convertedPaths = [];
+  const resolveAppIcon = createAppIconResolver({
+    locateApplication: async () => "/Applications/NeteaseMusic.app",
+    pathExists: (candidate) => new Set([
+      "/Applications/NeteaseMusic.app",
+      "/Applications/NeteaseMusic.app/Contents/Resources/163Music.icns"
+    ]).has(candidate),
+    readDeclaredIconName: async () => "163Music",
+    readDeclaredIcon: async (iconPath) => {
+      convertedPaths.push(iconPath);
+      return Buffer.from("declared-icon");
+    },
+    getFileIcon: async (appPath) => {
+      fallbackReads.push(appPath);
+      return fakeNativeImage(Buffer.from("generic-icon"));
+    }
+  });
+
+  const icon = await resolveAppIcon("com.netease.163music");
+
+  assert.equal(icon, `data:image/png;base64,${Buffer.from("declared-icon").toString("base64")}`);
+  assert.deepEqual(convertedPaths, ["/Applications/NeteaseMusic.app/Contents/Resources/163Music.icns"]);
+  assert.deepEqual(fallbackReads, []);
+});
+
 test("app icon resolver rejects invalid identifiers and non-application paths", async () => {
   let lookups = 0;
   const resolveInvalid = createAppIconResolver({
