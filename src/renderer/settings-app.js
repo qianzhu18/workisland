@@ -4,7 +4,7 @@ const api = window.settingsApi;
 
 const DEFAULT_PET_SPRITE = "codex:qianxue";
 const FEEDBACK_URL = "https://workisland.yanglaishe.cn/#feedback";
-const BETA_GROUP_URL = "https://workisland.yanglaishe.cn/#beta-group";
+const COMMUNITY_URL = "https://workisland.yanglaishe.cn/#community";
 const USER_GUIDE_URL = "https://workisland.yanglaishe.cn/guide/";
 const WORKISLAND_ICON_URL = "../assets/workisland-icon.png";
 const DEFAULT_AGENT_ICON_URL = "../assets/brands/agent.svg";
@@ -416,11 +416,11 @@ function aboutPage() {
   version.append(appMark, el("div", "about-copy", "WorkIsland\n正在读取版本…"));
   api.getAppVersion().then(v => version.querySelector(".about-copy").textContent = `WorkIsland\n版本 ${v}`).catch(() => {});
   about.append(version);
-  const support = section("帮助与内测", "操作手册、反馈渠道与内测群信息由 WorkIsland 官网统一维护，无需重新安装即可更新。");
+  const support = section("帮助与社区", "操作手册、反馈渠道与社区信息由 WorkIsland 官网统一维护，无需重新安装即可更新。");
   support.append(
     row("产品手册", "查看安装、首次任务、状态理解、隐私与反馈说明。", button("打开手册", () => api.openExternal(USER_GUIDE_URL), "primary")),
     row("提交反馈", "报告问题、提出建议或补充复现信息。", button("打开反馈入口", () => api.openExternal(FEEDBACK_URL), "primary")),
-    row("加入内测群", "查看最新 WorkIsland 微信内测群二维码。", button("查看群码", () => api.openExternal(BETA_GROUP_URL)))
+    row("加入社区", "查看最新 WorkIsland 微信社区二维码。", button("查看群码", () => api.openExternal(COMMUNITY_URL)))
   );
   const updates = section("更新", "仅请求官方版本信息，不上传会话内容或使用数据。");
   const updateStatus = el("div", "update-status", state.latestUpdate ? `发现新版本 ${state.latestUpdate.latestVersion}` : "尚未检查");

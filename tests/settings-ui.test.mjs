@@ -31,14 +31,14 @@ test("the default General page offers a confirmed safe quit action", () => {
   assert.doesNotMatch(source, /button\("退出应用", \(\) => api\.quitApp\(\), "danger"\)/);
 });
 
-test("about settings route the manual, feedback and beta community through stable website URLs", () => {
-  assert.match(source, /帮助与内测/);
+test("about settings route the manual, feedback and community through stable website URLs", () => {
+  assert.match(source, /帮助与社区/);
   assert.match(source, /https:\/\/workisland\.yanglaishe\.cn\/guide\//);
   assert.match(source, /产品手册/);
   assert.match(source, /https:\/\/workisland\.yanglaishe\.cn\/#feedback/);
-  assert.match(source, /https:\/\/workisland\.yanglaishe\.cn\/#beta-group/);
+  assert.match(source, /https:\/\/workisland\.yanglaishe\.cn\/#community/);
   assert.match(source, /提交反馈/);
-  assert.match(source, /加入内测群/);
+  assert.match(source, /加入社区/);
 });
 
 test("settings use product images instead of letter placeholders", () => {

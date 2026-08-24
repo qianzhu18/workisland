@@ -5,7 +5,7 @@
 ## 发布渠道
 
 - 稳定版：`vX.Y.Z`，例如 `v3.0.0`
-- 预发布版：`vX.Y.Z-beta.N`，例如 `v3.0.1-beta.1`
+- 预发布版：`vX.Y.Z-rc.N`，例如 `v3.0.1-rc.1`
 - 用户端更新检测只读取 GitHub 的稳定版 `releases/latest`
 - GitHub Release 是安装包的唯一事实来源，官网只负责展示和引导下载
 
@@ -13,9 +13,9 @@
 
 ## 版本 PRD 与用户手册
 
-每个对外 Beta 或稳定 Release 都必须先有版本 PRD：范围、任务拆分、数据计划、验收与回滚写在同一份文档中。以 [`docs/product/prd/TEMPLATE-VERSION-PRD.md`](./product/prd/TEMPLATE-VERSION-PRD.md) 为模板，并遵守 [`Product Operating System`](./PRODUCT_OPERATING_SYSTEM.md)。
+每个对外预发布或稳定 Release 都必须先有版本 PRD：范围、任务拆分、数据计划、验收与回滚写在同一份文档中。以 [`docs/product/prd/TEMPLATE-VERSION-PRD.md`](./product/prd/TEMPLATE-VERSION-PRD.md) 为模板，并遵守 [`Product Operating System`](./PRODUCT_OPERATING_SYSTEM.md)。
 
-- Beta 只用于受邀测试者，GitHub Release 必须标记为 **Pre-release**，不能成为 `releases/latest`。
+- 预发布版本只用于受邀测试者，GitHub Release 必须标记为 **Pre-release**，不能成为 `releases/latest`。
 - 稳定版才可进入自动更新通道。
 - 所有用户可见操作变化必须同步到官网 `/guide/`；内部实验数据、访谈名单和运营判断不写入公开手册。
 
