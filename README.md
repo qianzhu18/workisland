@@ -85,12 +85,12 @@ For a reproducible bug, open a [GitHub Issue](https://github.com/qianzhu18/worki
       扫码添加微信，请备注 “WorkIsland”
     </td>
     <td align="center" width="33%">
-      <img src="website/assets/community/workisland-beta-group.png" width="190" alt="WorkIsland WeChat beta group QR code"><br>
-      <strong>加入 WorkIsland 内测群</strong><br>
+      <img src="website/assets/community/workisland-community-group.png" width="190" alt="WorkIsland community QR code"><br>
+      <strong>加入 WorkIsland 社区</strong><br>
       扫码参与下一版讨论与 Agent 兼容性反馈
     </td>
     <td align="center" width="33%">
-      <a href="https://workisland.yanglaishe.cn/#support">官网反馈与内测入口</a><br><br>
+      <a href="https://workisland.yanglaishe.cn/#support">官网反馈与社区入口</a><br><br>
       你决定是否导出日志或截图。公开反馈前请先移除项目代码、密钥和其他敏感信息。
     </td>
   </tr>

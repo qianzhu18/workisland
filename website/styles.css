@@ -307,7 +307,7 @@ body::before {
 .vi-feature p { font-size: 13px; line-height: 1.65; color: var(--v6-muted); }
 
 /* ============================================================
-   SUPPORT / BETA COMMUNITY
+   SUPPORT / COMMUNITY
    ============================================================ */
 .vi-support { padding: 88px 24px; border-top: 1px solid var(--v6-line); }
 .vi-support-intro { max-width: 720px; margin: 0 auto; text-align: center; }

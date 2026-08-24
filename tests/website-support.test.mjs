@@ -8,19 +8,19 @@ const guide = readFileSync(new URL("../website/guide/index.html", import.meta.ur
 const guideCss = readFileSync(new URL("../website/guide/guide.css", import.meta.url), "utf8");
 const releaseWorkflow = readFileSync(new URL("../.github/workflows/release.yml", import.meta.url), "utf8");
 const websiteWorkflow = readFileSync(new URL("../.github/workflows/website.yml", import.meta.url), "utf8");
-const qrUrl = new URL("../website/assets/community/workisland-beta-group.png", import.meta.url);
+const qrUrl = new URL("../website/assets/community/workisland-community-group.png", import.meta.url);
 const robotsUrl = new URL("../website/robots.txt", import.meta.url);
 const sitemapUrl = new URL("../website/sitemap.xml", import.meta.url);
 const nginxConfig = readFileSync(new URL("../deploy/nginx/workisland.conf", import.meta.url), "utf8");
 
-test("website exposes one support hub for feedback and beta community", () => {
+test("website exposes one support hub for feedback and community", () => {
   assert.match(html, /id="support"/);
   assert.match(html, /id="feedback"/);
-  assert.match(html, /id="beta-group"/);
+  assert.match(html, /id="community"/);
   assert.match(html, /提交反馈/);
-  assert.match(html, /加入 WorkIsland 内测群/);
+  assert.match(html, /加入 WorkIsland 社区/);
   assert.match(html, /https:\/\/github\.com\/qianzhu18\/workisland\/issues\/new\/choose/);
-  assert.match(html, /assets\/community\/workisland-beta-group\.png/);
+  assert.match(html, /assets\/community\/workisland-community-group\.png/);
   assert.match(css, /\.vi-support/);
 });
 
@@ -30,7 +30,7 @@ test("website makes the GitHub Star request explicit in the hero", () => {
   assert.match(css, /\.vi-star-note/);
 });
 
-test("website beta group image is a real PNG asset", () => {
+test("website community image is a real PNG asset", () => {
   assert.equal(existsSync(qrUrl), true);
   const png = readFileSync(qrUrl);
   assert.equal(png.subarray(1, 4).toString("ascii"), "PNG");
@@ -102,6 +102,6 @@ test("guide frames its product screenshot without exposing the empty lower captu
   assert.match(guideCss, /\.guide-shot img \{[^}]*width: 100%;[^}]*height: auto;[^}]*aspect-ratio: 16 \/ 9;[^}]*object-fit: cover;[^}]*object-position: top;/);
 });
 
-test("release workflow marks beta tags as prereleases", () => {
+test("release workflow marks prerelease tags as prereleases", () => {
   assert.match(releaseWorkflow, /prerelease:\s*\$\{\{\s*contains\(github\.ref_name, '-'/);
 });
