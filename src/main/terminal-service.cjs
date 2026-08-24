@@ -7,6 +7,7 @@ const { normalizeTerminalSize, resolveTerminalCwd } = require("../shared/termina
 
 const MAX_TERMINAL_INPUT = 64 * 1024;
 const MAX_OUTPUT_CHUNK = 128 * 1024;
+const MAX_RETAINED_OUTPUT = 512 * 1024;
 
 function defaultSpawnPty(shell, args, options) {
   return require("node-pty").spawn(shell, args, options);
@@ -23,6 +24,7 @@ class TerminalService extends EventEmitter {
     this.panelVisible = false;
     this.pty = null;
     this.status = { running: false, cwd: "", shell: "", exitCode: null };
+    this.outputBuffer = "";
   }
 
   start({ cwd = "", projectCwd = "", customCwd = "", cwdMode = "agent-project", shell = "" } = {}) {
@@ -44,8 +46,13 @@ class TerminalService extends EventEmitter {
       env: { ...this.env, TERM: "xterm-256color" }
     });
     this.pty = child;
+    this.outputBuffer = "";
     this.status = { running: true, cwd: resolvedCwd, shell: resolvedShell, exitCode: null };
-    child.onData?.((data) => this.emit("data", String(data).slice(0, MAX_OUTPUT_CHUNK)));
+    child.onData?.((data) => {
+      const chunk = String(data).slice(0, MAX_OUTPUT_CHUNK);
+      this.outputBuffer = `${this.outputBuffer}${chunk}`.slice(-MAX_RETAINED_OUTPUT);
+      this.emit("data", chunk);
+    });
     child.onExit?.(({ exitCode } = {}) => {
       if (this.pty !== child) return;
       this.pty = null;
@@ -88,7 +95,7 @@ class TerminalService extends EventEmitter {
   }
 
   setPanelVisible(visible) { this.panelVisible = Boolean(visible); }
-  snapshot() { return { ...this.status, enabled: this.enabled }; }
+  snapshot() { return { ...this.status, enabled: this.enabled, recentOutput: this.outputBuffer }; }
   dispose() { this.stop(); }
 }
 

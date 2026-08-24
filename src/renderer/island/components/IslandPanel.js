@@ -6,6 +6,11 @@ import { M as Markdown, r as remarkGfm } from "../../vendor/markdown.js";
 import { canContinueSessionViaTerminalPrompt, filterSurfaceSessions, sortVisibleSessions } from "../session-model.mjs";
 import { MediaCard } from "./MediaCard.js";
 import { PerformancePopover } from "./PerformancePopover.js";
+import { ToolboxSwitcher } from "./ToolboxSwitcher.js";
+import { ShelfPanel } from "./ShelfPanel.js";
+import { ClipboardPanel } from "./ClipboardPanel.js";
+import { TerminalPanel } from "./TerminalPanel.js";
+import { enabledToolboxModules, selectToolboxModule } from "./productivity-toolbox-model.mjs";
 const defaultIcon = new URL("../assets/status/idle.svg", import.meta.url).href;
 const runningIcon = new URL("../assets/status/running.svg", import.meta.url).href;
 const approvalIcon = new URL("../assets/status/approval.svg", import.meta.url).href;
@@ -214,6 +219,11 @@ function AgentUsageRow({
   showUsageQuota = true,
   performanceState,
   performanceEnabled = true,
+  fileShelfEnabled = true,
+  clipboardHistoryEnabled = false,
+  terminalEnabled = true,
+  terminalSavedCommands = [],
+  requestedToolboxModule = null,
   onOpenSettings,
   onOpenAbout,
   onOpenPet
@@ -1284,6 +1294,11 @@ function IslandPanel({
   mediaEnabled = true,
   performanceState,
   performanceEnabled = true,
+  fileShelfEnabled = true,
+  clipboardHistoryEnabled = false,
+  terminalEnabled = true,
+  terminalSavedCommands = [],
+  requestedToolboxModule = null,
   onSessionRowClick,
   onOpenSettings,
   onOpenAbout,
@@ -1292,6 +1307,17 @@ function IslandPanel({
   onFollowUpChange
 }) {
   const [followUpSessionId, setFollowUpSessionId] = React.useState(null);
+  const [activeModule, setActiveModule] = React.useState("agent");
+  const enabledModules = enabledToolboxModules({ fileShelfEnabled, clipboardHistoryEnabled, terminalEnabled });
+  const agentAttention = Boolean(surface?.actionableSessionId) || sessions.some((session) => ["waitingForApproval", "waitingForAnswer", "failed"].includes(session.phase));
+  React.useEffect(() => {
+    setActiveModule((current) => selectToolboxModule({ current, attention: agentAttention, enabled: enabledModules }));
+  }, [agentAttention, fileShelfEnabled, clipboardHistoryEnabled, terminalEnabled]);
+  React.useEffect(() => {
+    if (!agentAttention && requestedToolboxModule?.id && enabledModules.includes(requestedToolboxModule.id)) {
+      setActiveModule(requestedToolboxModule.id);
+    }
+  }, [requestedToolboxModule, agentAttention, enabledModules.join("|")]);
   const { actionableId, actionableRef, visibleSessions } = useActionable(sessions, surface, {
     disableScroll: !!followUpSessionId
   });
@@ -1349,7 +1375,7 @@ function IslandPanel({
       onOpenAbout,
       onOpenPet
     }
-  ), /* @__PURE__ */ React.createElement("div", { className: "panel-divider" }), /* @__PURE__ */ React.createElement("div", { className: `workspace-content${mediaEnabled && mediaState?.active && mediaState?.title ? " has-media" : ""}` }, mediaEnabled && mediaState?.active && mediaState?.title && /* @__PURE__ */ React.createElement(MediaCard, { media: mediaState }), /* @__PURE__ */ React.createElement("div", { className: "workspace-agent-pane" }, /* @__PURE__ */ React.createElement("div", { className: "session-list", ref: sessionListRef }, visibleSessions.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "session-list-empty" }, /* @__PURE__ */ React.createElement(
+  ), /* @__PURE__ */ React.createElement("div", { className: "panel-divider" }), /* @__PURE__ */ React.createElement(ToolboxSwitcher, { enabled: enabledModules, active: activeModule, onChange: setActiveModule }), activeModule === "shelf" && /* @__PURE__ */ React.createElement(ShelfPanel), activeModule === "clipboard" && /* @__PURE__ */ React.createElement(ClipboardPanel), activeModule === "terminal" && /* @__PURE__ */ React.createElement(TerminalPanel, { savedCommands: terminalSavedCommands }), /* @__PURE__ */ React.createElement("div", { className: `workspace-content${mediaEnabled && mediaState?.active && mediaState?.title ? " has-media" : ""}${activeModule === "agent" ? "" : " is-hidden"}` }, mediaEnabled && mediaState?.active && mediaState?.title && /* @__PURE__ */ React.createElement(MediaCard, { media: mediaState }), /* @__PURE__ */ React.createElement("div", { className: "workspace-agent-pane" }, /* @__PURE__ */ React.createElement("div", { className: "session-list", ref: sessionListRef }, visibleSessions.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "session-list-empty" }, /* @__PURE__ */ React.createElement(
     "img",
     {
       className: "session-list-empty-icon",

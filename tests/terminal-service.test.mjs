@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 import test from "node:test";
 import { TerminalService } from "../src/main/terminal-service.cjs";
-import { normalizeSavedCommand, normalizeTerminalSize, resolveTerminalCwd } from "../src/shared/terminal-state.cjs";
+import { normalizeSavedCommand, normalizeTerminalSize, resolveRecentProjectCwd, resolveTerminalCommand, resolveTerminalCwd } from "../src/shared/terminal-state.cjs";
 
 function fakePty() {
   const child = new EventEmitter();
@@ -21,8 +21,10 @@ test("terminal persists across panel switches and stops on disable", () => {
   const pty = fakePty();
   const service = new TerminalService({ spawnPty: () => pty, homeDir: "/Users/test", pathExists: () => true });
   service.start({ cwd: "/project" });
+  pty.dataHandler("first line\r\n");
   service.setPanelVisible(false);
   assert.equal(pty.killed, false);
+  assert.match(service.snapshot().recentOutput, /first line/);
   service.setEnabled(false);
   assert.equal(pty.killed, true);
 });
@@ -48,4 +50,20 @@ test("terminal state rejects invalid commands and impossible dimensions", () => 
 
 test("invalid project directory falls back to home", () => {
   assert.equal(resolveTerminalCwd({ projectCwd: "/missing", homeDir: "/home", pathExists: value => value === "/home" }), "/home");
+});
+
+test("built-in quick commands resolve by ID without accepting renderer command text", () => {
+  assert.equal(resolveTerminalCommand("git-status", []).command, "git status --short --branch");
+  assert.equal(resolveTerminalCommand("unknown", []), null);
+  assert.equal(resolveTerminalCommand("custom", [{ id: "custom", name: "Lint", command: "npm run lint", cwdMode: "agent-project" }]).command, "npm run lint");
+});
+
+test("terminal chooses the most recently active Agent project with a real directory", () => {
+  const sessions = [
+    { cwd: "/old", updatedAt: 100 },
+    { cwd: "relative/path", updatedAt: 500 },
+    { cwd: "/latest", updatedAt: 300 }
+  ];
+  assert.equal(resolveRecentProjectCwd(sessions, value => value === "/old" || value === "/latest"), "/latest");
+  assert.equal(resolveRecentProjectCwd([], () => true), "");
 });

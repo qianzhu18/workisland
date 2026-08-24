@@ -291,6 +291,34 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, checkF
     electron.ipcMain.handle(IPC.PERFORMANCE_PROCESS_ACTION, (_event, request) => {
       return coordinator.actOnProcess(request);
     });
+    electron.ipcMain.handle(IPC.SHELF_GET_STATE, () => coordinator.getShelfState());
+    electron.ipcMain.handle(IPC.SHELF_ADD_PATHS, (_event, { paths } = {}) => coordinator.addShelfPaths(paths));
+    electron.ipcMain.handle(IPC.SHELF_ADD_PAYLOAD, (_event, payload) => coordinator.addShelfPayload(payload));
+    electron.ipcMain.handle(IPC.SHELF_REMOVE, (_event, { ids } = {}) => coordinator.removeShelfItems(ids));
+    electron.ipcMain.handle(IPC.SHELF_CLEAR, () => coordinator.clearShelf());
+    electron.ipcMain.handle(IPC.SHELF_OPEN, (_event, { id } = {}) => coordinator.openShelfItem(String(id || "")));
+    electron.ipcMain.handle(IPC.SHELF_REVEAL, (_event, { id } = {}) => coordinator.revealShelfItem(String(id || "")));
+    electron.ipcMain.handle(IPC.SHELF_QUICK_LOOK, (_event, { id } = {}) => coordinator.quickLookShelfItem(String(id || "")));
+    electron.ipcMain.handle(IPC.SHELF_START_DRAG, async (event, { id } = {}) => {
+      const item = coordinator.getShelfItem(String(id || ""));
+      if (!item?.path || !item.available) return false;
+      let icon = await electron.app.getFileIcon(item.path, { size: "small" });
+      if (icon.isEmpty()) icon = electron.nativeImage.createFromPath(getBundledIconPath()).resize({ width: 32, height: 32 });
+      event.sender.startDrag({ file: item.path, icon });
+      return true;
+    });
+    electron.ipcMain.handle(IPC.CLIPBOARD_HISTORY_GET_STATE, () => coordinator.getClipboardHistory());
+    electron.ipcMain.handle(IPC.CLIPBOARD_HISTORY_REPLAY, (_event, { id } = {}) => coordinator.replayClipboardEntry(String(id || "")));
+    electron.ipcMain.handle(IPC.CLIPBOARD_HISTORY_FAVORITE, (_event, { id, favorite } = {}) => coordinator.favoriteClipboardEntry(String(id || ""), Boolean(favorite)));
+    electron.ipcMain.handle(IPC.CLIPBOARD_HISTORY_REMOVE, (_event, { ids } = {}) => coordinator.removeClipboardEntries(ids));
+    electron.ipcMain.handle(IPC.CLIPBOARD_HISTORY_CLEAR, () => coordinator.clearClipboardHistory());
+    electron.ipcMain.handle(IPC.TERMINAL_GET_STATE, () => coordinator.getTerminalState());
+    electron.ipcMain.handle(IPC.TERMINAL_START, (_event, options) => coordinator.startTerminal(options));
+    electron.ipcMain.handle(IPC.TERMINAL_INPUT, (_event, { data } = {}) => coordinator.sendTerminalInput(data));
+    electron.ipcMain.handle(IPC.TERMINAL_RESIZE, (_event, size) => coordinator.resizeTerminal(size));
+    electron.ipcMain.handle(IPC.TERMINAL_RESTART, (_event, options) => coordinator.restartTerminal(options));
+    electron.ipcMain.handle(IPC.TERMINAL_STOP, () => coordinator.stopTerminal());
+    electron.ipcMain.handle(IPC.TERMINAL_RUN_SAVED_COMMAND, (_event, { id } = {}) => coordinator.runSavedTerminalCommand(String(id || "")));
     electron.ipcMain.handle(IPC.WELCOME_GET_FIRST_LAUNCH_AT, () => {
       return coordinator.getSettings().firstLaunchAt;
     });

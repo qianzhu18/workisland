@@ -23,6 +23,16 @@ test("general settings expose all completion notification duration options", () 
   assert.match(source, /save\(\{ completionPopupDurationSec: Number\(v\) \}\)/);
 });
 
+test("workstation settings expose every productivity module and local privacy policy", () => {
+  for (const copy of ["文件架", "剪贴板历史", "快捷终端", "只保存在本机", "历史条数", "自动清理", "默认目录", "快捷命令"]) {
+    assert.match(source, new RegExp(copy));
+  }
+  assert.match(source, /save\(\{ fileShelfEnabled: v \}\)/);
+  assert.match(source, /save\(\{ clipboardHistoryEnabled: v \}\)/);
+  assert.match(source, /save\(\{ terminalEnabled: v \}\)/);
+  assert.match(source, /terminalSavedCommands/);
+});
+
 test("the default General page offers a confirmed safe quit action", () => {
   assert.match(source, /function requestQuitApp\(\)/);
   assert.match(source, /window\.confirm\("退出 WorkIsland？\\n\\n这会关闭 Island、桌宠与后台监听。"\)/);

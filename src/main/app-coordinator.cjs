@@ -28,6 +28,36 @@ const { EVENTS } = require("../shared/telemetry.cjs");
 const { MediaService } = require("./media-service.cjs");
 const { createAppIconResolver } = require("./app-icon-resolver.cjs");
 const { PerformanceService } = require("./performance-service.cjs");
+const { ShelfService } = require("./shelf-service.cjs");
+const { ClipboardHistoryService } = require("./clipboard-history-service.cjs");
+const { TerminalService } = require("./terminal-service.cjs");
+const { resolveRecentProjectCwd, resolveTerminalCommand } = require("../shared/terminal-state.cjs");
+
+function createElectronClipboardAdapter() {
+  return {
+    readSnapshot() {
+      const image = electron.clipboard.readImage();
+      if (image && !image.isEmpty()) {
+        const resized = image.resize({ width: Math.min(720, image.getSize().width), quality: "good" });
+        return { type: "image", dataUrl: resized.toDataURL() };
+      }
+      const text = electron.clipboard.readText();
+      if (!text) return null;
+      let type = "text";
+      try {
+        const url = new URL(text.trim());
+        if (["http:", "https:"].includes(url.protocol)) type = "url";
+      } catch {
+        if (/\n|[{}();]|\b(const|let|function|class|import|SELECT)\b/.test(text)) type = "code";
+      }
+      return { type, text };
+    },
+    writeEntry(entry) {
+      if (entry.type === "image") electron.clipboard.writeImage(electron.nativeImage.createFromDataURL(entry.dataUrl));
+      else if (typeof entry.text === "string") electron.clipboard.writeText(entry.text);
+    }
+  };
+}
 
 function createAppCoordinatorClass({
   BridgeServer,
@@ -83,6 +113,9 @@ function createAppCoordinatorClass({
     statsService = getStatsService();
     mediaService;
     performanceService;
+    shelfService;
+    clipboardHistoryService;
+    terminalService;
     processMonitor;
     onSettingsChangeCallback = null;
     reconcileTimer = null;
@@ -161,10 +194,21 @@ function createAppCoordinatorClass({
       });
       this.mediaService = new MediaService({ resourceDir: mediaResourceDir, resolveAppIcon });
       this.performanceService = new PerformanceService();
+      const userDataPath = electron.app.getPath("userData");
+      this.shelfService = new ShelfService({ storePath: path.join(userDataPath, "shelf.json") });
+      this.clipboardHistoryService = new ClipboardHistoryService({
+        storePath: path.join(userDataPath, "clipboard-history.json"),
+        clipboardAdapter: createElectronClipboardAdapter()
+      });
+      this.terminalService = new TerminalService();
       this.mediaService.setEnabled(this.settings.mediaEnabled !== false);
       this.performanceService.enabled = this.settings.performanceEnabled !== false;
       this.mediaService.on("update", (state) => this.broadcastWorkstationState(IPC.MEDIA_STATE_UPDATE, state));
       this.performanceService.on("update", (state) => this.broadcastWorkstationState(IPC.PERFORMANCE_STATE_UPDATE, state));
+      this.shelfService.on("update", (state) => this.broadcastWorkstationState(IPC.SHELF_STATE_UPDATE, state));
+      this.clipboardHistoryService.on("update", (state) => this.broadcastWorkstationState(IPC.CLIPBOARD_HISTORY_UPDATE, state));
+      this.terminalService.on("status", (state) => this.broadcastWorkstationState(IPC.TERMINAL_STATUS_UPDATE, state));
+      this.terminalService.on("data", (data) => this.broadcastWorkstationState(IPC.TERMINAL_DATA, data));
       this.petMode = new PetModeController({
         registerReady: (callback) => electron.ipcMain.once(IPC.PET_READY, callback),
         sessionUpdateChannel: IPC.PET_SESSION_UPDATE,
@@ -342,6 +386,15 @@ function createAppCoordinatorClass({
       this.processMonitor.start();
       this.mediaService.start();
       this.performanceService.start();
+      void this.shelfService.start();
+      void this.clipboardHistoryService.start().then(() => {
+        this.clipboardHistoryService.setPolicy({
+          limit: this.settings.clipboardHistoryLimit,
+          retentionHours: this.settings.clipboardRetentionHours
+        });
+        this.clipboardHistoryService.setEnabled(this.settings.clipboardHistoryEnabled === true);
+      });
+      this.terminalService.setEnabled(this.settings.terminalEnabled !== false);
       this.startCodexTranscriptWatcher();
       // 启动发现：WorkIsland 只靠 hook 被动感知会话，它启动之前就在跑的对话
       // 要等下一个 hook 事件才会现身。主动扫一次正在运行的 claude CLI 进程
@@ -629,6 +682,8 @@ function createAppCoordinatorClass({
       this.processMonitor.stop();
       this.mediaService.stop();
       this.performanceService.stop();
+      this.clipboardHistoryService.dispose();
+      this.terminalService.dispose();
       if (this.codexTranscriptWatcher) {
         this.codexTranscriptWatcher.stop();
         this.codexTranscriptWatcher = null;
@@ -671,6 +726,9 @@ function createAppCoordinatorClass({
         this.pushTodayBurnToWindows();
         this.broadcastWorkstationState(IPC.MEDIA_STATE_UPDATE, this.mediaService.getSnapshot());
         this.broadcastWorkstationState(IPC.PERFORMANCE_STATE_UPDATE, this.performanceService.getSnapshot());
+        this.broadcastWorkstationState(IPC.SHELF_STATE_UPDATE, this.shelfService.snapshot());
+        this.broadcastWorkstationState(IPC.CLIPBOARD_HISTORY_UPDATE, this.clipboardHistoryService.snapshot());
+        this.broadcastWorkstationState(IPC.TERMINAL_STATUS_UPDATE, this.terminalService.snapshot());
       });
     }
     /**
@@ -893,6 +951,14 @@ function createAppCoordinatorClass({
         if (this.settings.mediaEnabled !== false) this.mediaService.start();
       }
       if ("performanceEnabled" in partial) this.performanceService.setEnabled(this.settings.performanceEnabled !== false);
+      if ("clipboardHistoryEnabled" in partial) this.clipboardHistoryService.setEnabled(this.settings.clipboardHistoryEnabled === true);
+      if ("clipboardHistoryLimit" in partial || "clipboardRetentionHours" in partial) {
+        this.clipboardHistoryService.setPolicy({
+          limit: this.settings.clipboardHistoryLimit,
+          retentionHours: this.settings.clipboardRetentionHours
+        });
+      }
+      if ("terminalEnabled" in partial) this.terminalService.setEnabled(this.settings.terminalEnabled !== false);
       if ("approvalModes" in partial) {
         this.autoReInstallHooks();
       }
@@ -1094,6 +1160,57 @@ function createAppCoordinatorClass({
     getPerformanceState() { return this.performanceService.getSnapshot(); }
     setPerformanceDetailsVisible(visible) { this.performanceService.setDetailsVisible(visible); }
     actOnProcess(request) { return this.performanceService.actOnProcess(request); }
+    getShelfState() { return this.shelfService.snapshot(); }
+    addShelfPaths(paths) { return this.shelfService.addPaths(paths); }
+    addShelfPayload(payload) { return this.shelfService.addPayload(payload); }
+    removeShelfItems(ids) { return this.shelfService.remove(ids); }
+    clearShelf() { return this.shelfService.clear(); }
+    getShelfItem(id) { return this.shelfService.find(id); }
+    async openShelfItem(id) {
+      const item = this.shelfService.find(id);
+      if (!item?.path || !item.available) return false;
+      return (await electron.shell.openPath(item.path)) === "";
+    }
+    revealShelfItem(id) {
+      const item = this.shelfService.find(id);
+      if (!item?.path || !item.available) return false;
+      electron.shell.showItemInFolder(item.path);
+      return true;
+    }
+    quickLookShelfItem(id) {
+      const item = this.shelfService.find(id);
+      if (!item?.path || !item.available) return false;
+      require("node:child_process").spawn("/usr/bin/qlmanage", ["-p", item.path], { detached: true, stdio: "ignore" }).unref();
+      return true;
+    }
+    getClipboardHistory() { return this.clipboardHistoryService.snapshot(); }
+    replayClipboardEntry(id) { return this.clipboardHistoryService.replay(id); }
+    favoriteClipboardEntry(id, favorite) { return this.clipboardHistoryService.favorite(id, favorite); }
+    removeClipboardEntries(ids) { return this.clipboardHistoryService.remove(ids); }
+    clearClipboardHistory() { return this.clipboardHistoryService.clear(); }
+    getTerminalState() { return this.terminalService.snapshot(); }
+    getTerminalLaunchOptions(options = {}) {
+      return {
+        projectCwd: resolveRecentProjectCwd(this.state.sessions.values(), fs.existsSync),
+        customCwd: this.settings.terminalCustomDirectory,
+        cwdMode: this.settings.terminalDefaultDirectory,
+        shell: this.settings.terminalShell,
+        ...options
+      };
+    }
+    startTerminal(options = {}) {
+      return this.terminalService.start(this.getTerminalLaunchOptions(options));
+    }
+    sendTerminalInput(data) { return this.terminalService.input(data); }
+    resizeTerminal(size) { return this.terminalService.resize(size); }
+    restartTerminal(options = {}) { return this.terminalService.restart(this.getTerminalLaunchOptions(options)); }
+    stopTerminal() { this.terminalService.stop(); return this.terminalService.snapshot(); }
+    runSavedTerminalCommand(id) {
+      const command = resolveTerminalCommand(id, this.settings.terminalSavedCommands);
+      if (!command) return false;
+      this.startTerminal({ cwdMode: command.cwdMode });
+      return this.terminalService.input(`${command.command}\r`);
+    }
     broadcastWorkstationState(channel, state) {
       if (!this.islandWindow || this.islandWindow.isDestroyed()) return;
       this.islandWindow.webContents.send(channel, state);

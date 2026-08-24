@@ -135,6 +135,41 @@ function requestQuitApp() {
   if (confirmed) api.quitApp();
 }
 
+function savedCommandsControl() {
+  const wrap = el("div", "saved-command-control");
+  const commands = Array.isArray(state.settings.terminalSavedCommands)
+    ? state.settings.terminalSavedCommands
+    : [];
+  const list = el("div", "saved-command-list");
+  if (commands.length === 0) list.append(el("span", "saved-command-empty", "尚未添加"));
+  for (const command of commands) {
+    const chip = el("span", "saved-command-chip");
+    chip.title = command.command;
+    const remove = button("×", () => save({
+      terminalSavedCommands: commands.filter(item => item.id !== command.id)
+    }));
+    remove.classList.add("saved-command-remove");
+    remove.setAttribute("aria-label", `移除快捷命令 ${command.name}`);
+    chip.append(el("span", "saved-command-name", command.name), remove);
+    list.append(chip);
+  }
+  const add = button("添加", () => {
+    const name = window.prompt("快捷命令名称，例如：启动开发服务");
+    if (!name?.trim()) return;
+    const command = window.prompt("要执行的终端命令，例如：npm run dev");
+    if (!command?.trim()) return;
+    save({
+      terminalSavedCommands: [
+        ...commands,
+        { id: `user-${Date.now()}`, name: name.trim(), command: command.trim() }
+      ]
+    });
+  });
+  list.append(add);
+  wrap.append(list);
+  return wrap;
+}
+
 function generalPage() {
   const root = document.createDocumentFragment();
   const workstation = section("工作台", "让灵动岛同时承载媒体控制和轻量性能监视。所有数据只在本机读取与展示。");
@@ -143,6 +178,57 @@ function generalPage() {
     row("切歌动态提醒", "歌曲变化时在灵动岛短暂显示新封面与曲名；Agent 审批、失败和完成提醒始终优先。", toggle(state.settings.mediaTrackChangeNotifications, v => save({ mediaTrackChangeNotifications: v }), "切歌动态提醒")),
     row("性能监视器", "在灵动岛右上角显示实时负载，悬停可查看 CPU、内存和高占用进程。", toggle(state.settings.performanceEnabled, v => save({ performanceEnabled: v }), "性能监视器")),
     row("性能异常提醒", "CPU 或内存持续高占用时提醒。默认关闭，避免打扰专注。", toggle(state.settings.performanceAlertsEnabled, v => save({ performanceAlertsEnabled: v }), "性能异常提醒"))
+  );
+  const productivity = section("效率工具", "文件和剪贴板内容只保存在本机；Agent 需要审批、提问或报错时会优先显示。快捷终端直接运行你选择的本机 Shell。");
+  productivity.append(
+    row("文件架", "把文件临时放在灵动岛中，方便跨应用拖放；只保存文件引用，移除不会删除原文件。", toggle(state.settings.fileShelfEnabled, v => save({ fileShelfEnabled: v }), "文件架")),
+    row("剪贴板历史", "记录复制的文字、链接、代码和图片，只保存在本机。为保护隐私，新安装默认关闭。", toggle(state.settings.clipboardHistoryEnabled, v => {
+      if (v && !window.confirm("开启剪贴板历史？\n\n复制的文字、链接、代码和图片会只保存在本机。你可以随时清空或关闭此功能。")) {
+        renderPage();
+        return;
+      }
+      save({ clipboardHistoryEnabled: v });
+    }, "剪贴板历史")),
+    row(
+      "历史条数",
+      "达到上限后自动移除最早且未收藏的记录。",
+      select(
+        state.settings.clipboardHistoryLimit,
+        [["25", "25 条"], ["50", "50 条"], ["100", "100 条"], ["250", "250 条"]],
+        v => save({ clipboardHistoryLimit: Number(v) }),
+        "剪贴板历史条数"
+      )
+    ),
+    row(
+      "自动清理",
+      "收藏内容不会被定时清理，也可以在灵动岛中手动清空。",
+      select(
+        state.settings.clipboardRetentionHours,
+        [["1", "1 小时"], ["8", "8 小时"], ["24", "24 小时"], ["168", "7 天"], ["0", "不自动清理"]],
+        v => save({ clipboardRetentionHours: Number(v) }),
+        "剪贴板自动清理"
+      )
+    ),
+    row("快捷终端", "在灵动岛中运行快捷命令，也可以展开为可持续交互的完整终端。", toggle(state.settings.terminalEnabled, v => save({ terminalEnabled: v }), "快捷终端")),
+    row(
+      "默认目录",
+      "优先使用当前 Agent 项目；没有活跃项目时回退到用户目录。",
+      select(
+        state.settings.terminalDefaultDirectory,
+        [["agent-project", "当前 Agent 项目"], ["home", "用户目录"], ["custom", "自定义目录"]],
+        v => {
+          if (v !== "custom") {
+            save({ terminalDefaultDirectory: v });
+            return;
+          }
+          const customDirectory = window.prompt("输入终端默认目录的完整路径", state.settings.terminalCustomDirectory || "");
+          if (customDirectory?.trim()) save({ terminalDefaultDirectory: v, terminalCustomDirectory: customDirectory.trim() });
+          else renderPage();
+        },
+        "终端默认目录"
+      )
+    ),
+    row("快捷命令", "添加常用命令后，可以从灵动岛一键运行。命令只保存在本机。", savedCommandsControl())
   );
   const behavior = section("Island 行为", "控制灵动岛何时出现以及如何收起。");
   behavior.append(
@@ -226,7 +312,7 @@ function generalPage() {
   lifecycle.append(
     row("退出 WorkIsland", "需要重新打开应用后才会继续监测本机 Agent 状态。", button("退出应用", requestQuitApp, "danger"))
   );
-  root.append(workstation, behavior, display, lifecycle);
+  root.append(workstation, productivity, behavior, display, lifecycle);
   return root;
 }
 

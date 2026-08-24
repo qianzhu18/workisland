@@ -56,6 +56,12 @@ select { min-width:142px; height:30px; padding:0 28px 0 9px; color:inherit; back
 .custom-agent-form { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:10px; }
 .custom-agent-form .text-input:nth-child(3) { grid-column:1 / -1; }
 .section-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:12px; }
+.saved-command-control { width:min(360px, 48%); flex:0 0 auto; }
+.saved-command-list { display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:6px; }
+.saved-command-chip { display:flex; align-items:center; min-width:0; height:30px; padding-left:10px; border:1px solid var(--line); border-radius:8px; background:rgba(120,120,128,.08); }
+.saved-command-name { max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.saved-command-empty { color:var(--muted); font-size:12px; }
+.saved-command-remove.button { min-height:28px; padding:2px 8px; border:0; background:transparent; box-shadow:none; font-size:17px; color:var(--muted); }
 .range-control { display:flex; align-items:center; gap:10px; min-width:210px; }
 input[type=range] { flex:1; accent-color:var(--accent); }
 .range-value { width:42px; color:var(--muted); text-align:right; font-variant-numeric:tabular-nums; }
@@ -65,5 +71,5 @@ input[type=range] { flex:1; accent-color:var(--accent); }
 .toast { position:fixed; left:50%; bottom:24px; z-index:10; transform:translate(-50%,12px); padding:8px 14px; border-radius:9px; color:white; background:rgba(34,34,37,.9); opacity:0; pointer-events:none; transition:.2s ease; }
 .toast.visible { transform:translate(-50%,0); opacity:1; }
 .toast.error { background:rgba(190,35,35,.94); }
-@media (max-width:680px) { .window { grid-template-columns:170px 1fr; } .content { padding:30px 20px 48px; } .setting-row { align-items:flex-start; flex-direction:column; gap:10px; } .inline-controls { width:100%; } .inline-controls select { flex:1; min-width:0; } .text-input { width:100%; } }
+@media (max-width:680px) { .window { grid-template-columns:170px 1fr; } .content { padding:30px 20px 48px; } .setting-row { align-items:flex-start; flex-direction:column; gap:10px; } .inline-controls { width:100%; } .inline-controls select { flex:1; min-width:0; } .text-input { width:100%; } .saved-command-control { width:100%; } .saved-command-list { justify-content:flex-start; } }
 @media (prefers-color-scheme:dark) { :root { --text:#f5f5f7; --muted:#a1a1a6; --line:rgba(255,255,255,.12); --sidebar:rgba(31,31,34,.88); --content:rgba(38,38,41,.94); --card:rgba(255,255,255,.055); } select,.button,.text-input { background:rgba(255,255,255,.075); } }
