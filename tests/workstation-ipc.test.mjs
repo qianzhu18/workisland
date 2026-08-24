@@ -24,4 +24,7 @@ test("Island preload exposes narrow media and performance contracts", () => {
   const pill = readFileSync(new URL("../src/renderer/island/components/IslandPill.js", import.meta.url), "utf8");
   assert.match(pill, /media-wave-bar/);
   assert.match(pill, /getNotchMediaLayout/);
+  const app = readFileSync(new URL("../src/renderer/island/app.js", import.meta.url), "utf8");
+  assert.match(app, /useNotchMedia:\s*notchInfo\.hasNotch/);
+  assert.doesNotMatch(app, /\bisDocked\b/, "reverted dock mode must not leak into workstation rendering");
 });

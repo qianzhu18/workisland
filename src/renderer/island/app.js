@@ -711,7 +711,7 @@ function IslandApp() {
             hasAttention,
             hasNotch: notchInfo.hasNotch,
             notchWidth: notchW,
-            useNotchMedia: notchInfo.hasNotch && !isDocked,
+            useNotchMedia: notchInfo.hasNotch,
             visibleCount,
             hasUpdate,
             tokenBurnTotal,
