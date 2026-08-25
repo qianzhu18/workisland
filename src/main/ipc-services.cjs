@@ -10,10 +10,72 @@ const { listPluginAgentMeta } = require("./agent-registry.cjs");
 const { listCodexPets, resolveCodexPet } = require("./codex-pet.cjs");
 const { previewSound, getUserSoundsDir } = require("./sound-service.cjs");
 const path__namespace = path;
+const QUICK_SHARE_PROVIDER_TITLES = Object.freeze({
+  Mail: "邮件",
+  Messages: "信息",
+  Notes: "备忘录",
+  Freeform: "无边记",
+  Simulator: "模拟器",
+  Shortcuts: "快捷指令",
+  "Add to Reading List": "加入阅读列表"
+});
 
-function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, checkForUpdates = async () => ({ status: "unavailable" }) }) {
+function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPasteboardFileURLs = () => [], copyFilesToPasteboard = () => false, getFileIconDataUrl = () => null, getShareProviders = async () => [], shareFilesViaProvider = () => false, showFilesSharePicker = () => false, getAirDropIconDataUrl = () => null, shareFilesViaAirDrop = () => false, checkForUpdates = async () => ({ status: "unavailable" }) }) {
   const CUSTOM_ICON_FILE = "custom-icon.png";
   const MAX_CUSTOM_ICON_BYTES = 10 * 1024 * 1024;
+  const shelfPreviewCache = new Map();
+  async function getShelfPreview(coordinator, id) {
+    const item = coordinator.getShelfItem(String(id || ""));
+    if (!item?.path || !item.available) return null;
+    if (shelfPreviewCache.has(item.id)) return shelfPreviewCache.get(item.id);
+    const pending = (async () => {
+      let image = null;
+      if (item.type !== "directory" && typeof electron.nativeImage.createThumbnailFromPath === "function") {
+        try {
+          image = await electron.nativeImage.createThumbnailFromPath(item.path, { width: 112, height: 112 });
+        } catch {}
+      }
+      if (!image || image.isEmpty()) {
+        const dataUrl = getFileIconDataUrl(item.path);
+        return typeof dataUrl === "string" && dataUrl.startsWith("data:image/png;base64,") && dataUrl.length <= 1024 * 1024
+          ? dataUrl
+          : null;
+      }
+      if (!image || image.isEmpty()) return null;
+      const size = image.getSize();
+      if (size.width > 112 || size.height > 112) image = image.resize({ width: 112, height: 112, quality: "best" });
+      const dataUrl = image.toDataURL();
+      return dataUrl.length <= 1024 * 1024 ? dataUrl : null;
+    })();
+    shelfPreviewCache.set(item.id, pending);
+    return pending;
+  }
+  async function listShelfShareProviders() {
+    try {
+      const providers = await getShareProviders();
+      return (Array.isArray(providers) ? providers : []).flatMap((provider) => {
+        const id = typeof provider?.id === "string" ? provider.id.trim().slice(0, 160) : "";
+        const nativeTitle = typeof provider?.title === "string" ? provider.title.trim().slice(0, 160) : id;
+        const title = QUICK_SHARE_PROVIDER_TITLES[id] || QUICK_SHARE_PROVIDER_TITLES[nativeTitle] || nativeTitle;
+        const iconDataUrl = typeof provider?.iconDataUrl === "string" && provider.iconDataUrl.startsWith("data:image/png;base64,") && provider.iconDataUrl.length <= 256 * 1024
+          ? provider.iconDataUrl
+          : "";
+        return id && title ? [{ id, title, iconDataUrl }] : [];
+      });
+    } catch {
+      return [];
+    }
+  }
+  function sharePathsViaQuickProvider(coordinator, parentWindow, paths) {
+    const availablePaths = [...new Set(Array.isArray(paths) ? paths : [])].filter((entry) => typeof entry === "string" && fs.existsSync(entry));
+    if (availablePaths.length === 0) return { ok: false, providerId: "", fallback: false };
+    const providerId = coordinator.getSettings().shelfQuickShareProvider || "AirDrop";
+    if (providerId !== "__system__" && shareFilesViaProvider(availablePaths, providerId)) {
+      return { ok: true, providerId, fallback: false };
+    }
+    const ok = Boolean(parentWindow && !parentWindow.isDestroyed() && showFilesSharePicker(parentWindow.getNativeWindowHandle(), availablePaths));
+    return { ok, providerId, fallback: ok };
+  }
   function getBundledIconPath() {
     return path.join(__dirname, "../../resources/icon.png");
   }
@@ -79,6 +141,13 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, checkF
     applyDockIcon(null);
     broadcastCustomIcon(null);
     return null;
+  }
+  async function selectDirectory(parentWindow) {
+    const result = await electron.dialog.showOpenDialog(parentWindow, {
+      title: "选择终端默认目录",
+      properties: ["openDirectory", "createDirectory"]
+    });
+    return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
   }
   const DEFAULT_SPRITE = "codex:qianxue";
   const LEGACY_DEFAULT_SPRITE = "orca.png";
@@ -201,6 +270,9 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, checkF
       }
       coordinator.updateSettings(partial, "settings");
     });
+    electron.ipcMain.handle(IPC.SETTINGS_SELECT_DIRECTORY, (event) => {
+      return selectDirectory(electron.BrowserWindow.fromWebContents(event.sender) ?? void 0);
+    });
     electron.ipcMain.handle(IPC.SETTINGS_GET_CODEX_PETS, () => {
       const bundled = Object.values(BUILT_IN_CODEX_PETS).map(({ spriteFile, ...pet }) => pet);
       const discovered = listCodexPets().filter((pet) => !BUILT_IN_CODEX_PETS[pet.id]);
@@ -292,6 +364,7 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, checkF
       return coordinator.actOnProcess(request);
     });
     electron.ipcMain.handle(IPC.SHELF_GET_STATE, () => coordinator.getShelfState());
+    electron.ipcMain.handle(IPC.SHELF_GET_PREVIEW, (_event, { id } = {}) => getShelfPreview(coordinator, id));
     electron.ipcMain.handle(IPC.SHELF_ADD_PATHS, (_event, { paths } = {}) => coordinator.addShelfPaths(paths));
     electron.ipcMain.handle(IPC.SHELF_ADD_PAYLOAD, (_event, payload) => coordinator.addShelfPayload(payload));
     electron.ipcMain.handle(IPC.SHELF_REMOVE, (_event, { ids } = {}) => coordinator.removeShelfItems(ids));
@@ -299,13 +372,57 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, checkF
     electron.ipcMain.handle(IPC.SHELF_OPEN, (_event, { id } = {}) => coordinator.openShelfItem(String(id || "")));
     electron.ipcMain.handle(IPC.SHELF_REVEAL, (_event, { id } = {}) => coordinator.revealShelfItem(String(id || "")));
     electron.ipcMain.handle(IPC.SHELF_QUICK_LOOK, (_event, { id } = {}) => coordinator.quickLookShelfItem(String(id || "")));
-    electron.ipcMain.handle(IPC.SHELF_START_DRAG, async (event, { id } = {}) => {
-      const item = coordinator.getShelfItem(String(id || ""));
-      if (!item?.path || !item.available) return false;
-      let icon = await electron.app.getFileIcon(item.path, { size: "small" });
+    const resolveShelfItems = (coordinator, ids) => [...new Set(Array.isArray(ids) ? ids : [])]
+      .map((id) => coordinator.getShelfItem(String(id || "")))
+      .filter(Boolean);
+    electron.ipcMain.handle(IPC.SHELF_START_DRAG, async (event, { ids } = {}) => {
+      const files = resolveShelfItems(coordinator, ids).filter((item) => item.path && item.available).map((item) => item.path);
+      if (files.length === 0) return false;
+      const iconDataUrl = getFileIconDataUrl(files[0]);
+      let icon = typeof iconDataUrl === "string" ? electron.nativeImage.createFromDataURL(iconDataUrl) : electron.nativeImage.createEmpty();
       if (icon.isEmpty()) icon = electron.nativeImage.createFromPath(getBundledIconPath()).resize({ width: 32, height: 32 });
-      event.sender.startDrag({ file: item.path, icon });
+      else icon = icon.resize({ width: 32, height: 32, quality: "best" });
+      event.sender.startDrag({ files, file: files[0], icon });
       return true;
+    });
+    electron.ipcMain.handle(IPC.SHELF_PASTE_FROM_CLIPBOARD, () => {
+      const paths = readPasteboardFileURLs();
+      if (Array.isArray(paths) && paths.length > 0) return coordinator.addShelfPaths(paths);
+      const text = electron.clipboard.readText().trim();
+      if (!text) return coordinator.getShelfState();
+      return coordinator.addShelfPayload({ type: /^https?:\/\//i.test(text) ? "url" : "text", value: text });
+    });
+    electron.ipcMain.handle(IPC.SHELF_COPY_ITEMS, (_event, { ids } = {}) => {
+      const items = resolveShelfItems(coordinator, ids);
+      const paths = items.filter((item) => item.path && item.available).map((item) => item.path);
+      if (paths.length > 0) return copyFilesToPasteboard(paths);
+      const text = items.map((item) => item.value || item.path || "").filter(Boolean).join("\n");
+      if (!text) return false;
+      electron.clipboard.writeText(text);
+      return true;
+    });
+    electron.ipcMain.handle(IPC.SHELF_SHARE_ITEMS, (event, { ids } = {}) => {
+      const paths = resolveShelfItems(coordinator, ids).filter((item) => item.path && item.available).map((item) => item.path);
+      if (paths.length === 0) return false;
+      const parent = electron.BrowserWindow.fromWebContents(event.sender);
+      return Boolean(parent && showFilesSharePicker(parent.getNativeWindowHandle(), paths));
+    });
+    electron.ipcMain.handle(IPC.SHELF_GET_SHARE_PROVIDERS, () => listShelfShareProviders());
+    electron.ipcMain.handle(IPC.SHELF_SET_QUICK_SHARE_PROVIDER, async (_event, { providerId } = {}) => {
+      const normalized = typeof providerId === "string" ? providerId.trim().slice(0, 160) : "";
+      const providers = await listShelfShareProviders();
+      if (!normalized || !providers.some((provider) => provider.id === normalized)) return false;
+      coordinator.updateSettings({ shelfQuickShareProvider: normalized }, "island");
+      return true;
+    });
+    electron.ipcMain.handle(IPC.SHELF_SHARE_VIA_DEFAULT, (event, { ids } = {}) => {
+      const paths = resolveShelfItems(coordinator, ids).filter((item) => item.path && item.available).map((item) => item.path);
+      return sharePathsViaQuickProvider(coordinator, electron.BrowserWindow.fromWebContents(event.sender), paths);
+    });
+    electron.ipcMain.handle(IPC.SHELF_GET_AIRDROP_ICON, () => getAirDropIconDataUrl());
+    electron.ipcMain.handle(IPC.SHELF_SHARE_AIRDROP, (_event, { ids } = {}) => {
+      const paths = resolveShelfItems(coordinator, ids).filter((item) => item.path && item.available).map((item) => item.path);
+      return paths.length > 0 && shareFilesViaAirDrop(paths);
     });
     electron.ipcMain.handle(IPC.CLIPBOARD_HISTORY_GET_STATE, () => coordinator.getClipboardHistory());
     electron.ipcMain.handle(IPC.CLIPBOARD_HISTORY_REPLAY, (_event, { id } = {}) => coordinator.replayClipboardEntry(String(id || "")));
@@ -461,7 +578,7 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, checkF
       return zipPath;
     });
   }
-  return { registerIpcHandlers, getCustomIconDataUrl, applyDockIcon };
+  return { registerIpcHandlers, getCustomIconDataUrl, applyDockIcon, sharePathsViaQuickProvider };
 }
 
 module.exports = { createIpcServices };

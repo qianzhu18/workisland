@@ -111,6 +111,7 @@ const DEFAULT_SETTINGS = {
   // Resource alerts are opt-in so a workstation dashboard never becomes noisy.
   performanceAlertsEnabled: false,
   fileShelfEnabled: true,
+  shelfQuickShareProvider: "AirDrop",
   // Clipboard history is opt-in because copied content can contain secrets.
   clipboardHistoryEnabled: false,
   clipboardHistoryLimit: 100,
@@ -262,6 +263,9 @@ function mergeSettings(parsed = {}) {
   merged.clipboardRetentionHours = allowedRetentionHours.has(parsed.clipboardRetentionHours)
     ? parsed.clipboardRetentionHours
     : DEFAULT_SETTINGS.clipboardRetentionHours;
+  merged.shelfQuickShareProvider = typeof parsed.shelfQuickShareProvider === "string" && parsed.shelfQuickShareProvider.trim().length > 0 && parsed.shelfQuickShareProvider.length <= 160
+    ? parsed.shelfQuickShareProvider.trim()
+    : DEFAULT_SETTINGS.shelfQuickShareProvider;
   merged.terminalDefaultDirectory = ["agent-project", "home", "custom"].includes(parsed.terminalDefaultDirectory)
     ? parsed.terminalDefaultDirectory
     : DEFAULT_SETTINGS.terminalDefaultDirectory;

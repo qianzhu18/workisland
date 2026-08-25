@@ -10,6 +10,7 @@ const IPC = Object.freeze({
   ISLAND_QUOTA_UPDATE: "island:quota-update",
   ISLAND_ENTER: "island:enter",
   ISLAND_LEAVE: "island:leave",
+  ISLAND_FILE_DRAG_STATE: "island:file-drag-state",
   ISLAND_OPEN_SETTINGS: "island:open-settings",
   ISLAND_OPEN_SETTINGS_TAB: "island:open-settings-tab",
   ISLAND_TOGGLE_SOUND: "island:toggle-sound",
@@ -40,7 +41,9 @@ const IPC = Object.freeze({
 
   SHELF_GET_STATE: "shelf:get-state",
   SHELF_STATE_UPDATE: "shelf:state-update",
+  SHELF_GET_PREVIEW: "shelf:get-preview",
   SHELF_ADD_PATHS: "shelf:add-paths",
+  SHELF_NATIVE_DROP_RESULT: "shelf:native-drop-result",
   SHELF_ADD_PAYLOAD: "shelf:add-payload",
   SHELF_REMOVE: "shelf:remove",
   SHELF_CLEAR: "shelf:clear",
@@ -48,6 +51,15 @@ const IPC = Object.freeze({
   SHELF_REVEAL: "shelf:reveal",
   SHELF_QUICK_LOOK: "shelf:quick-look",
   SHELF_START_DRAG: "shelf:start-drag",
+  SHELF_PASTE_FROM_CLIPBOARD: "shelf:paste-from-clipboard",
+  SHELF_COPY_ITEMS: "shelf:copy-items",
+  SHELF_SHARE_ITEMS: "shelf:share-items",
+  SHELF_GET_SHARE_PROVIDERS: "shelf:get-share-providers",
+  SHELF_SET_QUICK_SHARE_PROVIDER: "shelf:set-quick-share-provider",
+  SHELF_SHARE_VIA_DEFAULT: "shelf:share-via-default",
+  SHELF_GET_AIRDROP_ICON: "shelf:get-airdrop-icon",
+  SHELF_SHARE_AIRDROP: "shelf:share-airdrop",
+  SHELF_SHARE_DROP_BOUNDS: "shelf:share-drop-bounds",
 
   CLIPBOARD_HISTORY_GET_STATE: "clipboard-history:get-state",
   CLIPBOARD_HISTORY_UPDATE: "clipboard-history:update",
@@ -65,6 +77,8 @@ const IPC = Object.freeze({
   TERMINAL_RESTART: "terminal:restart",
   TERMINAL_STOP: "terminal:stop",
   TERMINAL_RUN_SAVED_COMMAND: "terminal:run-saved-command",
+
+  SETTINGS_SELECT_DIRECTORY: "settings:select-directory",
 
   PET_ENTER: "pet:enter",
   PET_LEAVE: "pet:leave",

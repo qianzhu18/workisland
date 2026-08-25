@@ -48,7 +48,16 @@ function createNativePlatformService({
     getScreenFullscreenState: (displayId) => call("getScreenFullscreenState", DEFAULT_FULLSCREEN_STATE, displayId),
     watchActiveSpace: (callback) => call("watchActiveSpace", undefined, callback),
     unwatchActiveSpace: () => call("unwatchActiveSpace", undefined),
-    setWindowCornerRadius: (handle, radius) => call("setWindowCornerRadius", undefined, handle, radius)
+    setWindowCornerRadius: (handle, radius) => call("setWindowCornerRadius", undefined, handle, radius),
+    setFileDropTarget: (handle, active, callback) => call("setFileDropTarget", undefined, handle, active, callback),
+    readPasteboardFileURLs: () => call("readPasteboardFileURLs", []),
+    copyFilesToPasteboard: (paths) => call("copyFilesToPasteboard", false, paths),
+    getFileIconDataUrl: (path) => call("getFileIconDataUrl", null, path),
+    getShareProviders: () => call("getShareProviders", Promise.resolve([])),
+    shareFilesViaProvider: (paths, providerId) => call("shareFilesViaProvider", false, paths, providerId),
+    showFilesSharePicker: (handle, paths) => call("showFilesSharePicker", false, handle, paths),
+    getAirDropIconDataUrl: () => call("getAirDropIconDataUrl", null),
+    shareFilesViaAirDrop: (paths) => call("shareFilesViaAirDrop", false, paths)
   });
 }
 

@@ -1,5 +1,11 @@
 "use strict";
 
+const {
+  createFileDropInteraction,
+  resolveDropProximityMouseMode
+} = require("./island-file-drop-interaction.cjs");
+const { isShelfShareDrop, normalizeShelfShareBounds } = require("./shelf-drop-routing.cjs");
+
 function createWindowClasses(dependencies) {
   const {
     electron,
@@ -9,6 +15,7 @@ function createWindowClasses(dependencies) {
     fixPanel,
     fixPetWindow,
     setWindowCornerRadius,
+    setFileDropTarget,
     log,
     isVisibleInIsland,
     getIsQuitting
@@ -25,6 +32,43 @@ function createWindowClasses(dependencies) {
     isPanelExpanded = false;
     shouldConcealAfterCloseAnimation = false;
     requestedHeight = ISLAND_HEIGHT;
+    dropProximityTimer = null;
+    dropProximityInteractive = false;
+    fileDropInteraction = createFileDropInteraction({
+      onExpire: () => {
+        if (!this.win || this.win.isDestroyed()) return;
+        setFileDropTarget(this.win.getNativeWindowHandle(), false);
+        this.syncDropProximityInteraction({ force: true });
+        log.warn("[IslandWindow] expired a stale file drag lock");
+      }
+    });
+    onNativeFileDrop = null;
+    onNativeFileShare = null;
+    shelfShareDropBounds = null;
+    handleNativeFileDrop = async (payload) => {
+      const paths = Array.isArray(payload?.paths) ? payload.paths : [];
+      let added = [];
+      let error = "";
+      let shared = false;
+      try {
+        if (isShelfShareDrop(payload, this.shelfShareDropBounds)) {
+          shared = await this.onNativeFileShare?.(paths) === true;
+          if (!shared) error = "快速分享暂时不可用";
+        } else {
+          added = await this.onNativeFileDrop?.(paths) || [];
+        }
+      } catch (dropError) {
+        error = dropError?.message || "文件读取失败";
+        log.error("[IslandWindow] native Finder drop failed:", dropError);
+      } finally {
+        this.fileDropInteraction.setActive(false);
+        if (!this.win.isDestroyed()) {
+          setFileDropTarget(this.win.getNativeWindowHandle(), false);
+          this.syncDropProximityInteraction({ force: true });
+          this.win.webContents.send(IPC.SHELF_NATIVE_DROP_RESULT, { addedCount: added.length, shared, error });
+        }
+      }
+    };
     handleIslandEnter = () => {
       if (this.shouldStayConcealed) {
         this.shouldConcealAfterCloseAnimation = false;
@@ -35,6 +79,10 @@ function createWindowClasses(dependencies) {
     };
     handleIslandLeave = () => {
       if (this.win.isDestroyed()) return;
+      if (!this.fileDropInteraction.shouldForwardMouseEventsOnLeave()) {
+        this.win.setIgnoreMouseEvents(false);
+        return;
+      }
       if (this._isFullscreenHidden || this._isFocusHidden) {
         // 处于隐藏态（全屏隐藏或焦点丢失隐藏）时，鼠标一旦离开就立即收敛到
         // 透明 hotspot。不再"等关闭动画"——旧逻辑在 panel 展开时只置
@@ -46,6 +94,18 @@ function createWindowClasses(dependencies) {
       } else {
         this.win.setIgnoreMouseEvents(true, { forward: true });
       }
+    };
+    handleFileDragState = (event, payload) => {
+      if (this.win.isDestroyed()) return;
+      if (event.sender !== this.win.webContents) return;
+      const active = payload?.active === true;
+      this.fileDropInteraction.setActive(active);
+      setFileDropTarget(this.win.getNativeWindowHandle(), active, this.handleNativeFileDrop);
+      this.syncDropProximityInteraction({ force: true });
+    };
+    handleShelfShareDropBounds = (event, bounds) => {
+      if (this.win.isDestroyed() || event.sender !== this.win.webContents) return;
+      this.shelfShareDropBounds = normalizeShelfShareBounds(bounds);
     };
     handleIslandResize = (event, payload) => {
       if (this.win.isDestroyed()) return;
@@ -66,8 +126,11 @@ function createWindowClasses(dependencies) {
       if (this.win.isDestroyed()) return;
       if (event.sender !== this.win.webContents) return;
       this.isPanelExpanded = false;
+      this.syncDropProximityInteraction({ force: true });
     };
     constructor(target, options = {}) {
+      this.onNativeFileDrop = options.onNativeFileDrop || null;
+      this.onNativeFileShare = options.onNativeFileShare || null;
       this.currentTarget = target;
       const { display, screenInfo } = target;
       const winX = display.bounds.x + Math.round((display.bounds.width - ISLAND_WIDTH) / 2);
@@ -133,9 +196,16 @@ function createWindowClasses(dependencies) {
         // expanded panel or the closed pill; both states must be hideable.
         options.onBlur?.(this);
       });
+      this.win.on("close", () => {
+        if (!this.win.isDestroyed()) setFileDropTarget(this.win.getNativeWindowHandle(), false);
+      });
       this.win.on("closed", () => {
+        if (this.dropProximityTimer) clearInterval(this.dropProximityTimer);
+        this.dropProximityTimer = null;
         electron.ipcMain.removeListener(IPC.ISLAND_ENTER, this.handleIslandEnter);
         electron.ipcMain.removeListener(IPC.ISLAND_LEAVE, this.handleIslandLeave);
+        electron.ipcMain.removeListener(IPC.ISLAND_FILE_DRAG_STATE, this.handleFileDragState);
+        electron.ipcMain.removeListener(IPC.SHELF_SHARE_DROP_BOUNDS, this.handleShelfShareDropBounds);
         electron.ipcMain.removeListener(IPC.ISLAND_RESIZE, this.handleIslandResize);
         electron.ipcMain.removeListener(IPC.ISLAND_PANEL_EXPANDED, this.handlePanelExpanded);
         electron.ipcMain.removeListener(IPC.ISLAND_PANEL_COLLAPSED, this.handlePanelCollapsed);
@@ -144,10 +214,13 @@ function createWindowClasses(dependencies) {
       });
       electron.ipcMain.on(IPC.ISLAND_ENTER, this.handleIslandEnter);
       electron.ipcMain.on(IPC.ISLAND_LEAVE, this.handleIslandLeave);
+      electron.ipcMain.on(IPC.ISLAND_FILE_DRAG_STATE, this.handleFileDragState);
+      electron.ipcMain.on(IPC.SHELF_SHARE_DROP_BOUNDS, this.handleShelfShareDropBounds);
       electron.ipcMain.on(IPC.ISLAND_RESIZE, this.handleIslandResize);
       electron.ipcMain.on(IPC.ISLAND_PANEL_EXPANDED, this.handlePanelExpanded);
       electron.ipcMain.on(IPC.ISLAND_PANEL_COLLAPSED, this.handlePanelCollapsed);
       electron.ipcMain.on(IPC.ISLAND_SYNC_CLOSED_WINDOW, this.handleSyncClosedWindow);
+      this.startDropProximityMonitor();
     }
     // ── Public API ─────────────────────────────────────────────────────────────
     get browserWindow() {
@@ -172,6 +245,34 @@ function createWindowClasses(dependencies) {
         width: pillWidth,
         height: notchH
       };
+    }
+    startDropProximityMonitor() {
+      if (this.dropProximityTimer) return;
+      this.dropProximityTimer = setInterval(() => {
+        this.syncDropProximityInteraction();
+      }, 50);
+      this.dropProximityTimer.unref?.();
+    }
+    syncDropProximityInteraction({ force = false } = {}) {
+      if (this.win.isDestroyed()) return;
+      const point = electron.screen.getCursorScreenPoint();
+      const pill = this.getPillRect();
+      const center = pill.x + pill.width / 2;
+      const pointerInside = point.x >= center - 150
+        && point.x <= center + 150
+        && point.y >= pill.y
+        && point.y <= pill.y + Math.max(72, pill.height + 34);
+      const mode = resolveDropProximityMouseMode({
+        fileDragActive: this.fileDropInteraction.isActive(),
+        panelExpanded: this.isPanelExpanded,
+        concealed: this.shouldStayConcealed,
+        pointerInside
+      });
+      if (mode === "preserve") return;
+      const interactive = mode === "interactive";
+      if (!force && interactive === this.dropProximityInteractive) return;
+      this.dropProximityInteractive = interactive;
+      this.win.setIgnoreMouseEvents(!interactive, interactive ? undefined : { forward: true });
     }
     /**
      * Enter or exit fullscreen-hidden mode.
