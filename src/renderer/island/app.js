@@ -102,6 +102,9 @@ const HOVER_OPEN_DELAY_MS = 200;
 const MOUSE_LEAVE_CLOSE_DELAY_MS = 300;
 const CLOSE_WINDOW_RESIZE_DELAY_MS = 300;
 const OPEN_WINDOW_SHADOW_MARGIN_PX = 32;
+function isToolboxInteractionFocused() {
+  return Boolean(document.activeElement?.closest?.(".toolbox-panel input, .toolbox-panel textarea, .terminal-host"));
+}
 function IslandApp() {
   useIslandState();
   const {
@@ -159,6 +162,13 @@ function IslandApp() {
   const [mediaTrackChangeNotifications, setMediaTrackChangeNotifications] = reactExports.useState(DEFAULT_SETTINGS.mediaTrackChangeNotifications);
   const [performanceEnabled, setPerformanceEnabled] = reactExports.useState(DEFAULT_SETTINGS.performanceEnabled);
   const [performanceAlertsEnabled, setPerformanceAlertsEnabled] = reactExports.useState(DEFAULT_SETTINGS.performanceAlertsEnabled);
+  const [fileShelfEnabled, setFileShelfEnabled] = reactExports.useState(DEFAULT_SETTINGS.fileShelfEnabled);
+  const [clipboardHistoryEnabled, setClipboardHistoryEnabled] = reactExports.useState(DEFAULT_SETTINGS.clipboardHistoryEnabled);
+  const [terminalEnabled, setTerminalEnabled] = reactExports.useState(DEFAULT_SETTINGS.terminalEnabled);
+  const [terminalSavedCommands, setTerminalSavedCommands] = reactExports.useState(DEFAULT_SETTINGS.terminalSavedCommands);
+  const [requestedToolboxModule, setRequestedToolboxModule] = reactExports.useState(null);
+  const [pillFileDragActive, setPillFileDragActive] = reactExports.useState(false);
+  const fileDropLatest = reactExports.useRef({ enabled: false, openShelf: () => {} });
   const [mediaState, setMediaState] = reactExports.useState({ active: false });
   const [performanceState, setPerformanceState] = reactExports.useState({ cpuPct: 0, memoryPct: 0, processes: [] });
   const [performanceAlert, setPerformanceAlert] = reactExports.useState("");
@@ -188,6 +198,10 @@ function IslandApp() {
       setMediaTrackChangeNotifications(s.mediaTrackChangeNotifications);
       setPerformanceEnabled(s.performanceEnabled);
       setPerformanceAlertsEnabled(s.performanceAlertsEnabled);
+      setFileShelfEnabled(s.fileShelfEnabled);
+      setClipboardHistoryEnabled(s.clipboardHistoryEnabled);
+      setTerminalEnabled(s.terminalEnabled);
+      setTerminalSavedCommands(s.terminalSavedCommands || []);
     });
     const offSettings = window.islandBridge?.onSettingsChanged((s) => {
       setAutoCollapseDurationMs(s.completionPopupDurationSec * 1e3);
@@ -199,6 +213,10 @@ function IslandApp() {
       setMediaTrackChangeNotifications(s.mediaTrackChangeNotifications);
       setPerformanceEnabled(s.performanceEnabled);
       setPerformanceAlertsEnabled(s.performanceAlertsEnabled);
+      setFileShelfEnabled(s.fileShelfEnabled);
+      setClipboardHistoryEnabled(s.clipboardHistoryEnabled);
+      setTerminalEnabled(s.terminalEnabled);
+      setTerminalSavedCommands(s.terminalSavedCommands || []);
     });
     return () => {
       offBurn?.();
@@ -312,17 +330,18 @@ function IslandApp() {
     const handleWindowBlur = () => {
       const followUpFocused = isFollowUpActiveRef.current
         && document.activeElement?.closest?.("[data-follow-up-input]");
+      const interactiveFocused = Boolean(followUpFocused) || isToolboxInteractionFocused();
       // 失焦即隐身——不再受 autoCollapseOnMouseLeave 开关阻断。该开关的旧语义
       // （收起成胶囊）与"完全隐身"诉求冲突：开关关闭时旧逻辑完全不隐藏，岛会
       // 常驻成黑胶囊。这里只要可见且非 follow-up 输入聚焦就隐身。
       const shouldCollapse = shouldCollapseOnFocusLoss({
         isVisible: mounted,
         enabled: true,
-        followUpFocused
+        followUpFocused: interactiveFocused
       });
       if (!shouldCollapse) {
         focusLossHandledRef.current = false;
-        if (followUpFocused) pendingFollowUpDismissRef.current = true;
+        if (interactiveFocused) pendingFollowUpDismissRef.current = true;
         return;
       }
       // Electron's native blur and the DOM blur can arrive for the same focus
@@ -450,7 +469,7 @@ function IslandApp() {
   reactExports.useEffect(() => {
     if (!surface) return;
     if (openReason !== "notification" || !notificationAutoDismiss) return;
-    if (isFollowUpActiveRef.current) return;
+    if (isFollowUpActiveRef.current || isToolboxInteractionFocused()) return;
     if (autoCollapseTimer.current) clearTimeout(autoCollapseTimer.current);
     autoCollapseTimer.current = setTimeout(() => {
       autoCollapseTimer.current = null;
@@ -596,7 +615,7 @@ function IslandApp() {
     // 鼠标离开后收成默认胶囊，保持左侧角色可见。
     if (!isOpen) return;
     const isFollowUpFocused = isFollowUpActiveRef.current && document.hasFocus() && document.activeElement?.closest("[data-follow-up-input]");
-    if (isFollowUpFocused) {
+    if (isFollowUpFocused || isToolboxInteractionFocused()) {
       pendingFollowUpDismissRef.current = true;
       return;
     }
@@ -618,6 +637,113 @@ function IslandApp() {
     if (!surface) presentSurface({ type: "sessionList" }, "click");
     open();
   }, [open, presentSurface, surface]);
+  fileDropLatest.current = {
+    enabled: fileShelfEnabled,
+    openShelf: () => {
+      setRequestedToolboxModule({ id: "shelf", nonce: Date.now() });
+      handlePillClick();
+    }
+  };
+  reactExports.useEffect(() => {
+    let dragExitTimer = null;
+    const hasFiles = (event) => Array.from(event.dataTransfer?.types || []).includes("Files");
+    const onDragEnter = (event) => {
+      if (!fileDropLatest.current.enabled || !hasFiles(event)) return;
+      if (dragExitTimer) {
+        clearTimeout(dragExitTimer);
+        dragExitTimer = null;
+      }
+      event.preventDefault();
+      setPillFileDragActive(true);
+      window.islandBridge?.setFileDragActive?.(true);
+      fileDropLatest.current.openShelf();
+    };
+    const onDragOver = (event) => {
+      if (!fileDropLatest.current.enabled || !hasFiles(event)) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "copy";
+    };
+    const onDrop = async (event) => {
+      // Always clear first: the drop target may have changed while the Island
+      // expanded, but the collapsed pill must never retain its green state.
+      setPillFileDragActive(false);
+      window.islandBridge?.setFileDragActive?.(false);
+      if (!fileDropLatest.current.enabled || !hasFiles(event)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const internalShelfValue = event.dataTransfer.getData("application/x-workisland-shelf-id");
+      if (internalShelfValue && event.target?.closest?.(".shelf-share-zone")) {
+        let shared = false;
+        let error = "";
+        try {
+          let ids;
+          try { ids = JSON.parse(internalShelfValue); } catch { ids = [internalShelfValue]; }
+          const result = await window.islandBridge?.shareShelfItemsViaDefault?.(Array.isArray(ids) ? ids : [ids]);
+          shared = result?.ok === true;
+          if (!shared) error = "系统分享暂时不可用";
+        } catch (shareError) {
+          error = shareError?.message || "系统分享暂时不可用";
+        }
+        window.dispatchEvent(new CustomEvent("workisland:shelf-drop-result", { detail: { addedCount: 0, shared, error } }));
+        return;
+      }
+      const files = Array.from(event.dataTransfer.files || []);
+      for (const item of Array.from(event.dataTransfer.items || [])) {
+        if (item.kind !== "file") continue;
+        const file = item.getAsFile?.();
+        if (file && !files.includes(file)) files.push(file);
+      }
+      const uriList = event.dataTransfer.getData("text/uri-list") || event.dataTransfer.getData("text/plain");
+      let added = [];
+      let error = "";
+      try {
+        added = await window.islandBridge?.addShelfDrop?.(files, uriList) || [];
+      } catch (dropError) {
+        error = dropError?.message || "文件读取失败";
+      }
+      window.dispatchEvent(new CustomEvent("workisland:shelf-drop-result", {
+        detail: { addedCount: added.length, error }
+      }));
+      if (added.length) {
+        fileDropLatest.current.openShelf();
+      }
+    };
+    const resetDragState = () => {
+      setPillFileDragActive(false);
+      window.islandBridge?.setFileDragActive?.(false);
+    };
+    const stopNativeDropListener = window.islandBridge?.onNativeShelfDropResult?.((result) => {
+      resetDragState();
+      const addedCount = Number(result?.addedCount || 0);
+      window.dispatchEvent(new CustomEvent("workisland:shelf-drop-result", {
+        detail: { addedCount, shared: result?.shared === true, error: result?.error || "" }
+      }));
+      if (addedCount > 0 || result?.shared === true) fileDropLatest.current.openShelf();
+    });
+    const onDragLeave = (event) => {
+      if (event.relatedTarget != null) return;
+      if (dragExitTimer) clearTimeout(dragExitTimer);
+      // Expansion can briefly report a null relatedTarget while Finder still
+      // owns the drag. Delay unlock so the new shelf surface can receive drop.
+      dragExitTimer = setTimeout(resetDragState, 350);
+    };
+    // Capture-phase listeners stay mounted for the whole renderer lifetime.
+    // This prevents Electron/macOS from losing drop when expansion replaces
+    // the element underneath the cursor during an active Finder drag.
+    document.addEventListener("dragenter", onDragEnter, true);
+    document.addEventListener("dragover", onDragOver, true);
+    document.addEventListener("dragleave", onDragLeave, true);
+    document.addEventListener("drop", onDrop, true);
+    return () => {
+      if (dragExitTimer) clearTimeout(dragExitTimer);
+      document.removeEventListener("dragenter", onDragEnter, true);
+      document.removeEventListener("dragover", onDragOver, true);
+      document.removeEventListener("dragleave", onDragLeave, true);
+      document.removeEventListener("drop", onDrop, true);
+      window.islandBridge?.setFileDragActive?.(false);
+      stopNativeDropListener?.();
+    };
+  }, []);
   const handlePetButtonClick = reactExports.useCallback((event) => {
     event.stopPropagation();
     if (hoverOpenTimer.current) {
@@ -701,7 +827,7 @@ function IslandApp() {
       /* @__PURE__ */ React.createElement(
         "div",
         {
-          className: `island-pill-layer${isOpen ? " is-hidden" : ""}`,
+          className: `island-pill-layer${isOpen ? " is-hidden" : ""}${pillFileDragActive ? " is-file-drop-target" : ""}`,
           style: { width: pillWidth, height: notchH }
         },
         /* @__PURE__ */ React.createElement(
@@ -745,6 +871,11 @@ function IslandApp() {
             mediaEnabled,
             performanceState,
             performanceEnabled,
+            fileShelfEnabled,
+            clipboardHistoryEnabled,
+            terminalEnabled,
+            terminalSavedCommands,
+            requestedToolboxModule,
             onSessionRowClick: handleSessionRowClick,
             onOpenSettings: handleOpenSettings,
             onOpenAbout: handleOpenAbout,

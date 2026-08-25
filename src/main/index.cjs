@@ -70,6 +70,15 @@ const {
   getFrontmostAppDisplayId,
   getScreenFullscreenState,
   performHapticFeedback,
+  readPasteboardFileURLs,
+  copyFilesToPasteboard,
+  getFileIconDataUrl,
+  getShareProviders,
+  shareFilesViaProvider,
+  showFilesSharePicker,
+  getAirDropIconDataUrl,
+  shareFilesViaAirDrop,
+  setFileDropTarget,
   setWindowCornerRadius,
   unwatchActiveSpace,
   unwatchFrontmostApp,
@@ -102,6 +111,7 @@ const {
   fixPanel,
   fixPetWindow,
   setWindowCornerRadius,
+  setFileDropTarget,
   log,
   isVisibleInIsland,
   getIsQuitting: () => isQuitting
@@ -625,8 +635,16 @@ const AppCoordinator = createAppCoordinatorClass({
 const { createIpcServices } = require("./ipc-services.cjs");
 let updateService = null;
 let telemetryService = null;
-const { registerIpcHandlers, getCustomIconDataUrl, applyDockIcon } = createIpcServices({
+const { registerIpcHandlers, getCustomIconDataUrl, applyDockIcon, sharePathsViaQuickProvider } = createIpcServices({
   performHapticFeedback,
+  readPasteboardFileURLs,
+  copyFilesToPasteboard,
+  getFileIconDataUrl,
+  getShareProviders,
+  shareFilesViaProvider,
+  showFilesSharePicker,
+  getAirDropIconDataUrl,
+  shareFilesViaAirDrop,
   isAllowedExternalUrl,
   checkForUpdates: (options) => updateService?.check(options) ?? Promise.resolve({ status: "unavailable" })
 });
@@ -833,6 +851,8 @@ async function runIslandApp() {
     log.info("[main] creating IslandWindow...");
     try {
       const iw = new IslandWindow(target, {
+        onNativeFileDrop: (paths) => coordinator.addShelfPaths(paths),
+        onNativeFileShare: (paths) => sharePathsViaQuickProvider(coordinator, iw.browserWindow, paths).ok,
         onBlur: (islandWindow) => {
           const browserWindow = islandWindow.browserWindow;
           if (browserWindow.isDestroyed() || browserWindow.webContents.isDestroyed()) return;

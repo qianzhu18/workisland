@@ -1,6 +1,7 @@
 "use strict";
 const electron = require("electron");
 const ipc = require("../../src/shared/ipc.cjs");
+const { parseFileUriList } = require("../../src/shared/shelf-drop-paths.cjs");
 const DEFAULT_NOTCH_INFO = {
   hasNotch: false,
   screenWidth: 0,
@@ -68,6 +69,26 @@ electron.contextBridge.exposeInMainWorld("islandBridge", {
     electron.ipcRenderer.on(ipc.IPC.PERFORMANCE_STATE_UPDATE, handler);
     return () => electron.ipcRenderer.off(ipc.IPC.PERFORMANCE_STATE_UPDATE, handler);
   },
+  onShelfUpdate(cb) {
+    const handler = (_event, state) => cb(state);
+    electron.ipcRenderer.on(ipc.IPC.SHELF_STATE_UPDATE, handler);
+    return () => electron.ipcRenderer.off(ipc.IPC.SHELF_STATE_UPDATE, handler);
+  },
+  onClipboardHistoryUpdate(cb) {
+    const handler = (_event, state) => cb(state);
+    electron.ipcRenderer.on(ipc.IPC.CLIPBOARD_HISTORY_UPDATE, handler);
+    return () => electron.ipcRenderer.off(ipc.IPC.CLIPBOARD_HISTORY_UPDATE, handler);
+  },
+  onTerminalStatus(cb) {
+    const handler = (_event, state) => cb(state);
+    electron.ipcRenderer.on(ipc.IPC.TERMINAL_STATUS_UPDATE, handler);
+    return () => electron.ipcRenderer.off(ipc.IPC.TERMINAL_STATUS_UPDATE, handler);
+  },
+  onTerminalData(cb) {
+    const handler = (_event, data) => cb(data);
+    electron.ipcRenderer.on(ipc.IPC.TERMINAL_DATA, handler);
+    return () => electron.ipcRenderer.off(ipc.IPC.TERMINAL_DATA, handler);
+  },
   onWindowBlur(cb) {
     const handler = () => cb();
     electron.ipcRenderer.on(ipc.IPC.ISLAND_WINDOW_BLUR, handler);
@@ -79,6 +100,14 @@ electron.contextBridge.exposeInMainWorld("islandBridge", {
   },
   leaveIsland() {
     electron.ipcRenderer.send(ipc.IPC.ISLAND_LEAVE);
+  },
+  setFileDragActive(active) {
+    electron.ipcRenderer.send(ipc.IPC.ISLAND_FILE_DRAG_STATE, { active: active === true });
+  },
+  onNativeShelfDropResult(cb) {
+    const handler = (_event, result) => cb(result);
+    electron.ipcRenderer.on(ipc.IPC.SHELF_NATIVE_DROP_RESULT, handler);
+    return () => electron.ipcRenderer.off(ipc.IPC.SHELF_NATIVE_DROP_RESULT, handler);
   },
   panelExpanded() {
     electron.ipcRenderer.send(ipc.IPC.ISLAND_PANEL_EXPANDED);
@@ -206,6 +235,55 @@ electron.contextBridge.exposeInMainWorld("islandBridge", {
       action: action === "force" ? "force" : "terminate"
     });
   },
+  getShelfState() { return electron.ipcRenderer.invoke(ipc.IPC.SHELF_GET_STATE); },
+  getShelfPreview(id) { return electron.ipcRenderer.invoke(ipc.IPC.SHELF_GET_PREVIEW, { id: String(id || "") }); },
+  addShelfFiles(files) {
+    const paths = Array.from(files || [], (file) => electron.webUtils.getPathForFile(file)).filter(Boolean);
+    return electron.ipcRenderer.invoke(ipc.IPC.SHELF_ADD_PATHS, { paths });
+  },
+  addShelfDrop(files, uriList) {
+    const paths = [
+      ...Array.from(files || [], (file) => electron.webUtils.getPathForFile(file)).filter(Boolean),
+      ...parseFileUriList(uriList)
+    ];
+    return electron.ipcRenderer.invoke(ipc.IPC.SHELF_ADD_PATHS, { paths: [...new Set(paths)] });
+  },
+  addShelfPayload(payload) { return electron.ipcRenderer.invoke(ipc.IPC.SHELF_ADD_PAYLOAD, payload); },
+  removeShelfItems(ids) { return electron.ipcRenderer.invoke(ipc.IPC.SHELF_REMOVE, { ids }); },
+  clearShelf() { return electron.ipcRenderer.invoke(ipc.IPC.SHELF_CLEAR); },
+  openShelfItem(id) { return electron.ipcRenderer.invoke(ipc.IPC.SHELF_OPEN, { id }); },
+  revealShelfItem(id) { return electron.ipcRenderer.invoke(ipc.IPC.SHELF_REVEAL, { id }); },
+  quickLookShelfItem(id) { return electron.ipcRenderer.invoke(ipc.IPC.SHELF_QUICK_LOOK, { id }); },
+  startShelfDrag(ids) {
+    const normalized = (Array.isArray(ids) ? ids : [ids]).map((id) => String(id || "")).filter(Boolean);
+    return electron.ipcRenderer.invoke(ipc.IPC.SHELF_START_DRAG, { ids: normalized });
+  },
+  pasteShelfFromClipboard() { return electron.ipcRenderer.invoke(ipc.IPC.SHELF_PASTE_FROM_CLIPBOARD); },
+  copyShelfItems(ids) { return electron.ipcRenderer.invoke(ipc.IPC.SHELF_COPY_ITEMS, { ids: Array.from(ids || [], String) }); },
+  shareShelfItems(ids) { return electron.ipcRenderer.invoke(ipc.IPC.SHELF_SHARE_ITEMS, { ids: Array.from(ids || [], String) }); },
+  getShelfShareProviders() { return electron.ipcRenderer.invoke(ipc.IPC.SHELF_GET_SHARE_PROVIDERS); },
+  setShelfQuickShareProvider(providerId) { return electron.ipcRenderer.invoke(ipc.IPC.SHELF_SET_QUICK_SHARE_PROVIDER, { providerId: String(providerId || "") }); },
+  shareShelfItemsViaDefault(ids) { return electron.ipcRenderer.invoke(ipc.IPC.SHELF_SHARE_VIA_DEFAULT, { ids: Array.from(ids || [], String) }); },
+  getAirDropIcon() { return electron.ipcRenderer.invoke(ipc.IPC.SHELF_GET_AIRDROP_ICON); },
+  shareShelfItemViaAirDrop(ids) {
+    const normalized = (Array.isArray(ids) ? ids : [ids]).map((id) => String(id || "")).filter(Boolean);
+    return electron.ipcRenderer.invoke(ipc.IPC.SHELF_SHARE_AIRDROP, { ids: normalized });
+  },
+  setShelfShareDropBounds(bounds) {
+    electron.ipcRenderer.send(ipc.IPC.SHELF_SHARE_DROP_BOUNDS, bounds || null);
+  },
+  getClipboardHistory() { return electron.ipcRenderer.invoke(ipc.IPC.CLIPBOARD_HISTORY_GET_STATE); },
+  replayClipboardEntry(id) { return electron.ipcRenderer.invoke(ipc.IPC.CLIPBOARD_HISTORY_REPLAY, { id }); },
+  favoriteClipboardEntry(id, favorite) { return electron.ipcRenderer.invoke(ipc.IPC.CLIPBOARD_HISTORY_FAVORITE, { id, favorite: Boolean(favorite) }); },
+  removeClipboardEntries(ids) { return electron.ipcRenderer.invoke(ipc.IPC.CLIPBOARD_HISTORY_REMOVE, { ids }); },
+  clearClipboardHistory() { return electron.ipcRenderer.invoke(ipc.IPC.CLIPBOARD_HISTORY_CLEAR); },
+  getTerminalState() { return electron.ipcRenderer.invoke(ipc.IPC.TERMINAL_GET_STATE); },
+  startTerminal(options = {}) { return electron.ipcRenderer.invoke(ipc.IPC.TERMINAL_START, options); },
+  sendTerminalInput(data) { return electron.ipcRenderer.invoke(ipc.IPC.TERMINAL_INPUT, { data: String(data || "") }); },
+  resizeTerminal(cols, rows) { return electron.ipcRenderer.invoke(ipc.IPC.TERMINAL_RESIZE, { cols: Number(cols), rows: Number(rows) }); },
+  restartTerminal(options = {}) { return electron.ipcRenderer.invoke(ipc.IPC.TERMINAL_RESTART, options); },
+  stopTerminal() { return electron.ipcRenderer.invoke(ipc.IPC.TERMINAL_STOP); },
+  runSavedTerminalCommand(id) { return electron.ipcRenderer.invoke(ipc.IPC.TERMINAL_RUN_SAVED_COMMAND, { id: String(id || "") }); },
   // Plugin meta：renderer 缓存供 AgentToolBadge 等做 label/badgeColor 兜底。
   getPluginAgentMeta() {
     return electron.ipcRenderer.invoke(ipc.IPC.PLUGIN_AGENT_META);
