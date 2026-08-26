@@ -121,6 +121,7 @@ const DEFAULT_SETTINGS = {
   terminalDefaultDirectory: "agent-project",
   terminalCustomDirectory: "",
   terminalSavedCommands: [],
+  toolboxReopenMode: "agent",
   showUsageQuota: true,
   usageDisplayValue: "used",
   disableClaudeTerminalTitle: true,
@@ -286,6 +287,9 @@ function mergeSettings(parsed = {}) {
         return [{ id, name, command, cwdMode }];
       })
     : [];
+  merged.toolboxReopenMode = ["agent", "last"].includes(parsed.toolboxReopenMode)
+    ? parsed.toolboxReopenMode
+    : DEFAULT_SETTINGS.toolboxReopenMode;
 
   return merged;
 }

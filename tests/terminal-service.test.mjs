@@ -52,8 +52,8 @@ test("invalid project directory falls back to home", () => {
   assert.equal(resolveTerminalCwd({ projectCwd: "/missing", homeDir: "/home", pathExists: value => value === "/home" }), "/home");
 });
 
-test("built-in quick commands resolve by ID without accepting renderer command text", () => {
-  assert.equal(resolveTerminalCommand("git-status", []).command, "git status --short --branch");
+test("only user-saved quick commands resolve by ID without accepting renderer command text", () => {
+  assert.equal(resolveTerminalCommand("git-status", []), null);
   assert.equal(resolveTerminalCommand("unknown", []), null);
   assert.equal(resolveTerminalCommand("custom", [{ id: "custom", name: "Lint", command: "npm run lint", cwdMode: "agent-project" }]).command, "npm run lint");
 });

@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   enabledToolboxModules,
   reduceToolboxState,
+  resolveToolboxReopenModule,
   selectToolboxModule
 } from "../src/renderer/island/components/productivity-toolbox-model.mjs";
 
@@ -12,6 +13,13 @@ test("only enabled utility modules appear after Agent", () => {
     clipboardHistoryEnabled: false,
     terminalEnabled: true
   }), ["agent", "shelf", "terminal"]);
+});
+
+test("reopen policy changes only the presented toolbox module", () => {
+  const enabled = ["agent", "shelf", "terminal"];
+  assert.equal(resolveToolboxReopenModule({ mode: "agent", lastModule: "terminal", enabled }), "agent");
+  assert.equal(resolveToolboxReopenModule({ mode: "last", lastModule: "terminal", enabled }), "terminal");
+  assert.equal(resolveToolboxReopenModule({ mode: "last", lastModule: "clipboard", enabled }), "agent");
 });
 
 test("attention always returns the toolbox to Agent", () => {

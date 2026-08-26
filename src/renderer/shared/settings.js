@@ -132,6 +132,7 @@ const DEFAULT_SETTINGS = {
   terminalDefaultDirectory: "agent-project",
   terminalCustomDirectory: "",
   terminalSavedCommands: [],
+  toolboxReopenMode: "agent",
   showUsageQuota: true,
   usageDisplayValue: "used",
   disableClaudeTerminalTitle: true,

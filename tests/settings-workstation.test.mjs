@@ -12,6 +12,12 @@ test("workstation features default to useful, privacy-conscious behavior", () =>
   assert.equal(settings.DEFAULT_SETTINGS.terminalEnabled, true);
   assert.equal(settings.DEFAULT_SETTINGS.clipboardHistoryLimit, 100);
   assert.equal(settings.DEFAULT_SETTINGS.clipboardRetentionHours, 24);
+  assert.equal(settings.DEFAULT_SETTINGS.toolboxReopenMode, "agent");
+});
+
+test("toolbox reopen preference defaults safely and preserves supported choices", () => {
+  assert.equal(settings.mergeSettings({ toolboxReopenMode: "last" }).toolboxReopenMode, "last");
+  assert.equal(settings.mergeSettings({ toolboxReopenMode: "unknown" }).toolboxReopenMode, "agent");
 });
 
 test("persisted workstation preferences survive settings merge", () => {

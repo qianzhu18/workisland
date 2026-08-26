@@ -68,7 +68,6 @@ export function ShelfPanel() {
   const finishShelfDrag = React.useCallback(() => {
     setDragging(false);
     setShareTargeted(false);
-    window.islandBridge?.setFileDragActive?.(false);
   }, []);
 
   React.useEffect(() => {
@@ -305,11 +304,12 @@ export function ShelfPanel() {
           draggable: Boolean(item.path && item.available),
           onClick: (event) => selectItem(event, item, index),
           onDragStart: (event) => {
+            // Electron's native file drag replaces Chromium's HTML drag session.
+            // Letting both run at once can strand the transparent window in a
+            // native drag state where it no longer receives pointer events.
+            event.preventDefault();
             const dragIds = selectedIds.has(item.id) ? selectedArray : [item.id];
             if (!selectedIds.has(item.id)) { setSelectedIds(new Set([item.id])); setAnchorIndex(index); }
-            event.dataTransfer.setData(INTERNAL_SHELF_DRAG, JSON.stringify(dragIds));
-            event.dataTransfer.effectAllowed = "copy";
-            window.islandBridge?.setFileDragActive?.(true);
             Promise.resolve(window.islandBridge.startShelfDrag(dragIds)).finally(finishShelfDrag);
           },
           onDragEnd: finishShelfDrag,

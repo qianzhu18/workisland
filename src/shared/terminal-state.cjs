@@ -37,14 +37,9 @@ function resolveRecentProjectCwd(sessions = [], pathExists = () => false) {
     .sort((left, right) => Number(right.updatedAt || 0) - Number(left.updatedAt || 0))[0]?.cwd || "";
 }
 
-const BUILT_IN_TERMINAL_COMMANDS = Object.freeze([
-  Object.freeze({ id: "git-status", name: "查看 Git 状态", command: "git status --short --branch", cwdMode: "agent-project" }),
-  Object.freeze({ id: "project-tests", name: "运行项目测试", command: "npm test", cwdMode: "agent-project" })
-]);
-
 function resolveTerminalCommand(id, savedCommands = []) {
-  const normalized = [...BUILT_IN_TERMINAL_COMMANDS, ...savedCommands.map(normalizeSavedCommand).filter(Boolean)];
+  const normalized = savedCommands.map(normalizeSavedCommand).filter(Boolean);
   return normalized.find((entry) => entry.id === id) || null;
 }
 
-module.exports = { BUILT_IN_TERMINAL_COMMANDS, normalizeSavedCommand, normalizeTerminalSize, resolveRecentProjectCwd, resolveTerminalCommand, resolveTerminalCwd };
+module.exports = { normalizeSavedCommand, normalizeTerminalSize, resolveRecentProjectCwd, resolveTerminalCommand, resolveTerminalCwd };

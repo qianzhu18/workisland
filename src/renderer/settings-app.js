@@ -325,7 +325,7 @@ function generalPage() {
       toggle(state.settings.terminalEnabled, v => save({ terminalEnabled: v }), "快捷终端"),
       () => [
         row("默认目录", "优先使用当前 Agent 项目；也可以固定到用户目录或任意文件夹。", terminalDirectoryControl()),
-        row("快捷命令", "添加常用命令后，可以从灵动岛一键运行。命令只保存在本机。", savedCommandsControl())
+        row("快捷命令", "添加常用命令后，可以从灵动岛一键运行，例如 git status、npm test 或启动开发服务；示例不会自动添加，命令只保存在本机。", savedCommandsControl())
       ]
     )
   );
@@ -334,6 +334,16 @@ function generalPage() {
     row("登录时启动", "开机登录后自动启动 WorkIsland。", toggle(state.settings.launchAtLogin, v => save({ launchAtLogin: v }), "登录时启动")),
     row("悬停展开", "鼠标停留在 Island 上时展开面板。", toggle(state.settings.hoverToOpen, v => save({ hoverToOpen: v }), "悬停展开")),
     row("失去焦点后隐藏", "失去窗口焦点后隐藏 Island；鼠标移到顶部热区可恢复。", toggle(state.settings.autoCollapseOnMouseLeave, v => save({ autoCollapseOnMouseLeave: v }), "失去焦点后隐藏")),
+    row(
+      "重新展开时",
+      "只决定先显示哪个页面；文件架、剪贴板和终端状态都会继续保留。",
+      select(
+        state.settings.toolboxReopenMode === "last" ? "last" : "agent",
+        [["agent", "智能体主页（默认）"], ["last", "上次使用的工具"]],
+        v => save({ toolboxReopenMode: v }),
+        "重新展开时显示的页面"
+      )
+    ),
     row("全屏时隐藏", "全屏应用位于当前屏幕时隐藏 Island。", toggle(state.settings.hideWhenFullscreen, v => save({ hideWhenFullscreen: v }), "全屏时隐藏")),
     row(
       "Island 显示模式",

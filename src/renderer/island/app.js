@@ -4,6 +4,7 @@ import { r as reactExports, R as React, a as ReactDOM } from "../vendor/react-ru
 import { D as DEFAULT_NOTCH_INFO, r as requiresAttention, d as dominantPhase, I as IslandPill, g as getIslandClipShape, a as getIslandMaxBodyWidth } from "./components/IslandPill.js";
 import { c as create } from "../vendor/store.js";
 import { I as IslandPanel } from "./components/IslandPanel.js";
+import { enabledToolboxModules, resolveToolboxReopenModule } from "./components/productivity-toolbox-model.mjs";
 import { isVisibleInIsland } from "./session-model.mjs";
 import { resolveFocusLossPresentation, shouldCollapseOnFocusLoss } from "./focus-policy.mjs";
 const useSessionStore = create((set) => ({
@@ -169,6 +170,7 @@ function IslandApp() {
   const [clipboardHistoryEnabled, setClipboardHistoryEnabled] = reactExports.useState(DEFAULT_SETTINGS.clipboardHistoryEnabled);
   const [terminalEnabled, setTerminalEnabled] = reactExports.useState(DEFAULT_SETTINGS.terminalEnabled);
   const [terminalSavedCommands, setTerminalSavedCommands] = reactExports.useState(DEFAULT_SETTINGS.terminalSavedCommands);
+  const [toolboxReopenMode, setToolboxReopenMode] = reactExports.useState(DEFAULT_SETTINGS.toolboxReopenMode);
   const [requestedToolboxModule, setRequestedToolboxModule] = reactExports.useState(null);
   const [pillFileDragActive, setPillFileDragActive] = reactExports.useState(false);
   const fileDropLatest = reactExports.useRef({ enabled: false, openShelf: () => {} });
@@ -205,6 +207,7 @@ function IslandApp() {
       setClipboardHistoryEnabled(s.clipboardHistoryEnabled);
       setTerminalEnabled(s.terminalEnabled);
       setTerminalSavedCommands(s.terminalSavedCommands || []);
+      setToolboxReopenMode(s.toolboxReopenMode || "agent");
     });
     const offSettings = window.islandBridge?.onSettingsChanged((s) => {
       setAutoCollapseDurationMs(s.completionPopupDurationSec * 1e3);
@@ -220,6 +223,7 @@ function IslandApp() {
       setClipboardHistoryEnabled(s.clipboardHistoryEnabled);
       setTerminalEnabled(s.terminalEnabled);
       setTerminalSavedCommands(s.terminalSavedCommands || []);
+      setToolboxReopenMode(s.toolboxReopenMode || "agent");
     });
     return () => {
       offBurn?.();
@@ -329,47 +333,6 @@ function IslandApp() {
         clearTimeout(collapsePanelToPillTimerRef.current);
     };
   }, []);
-  reactExports.useEffect(() => {
-    const handleWindowBlur = () => {
-      const followUpFocused = isFollowUpActiveRef.current
-        && document.activeElement?.closest?.("[data-follow-up-input]");
-      const interactiveFocused = Boolean(followUpFocused) || isToolboxInteractionFocused();
-      // 失焦即隐身——不再受 autoCollapseOnMouseLeave 开关阻断。该开关的旧语义
-      // （收起成胶囊）与"完全隐身"诉求冲突：开关关闭时旧逻辑完全不隐藏，岛会
-      // 常驻成黑胶囊。这里只要可见且非 follow-up 输入聚焦就隐身。
-      const shouldCollapse = shouldCollapseOnFocusLoss({
-        isVisible: mounted,
-        enabled: true,
-        followUpFocused: interactiveFocused
-      });
-      if (!shouldCollapse) {
-        focusLossHandledRef.current = false;
-        if (interactiveFocused) pendingFollowUpDismissRef.current = true;
-        return;
-      }
-      // Electron's native blur and the DOM blur can arrive for the same focus
-      // transition; collapse once to avoid duplicate surface acknowledgements.
-      if (focusLossHandledRef.current) return;
-      focusLossHandledRef.current = true;
-      pendingFollowUpDismissRef.current = false;
-      if (resolveFocusLossPresentation({ isVisible: mounted, followUpFocused }) !== "pill") return;
-      // 普通失焦只收成默认胶囊，保持左侧角色可见。
-      clearSurface();
-      close();
-      window.islandBridge?.surfaceDismissed();
-    };
-    const handleWindowFocus = () => {
-      focusLossHandledRef.current = false;
-    };
-    window.addEventListener("blur", handleWindowBlur);
-    window.addEventListener("workisland-window-blur", handleWindowBlur);
-    window.addEventListener("focus", handleWindowFocus);
-    return () => {
-      window.removeEventListener("blur", handleWindowBlur);
-      window.removeEventListener("workisland-window-blur", handleWindowBlur);
-      window.removeEventListener("focus", handleWindowFocus);
-    };
-  }, [close, clearSurface, mounted]);
   const collapsePanelToPill = reactExports.useCallback(() => {
     if (mouseLeaveCloseTimer.current) {
       clearTimeout(mouseLeaveCloseTimer.current);
@@ -391,11 +354,55 @@ function IslandApp() {
       clearTimeout(collapsePanelToPillTimerRef.current);
       collapsePanelToPillTimerRef.current = null;
     }
+    const enabledModules = enabledToolboxModules({ fileShelfEnabled, clipboardHistoryEnabled, terminalEnabled });
+    const nextModule = resolveToolboxReopenModule({
+      mode: toolboxReopenMode,
+      lastModule: activeModuleRef.current,
+      enabled: enabledModules
+    });
+    setRequestedToolboxModule({ id: nextModule, nonce: Date.now() });
     window.islandBridge?.leaveIsland();
     close();
     clearSurface();
     window.islandBridge?.surfaceDismissed();
-  }, [close, clearSurface]);
+  }, [clipboardHistoryEnabled, close, clearSurface, fileShelfEnabled, terminalEnabled, toolboxReopenMode]);
+  reactExports.useEffect(() => {
+    const handleWindowBlur = () => {
+      const followUpFocused = isFollowUpActiveRef.current
+        && document.activeElement?.closest?.("[data-follow-up-input]");
+      // 失焦即隐身——不再受 autoCollapseOnMouseLeave 开关阻断。该开关的旧语义
+      // （收起成胶囊）与"完全隐身"诉求冲突：开关关闭时旧逻辑完全不隐藏，岛会
+      // 常驻成黑胶囊。这里只要可见且非 follow-up 输入聚焦就隐身。
+      const shouldCollapse = shouldCollapseOnFocusLoss({
+        isVisible: mounted,
+        enabled: true,
+        followUpFocused: Boolean(followUpFocused)
+      });
+      if (!shouldCollapse) {
+        focusLossHandledRef.current = false;
+        if (followUpFocused) pendingFollowUpDismissRef.current = true;
+        return;
+      }
+      // Electron's native blur and the DOM blur can arrive for the same focus
+      // transition; collapse once to avoid duplicate surface acknowledgements.
+      if (focusLossHandledRef.current) return;
+      focusLossHandledRef.current = true;
+      pendingFollowUpDismissRef.current = false;
+      if (resolveFocusLossPresentation({ isVisible: mounted, followUpFocused }) !== "pill") return;
+      collapsePanelToPill();
+    };
+    const handleWindowFocus = () => {
+      focusLossHandledRef.current = false;
+    };
+    window.addEventListener("blur", handleWindowBlur);
+    window.addEventListener("workisland-window-blur", handleWindowBlur);
+    window.addEventListener("focus", handleWindowFocus);
+    return () => {
+      window.removeEventListener("blur", handleWindowBlur);
+      window.removeEventListener("workisland-window-blur", handleWindowBlur);
+      window.removeEventListener("focus", handleWindowFocus);
+    };
+  }, [collapsePanelToPill, mounted]);
   const notchStatusRef = reactExports.useRef(notchStatus);
   reactExports.useEffect(() => {
     const prev = notchStatusRef.current;
@@ -625,21 +632,10 @@ function IslandApp() {
       pendingFollowUpDismissRef.current = true;
       return;
     }
-    // 文件架/剪贴板/终端是常驻工具面板：用户在其中点击文件、拖拽分享等操作
-    // 时，绝不能因误触发的 mouseleave 就把面板收起——一旦收起，主进程
-    // isPanelExpanded 失同步，临近监控会把窗口切成交点穿透，整座灵动岛卡死
-    // 且点不回来。这里保持面板展开；离开窗口时由主进程临近监控负责切点击穿透。
-    const activeModule = activeModuleRef.current;
-    if (activeModule === "shelf" || activeModule === "clipboard" || activeModule === "terminal") {
-      pendingFollowUpDismissRef.current = true;
-      return;
-    }
     mouseLeaveCloseTimer.current = setTimeout(() => {
-      clearSurface();
-      close();
-      window.islandBridge?.surfaceDismissed();
+      collapsePanelToPill();
     }, MOUSE_LEAVE_CLOSE_DELAY_MS);
-  }, [isOpen, close, clearSurface]);
+  }, [collapsePanelToPill, isOpen]);
   const handlePillClick = reactExports.useCallback(() => {
     if (hoverOpenTimer.current) {
       clearTimeout(hoverOpenTimer.current);

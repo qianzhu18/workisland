@@ -13,6 +13,11 @@ function selectToolboxModule({ current = "agent", attention = false, enabled = [
   return TOOLBOX_MODULES.includes(current) && enabled.includes(current) ? current : "agent";
 }
 
+function resolveToolboxReopenModule({ mode = "agent", lastModule = "agent", enabled = ["agent"] } = {}) {
+  if (mode !== "last") return "agent";
+  return TOOLBOX_MODULES.includes(lastModule) && enabled.includes(lastModule) ? lastModule : "agent";
+}
+
 function reduceToolboxState(state, event) {
   const current = TOOLBOX_MODULES.includes(state?.current) ? state.current : "agent";
   const previousUtility = current === "agent" ? state?.previousUtility || "" : current;
@@ -30,5 +35,6 @@ export {
   TOOLBOX_MODULES,
   enabledToolboxModules,
   reduceToolboxState,
+  resolveToolboxReopenModule,
   selectToolboxModule
 };

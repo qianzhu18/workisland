@@ -39,6 +39,12 @@ test("workstation settings expose every productivity module and local privacy po
   assert.match(css, /\.terminal-command-editor/);
 });
 
+test("Island behavior lets users choose the toolbox page shown after reopening", () => {
+  assert.match(source, /重新展开时/);
+  assert.match(source, /智能体主页（默认）/);
+  assert.match(source, /toolboxReopenMode/);
+});
+
 test("workstation and productivity details use accessible inline disclosures", () => {
   assert.match(source, /function featureSettingsRow\(/);
   assert.match(source, /aria-expanded/);

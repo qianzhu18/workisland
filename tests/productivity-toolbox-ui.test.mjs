@@ -6,7 +6,7 @@ const read = (name) => readFileSync(new URL(`../src/renderer/island/components/$
 
 test("productivity modules live in the compact top action row", () => {
   const source = read("IslandPanel.js");
-  for (const label of ["文件架", "剪贴板", "终端"]) assert.match(source, new RegExp(label));
+  for (const label of ["智能体主页", "文件架", "剪贴板", "终端"]) assert.match(source, new RegExp(label));
   assert.match(source, /toolbox-icon-button/);
   assert.match(source, /aria-pressed/);
   assert.doesNotMatch(source, /ToolboxSwitcher/);
@@ -15,6 +15,13 @@ test("productivity modules live in the compact top action row", () => {
   assert.match(source, /function ClipboardToolIcon/);
   assert.match(source, /function TerminalToolIcon/);
   for (const glyph of ["▰", "▤", ">_"]) assert.doesNotMatch(source, new RegExp(glyph.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+});
+
+test("collapsing a utility uses the configured reopen policy instead of pinning the panel", () => {
+  const app = readFileSync(new URL("../src/renderer/island/app.js", import.meta.url), "utf8");
+  assert.match(app, /toolboxReopenMode/);
+  assert.match(app, /resolveToolboxReopenModule/);
+  assert.doesNotMatch(app, /activeModule === "shelf" \|\| activeModule === "clipboard" \|\| activeModule === "terminal"/);
 });
 
 test("shelf supports real drag input and reference-only removal", () => {
@@ -63,11 +70,15 @@ test("shelf drop zone executes and switches a persistent default quick-share ser
   assert.match(app, /shareShelfItemsViaDefault/);
 });
 
-test("dragging shelf files always releases the native Island drag lock", () => {
+test("dragging files out of the shelf never acquires the Finder drop-in lock", () => {
   const source = read("ShelfPanel.js");
-  assert.match(source, /const finishShelfDrag =/);
-  assert.match(source, /onDragEnd:\s*finishShelfDrag/);
-  assert.match(source, /startShelfDrag\(dragIds\).*finally\(finishShelfDrag\)/s);
+  assert.match(source, /startShelfDrag\(dragIds\)/);
+  assert.doesNotMatch(source, /setFileDragActive/);
+});
+
+test("starting a native shelf drag cancels Chromium's competing HTML drag session", () => {
+  const source = read("ShelfPanel.js");
+  assert.match(source, /onDragStart:\s*\(event\)\s*=>\s*\{[\s\S]*?event\.preventDefault\(\);[\s\S]*?startShelfDrag\(dragIds\)/);
 });
 
 test("clipboard exposes search favorites replay and clear", () => {
@@ -83,6 +94,13 @@ test("terminal uses xterm and offers quick commands plus full shell", () => {
   assert.match(source, /进入完整终端/);
   assert.match(source, /runSavedTerminalCommand/);
   assert.match(source, /sendTerminalInput/);
+});
+
+test("terminal quick commands come only from user settings", () => {
+  const source = read("TerminalPanel.js");
+  assert.doesNotMatch(source, /QUICK_COMMANDS/);
+  assert.match(source, /尚未添加快捷命令/);
+  assert.match(source, /前往设置添加/);
 });
 
 test("Island panel receives every productivity setting from the renderer", () => {
