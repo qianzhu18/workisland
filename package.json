@@ -33,6 +33,7 @@
     "smoke:hook:isolated": "node ./scripts/smoke-hook.mjs --isolated",
     "smoke:approval:isolated": "node ./scripts/smoke-approval.mjs",
     "smoke:ui": "node ./scripts/smoke-ui.mjs",
+    "smoke:win": "node ./scripts/smoke-win-packaged.mjs",
     "doctor": "node ./scripts/doctor.mjs"
   },
   "engines": {
