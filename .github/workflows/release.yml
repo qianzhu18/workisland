@@ -156,6 +156,24 @@ jobs:
       - run: npm ci --ignore-scripts
       - name: Package Windows Setup and Portable
         run: npm run package:win
+      - name: Smoke test packaged portable build
+        shell: bash
+        run: |
+          exe="$(ls release/*Portable*x64.exe 2>/dev/null | head -1)"
+          if [ -z "$exe" ]; then echo "portable exe not found"; ls release; exit 1; fi
+          node scripts/smoke-win-packaged.mjs "$exe" 90000
+      - name: Collect logs on failure
+        if: failure()
+        shell: bash
+        run: |
+          mkdir -p smoke-logs
+          cp -r "$APPDATA/WorkIsland/logs" smoke-logs/ 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: WorkIsland-Windows-release-smoke-logs
+          path: smoke-logs
+          if-no-files-found: ignore
       - name: Generate checksums
         shell: bash
         run: cd release && sha256sum *.exe > SHA256SUMS-Windows.txt
