@@ -6,7 +6,7 @@
 // Usage: node scripts/smoke-win-packaged.mjs <path-to-exe> [timeoutMs]
 
 import { spawn } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 
@@ -19,6 +19,15 @@ if (!exe || !existsSync(exe)) {
 
 const appData = process.env.APPDATA
   || path.join(process.env.USERPROFILE || "", "AppData", "Roaming");
+
+// CI 中 npm run check 的单元测试会往真实的 userData/logs 写日志，
+// 先清掉，避免陈旧内容伪造 ready / fail 信号。
+for (const entry of (() => {
+  try { return readdirSync(appData); } catch { return []; }
+})()) {
+  if (!/work.?island/i.test(entry)) continue;
+  try { rmSync(path.join(appData, entry, "logs"), { recursive: true, force: true }); } catch {}
+}
 
 // Electron 可能使用 productName 或 package name 作为 userData 目录名，
 // 甚至 portable 解包后名称不同：扫描 AppData 下所有 *ork*sland* 候选。
@@ -38,9 +47,10 @@ function findLogFiles() {
   return candidates;
 }
 
+// 应用使用按天轮转的 flux-desktop-YYYY-MM-DD.log；首启流程展示
+// WelcomeWindow 而非 IslandWindow，因此 ready 判定只看 whenReady。
 const READY_MARKERS = [
-  "[main] app.whenReady() fired",
-  "[main] IslandWindow created OK"
+  "[main] app.whenReady() fired"
 ];
 const FAIL_MARKERS = [
   "Uncaught exception",
