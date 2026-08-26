@@ -21,6 +21,7 @@ const { HermesHookManager, AidenHookManager, TraexCliHookManager } = require("./
 const { PluginHookManager, DeepSeekHarnessHookManager } = require("./hooks-custom.cjs");
 const { ZCodeHookManager, WorkBuddyHookManager, CodeBuddyHookManager } = require("./hooks-work-agents.cjs");
 const { initSoundDirs, playSoundEvent } = require("./sound-service.cjs");
+const { createAgentSoundDeduplicator, resolveCodexTranscriptSoundEvent } = require("./agent-sound-policy.cjs");
 const { reportTokenUsage, getHermesCumulativeTokens, diffHermesCumulativeTokens } = require("./adapters-extended.cjs");
 const { getAgentDescriptor, validateAgentWiring } = require("../shared/agent-catalog.cjs");
 const { createPresentationRequest } = require("./presentation-policy.cjs");
@@ -128,6 +129,10 @@ function createAppCoordinatorClass({
     // edge idempotent within a short window without suppressing a later,
     // identical prompt.
     submissionNotificationBySession = /* @__PURE__ */ new Map();
+    // Hook adapters and the Codex transcript watcher can report the same
+    // lifecycle transition independently. Audio needs a separate per-session
+    // guard because hook adapters request sounds before event dedup runs.
+    agentSoundDedup = createAgentSoundDeduplicator();
     /**
      * Codex 会话元数据（transcript_path + 当前 turn_id），由 hookProcessed 事件维护，
      * 供 sweepInterruptedCodexSessions 读 transcript 末尾的 turn_aborted/interrupted 用。
@@ -295,6 +300,10 @@ function createAppCoordinatorClass({
           );
           return;
         }
+        const transcriptSoundEvent = resolveCodexTranscriptSoundEvent(event);
+        if (transcriptSoundEvent) {
+          this.playAgentSound(transcriptSoundEvent, event.sessionId, event.timestamp);
+        }
         log.info(
           "[AppCoordinator] agentEvent: type=%s session=%s tool=%s source=%s",
           event.type,
@@ -378,8 +387,8 @@ function createAppCoordinatorClass({
           reportTokenUsage(info.tool, info.sessionId, info.tokenUsage);
         }
       );
-      this.bridge.setSoundEventHandler((eventId) => {
-        playSoundEvent(eventId, this.settings);
+      this.bridge.setSoundEventHandler((eventId, context) => {
+        this.playAgentSound(eventId, context?.sessionId, context?.timestamp);
       });
       this.bridge.start();
       this.quotaService.start();
@@ -413,6 +422,10 @@ function createAppCoordinatorClass({
       this.startFullscreenCheck();
       this.autoReInstallHooks();
       playSoundEvent("appLaunch", this.settings);
+    }
+    playAgentSound(eventId, sessionId, timestamp) {
+      if (!this.agentSoundDedup.shouldPlay(eventId, sessionId, timestamp)) return false;
+      return playSoundEvent(eventId, this.settings);
     }
     /**
      * 启动 Codex transcript watcher（独立于 hook 的完成检测通道）。

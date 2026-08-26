@@ -403,10 +403,20 @@ class CodexTranscriptWatcher extends EventEmitter {
           file.lastPrompt = message.slice(0, MAX_SUMMARY_LEN);
           // Codex Desktop 可能在 task_started 之前先写 user_message，把它当作
           // 新 turn 的起点（与 stow 行为一致）
-          if (!file.turnRunning || file.lastTurnCompleted) {
+          const isNewTurn = !file.turnRunning || file.lastTurnCompleted;
+          if (isNewTurn) {
             file.turnRunning = true;
             file.activeTurnId = undefined;
             file.lastTurnCompleted = false;
+            // `turnStarted` is the single audio edge for transcript-backed
+            // submissions. `sessionStarted` can be emitted more than once to
+            // enrich prompt metadata, so it must remain display-only.
+            emit(
+              this.buildEvent(file, "turnStarted", {
+                ts,
+                title: file.title
+              })
+            );
           }
           // 总是补发 sessionStarted 携带最新 prompt：即使 task_started 已经先发过，
           // 这里更新 prompt 让灵动岛 session 可见（isVisibleInIsland 需要 latestUserPrompt）。
