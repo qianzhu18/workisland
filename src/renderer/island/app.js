@@ -144,6 +144,9 @@ function IslandApp() {
     null
   );
   const isFollowUpActiveRef = reactExports.useRef(false);
+  // 当前展开的是哪个工作台模块；用于在鼠标离开时判断是否仍停留于常驻工具面板
+  // （文件架/剪贴板/终端），避免误触发的 mouseleave 把面板收起后造成点击穿透死锁。
+  const activeModuleRef = reactExports.useRef("agent");
   const pendingFollowUpDismissRef = reactExports.useRef(false);
   const focusLossHandledRef = reactExports.useRef(false);
   const handleFollowUpChange = reactExports.useCallback((active) => {
@@ -606,6 +609,9 @@ function IslandApp() {
       }, HOVER_OPEN_DELAY_MS);
     }
   }, [hoverToOpen, notchStatus, open, presentSurface, surface]);
+  const reportActiveModule = reactExports.useCallback((module) => {
+    activeModuleRef.current = module;
+  }, []);
   const handleMouseLeave = reactExports.useCallback(() => {
     if (hoverOpenTimer.current) {
       clearTimeout(hoverOpenTimer.current);
@@ -616,6 +622,15 @@ function IslandApp() {
     if (!isOpen) return;
     const isFollowUpFocused = isFollowUpActiveRef.current && document.hasFocus() && document.activeElement?.closest("[data-follow-up-input]");
     if (isFollowUpFocused || isToolboxInteractionFocused()) {
+      pendingFollowUpDismissRef.current = true;
+      return;
+    }
+    // 文件架/剪贴板/终端是常驻工具面板：用户在其中点击文件、拖拽分享等操作
+    // 时，绝不能因误触发的 mouseleave 就把面板收起——一旦收起，主进程
+    // isPanelExpanded 失同步，临近监控会把窗口切成交点穿透，整座灵动岛卡死
+    // 且点不回来。这里保持面板展开；离开窗口时由主进程临近监控负责切点击穿透。
+    const activeModule = activeModuleRef.current;
+    if (activeModule === "shelf" || activeModule === "clipboard" || activeModule === "terminal") {
       pendingFollowUpDismissRef.current = true;
       return;
     }
@@ -881,7 +896,8 @@ function IslandApp() {
             onOpenAbout: handleOpenAbout,
             onOpenPet: handlePetButtonClick,
             onCollapse: collapsePanelToPill,
-            onFollowUpChange: handleFollowUpChange
+            onFollowUpChange: handleFollowUpChange,
+            onActiveModuleChange: reportActiveModule
           }
         )
       )

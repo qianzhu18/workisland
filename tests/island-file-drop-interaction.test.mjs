@@ -15,6 +15,18 @@ test("ending a drag re-evaluates the real pointer position instead of keeping th
   assert.equal(resolveDropProximityMouseMode({ ...samePointerPosition, fileDragActive: false }), "forward");
 });
 
+test("an expanded panel always remains interactive when the pointer leaves", () => {
+  assert.equal(resolveDropProximityMouseMode({
+    fileDragActive: false,
+    panelExpanded: true,
+    concealed: false,
+    pointerInside: false
+  }), "interactive");
+
+  const interaction = createFileDropInteraction();
+  assert.equal(interaction.shouldForwardMouseEventsOnLeave({ panelExpanded: true }), false);
+});
+
 test("an active Finder drag keeps the Island interactive until drop finishes", () => {
   const interaction = createFileDropInteraction();
 

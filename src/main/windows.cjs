@@ -79,10 +79,6 @@ function createWindowClasses(dependencies) {
     };
     handleIslandLeave = () => {
       if (this.win.isDestroyed()) return;
-      if (!this.fileDropInteraction.shouldForwardMouseEventsOnLeave()) {
-        this.win.setIgnoreMouseEvents(false);
-        return;
-      }
       if (this._isFullscreenHidden || this._isFocusHidden) {
         // 处于隐藏态（全屏隐藏或焦点丢失隐藏）时，鼠标一旦离开就立即收敛到
         // 透明 hotspot。不再"等关闭动画"——旧逻辑在 panel 展开时只置
@@ -91,9 +87,18 @@ function createWindowClasses(dependencies) {
         this.isPanelExpanded = false;
         this.shouldConcealAfterCloseAnimation = false;
         this.applyClosedWindowTarget("hidden-hotspot");
-      } else {
-        this.win.setIgnoreMouseEvents(true, { forward: true });
+        return;
       }
+      if (!this.fileDropInteraction.shouldForwardMouseEventsOnLeave({ panelExpanded: this.isPanelExpanded })) {
+        // 正在拖文件或面板展开中：保持交互，不要把窗口切成交点穿透。
+        this.dropProximityInteractive = true;
+        this.win.setIgnoreMouseEvents(false);
+        return;
+      }
+      // 普通离开：先切点击穿透。若面板仍展开，syncDropProximityInteraction 会基于
+      // "展开面板整体"在光标回到面板上时重新打开交互，避免 mouseenter 死锁。
+      this.dropProximityInteractive = false;
+      this.win.setIgnoreMouseEvents(true, { forward: true });
     };
     handleFileDragState = (event, payload) => {
       if (this.win.isDestroyed()) return;
@@ -256,12 +261,24 @@ function createWindowClasses(dependencies) {
     syncDropProximityInteraction({ force = false } = {}) {
       if (this.win.isDestroyed()) return;
       const point = electron.screen.getCursorScreenPoint();
-      const pill = this.getPillRect();
-      const center = pill.x + pill.width / 2;
-      const pointerInside = point.x >= center - 150
-        && point.x <= center + 150
-        && point.y >= pill.y
-        && point.y <= pill.y + Math.max(72, pill.height + 34);
+      // 工作台展开时，可交互区必须是“整个展开面板”的窗口矩形，而不仅是最上方
+      // ~80px 的 proximity 热区。否则光标在面板下半部时临近监控会判为“在面板外”，
+      // 把窗口切成交点穿透——这正是选中文件后整座灵动岛卡死、且再也无法点回的根因
+      // （窗口忽略鼠标事件后不会触发 mouseenter，只能靠临近监控找回，而旧的 proximity
+      // 热区覆盖不到面板下半部，于是彻底卡死）。
+      let pointerInside;
+      if (this.isPanelExpanded) {
+        const b = this.win.getBounds();
+        pointerInside = point.x >= b.x && point.x <= b.x + b.width
+          && point.y >= b.y && point.y <= b.y + b.height;
+      } else {
+        const pill = this.getPillRect();
+        const center = pill.x + pill.width / 2;
+        pointerInside = point.x >= center - 150
+          && point.x <= center + 150
+          && point.y >= pill.y
+          && point.y <= pill.y + Math.max(72, pill.height + 34);
+      }
       const mode = resolveDropProximityMouseMode({
         fileDragActive: this.fileDropInteraction.isActive(),
         panelExpanded: this.isPanelExpanded,

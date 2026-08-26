@@ -1347,7 +1347,8 @@ function IslandPanel({
   onOpenAbout,
   onOpenPet,
   onCollapse,
-  onFollowUpChange
+  onFollowUpChange,
+  onActiveModuleChange
 }) {
   const [followUpSessionId, setFollowUpSessionId] = React.useState(null);
   const [activeModule, setActiveModule] = React.useState("agent");
@@ -1356,6 +1357,9 @@ function IslandPanel({
   React.useEffect(() => {
     setActiveModule((current) => selectToolboxModule({ current, attention: agentAttention, enabled: enabledModules }));
   }, [agentAttention, fileShelfEnabled, clipboardHistoryEnabled, terminalEnabled]);
+  React.useEffect(() => {
+    onActiveModuleChange?.(activeModule);
+  }, [activeModule, onActiveModuleChange]);
   React.useEffect(() => {
     if (!agentAttention && requestedToolboxModule?.id && enabledModules.includes(requestedToolboxModule.id)) {
       setActiveModule(requestedToolboxModule.id);

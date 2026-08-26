@@ -61,7 +61,7 @@ test("macOS native bridge provides stable Finder artwork and selectable quick sh
 test("file dragging locks Island mouse input until the renderer reports completion", () => {
   assert.match(ipcSource, /ISLAND_FILE_DRAG_STATE/);
   assert.match(preloadSource, /setFileDragActive/);
-  assert.match(windowSource, /fileDropInteraction\.shouldForwardMouseEventsOnLeave\(\)/);
+  assert.match(windowSource, /fileDropInteraction\.shouldForwardMouseEventsOnLeave\(\{\s*panelExpanded: this\.isPanelExpanded\s*\}\)/);
   assert.match(islandSource, /setFileDragActive\?\.\(true\)/);
   assert.match(islandSource, /setFileDragActive\?\.\(false\)/);
 });
