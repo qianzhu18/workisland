@@ -265,7 +265,14 @@ function generalPage() {
       "媒体播放",
       "自动识别 macOS 当前播放的媒体；播放时显示封面、进度和控制按钮，没有媒体时恢复完整 Agent 视图。",
       toggle(state.settings.mediaEnabled, v => save({ mediaEnabled: v }), "媒体播放"),
-      () => [row("切歌动态提醒", "歌曲变化时短暂显示新封面与曲名；Agent 审批、失败和完成提醒始终优先。", toggle(state.settings.mediaTrackChangeNotifications, v => save({ mediaTrackChangeNotifications: v }), "切歌动态提醒"))]
+      () => [
+        row("切歌动态提醒", "歌曲变化时短暂显示新封面与曲名；Agent 审批、失败和完成提醒始终优先。", toggle(state.settings.mediaTrackChangeNotifications, v => save({ mediaTrackChangeNotifications: v }), "切歌动态提醒")),
+        row("在线歌词", "播放时把歌曲名、歌手、专辑和时长发送到 LRCLIB 查询歌词；默认关闭，歌词仅缓存在本机。", toggle(state.settings.lyricsEnabled, v => save({ lyricsEnabled: v }), "在线歌词")),
+        row("歌词缓存", "清除已缓存的歌词和未找到记录；不会影响音乐播放。", button("清除缓存", async () => {
+          await api.clearLyricsCache();
+          showToast("歌词缓存已清除");
+        }))
+      ]
     ),
     featureSettingsRow(
       "performance",

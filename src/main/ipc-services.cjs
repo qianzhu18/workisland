@@ -356,6 +356,8 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
     });
     electron.ipcMain.handle(IPC.MEDIA_GET_STATE, () => coordinator.getMediaState());
     electron.ipcMain.handle(IPC.MEDIA_COMMAND, (_event, command) => coordinator.sendMediaCommand(command));
+    electron.ipcMain.handle(IPC.LYRICS_GET_STATE, () => coordinator.getLyricsState());
+    electron.ipcMain.handle(IPC.LYRICS_CLEAR_CACHE, () => coordinator.clearLyricsCache());
     electron.ipcMain.handle(IPC.PERFORMANCE_GET_STATE, () => coordinator.getPerformanceState());
     electron.ipcMain.on(IPC.PERFORMANCE_DETAILS_VISIBLE, (_event, { visible }) => {
       coordinator.setPerformanceDetailsVisible(Boolean(visible));

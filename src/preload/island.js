@@ -64,6 +64,11 @@ electron.contextBridge.exposeInMainWorld("islandBridge", {
     electron.ipcRenderer.on(ipc.IPC.MEDIA_STATE_UPDATE, handler);
     return () => electron.ipcRenderer.off(ipc.IPC.MEDIA_STATE_UPDATE, handler);
   },
+  onLyricsStateUpdate(cb) {
+    const handler = (_event, state) => cb(state);
+    electron.ipcRenderer.on(ipc.IPC.LYRICS_STATE_UPDATE, handler);
+    return () => electron.ipcRenderer.off(ipc.IPC.LYRICS_STATE_UPDATE, handler);
+  },
   onPerformanceUpdate(cb) {
     const handler = (_event, state) => cb(state);
     electron.ipcRenderer.on(ipc.IPC.PERFORMANCE_STATE_UPDATE, handler);
@@ -217,6 +222,9 @@ electron.contextBridge.exposeInMainWorld("islandBridge", {
   },
   getMediaState() {
     return electron.ipcRenderer.invoke(ipc.IPC.MEDIA_GET_STATE);
+  },
+  getLyricsState() {
+    return electron.ipcRenderer.invoke(ipc.IPC.LYRICS_GET_STATE);
   },
   mediaCommand(command) {
     return electron.ipcRenderer.invoke(ipc.IPC.MEDIA_COMMAND, command);

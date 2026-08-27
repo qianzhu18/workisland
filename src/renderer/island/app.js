@@ -175,6 +175,7 @@ function IslandApp() {
   const [pillFileDragActive, setPillFileDragActive] = reactExports.useState(false);
   const fileDropLatest = reactExports.useRef({ enabled: false, openShelf: () => {} });
   const [mediaState, setMediaState] = reactExports.useState({ active: false });
+  const [lyricsState, setLyricsState] = reactExports.useState({ status: "idle", lines: [], plainText: "" });
   const [performanceState, setPerformanceState] = reactExports.useState({ cpuPct: 0, memoryPct: 0, processes: [] });
   const [performanceAlert, setPerformanceAlert] = reactExports.useState("");
   const previousTrackRef = reactExports.useRef("");
@@ -259,12 +260,15 @@ function IslandApp() {
     let mounted2 = true;
     const bridge = window.islandBridge;
     bridge?.getMediaState?.().then((state) => mounted2 && state && setMediaState(state));
+    bridge?.getLyricsState?.().then((state) => mounted2 && state && setLyricsState(state));
     bridge?.getPerformanceState?.().then((state) => mounted2 && state && setPerformanceState(state));
     const offMedia = bridge?.onMediaStateUpdate?.((state) => setMediaState(state));
+    const offLyrics = bridge?.onLyricsStateUpdate?.((state) => setLyricsState(state));
     const offPerformance = bridge?.onPerformanceUpdate?.((state) => setPerformanceState(state));
     return () => {
       mounted2 = false;
       offMedia?.();
+      offLyrics?.();
       offPerformance?.();
     };
   }, []);
@@ -879,6 +883,7 @@ function IslandApp() {
             pillFirstRow,
             showUsageQuota,
             mediaState,
+            lyricsState,
             mediaEnabled,
             performanceState,
             performanceEnabled,
