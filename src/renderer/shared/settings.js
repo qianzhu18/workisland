@@ -121,6 +121,7 @@ const DEFAULT_SETTINGS = {
   completionPopupDurationSec: 5,
   mediaEnabled: true,
   mediaTrackChangeNotifications: true,
+  lyricsEnabled: false,
   performanceEnabled: true,
   performanceAlertsEnabled: false,
   fileShelfEnabled: true,

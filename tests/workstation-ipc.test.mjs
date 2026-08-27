@@ -8,10 +8,10 @@ const { IPC } = require("../src/shared/ipc.cjs");
 
 test("Island preload exposes narrow media and performance contracts", () => {
   const preload = readFileSync(new URL("../src/preload/island.js", import.meta.url), "utf8");
-  for (const key of ["MEDIA_GET_STATE", "MEDIA_STATE_UPDATE", "MEDIA_COMMAND", "PERFORMANCE_GET_STATE", "PERFORMANCE_STATE_UPDATE", "PERFORMANCE_DETAILS_VISIBLE", "PERFORMANCE_PROCESS_ACTION"]) {
+  for (const key of ["MEDIA_GET_STATE", "MEDIA_STATE_UPDATE", "MEDIA_COMMAND", "LYRICS_GET_STATE", "LYRICS_STATE_UPDATE", "LYRICS_CLEAR_CACHE", "PERFORMANCE_GET_STATE", "PERFORMANCE_STATE_UPDATE", "PERFORMANCE_DETAILS_VISIBLE", "PERFORMANCE_PROCESS_ACTION"]) {
     assert.equal(typeof IPC[key], "string", `${key} channel must exist`);
   }
-  for (const method of ["getMediaState", "onMediaStateUpdate", "mediaCommand", "getPerformanceState", "onPerformanceUpdate", "setPerformanceDetailsVisible", "actOnProcess"]) {
+  for (const method of ["getMediaState", "onMediaStateUpdate", "mediaCommand", "getLyricsState", "onLyricsStateUpdate", "getPerformanceState", "onPerformanceUpdate", "setPerformanceDetailsVisible", "actOnProcess"]) {
     assert.match(preload, new RegExp(`${method}\\(`), `${method} must be exposed by preload`);
   }
   const coordinator = readFileSync(new URL("../src/main/app-coordinator.cjs", import.meta.url), "utf8");
@@ -36,7 +36,17 @@ test("Island preload exposes narrow media and performance contracts", () => {
   assert.match(mediaCard, /appIconDataUrl/);
   assert.match(mediaCard, /media-source-icon/);
   assert.doesNotMatch(mediaCard, /media-source-badge"\s*},\s*media\?\.appName/, "source badge must not render the application name as visible text");
+  assert.match(mediaCard, /LyricsPanel/);
+  assert.match(mediaCard, /ResizeObserver/);
+  assert.doesNotMatch(mediaCard, /showLyrics\s*&&\s*React\.createElement\(LyricsPanel/, "lyrics must remain mounted while the rail grows");
+  assert.match(mediaCard, /media-compact-lyric/);
+  const lyricsPanel = readFileSync(new URL("../src/renderer/island/components/LyricsPanel.js", import.meta.url), "utf8");
+  assert.match(lyricsPanel, /lyrics-line is-active/);
+  assert.match(lyricsPanel, /4000/);
+  assert.match(lyricsPanel, /"aria-hidden": mode === "compact"/);
   const css = readFileSync(new URL("../src/renderer/island/app.css", import.meta.url), "utf8");
   assert.match(css, /workspace-content\.has-media\s*\{[^}]*grid-template-columns:\s*300px minmax\(0,\s*1fr\)/s);
+  assert.match(css, /\.media-rail\s*\{[^}]*grid-template-rows:\s*auto minmax\(0,\s*1fr\)/s);
+  assert.match(css, /\.lyrics-panel\s*\{[^}]*position:\s*absolute[^}]*bottom:/s);
   assert.match(css, /performance-process-list[^}]*overflow-y:\s*auto/s);
 });

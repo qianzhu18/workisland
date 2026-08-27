@@ -107,6 +107,8 @@ const DEFAULT_SETTINGS = {
   completionPopupDurationSec: 5,
   mediaEnabled: true,
   mediaTrackChangeNotifications: true,
+  // Online lyrics send only track metadata to LRCLIB, so privacy-first default is off.
+  lyricsEnabled: false,
   performanceEnabled: true,
   // Resource alerts are opt-in so a workstation dashboard never becomes noisy.
   performanceAlertsEnabled: false,

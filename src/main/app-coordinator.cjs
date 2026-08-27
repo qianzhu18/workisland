@@ -26,6 +26,7 @@ const { getAgentDescriptor, validateAgentWiring } = require("../shared/agent-cat
 const { createPresentationRequest } = require("./presentation-policy.cjs");
 const { EVENTS } = require("../shared/telemetry.cjs");
 const { MediaService } = require("./media-service.cjs");
+const { LyricsService } = require("./lyrics-service.cjs");
 const { createAppIconResolver } = require("./app-icon-resolver.cjs");
 const { PerformanceService } = require("./performance-service.cjs");
 const { ShelfService } = require("./shelf-service.cjs");
@@ -112,6 +113,7 @@ function createAppCoordinatorClass({
     quotaService = new QuotaService();
     statsService = getStatsService();
     mediaService;
+    lyricsService;
     performanceService;
     shelfService;
     clipboardHistoryService;
@@ -193,6 +195,7 @@ function createAppCoordinatorClass({
         getFileIcon: (appPath) => electron.app.getFileIcon(appPath, { size: "normal" })
       });
       this.mediaService = new MediaService({ resourceDir: mediaResourceDir, resolveAppIcon });
+      this.lyricsService = new LyricsService({ storePath: path.join(electron.app.getPath("userData"), "lyrics-cache.json") });
       this.performanceService = new PerformanceService();
       const userDataPath = electron.app.getPath("userData");
       this.shelfService = new ShelfService({ storePath: path.join(userDataPath, "shelf.json") });
@@ -202,8 +205,13 @@ function createAppCoordinatorClass({
       });
       this.terminalService = new TerminalService();
       this.mediaService.setEnabled(this.settings.mediaEnabled !== false);
+      this.lyricsService.setEnabled(this.settings.mediaEnabled !== false && this.settings.lyricsEnabled === true);
       this.performanceService.enabled = this.settings.performanceEnabled !== false;
-      this.mediaService.on("update", (state) => this.broadcastWorkstationState(IPC.MEDIA_STATE_UPDATE, state));
+      this.mediaService.on("update", (state) => {
+        this.broadcastWorkstationState(IPC.MEDIA_STATE_UPDATE, state);
+        void this.lyricsService.setTrack(state);
+      });
+      this.lyricsService.on("update", (state) => this.broadcastWorkstationState(IPC.LYRICS_STATE_UPDATE, state));
       this.performanceService.on("update", (state) => this.broadcastWorkstationState(IPC.PERFORMANCE_STATE_UPDATE, state));
       this.shelfService.on("update", (state) => this.broadcastWorkstationState(IPC.SHELF_STATE_UPDATE, state));
       this.clipboardHistoryService.on("update", (state) => this.broadcastWorkstationState(IPC.CLIPBOARD_HISTORY_UPDATE, state));
@@ -385,6 +393,7 @@ function createAppCoordinatorClass({
       this.quotaService.start();
       this.processMonitor.start();
       this.mediaService.start();
+      void this.lyricsService.setTrack(this.mediaService.getSnapshot());
       this.performanceService.start();
       void this.shelfService.start();
       void this.clipboardHistoryService.start().then(() => {
@@ -681,6 +690,7 @@ function createAppCoordinatorClass({
       this.quotaService.stop();
       this.processMonitor.stop();
       this.mediaService.stop();
+      this.lyricsService.dispose();
       this.performanceService.stop();
       this.clipboardHistoryService.dispose();
       this.terminalService.dispose();
@@ -725,6 +735,7 @@ function createAppCoordinatorClass({
         this.broadcastSoundState();
         this.pushTodayBurnToWindows();
         this.broadcastWorkstationState(IPC.MEDIA_STATE_UPDATE, this.mediaService.getSnapshot());
+        this.broadcastWorkstationState(IPC.LYRICS_STATE_UPDATE, this.lyricsService.snapshot());
         this.broadcastWorkstationState(IPC.PERFORMANCE_STATE_UPDATE, this.performanceService.getSnapshot());
         this.broadcastWorkstationState(IPC.SHELF_STATE_UPDATE, this.shelfService.snapshot());
         this.broadcastWorkstationState(IPC.CLIPBOARD_HISTORY_UPDATE, this.clipboardHistoryService.snapshot());
@@ -950,6 +961,12 @@ function createAppCoordinatorClass({
         this.mediaService.setEnabled(this.settings.mediaEnabled !== false);
         if (this.settings.mediaEnabled !== false) this.mediaService.start();
       }
+      if ("mediaEnabled" in partial || "lyricsEnabled" in partial) {
+        this.lyricsService.setEnabled(this.settings.mediaEnabled !== false && this.settings.lyricsEnabled === true);
+        if (this.settings.mediaEnabled !== false && this.settings.lyricsEnabled === true) {
+          void this.lyricsService.setTrack(this.mediaService.getSnapshot());
+        }
+      }
       if ("performanceEnabled" in partial) this.performanceService.setEnabled(this.settings.performanceEnabled !== false);
       if ("clipboardHistoryEnabled" in partial) this.clipboardHistoryService.setEnabled(this.settings.clipboardHistoryEnabled === true);
       if ("clipboardHistoryLimit" in partial || "clipboardRetentionHours" in partial) {
@@ -1157,6 +1174,8 @@ function createAppCoordinatorClass({
     }
     getMediaState() { return this.mediaService.getSnapshot(); }
     sendMediaCommand(command) { return this.mediaService.sendCommand(command); }
+    getLyricsState() { return this.lyricsService.snapshot(); }
+    clearLyricsCache() { return this.lyricsService.clearCache(); }
     getPerformanceState() { return this.performanceService.getSnapshot(); }
     setPerformanceDetailsVisible(visible) { this.performanceService.setDetailsVisible(visible); }
     actOnProcess(request) { return this.performanceService.actOnProcess(request); }
