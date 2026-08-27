@@ -195,6 +195,8 @@ function createAppCoordinatorClass({
       );
       this.state = createInitialState();
       this.settings = this.settingsRepository.load();
+      // PRD-015：保留期可配（settings.statsRetentionDays，默认 90 天）。
+      this.statsService.setRetentionDays(this.settings.statsRetentionDays);
       const mediaResourceDir = electron.app.isPackaged
         ? path.join(process.resourcesPath, "mediaremote-adapter")
         : path.join(electron.app.getAppPath(), "resources", "mediaremote-adapter");

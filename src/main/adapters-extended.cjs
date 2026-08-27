@@ -225,7 +225,7 @@ function reportTokenUsage(tool, sessionId, result, remote) {
     result.inputTokens,
     result.outputTokens
   );
-  getStatsService().recordToken(tool, sessionId, result.inputTokens, result.outputTokens, result.cacheReadTokens ?? 0, result.cacheCreationTokens ?? 0, remote);
+  getStatsService().recordToken(tool, sessionId, result.inputTokens, result.outputTokens, result.cacheReadTokens ?? 0, result.cacheCreationTokens ?? 0, remote, result.model);
 }
 /**
  * 从 Claude Code transcript 累加 token 用量。
