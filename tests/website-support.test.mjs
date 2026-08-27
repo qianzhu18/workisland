@@ -6,6 +6,9 @@ const html = readFileSync(new URL("../website/index.html", import.meta.url), "ut
 const css = readFileSync(new URL("../website/styles.css", import.meta.url), "utf8");
 const guide = readFileSync(new URL("../website/guide/index.html", import.meta.url), "utf8");
 const guideCss = readFileSync(new URL("../website/guide/guide.css", import.meta.url), "utf8");
+const changelog = readFileSync(new URL("../website/changelog/index.html", import.meta.url), "utf8");
+const changelogCss = readFileSync(new URL("../website/changelog/changelog.css", import.meta.url), "utf8");
+const rootChangelogUrl = new URL("../CHANGELOG.md", import.meta.url);
 const releaseWorkflow = readFileSync(new URL("../.github/workflows/release.yml", import.meta.url), "utf8");
 const websiteWorkflow = readFileSync(new URL("../.github/workflows/website.yml", import.meta.url), "utf8");
 const qrUrl = new URL("../website/assets/community/workisland-community-group.png", import.meta.url);
@@ -48,6 +51,16 @@ test("website links a user manual that covers first use and privacy", () => {
   assert.match(guide, /提交反馈/);
 });
 
+test("website publishes a canonical changelog for user-visible releases", () => {
+  assert.equal(existsSync(rootChangelogUrl), true);
+  assert.match(html, /href="changelog\/">更新日志<\/a>/);
+  assert.match(changelog, /<link rel="canonical" href="https:\/\/workisland\.yanglaishe\.cn\/changelog\/">/);
+  assert.match(changelog, /WorkIsland 更新日志/);
+  assert.match(changelog, /v3\.1\.0/);
+  assert.match(changelog, /同步歌词与专辑封面动效/);
+  assert.match(changelogCss, /\.changelog-release/);
+});
+
 test("website publishes crawler discovery files for its canonical pages", () => {
   assert.equal(existsSync(robotsUrl), true);
   assert.equal(existsSync(sitemapUrl), true);
@@ -59,11 +72,13 @@ test("website publishes crawler discovery files for its canonical pages", () => 
   assert.match(robots, /^Sitemap: https:\/\/workisland\.yanglaishe\.cn\/sitemap\.xml$/m);
   assert.match(sitemap, /<loc>https:\/\/workisland\.yanglaishe\.cn\/<\/loc>/);
   assert.match(sitemap, /<loc>https:\/\/workisland\.yanglaishe\.cn\/guide\/<\/loc>/);
+  assert.match(sitemap, /<loc>https:\/\/workisland\.yanglaishe\.cn\/changelog\/<\/loc>/);
 });
 
 test("website declares a canonical URL for each indexable page", () => {
   assert.match(html, /<link rel="canonical" href="https:\/\/workisland\.yanglaishe\.cn\/">/);
   assert.match(guide, /<link rel="canonical" href="https:\/\/workisland\.yanglaishe\.cn\/guide\/">/);
+  assert.match(changelog, /<link rel="canonical" href="https:\/\/workisland\.yanglaishe\.cn\/changelog\/">/);
 });
 
 test("nginx redirects HTML index aliases to the canonical directory URLs", () => {
@@ -86,6 +101,8 @@ test("website metadata states the product intent and canonical share preview", (
 test("website deployment validates crawler discovery files", () => {
   assert.match(websiteWorkflow, /test -s website\/robots\.txt/);
   assert.match(websiteWorkflow, /test -s website\/sitemap\.xml/);
+  assert.match(websiteWorkflow, /test -s website\/changelog\/index\.html/);
+  assert.match(websiteWorkflow, /test -s website\/changelog\/changelog\.css/);
 });
 
 test("website prioritizes its primary product visual without changing image assets", () => {
