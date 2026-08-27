@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#151518">
+    <meta name="description" content="WorkIsland 更新日志：查看 macOS AI Agent 工作台的功能、修复和版本变化。">
+    <link rel="canonical" href="https://workisland.yanglaishe.cn/changelog/">
+    <meta property="og:title" content="WorkIsland 更新日志">
+    <meta property="og:description" content="查看 WorkIsland 每个版本对用户有意义的功能、修复和体验变化。">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://workisland.yanglaishe.cn/changelog/">
+    <meta property="og:site_name" content="WorkIsland">
+    <meta property="og:locale" content="zh_CN">
+    <title>WorkIsland 更新日志</title>
+    <link rel="icon" href="../icon.png" type="image/png">
+    <link rel="stylesheet" href="../tokens.css">
+    <link rel="stylesheet" href="changelog.css?v=20260828">
+  </head>
+  <body>
+    <header class="changelog-nav">
+      <a class="changelog-brand" href="../" aria-label="返回 WorkIsland 首页">
+        <img src="../icon.png" alt="" width="28" height="28">
+        <span>WorkIsland</span>
+      </a>
+      <nav aria-label="更新日志导航">
+        <a href="../">首页</a>
+        <a href="../guide/">产品手册</a>
+        <a href="https://github.com/qianzhu18/workisland/releases" target="_blank" rel="noreferrer">GitHub Releases ↗</a>
+        <a class="changelog-download" href="https://github.com/qianzhu18/workisland/releases/latest">下载</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="changelog-hero">
+        <p class="changelog-kicker">CHANGELOG</p>
+        <h1>每一次变化，<br><em>都应该值得被看见。</em></h1>
+        <p>这里记录 WorkIsland 对真实工作流有意义的功能、修复和体验变化。提交历史属于工程，更新日志属于使用者。</p>
+      </section>
+
+      <section class="changelog-list" aria-label="版本更新列表">
+        <article class="changelog-release changelog-release-latest">
+          <div class="changelog-release-meta">
+            <span class="changelog-release-label">LATEST STABLE</span>
+            <time datetime="2026-08-28">2026-08-28</time>
+          </div>
+          <div class="changelog-release-body">
+            <h2>v3.1.0</h2>
+            <p class="changelog-summary">让 Media、工具箱、声音和桌宠都更贴近同一个 Agent 工作流。</p>
+            <div class="changelog-columns">
+              <section>
+                <h3>新增</h3>
+                <ul>
+                  <li>同步歌词与专辑封面动效。</li>
+                  <li>Shelf 文件架、私有剪贴板历史和持久化 Terminal 工作区。</li>
+                  <li>性能进程浏览、媒体来源应用图标。</li>
+                  <li>Echo 桌宠导演层与 Codex 生命周期声音。</li>
+                </ul>
+              </section>
+              <section>
+                <h3>改进与修复</h3>
+                <ul>
+                  <li>统一工具箱的展开、收起和导航生命周期。</li>
+                  <li>减少 Hook 与转录双通道产生的重复声音。</li>
+                  <li>修复点击 Shelf 文件后 Island 可能卡死的问题。</li>
+                </ul>
+              </section>
+            </div>
+            <a class="changelog-release-link" href="https://github.com/qianzhu18/workisland/releases/tag/v3.1.0" target="_blank" rel="noreferrer">查看 v3.1.0 Release 与下载 ↗</a>
+          </div>
+        </article>
+
+        <article class="changelog-release">
+          <div class="changelog-release-meta">
+            <span>STABLE</span>
+            <time datetime="2026-08-24">2026-08-24</time>
+          </div>
+          <div class="changelog-release-body">
+            <h2>v3.0.0</h2>
+            <p class="changelog-summary">WorkIsland 首个公开稳定版。</p>
+            <ul>
+              <li>完善多 Agent 会话状态、审批、提问和回源体验。</li>
+              <li>加入本地优先的隐私披露、匿名统计开关和版本更新检查。</li>
+              <li>建立用户手册、反馈入口与公开 macOS DMG 分发链路。</li>
+            </ul>
+            <a class="changelog-release-link" href="https://github.com/qianzhu18/workisland/releases/tag/v3.0.0" target="_blank" rel="noreferrer">查看 v3.0.0 Release ↗</a>
+          </div>
+        </article>
+
+        <article class="changelog-release">
+          <div class="changelog-release-meta">
+            <span>PILOT BETA</span>
+            <time datetime="2026-08-18">2026-08-18</time>
+          </div>
+          <div class="changelog-release-body">
+            <h2>v0.3.0-beta.1</h2>
+            <p class="changelog-summary">首轮 macOS Pilot Beta。</p>
+            <ul>
+              <li>验证安装、Agent 连接、任务状态、回源和反馈闭环。</li>
+              <li>通过 GitHub Pre-release 向受邀用户提供测试包。</li>
+            </ul>
+            <a class="changelog-release-link" href="https://github.com/qianzhu18/workisland/releases/tag/v0.3.0-beta.1" target="_blank" rel="noreferrer">查看 Pilot Release ↗</a>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <footer class="changelog-footer">
+      <a href="../">WorkIsland 首页</a>
+      <a href="../guide/">产品手册</a>
+      <a href="https://github.com/qianzhu18/workisland" target="_blank" rel="noreferrer">GitHub</a>
+      <span>本地优先的 Agent 状态中枢。</span>
+    </footer>
+  </body>
+</html>

@@ -18,6 +18,7 @@
 <p align="center">
   <a href="https://workisland.yanglaishe.cn/">官网</a> ·
   <a href="https://workisland.yanglaishe.cn/guide/">产品手册</a> ·
+  <a href="https://workisland.yanglaishe.cn/changelog/">更新日志</a> ·
   <a href="https://github.com/qianzhu18/workisland/releases">下载</a> ·
   <a href="https://github.com/qianzhu18/workisland/issues/new/choose">反馈</a>
 </p>
@@ -70,6 +71,7 @@ WorkIsland 为以下 Agent 提供官方原生适配：Claude Code、Codex、Coco
 | --- | --- |
 | [WorkIsland 官网](https://workisland.yanglaishe.cn/) | 产品概览、真实界面与最新下载入口 |
 | [产品手册](https://workisland.yanglaishe.cn/guide/) | 安装、首个 Agent 任务、隐私与反馈说明 |
+| [更新日志](https://workisland.yanglaishe.cn/changelog/) | 查看每个版本的功能、修复和体验变化 |
 | [GitHub Releases](https://github.com/qianzhu18/workisland/releases) | Apple Silicon DMG 与版本说明 |
 | [GitHub Issues](https://github.com/qianzhu18/workisland/issues/new/choose) | Bug 报告与可公开讨论的建议 |
 | [安全策略](SECURITY.md) | 安全问题的私下报告方式 |

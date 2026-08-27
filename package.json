@@ -1,7 +1,7 @@
 {
   "name": "workisland",
   "productName": "WorkIsland",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "macOS 本地 Work Agent 工作状态与注意力路由器",
   "private": true,
   "main": "./src/main/index.cjs",
