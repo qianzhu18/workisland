@@ -50,8 +50,10 @@ class StatsService {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
   }
-  recordSession(tool, startedAt, completedAt) {
-    this.sessions.push({ tool, startedAt, completedAt });
+  recordSession(tool, startedAt, completedAt, sessionId) {
+    const record = { tool, startedAt, completedAt };
+    if (sessionId) record.sessionId = sessionId;
+    this.sessions.push(record);
     this.dirty = true;
     this.scheduleSave();
   }

@@ -11,6 +11,8 @@ const { SettingsRepository } = require("./settings-repository.cjs");
 const { PetModeController } = require("./pet-mode-controller.cjs");
 const { QuotaService } = require("./quota-service.cjs");
 const { getStatsService } = require("./stats-service.cjs");
+const { UsageService } = require("./usage-service.cjs");
+const { getUsagePricing } = require("./usage-pricing.cjs");
 const { resolveApprovalMode } = require("../shared/approval-policy.cjs");
 const { saveSessions } = require("./hook-shared.cjs");
 const { readClaudeTranscriptState } = require("./transcript-recovery.cjs");
@@ -197,6 +199,7 @@ function createAppCoordinatorClass({
       this.settings = this.settingsRepository.load();
       // PRD-015：保留期可配（settings.statsRetentionDays，默认 90 天）。
       this.statsService.setRetentionDays(this.settings.statsRetentionDays);
+      this.usageService = new UsageService({ statsService: this.statsService, pricing: getUsagePricing() });
       const mediaResourceDir = electron.app.isPackaged
         ? path.join(process.resourcesPath, "mediaremote-adapter")
         : path.join(electron.app.getAppPath(), "resources", "mediaremote-adapter");
@@ -373,7 +376,7 @@ function createAppCoordinatorClass({
         if (shouldRecordCompletedSessionStat(event)) {
           const session = getSession(this.state, event.sessionId);
           if (session) {
-            this.statsService.recordSession(event.tool, session.createdAt, event.timestamp);
+            this.statsService.recordSession(event.tool, session.createdAt, event.timestamp, event.sessionId);
           }
           this.telemetry?.trackLifecycleEvent?.(EVENTS.SESSION_COMPLETED, {
             sessionId: event.sessionId,
@@ -1220,6 +1223,18 @@ function createAppCoordinatorClass({
     }
     getStatsSnapshot(timeRange) {
       return this.statsService.getSnapshot(timeRange);
+    }
+    getUsageSummary(days) {
+      return this.usageService.getUsageSummary({ days });
+    }
+    getSessionInsights(days) {
+      return this.usageService.getSessionInsights({ days });
+    }
+    exportUsageData() {
+      return this.usageService.exportUsageData();
+    }
+    clearUsageData() {
+      return this.usageService.clearUsageData();
     }
     getMediaState() { return this.mediaService.getSnapshot(); }
     sendMediaCommand(command) { return this.mediaService.sendCommand(command); }
