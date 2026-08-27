@@ -401,7 +401,10 @@ function createBridgeServerClass({
           });
         },
         playSoundEvent: (eventId) => {
-          this.soundEventHandler?.(eventId);
+          this.soundEventHandler?.(eventId, {
+            sessionId: hookPayload.session_id ?? hookPayload.conversation_id,
+            timestamp: Date.now()
+          });
         },
         getApprovalMode: (tool) => {
           return this.approvalModeProvider?.(tool) ?? "terminalNative";
