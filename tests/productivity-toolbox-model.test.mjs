@@ -12,6 +12,13 @@ test("only enabled utility modules appear after Agent", () => {
     fileShelfEnabled: true,
     clipboardHistoryEnabled: false,
     terminalEnabled: true
+  }), ["agent", "shelf", "terminal", "usage"]);
+  // PRD-015：用量看板可通过 settings 关闭
+  assert.deepEqual(enabledToolboxModules({
+    fileShelfEnabled: true,
+    clipboardHistoryEnabled: false,
+    terminalEnabled: true,
+    usageDashboardEnabled: false
   }), ["agent", "shelf", "terminal"]);
 });
 

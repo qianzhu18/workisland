@@ -133,6 +133,9 @@ const DEFAULT_SETTINGS = {
   terminalDefaultDirectory: "agent-project",
   terminalCustomDirectory: "",
   terminalSavedCommands: [],
+  // PRD-015：用量看板开关与统计保留期（天，主进程收紧到 [8, 730]）
+  usageDashboardEnabled: true,
+  statsRetentionDays: 90,
   toolboxReopenMode: "agent",
   showUsageQuota: true,
   usageDisplayValue: "used",
