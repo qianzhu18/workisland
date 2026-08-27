@@ -166,7 +166,7 @@ function applyBaselineDiff(dedupeKey, cumulative) {
     cacheRead: cumulative.cacheReadTokens ?? 0,
     cacheCreation: cumulative.cacheCreationTokens ?? 0
   });
-  if (deltaInput === 0 && deltaOutput === 0) return null;
+  if (deltaInput === 0 && deltaOutput === 0 && deltaCacheRead === 0 && deltaCacheCreation === 0) return null;
   return {
     inputTokens: deltaInput,
     outputTokens: deltaOutput,
@@ -178,7 +178,8 @@ function applyBaselineDiff(dedupeKey, cumulative) {
   };
 }
 function reportTokenUsage(tool, sessionId, result, remote) {
-  if (result.inputTokens === 0 && result.outputTokens === 0) {
+  const hasCacheTokens = (result.cacheReadTokens ?? 0) > 0 || (result.cacheCreationTokens ?? 0) > 0;
+  if (result.inputTokens === 0 && result.outputTokens === 0 && !hasCacheTokens) {
     log.info("[TokenCollector] 跳过：%s/%s 无有效 token 数据 result=%j", tool, sessionId, result);
     return;
   }
