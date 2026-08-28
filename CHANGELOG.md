@@ -2,6 +2,18 @@
 
 这里记录 WorkIsland 对用户有意义的版本变化。每个版本的安装包与完整说明以 [GitHub Releases](https://github.com/qianzhu18/workisland/releases) 为准；也可以查看[官网更新日志](https://workisland.yanglaishe.cn/changelog/)。
 
+## [Unreleased]
+
+### Added
+
+- 新增 AI 自定义接口:本机 Agent 可通过随附的 `workisland-cli` 修改灵动岛背景(纯色 / 渐变 / 背景图,含透明度与压暗遮罩)并安装、切换桌宠精灵图,全部走本地 Unix socket,不开任何网络端口;配套 AI 手册见 [docs/AI-CUSTOMIZATION.md](docs/AI-CUSTOMIZATION.md),也可用 `workisland-cli manual` 直接输出。
+- 设置 → 外观新增「岛屿背景」:预设主题、自定义颜色、透明度与一键重置,AI 设置的结果同样在此可见可改。
+- 过亮的背景颜色会被自动压暗以保证浅色文字可读;精灵图安装前强制几何校验(Codex V2 1536×2288 / Orca v1 1024×896)。
+
+### Fixed
+
+- 修复窄分屏(左右 Split View)布局下审批按钮被挤压、文字无法阅读的问题。
+
 ## [3.1.0] - 2026-08-28
 
 ### Added
