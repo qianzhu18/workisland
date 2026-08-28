@@ -160,6 +160,12 @@ jobs:
           exe="$(ls release/*Portable*x64.exe 2>/dev/null | head -1)"
           if [ -z "$exe" ]; then echo "portable exe not found"; ls release; exit 1; fi
           node scripts/smoke-win-packaged.mjs "$exe" 90000
+      - name: Verify packaged build can quit on its own
+        # 退出回归（issue #56）：应用必须能自行退出，僵尸化即失败
+        shell: bash
+        run: |
+          exe="$(ls release/*Portable*x64.exe 2>/dev/null | head -1)"
+          node scripts/smoke-win-packaged.mjs "$exe" 90000 --expect-self-quit
       - name: Collect logs on failure
         if: failure()
         shell: bash
