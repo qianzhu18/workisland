@@ -713,6 +713,19 @@ async function runIslandApp() {
   }
   await electron.app.whenReady();
   log.info("[main] app.whenReady() fired");
+  // CI 退出回归（issue #56）：--smoke-quit-after=<ms> 在就绪后自动退出，
+  // 供打包 smoke 验证应用不会僵尸化（不再依赖 taskkill 强杀）。
+  const smokeQuitArg = process.argv.find((arg) => arg.startsWith("--smoke-quit-after="));
+  if (smokeQuitArg) {
+    const smokeQuitDelay = Number(smokeQuitArg.split("=")[1]) || 0;
+    if (smokeQuitDelay > 0) {
+      log.info(`[main] smoke-quit-after=${smokeQuitDelay}ms armed`);
+      setTimeout(() => {
+        log.info("[main] smoke-quit-after elapsed — calling app.quit()");
+        electron.app.quit();
+      }, smokeQuitDelay);
+    }
+  }
   const sentinelPath = getCrashSentinelPath();
   if (fs.existsSync(sentinelPath)) {
     log.warn("[main] crash sentinel detected — previous process did not exit cleanly");

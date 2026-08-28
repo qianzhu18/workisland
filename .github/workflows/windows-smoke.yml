@@ -38,6 +38,10 @@ jobs:
       - name: Launch packaged app and verify ready state
         shell: bash
         run: node scripts/smoke-win-packaged.mjs "$SMOKE_EXE" 90000
+      - name: Verify the packaged app can quit on its own
+        # 退出回归（issue #56）：应用必须能自行退出，僵尸化即失败
+        shell: bash
+        run: node scripts/smoke-win-packaged.mjs "$SMOKE_EXE" 90000 --expect-self-quit
       - name: Collect logs on failure
         if: failure()
         shell: bash

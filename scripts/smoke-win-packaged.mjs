@@ -58,6 +58,40 @@ const FAIL_MARKERS = [
   "A JavaScript error occurred in the main process"
 ];
 
+// 退出回归模式（issue #56）：--expect-self-quit 时带 --smoke-quit-after=<ms>
+// 启动打包应用，不发送 taskkill，断言进程能自行退出且退出码为 0。
+// 应用僵尸化（拒绝退出/窗口隐藏后常驻）会让本模式超时失败。
+if (process.argv.includes("--expect-self-quit")) {
+  const QUIT_DELAY_MS = 4000;
+  const quitChild = spawn(exe, [`--smoke-quit-after=${QUIT_DELAY_MS}`], {
+    stdio: ["ignore", "pipe", "pipe"]
+  });
+  let quitOutput = "";
+  quitChild.stdout.on("data", (d) => { quitOutput += d; });
+  quitChild.stderr.on("data", (d) => { quitOutput += d; });
+  console.log(`[smoke] self-quit scenario: launched pid=${quitChild.pid} with --smoke-quit-after=${QUIT_DELAY_MS}`);
+  const quitResult = await new Promise((resolve) => {
+    const timer = setTimeout(() => resolve({ status: "timeout" }), timeoutMs);
+    quitChild.on("exit", (code) => {
+      clearTimeout(timer);
+      resolve({ status: "exited", code });
+    });
+  });
+  try { quitChild.kill(); } catch {}
+  console.log(`[smoke] self-quit result: ${quitResult.status}${quitResult.code !== undefined ? ` (exit ${quitResult.code})` : ""}`);
+  if (quitResult.status !== "exited" || quitResult.code !== 0) {
+    console.error("[smoke] app failed to exit on its own — quit regression");
+    const logTail = findLogFiles().map((f) => {
+      try { return readFileSync(f, "utf8"); } catch { return ""; }
+    }).join("\n");
+    if (logTail) console.error("[smoke] log tail:\n" + logTail.split(/\r?\n/).slice(-40).join("\n"));
+    if (quitOutput.trim()) console.error("[smoke] process output:\n" + quitOutput.split(/\r?\n/).slice(-40).join("\n"));
+    process.exit(1);
+  }
+  console.log("[smoke] OK: app exited cleanly on its own");
+  process.exit(0);
+}
+
 let output = "";
 const child = spawn(exe, [], {
   stdio: ["ignore", "pipe", "pipe"]
