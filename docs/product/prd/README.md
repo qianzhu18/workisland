@@ -13,6 +13,7 @@
 - [PRD-006: v0.3.0 Beta Pilot](./PRD-006-v0.3.0-Beta-Pilot.md)
 - [PRD-007: Focus-Aware Notifications](./PRD-007-FOCUS-AWARE-NOTIFICATIONS.md)
 - [PRD-008: Skin Creator MCP and Marketplace Intake](./PRD-008-SKIN-MCP-UPLOAD.md)
-- [PRD-009: Windows MVP](./PRD-009-WINDOWS-MVP.md)
+- [PRD-009: v3.1.0 Workstation Release](./PRD-009-v3.1.0-Workstation-Release.md)
+- [PRD-010: Windows MVP](./PRD-010-WINDOWS-MVP.md)
 
 编号只递增不复用。Feature PRD 的批准意味着可以拆 Issue，不意味着所有任务都必须在同一版本交付。

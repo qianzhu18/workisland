@@ -1,5 +1,11 @@
 "use strict";
 
+const {
+  createFileDropInteraction,
+  resolveDropProximityMouseMode
+} = require("./island-file-drop-interaction.cjs");
+const { isShelfShareDrop, normalizeShelfShareBounds } = require("./shelf-drop-routing.cjs");
+
 function createWindowClasses(dependencies) {
   const {
     electron,
@@ -9,6 +15,7 @@ function createWindowClasses(dependencies) {
     fixPanel,
     fixPetWindow,
     setWindowCornerRadius,
+    setFileDropTarget,
     log,
     isVisibleInIsland,
     getIsQuitting
@@ -25,6 +32,43 @@ function createWindowClasses(dependencies) {
     isPanelExpanded = false;
     shouldConcealAfterCloseAnimation = false;
     requestedHeight = ISLAND_HEIGHT;
+    dropProximityTimer = null;
+    dropProximityInteractive = false;
+    fileDropInteraction = createFileDropInteraction({
+      onExpire: () => {
+        if (!this.win || this.win.isDestroyed()) return;
+        setFileDropTarget(this.win.getNativeWindowHandle(), false);
+        this.syncDropProximityInteraction({ force: true });
+        log.warn("[IslandWindow] expired a stale file drag lock");
+      }
+    });
+    onNativeFileDrop = null;
+    onNativeFileShare = null;
+    shelfShareDropBounds = null;
+    handleNativeFileDrop = async (payload) => {
+      const paths = Array.isArray(payload?.paths) ? payload.paths : [];
+      let added = [];
+      let error = "";
+      let shared = false;
+      try {
+        if (isShelfShareDrop(payload, this.shelfShareDropBounds)) {
+          shared = await this.onNativeFileShare?.(paths) === true;
+          if (!shared) error = "快速分享暂时不可用";
+        } else {
+          added = await this.onNativeFileDrop?.(paths) || [];
+        }
+      } catch (dropError) {
+        error = dropError?.message || "文件读取失败";
+        log.error("[IslandWindow] native Finder drop failed:", dropError);
+      } finally {
+        this.fileDropInteraction.setActive(false);
+        if (!this.win.isDestroyed()) {
+          setFileDropTarget(this.win.getNativeWindowHandle(), false);
+          this.syncDropProximityInteraction({ force: true });
+          this.win.webContents.send(IPC.SHELF_NATIVE_DROP_RESULT, { addedCount: added.length, shared, error });
+        }
+      }
+    };
     handleIslandEnter = () => {
       if (this.shouldStayConcealed) {
         this.shouldConcealAfterCloseAnimation = false;
@@ -43,9 +87,30 @@ function createWindowClasses(dependencies) {
         this.isPanelExpanded = false;
         this.shouldConcealAfterCloseAnimation = false;
         this.applyClosedWindowTarget("hidden-hotspot");
-      } else {
-        this.win.setIgnoreMouseEvents(true, { forward: true });
+        return;
       }
+      if (!this.fileDropInteraction.shouldForwardMouseEventsOnLeave({ panelExpanded: this.isPanelExpanded })) {
+        // 正在拖文件或面板展开中：保持交互，不要把窗口切成交点穿透。
+        this.dropProximityInteractive = true;
+        this.win.setIgnoreMouseEvents(false);
+        return;
+      }
+      // 普通离开：先切点击穿透。若面板仍展开，syncDropProximityInteraction 会基于
+      // "展开面板整体"在光标回到面板上时重新打开交互，避免 mouseenter 死锁。
+      this.dropProximityInteractive = false;
+      this.win.setIgnoreMouseEvents(true, { forward: true });
+    };
+    handleFileDragState = (event, payload) => {
+      if (this.win.isDestroyed()) return;
+      if (event.sender !== this.win.webContents) return;
+      const active = payload?.active === true;
+      this.fileDropInteraction.setActive(active);
+      setFileDropTarget(this.win.getNativeWindowHandle(), active, this.handleNativeFileDrop);
+      this.syncDropProximityInteraction({ force: true });
+    };
+    handleShelfShareDropBounds = (event, bounds) => {
+      if (this.win.isDestroyed() || event.sender !== this.win.webContents) return;
+      this.shelfShareDropBounds = normalizeShelfShareBounds(bounds);
     };
     handleIslandResize = (event, payload) => {
       if (this.win.isDestroyed()) return;
@@ -66,8 +131,11 @@ function createWindowClasses(dependencies) {
       if (this.win.isDestroyed()) return;
       if (event.sender !== this.win.webContents) return;
       this.isPanelExpanded = false;
+      this.syncDropProximityInteraction({ force: true });
     };
     constructor(target, options = {}) {
+      this.onNativeFileDrop = options.onNativeFileDrop || null;
+      this.onNativeFileShare = options.onNativeFileShare || null;
       this.currentTarget = target;
       const { display, screenInfo } = target;
       const winX = display.bounds.x + Math.round((display.bounds.width - ISLAND_WIDTH) / 2);
@@ -133,9 +201,16 @@ function createWindowClasses(dependencies) {
         // expanded panel or the closed pill; both states must be hideable.
         options.onBlur?.(this);
       });
+      this.win.on("close", () => {
+        if (!this.win.isDestroyed()) setFileDropTarget(this.win.getNativeWindowHandle(), false);
+      });
       this.win.on("closed", () => {
+        if (this.dropProximityTimer) clearInterval(this.dropProximityTimer);
+        this.dropProximityTimer = null;
         electron.ipcMain.removeListener(IPC.ISLAND_ENTER, this.handleIslandEnter);
         electron.ipcMain.removeListener(IPC.ISLAND_LEAVE, this.handleIslandLeave);
+        electron.ipcMain.removeListener(IPC.ISLAND_FILE_DRAG_STATE, this.handleFileDragState);
+        electron.ipcMain.removeListener(IPC.SHELF_SHARE_DROP_BOUNDS, this.handleShelfShareDropBounds);
         electron.ipcMain.removeListener(IPC.ISLAND_RESIZE, this.handleIslandResize);
         electron.ipcMain.removeListener(IPC.ISLAND_PANEL_EXPANDED, this.handlePanelExpanded);
         electron.ipcMain.removeListener(IPC.ISLAND_PANEL_COLLAPSED, this.handlePanelCollapsed);
@@ -144,10 +219,13 @@ function createWindowClasses(dependencies) {
       });
       electron.ipcMain.on(IPC.ISLAND_ENTER, this.handleIslandEnter);
       electron.ipcMain.on(IPC.ISLAND_LEAVE, this.handleIslandLeave);
+      electron.ipcMain.on(IPC.ISLAND_FILE_DRAG_STATE, this.handleFileDragState);
+      electron.ipcMain.on(IPC.SHELF_SHARE_DROP_BOUNDS, this.handleShelfShareDropBounds);
       electron.ipcMain.on(IPC.ISLAND_RESIZE, this.handleIslandResize);
       electron.ipcMain.on(IPC.ISLAND_PANEL_EXPANDED, this.handlePanelExpanded);
       electron.ipcMain.on(IPC.ISLAND_PANEL_COLLAPSED, this.handlePanelCollapsed);
       electron.ipcMain.on(IPC.ISLAND_SYNC_CLOSED_WINDOW, this.handleSyncClosedWindow);
+      this.startDropProximityMonitor();
     }
     // ── Public API ─────────────────────────────────────────────────────────────
     get browserWindow() {
@@ -172,6 +250,46 @@ function createWindowClasses(dependencies) {
         width: pillWidth,
         height: notchH
       };
+    }
+    startDropProximityMonitor() {
+      if (this.dropProximityTimer) return;
+      this.dropProximityTimer = setInterval(() => {
+        this.syncDropProximityInteraction();
+      }, 50);
+      this.dropProximityTimer.unref?.();
+    }
+    syncDropProximityInteraction({ force = false } = {}) {
+      if (this.win.isDestroyed()) return;
+      const point = electron.screen.getCursorScreenPoint();
+      // 工作台展开时，可交互区必须是“整个展开面板”的窗口矩形，而不仅是最上方
+      // ~80px 的 proximity 热区。否则光标在面板下半部时临近监控会判为“在面板外”，
+      // 把窗口切成交点穿透——这正是选中文件后整座灵动岛卡死、且再也无法点回的根因
+      // （窗口忽略鼠标事件后不会触发 mouseenter，只能靠临近监控找回，而旧的 proximity
+      // 热区覆盖不到面板下半部，于是彻底卡死）。
+      let pointerInside;
+      if (this.isPanelExpanded) {
+        const b = this.win.getBounds();
+        pointerInside = point.x >= b.x && point.x <= b.x + b.width
+          && point.y >= b.y && point.y <= b.y + b.height;
+      } else {
+        const pill = this.getPillRect();
+        const center = pill.x + pill.width / 2;
+        pointerInside = point.x >= center - 150
+          && point.x <= center + 150
+          && point.y >= pill.y
+          && point.y <= pill.y + Math.max(72, pill.height + 34);
+      }
+      const mode = resolveDropProximityMouseMode({
+        fileDragActive: this.fileDropInteraction.isActive(),
+        panelExpanded: this.isPanelExpanded,
+        concealed: this.shouldStayConcealed,
+        pointerInside
+      });
+      if (mode === "preserve") return;
+      const interactive = mode === "interactive";
+      if (!force && interactive === this.dropProximityInteractive) return;
+      this.dropProximityInteractive = interactive;
+      this.win.setIgnoreMouseEvents(!interactive, interactive ? undefined : { forward: true });
     }
     /**
      * Enter or exit fullscreen-hidden mode.

@@ -30,8 +30,13 @@ function buildDevHooksCliCommand(source) {
     electronNodePath: process.execPath
   });
 }
-function wrapWithInstallCheck(guardPath, command) {
-  if (process.platform === "win32") {
+function wrapWithInstallCheck(guardPath, command, { platform = process.platform, portableExecutable = process.env.PORTABLE_EXECUTABLE_FILE } = {}) {
+  if (platform === "win32") {
+    const sourceMatch = String(command).match(/--source\s+(?:"([^"]+)"|'([^']+)'|(\S+))/);
+    const source = sourceMatch?.[1] || sourceMatch?.[2] || sourceMatch?.[3];
+    if (portableExecutable && source) {
+      return `if not exist ${shellQuote(portableExecutable)} exit /b 0 & ${shellQuote(portableExecutable)} --workisland-hook-source=${source}`;
+    }
     const normalized = command.replace(/^ELECTRON_RUN_AS_NODE=1\s+/, 'set "ELECTRON_RUN_AS_NODE=1"&& ');
     return `if not exist ${shellQuote(guardPath)} exit /b 0 & ${normalized}`;
   }

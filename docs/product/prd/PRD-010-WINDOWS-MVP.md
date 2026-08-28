@@ -1,6 +1,6 @@
-# PRD-009：Windows MVP
+# PRD-010：Windows MVP
 
-状态：`draft implementation`
+状态：`alpha.5 implemented / pending Windows 11 acceptance`
 Owner：WorkIsland contributors
 目标版本：v1.0.0-alpha（Windows Alpha 内测通道）
 GitHub tracking Issue：待创建
@@ -16,6 +16,7 @@ Windows 上并行使用 Claude Code、Codex、Cursor、VS Code 与 Windows Termi
 - Windows 11 x64 用户可以安装并启动 WorkIsland，在屏幕顶部或边缘查看 Agent 状态。
 - Claude Code、Codex 等本地 Hook 可通过每用户命名管道连接 WorkIsland。
 - 点击会话可以激活 Windows Terminal、PowerShell、Cursor、VS Code 等来源应用；系统声音和诊断日志导出可用。
+- v3.1 工作台在 Windows 提供系统媒体控制、同步歌词、性能进程浏览、Shelf、私有剪贴板和持久化 PowerShell 终端。
 
 ### 非目标
 
@@ -33,6 +34,7 @@ Windows 上并行使用 Claude Code、Codex、Cursor、VS Code 与 Windows Termi
 | 回到来源 | 优先激活已有窗口，不存在时启动已知应用 | P0 | 自动化命令测试与真机检查 |
 | 获得提醒 | WAV 通过系统内置 PowerShell SoundPlayer 播放 | P1 | 服务单元测试 |
 | 导出诊断 | 输出不包含会话内容与项目文件的 ZIP | P1 | Windows 真机导出 ZIP |
+| 使用工作台 | 媒体、性能、Shelf、剪贴板、终端无需 macOS 二进制即可工作 | P1 | 单元测试与 Windows 11 真机走查 |
 
 ## 4. 约束与风险
 

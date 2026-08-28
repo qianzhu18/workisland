@@ -4,7 +4,7 @@ const api = window.settingsApi;
 
 const DEFAULT_PET_SPRITE = "codex:qianxue";
 const FEEDBACK_URL = "https://workisland.yanglaishe.cn/#feedback";
-const BETA_GROUP_URL = "https://workisland.yanglaishe.cn/#beta-group";
+const COMMUNITY_URL = "https://workisland.yanglaishe.cn/#community";
 const USER_GUIDE_URL = "https://workisland.yanglaishe.cn/guide/";
 const WORKISLAND_ICON_URL = "../assets/workisland-icon.png";
 const DEFAULT_AGENT_ICON_URL = "../assets/brands/agent.svg";
@@ -31,7 +31,7 @@ const AGENT_ICON_URLS = Object.freeze({
   "plugin:pi": "../assets/brands/pi.svg"
 });
 const VERIFY_ON_REAL_EVENT_AGENT_IDS = new Set(["dsh", "trae"]);
-const state = { settings: null, statuses: new Map(), displays: [], codexPets: [], activeTab: "general", busy: new Set(), latestUpdate: null, telemetryStatus: null };
+const state = { settings: null, statuses: new Map(), displays: [], codexPets: [], shareProviders: [], activeTab: "general", busy: new Set(), expandedSettingDetails: new Set(), latestUpdate: null, telemetryStatus: null, commandDraft: { name: "", command: "" } };
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -47,6 +47,31 @@ function row(title, description, control) {
   if (description) copy.append(el("div", "setting-description", description));
   node.append(copy, control);
   return node;
+}
+
+function featureSettingsRow(id, title, description, control, detailsBuilder) {
+  const expanded = state.expandedSettingDetails.has(id);
+  const card = el("div", `feature-settings-card${expanded ? " is-expanded" : ""}`);
+  const actions = el("div", "feature-settings-actions");
+  const disclosure = button(expanded ? "收起" : "详细设置", () => {
+    if (expanded) state.expandedSettingDetails.delete(id);
+    else state.expandedSettingDetails.add(id);
+    renderPage();
+  });
+  const detailId = `feature-settings-${id}`;
+  disclosure.classList.add("feature-settings-disclosure");
+  disclosure.setAttribute("aria-expanded", String(expanded));
+  disclosure.setAttribute("aria-controls", detailId);
+  disclosure.setAttribute("aria-label", `${expanded ? "收起" : "展开"}${title}详细设置`);
+  actions.append(control, disclosure);
+  card.append(row(title, description, actions));
+  if (expanded) {
+    const detail = el("div", "feature-settings-detail");
+    detail.id = detailId;
+    detail.append(...detailsBuilder());
+    card.append(detail);
+  }
+  return card;
 }
 
 function toggle(checked, onChange, label) {
@@ -135,13 +160,197 @@ function requestQuitApp() {
   if (confirmed) api.quitApp();
 }
 
+function savedCommandsControl() {
+  const wrap = el("div", "saved-command-control");
+  const commands = Array.isArray(state.settings.terminalSavedCommands)
+    ? state.settings.terminalSavedCommands
+    : [];
+  const list = el("div", "saved-command-list");
+  if (commands.length === 0) list.append(el("span", "saved-command-empty", "尚未添加"));
+  for (const command of commands) {
+    const chip = el("div", "saved-command-chip");
+    const copy = el("div", "saved-command-copy");
+    copy.append(
+      el("span", "saved-command-name", command.name),
+      el("code", "saved-command-value", command.command)
+    );
+    const remove = button("删除", async () => {
+      await save({
+        terminalSavedCommands: commands.filter(item => item.id !== command.id)
+      });
+      renderPage();
+      showToast(`已删除快捷命令「${command.name}」`);
+    }, "danger");
+    remove.classList.add("saved-command-remove");
+    remove.setAttribute("aria-label", `移除快捷命令 ${command.name}`);
+    chip.append(copy, remove);
+    list.append(chip);
+  }
+  const editor = el("div", "terminal-command-editor");
+  const nameInput = document.createElement("input");
+  nameInput.className = "text-input";
+  nameInput.placeholder = "名称，例如：启动开发服务";
+  nameInput.value = state.commandDraft.name;
+  nameInput.setAttribute("aria-label", "快捷命令名称");
+  nameInput.addEventListener("input", () => { state.commandDraft.name = nameInput.value; });
+  const commandInput = document.createElement("input");
+  commandInput.className = "text-input terminal-command-input";
+  commandInput.placeholder = "命令，例如：npm run dev";
+  commandInput.value = state.commandDraft.command;
+  commandInput.setAttribute("aria-label", "快捷终端命令");
+  commandInput.addEventListener("input", () => { state.commandDraft.command = commandInput.value; });
+  const add = button("添加命令", () => {
+    const name = nameInput.value.trim();
+    const command = commandInput.value.trim();
+    if (!name || !command) {
+      showToast("请同时填写名称和命令", true);
+      return;
+    }
+    state.commandDraft = { name: "", command: "" };
+    save({
+      terminalSavedCommands: [
+        ...commands,
+        { id: `user-${Date.now()}`, name, command }
+      ]
+    });
+  });
+  editor.append(nameInput, commandInput, add);
+  wrap.append(list, editor);
+  return wrap;
+}
+
+async function selectTerminalDirectory() {
+  const customDirectory = await api.selectDirectory?.();
+  if (!customDirectory) return;
+  await save({ terminalDefaultDirectory: "custom", terminalCustomDirectory: customDirectory });
+  showToast("终端默认目录已保存");
+}
+
+function terminalDirectoryControl() {
+  const wrap = el("div", "terminal-directory-control");
+  const mode = select(
+    state.settings.terminalDefaultDirectory,
+    [["agent-project", "当前 Agent 项目"], ["home", "用户目录"], ["custom", "自定义目录"]],
+    async value => {
+      if (value === "custom") await selectTerminalDirectory();
+      else await save({ terminalDefaultDirectory: value });
+    },
+    "终端默认目录"
+  );
+  wrap.append(mode);
+  if (state.settings.terminalDefaultDirectory === "custom") {
+    wrap.append(el("span", "terminal-directory-path", state.settings.terminalCustomDirectory || "尚未选择"));
+    wrap.append(button("选择文件夹", selectTerminalDirectory));
+  }
+  return wrap;
+}
+
+function quickShareProviderControl() {
+  const current = api.platform === "win32" ? "__system__" : (state.settings.shelfQuickShareProvider || "AirDrop");
+  const providers = state.shareProviders.length
+    ? state.shareProviders
+    : [{ id: current, title: current }, { id: "__system__", title: "系统分享菜单" }];
+  return select(current, providers.map((provider) => [provider.id, provider.title]), async value => {
+    await save({ shelfQuickShareProvider: value });
+    showToast(`默认快速分享已改为 ${providers.find((provider) => provider.id === value)?.title || value}`);
+  }, "默认快速分享");
+}
+
 function generalPage() {
   const root = document.createDocumentFragment();
+  const workstation = section("工作台", "让灵动岛同时承载媒体控制和轻量性能监视。所有数据只在本机读取与展示。");
+  workstation.append(
+    featureSettingsRow(
+      "media",
+      "媒体播放",
+      `自动识别 ${api.platform === "win32" ? "Windows" : "macOS"} 当前播放的媒体；播放时显示封面、进度和控制按钮，没有媒体时恢复完整 Agent 视图。`,
+      toggle(state.settings.mediaEnabled, v => save({ mediaEnabled: v }), "媒体播放"),
+      () => [
+        row("切歌动态提醒", "歌曲变化时短暂显示新封面与曲名；Agent 审批、失败和完成提醒始终优先。", toggle(state.settings.mediaTrackChangeNotifications, v => save({ mediaTrackChangeNotifications: v }), "切歌动态提醒")),
+        row("在线歌词", "播放时把歌曲名、歌手、专辑和时长发送到 LRCLIB 查询歌词；默认关闭，歌词仅缓存在本机。", toggle(state.settings.lyricsEnabled, v => save({ lyricsEnabled: v }), "在线歌词")),
+        row("歌词缓存", "清除已缓存的歌词和未找到记录；不会影响音乐播放。", button("清除缓存", async () => {
+          await api.clearLyricsCache();
+          showToast("歌词缓存已清除");
+        }))
+      ]
+    ),
+    featureSettingsRow(
+      "performance",
+      "性能监视器",
+      "在灵动岛右上角显示实时负载，悬停可查看 CPU、内存和高占用进程。",
+      toggle(state.settings.performanceEnabled, v => save({ performanceEnabled: v }), "性能监视器"),
+      () => [row("性能异常提醒", "CPU 或内存持续高占用时提醒。默认关闭，避免打扰专注。", toggle(state.settings.performanceAlertsEnabled, v => save({ performanceAlertsEnabled: v }), "性能异常提醒"))]
+    )
+  );
+  const productivity = section("效率工具", "选择要显示在灵动岛顶部的工具入口；Agent 需要审批、提问或报错时始终优先显示。");
+  productivity.append(
+    featureSettingsRow(
+      "shelf",
+      "文件架",
+      "把文件临时放在灵动岛中，方便跨应用拖放；只保存文件引用，移除不会删除原文件。",
+      toggle(state.settings.fileShelfEnabled, v => save({ fileShelfEnabled: v }), "文件架"),
+      () => [row("默认快速分享", "拖到文件架左侧时直接使用；也可以改为系统分享菜单，每次临时选择备忘录、微信等服务。", quickShareProviderControl())]
+    ),
+    featureSettingsRow(
+      "clipboard",
+      "剪贴板历史",
+      "记录复制的文字、链接、代码和图片，只保存在本机。为保护隐私，新安装默认关闭。",
+      toggle(state.settings.clipboardHistoryEnabled, v => {
+        if (v && !window.confirm("开启剪贴板历史？\n\n复制的文字、链接、代码和图片会只保存在本机。你可以随时清空或关闭此功能。")) {
+          renderPage();
+          return;
+        }
+        save({ clipboardHistoryEnabled: v });
+      }, "剪贴板历史"),
+      () => [
+        row(
+          "历史条数",
+          "达到上限后自动移除最早且未收藏的记录。",
+          select(
+            state.settings.clipboardHistoryLimit,
+            [["25", "25 条"], ["50", "50 条"], ["100", "100 条"], ["250", "250 条"]],
+            v => save({ clipboardHistoryLimit: Number(v) }),
+            "剪贴板历史条数"
+          )
+        ),
+        row(
+          "自动清理",
+          "收藏内容不会被定时清理，也可以在灵动岛中手动清空。",
+          select(
+            state.settings.clipboardRetentionHours,
+            [["1", "1 小时"], ["8", "8 小时"], ["24", "24 小时"], ["168", "7 天"], ["0", "不自动清理"]],
+            v => save({ clipboardRetentionHours: Number(v) }),
+            "剪贴板自动清理"
+          )
+        )
+      ]
+    ),
+    featureSettingsRow(
+      "terminal",
+      "快捷终端",
+      "在灵动岛中运行快捷命令，也可以展开为可持续交互的完整终端。",
+      toggle(state.settings.terminalEnabled, v => save({ terminalEnabled: v }), "快捷终端"),
+      () => [
+        row("默认目录", "优先使用当前 Agent 项目；也可以固定到用户目录或任意文件夹。", terminalDirectoryControl()),
+        row("快捷命令", "添加常用命令后，可以从灵动岛一键运行，例如 git status、npm test 或启动开发服务；示例不会自动添加，命令只保存在本机。", savedCommandsControl())
+      ]
+    )
+  );
   const behavior = section("Island 行为", "控制灵动岛何时出现以及如何收起。");
   behavior.append(
     row("登录时启动", "开机登录后自动启动 WorkIsland。", toggle(state.settings.launchAtLogin, v => save({ launchAtLogin: v }), "登录时启动")),
     row("悬停展开", "鼠标停留在 Island 上时展开面板。", toggle(state.settings.hoverToOpen, v => save({ hoverToOpen: v }), "悬停展开")),
     row("失去焦点后隐藏", "失去窗口焦点后隐藏 Island；鼠标移到顶部热区可恢复。", toggle(state.settings.autoCollapseOnMouseLeave, v => save({ autoCollapseOnMouseLeave: v }), "失去焦点后隐藏")),
+    row(
+      "重新展开时",
+      "只决定先显示哪个页面；文件架、剪贴板和终端状态都会继续保留。",
+      select(
+        state.settings.toolboxReopenMode === "last" ? "last" : "agent",
+        [["agent", "智能体主页（默认）"], ["last", "上次使用的工具"]],
+        v => save({ toolboxReopenMode: v }),
+        "重新展开时显示的页面"
+      )
+    ),
     row("全屏时隐藏", "全屏应用位于当前屏幕时隐藏 Island。", toggle(state.settings.hideWhenFullscreen, v => save({ hideWhenFullscreen: v }), "全屏时隐藏")),
     row(
       "Island 显示模式",
@@ -219,7 +428,7 @@ function generalPage() {
   lifecycle.append(
     row("退出 WorkIsland", "需要重新打开应用后才会继续监测本机 Agent 状态。", button("退出应用", requestQuitApp, "danger"))
   );
-  root.append(behavior, display, lifecycle);
+  root.append(workstation, productivity, behavior, display, lifecycle);
   return root;
 }
 
@@ -409,11 +618,11 @@ function aboutPage() {
   version.append(appMark, el("div", "about-copy", "WorkIsland\n正在读取版本…"));
   api.getAppVersion().then(v => version.querySelector(".about-copy").textContent = `WorkIsland\n版本 ${v}`).catch(() => {});
   about.append(version);
-  const support = section("帮助与内测", "操作手册、反馈渠道与内测群信息由 WorkIsland 官网统一维护，无需重新安装即可更新。");
+  const support = section("帮助与社区", "操作手册、反馈渠道与社区信息由 WorkIsland 官网统一维护，无需重新安装即可更新。");
   support.append(
     row("产品手册", "查看安装、首次任务、状态理解、隐私与反馈说明。", button("打开手册", () => api.openExternal(USER_GUIDE_URL), "primary")),
     row("提交反馈", "报告问题、提出建议或补充复现信息。", button("打开反馈入口", () => api.openExternal(FEEDBACK_URL), "primary")),
-    row("加入内测群", "查看最新 WorkIsland 微信内测群二维码。", button("查看群码", () => api.openExternal(BETA_GROUP_URL)))
+    row("加入社区", "查看最新 WorkIsland 微信社区二维码。", button("查看群码", () => api.openExternal(COMMUNITY_URL)))
   );
   const updates = section("更新", "仅请求官方版本信息，不上传会话内容或使用数据。");
   const updateStatus = el("div", "update-status", state.latestUpdate ? `发现新版本 ${state.latestUpdate.latestVersion}` : "尚未检查");
@@ -499,6 +708,7 @@ function showToast(message, error = false) {
 async function start() {
   if (!api) throw new Error("settingsApi unavailable");
   state.settings = await api.getSettings();
+  try { state.shareProviders = await api.getShelfShareProviders?.() || []; } catch { state.shareProviders = []; }
   await loadTelemetryStatus();
   await loadDisplays();
   await loadCodexPets();

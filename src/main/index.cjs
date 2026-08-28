@@ -70,6 +70,15 @@ const {
   getFrontmostAppDisplayId,
   getScreenFullscreenState,
   performHapticFeedback,
+  readPasteboardFileURLs,
+  copyFilesToPasteboard,
+  getFileIconDataUrl,
+  getShareProviders,
+  shareFilesViaProvider,
+  showFilesSharePicker,
+  getAirDropIconDataUrl,
+  shareFilesViaAirDrop,
+  setFileDropTarget,
   setWindowCornerRadius,
   unwatchActiveSpace,
   unwatchFrontmostApp,
@@ -102,6 +111,7 @@ const {
   fixPanel,
   fixPetWindow,
   setWindowCornerRadius,
+  setFileDropTarget,
   log,
   isVisibleInIsland,
   getIsQuitting: () => isQuitting
@@ -625,8 +635,16 @@ const AppCoordinator = createAppCoordinatorClass({
 const { createIpcServices } = require("./ipc-services.cjs");
 let updateService = null;
 let telemetryService = null;
-const { registerIpcHandlers, getCustomIconDataUrl, applyDockIcon } = createIpcServices({
+const { registerIpcHandlers, getCustomIconDataUrl, applyDockIcon, sharePathsViaQuickProvider } = createIpcServices({
   performHapticFeedback,
+  readPasteboardFileURLs,
+  copyFilesToPasteboard,
+  getFileIconDataUrl,
+  getShareProviders,
+  shareFilesViaProvider,
+  showFilesSharePicker,
+  getAirDropIconDataUrl,
+  shareFilesViaAirDrop,
   isAllowedExternalUrl,
   checkForUpdates: (options) => updateService?.check(options) ?? Promise.resolve({ status: "unavailable" })
 });
@@ -680,6 +698,11 @@ function flushLogSync() {
   }
 }
 async function runIslandApp() {
+  const smokeUserDataArg = process.argv.find((arg) => arg.startsWith("--smoke-user-data="));
+  if (smokeUserDataArg) {
+    const smokeUserDataPath = smokeUserDataArg.slice("--smoke-user-data=".length);
+    if (smokeUserDataPath && path.isAbsolute(smokeUserDataPath)) electron.app.setPath("userData", smokeUserDataPath);
+  }
   if (!electron.app.requestSingleInstanceLock()) {
     log.warn("[main] another WorkIsland instance already holds the lock — exiting this duplicate");
     electron.app.quit();
@@ -689,7 +712,7 @@ async function runIslandApp() {
   const runtimeMode = resolveRuntimeMode(process.env);
   const developmentMode = runtimeMode.isDevelopment;
   const developmentUserData = runtimeMode.userDataPath;
-  if (developmentMode && developmentUserData) {
+  if (!smokeUserDataArg && developmentMode && developmentUserData) {
     electron.app.setPath("userData", path.resolve(developmentUserData));
   }
   let displayManager = null;
@@ -878,6 +901,8 @@ async function runIslandApp() {
     log.info("[main] creating IslandWindow...");
     try {
       const iw = new IslandWindow(target, {
+        onNativeFileDrop: (paths) => coordinator.addShelfPaths(paths),
+        onNativeFileShare: (paths) => sharePathsViaQuickProvider(coordinator, iw.browserWindow, paths).ok,
         onBlur: (islandWindow) => {
           const browserWindow = islandWindow.browserWindow;
           if (browserWindow.isDestroyed() || browserWindow.webContents.isDestroyed()) return;
@@ -1193,4 +1218,11 @@ for (const signal of ["SIGINT", "SIGTERM", "SIGUSR1"]) {
     if (!isQuitting) electron.app.quit();
   });
 }
-runIslandApp();
+const portableHookArg = process.argv.find((arg) => arg.startsWith("--workisland-hook-source="));
+if (portableHookArg) {
+  const source = portableHookArg.slice("--workisland-hook-source=".length);
+  process.argv.push("--source", source);
+  void require("../island/hooks-cli/index.cjs").run().finally(() => electron.app.exit(0));
+} else {
+  runIslandApp();
+}

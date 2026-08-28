@@ -5,6 +5,7 @@ import { test } from "node:test";
 const require = createRequire(import.meta.url);
 const { getSocketPath } = require("../src/main/bridge-protocol.cjs");
 const { createHooksCliCommand } = require("../src/main/hooks-cli-command.cjs");
+const { wrapWithInstallCheck } = require("../src/main/hook-shared.cjs");
 const { enrichTerminalContext } = require("../src/island/hooks-cli/index.cjs");
 const { createWindowsNavigation, resolveWindowsApp } = require("../src/main/windows-navigation.cjs");
 const { parseWindowsTasklist } = require("../src/main/process-monitor.cjs");
@@ -29,6 +30,15 @@ test("Windows development hooks use cmd.exe quoting and Electron Node mode", () 
     command,
     'set "ELECTRON_RUN_AS_NODE=1"&& "C:\\Program Files\\WorkIsland\\WorkIsland.exe" "C:\\Program Files\\WorkIsland\\src\\island\\hooks-cli\\index.cjs" --source "codex"'
   );
+});
+
+test("Windows portable hooks target the stable launcher instead of its temporary extraction", () => {
+  const command = wrapWithInstallCheck(
+    "C:\\Temp\\portable\\WorkIsland.exe",
+    'set "ELECTRON_RUN_AS_NODE=1"&& "C:\\Temp\\portable\\WorkIsland.exe" "C:\\Temp\\portable\\resources\\bin\\flux-hooks" --source claude',
+    { platform: "win32", portableExecutable: "D:\\Apps\\WorkIsland-Portable.exe" }
+  );
+  assert.equal(command, 'if not exist "D:\\Apps\\WorkIsland-Portable.exe" exit /b 0 & "D:\\Apps\\WorkIsland-Portable.exe" --workisland-hook-source=claude');
 });
 
 test("Windows Terminal hook context preserves WT_SESSION", () => {

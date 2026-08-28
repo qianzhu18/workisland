@@ -45,8 +45,11 @@ const {
   getCodeBuddyConfigPath
 } = require("../src/main/hooks-work-agents.cjs");
 
-// #28 (dock mode) reverted: its 4 IPC channels are gone; 92 = 91 + 1 channel added after #28.
-assert.equal(Object.keys(IPC).length, 92, "IPC contract changed; review both main and preload consumers");
+// #28 (dock mode) was reverted; productivity toolbox adds narrow channels for
+// shelf references/paste/share, opt-in clipboard history, directory selection,
+// one managed PTY session, a renderer-to-main file-drag interaction lock, and
+// privacy-gated lyrics state/cache controls.
+assert.equal(Object.keys(IPC).length, 140, "IPC contract changed; review both main and preload consumers");
 assert.equal(new Set(Object.values(IPC)).size, Object.keys(IPC).length, "IPC channels must be unique");
 assert.ok(Object.isFrozen(IPC), "IPC contract must be immutable");
 assert.equal(IPC.PET_DRAG_TO_ISLAND, "pet:drag-to-island");
@@ -54,6 +57,7 @@ assert.equal(IPC.SETTINGS_GET_CUSTOM_ICON, "settings:get-custom-icon");
 assert.equal(IPC.PET_TOGGLE, "pet:toggle");
 assert.equal(IPC.SETTINGS_GET_CODEX_PETS, "settings:get-codex-pets");
 assert.equal(IPC.SETTINGS_GET_TELEMETRY_STATUS, "settings:get-telemetry-status");
+assert.equal(IPC.ISLAND_FILE_DRAG_STATE, "island:file-drag-state");
 const coreAgentIds = listCoreAgentDescriptors().map(({ agentId }) => agentId);
 assert.ok(coreAgentIds.includes("zcode"));
 assert.ok(coreAgentIds.includes("workbuddy"));
@@ -143,21 +147,25 @@ assert.equal(unavailableNativePlatform.getScreenFullscreenState("display"), DEFA
 assert.deepEqual(nativeWarnings, []);
 
 const nativeCalls = [];
+let nativeDropCallback = null;
 const availableNativePlatform = createNativePlatformService({
   addonPath: "/mock/panel_fix.node",
   platform: "darwin",
   load: () => ({
     fixPanel: (...args) => nativeCalls.push(args),
+    setFileDropTarget: (...args) => { nativeDropCallback = args.at(-1); nativeCalls.push(args.slice(0, 2)); },
     getFrontmostAppDisplayId: () => "display-1",
     getScreenFullscreenState: () => { throw new Error("native failure"); }
   }),
   logger: { warn: (...args) => nativeWarnings.push(args) }
 });
 availableNativePlatform.fixPanel("handle", "display-1");
+availableNativePlatform.setFileDropTarget("handle", true, () => {});
 assert.equal(availableNativePlatform.available, true);
 assert.equal(availableNativePlatform.getFrontmostAppDisplayId(), "display-1");
 assert.deepEqual(availableNativePlatform.getScreenFullscreenState("display-1"), DEFAULT_FULLSCREEN_STATE);
-assert.deepEqual(nativeCalls, [["handle", "display-1"]]);
+assert.equal(typeof nativeDropCallback, "function");
+assert.deepEqual(nativeCalls, [["handle", "display-1"], ["handle", true]]);
 
 const defaultsA = createDefaultSettings();
 const defaultsB = createDefaultSettings();

@@ -6,21 +6,24 @@ const html = readFileSync(new URL("../website/index.html", import.meta.url), "ut
 const css = readFileSync(new URL("../website/styles.css", import.meta.url), "utf8");
 const guide = readFileSync(new URL("../website/guide/index.html", import.meta.url), "utf8");
 const guideCss = readFileSync(new URL("../website/guide/guide.css", import.meta.url), "utf8");
+const changelog = readFileSync(new URL("../website/changelog/index.html", import.meta.url), "utf8");
+const changelogCss = readFileSync(new URL("../website/changelog/changelog.css", import.meta.url), "utf8");
+const rootChangelogUrl = new URL("../CHANGELOG.md", import.meta.url);
 const releaseWorkflow = readFileSync(new URL("../.github/workflows/release.yml", import.meta.url), "utf8");
 const websiteWorkflow = readFileSync(new URL("../.github/workflows/website.yml", import.meta.url), "utf8");
-const qrUrl = new URL("../website/assets/community/workisland-beta-group.png", import.meta.url);
+const qrUrl = new URL("../website/assets/community/workisland-community-group.png", import.meta.url);
 const robotsUrl = new URL("../website/robots.txt", import.meta.url);
 const sitemapUrl = new URL("../website/sitemap.xml", import.meta.url);
 const nginxConfig = readFileSync(new URL("../deploy/nginx/workisland.conf", import.meta.url), "utf8");
 
-test("website exposes one support hub for feedback and beta community", () => {
+test("website exposes one support hub for feedback and community", () => {
   assert.match(html, /id="support"/);
   assert.match(html, /id="feedback"/);
-  assert.match(html, /id="beta-group"/);
+  assert.match(html, /id="community"/);
   assert.match(html, /提交反馈/);
-  assert.match(html, /加入 WorkIsland 内测群/);
+  assert.match(html, /加入 WorkIsland 社区/);
   assert.match(html, /https:\/\/github\.com\/qianzhu18\/workisland\/issues\/new\/choose/);
-  assert.match(html, /assets\/community\/workisland-beta-group\.png/);
+  assert.match(html, /assets\/community\/workisland-community-group\.png/);
   assert.match(css, /\.vi-support/);
 });
 
@@ -30,7 +33,7 @@ test("website makes the GitHub Star request explicit in the hero", () => {
   assert.match(css, /\.vi-star-note/);
 });
 
-test("website beta group image is a real PNG asset", () => {
+test("website community image is a real PNG asset", () => {
   assert.equal(existsSync(qrUrl), true);
   const png = readFileSync(qrUrl);
   assert.equal(png.subarray(1, 4).toString("ascii"), "PNG");
@@ -48,6 +51,16 @@ test("website links a user manual that covers first use and privacy", () => {
   assert.match(guide, /提交反馈/);
 });
 
+test("website publishes a canonical changelog for user-visible releases", () => {
+  assert.equal(existsSync(rootChangelogUrl), true);
+  assert.match(html, /href="changelog\/">更新日志<\/a>/);
+  assert.match(changelog, /<link rel="canonical" href="https:\/\/workisland\.yanglaishe\.cn\/changelog\/">/);
+  assert.match(changelog, /WorkIsland 更新日志/);
+  assert.match(changelog, /v3\.1\.0/);
+  assert.match(changelog, /同步歌词与专辑封面动效/);
+  assert.match(changelogCss, /\.changelog-release/);
+});
+
 test("website publishes crawler discovery files for its canonical pages", () => {
   assert.equal(existsSync(robotsUrl), true);
   assert.equal(existsSync(sitemapUrl), true);
@@ -59,11 +72,13 @@ test("website publishes crawler discovery files for its canonical pages", () => 
   assert.match(robots, /^Sitemap: https:\/\/workisland\.yanglaishe\.cn\/sitemap\.xml$/m);
   assert.match(sitemap, /<loc>https:\/\/workisland\.yanglaishe\.cn\/<\/loc>/);
   assert.match(sitemap, /<loc>https:\/\/workisland\.yanglaishe\.cn\/guide\/<\/loc>/);
+  assert.match(sitemap, /<loc>https:\/\/workisland\.yanglaishe\.cn\/changelog\/<\/loc>/);
 });
 
 test("website declares a canonical URL for each indexable page", () => {
   assert.match(html, /<link rel="canonical" href="https:\/\/workisland\.yanglaishe\.cn\/">/);
   assert.match(guide, /<link rel="canonical" href="https:\/\/workisland\.yanglaishe\.cn\/guide\/">/);
+  assert.match(changelog, /<link rel="canonical" href="https:\/\/workisland\.yanglaishe\.cn\/changelog\/">/);
 });
 
 test("nginx redirects HTML index aliases to the canonical directory URLs", () => {
@@ -86,6 +101,8 @@ test("website metadata states the product intent and canonical share preview", (
 test("website deployment validates crawler discovery files", () => {
   assert.match(websiteWorkflow, /test -s website\/robots\.txt/);
   assert.match(websiteWorkflow, /test -s website\/sitemap\.xml/);
+  assert.match(websiteWorkflow, /test -s website\/changelog\/index\.html/);
+  assert.match(websiteWorkflow, /test -s website\/changelog\/changelog\.css/);
 });
 
 test("website prioritizes its primary product visual without changing image assets", () => {
@@ -102,6 +119,6 @@ test("guide frames its product screenshot without exposing the empty lower captu
   assert.match(guideCss, /\.guide-shot img \{[^}]*width: 100%;[^}]*height: auto;[^}]*aspect-ratio: 16 \/ 9;[^}]*object-fit: cover;[^}]*object-position: top;/);
 });
 
-test("release workflow marks beta tags as prereleases", () => {
+test("release workflow marks prerelease tags as prereleases", () => {
   assert.match(releaseWorkflow, /prerelease:\s*\$\{\{\s*contains\(github\.ref_name, '-'/);
 });

@@ -23,6 +23,51 @@ test("general settings expose all completion notification duration options", () 
   assert.match(source, /save\(\{ completionPopupDurationSec: Number\(v\) \}\)/);
 });
 
+test("workstation settings expose every productivity module and local privacy policy", () => {
+  for (const copy of ["文件架", "剪贴板历史", "快捷终端", "只保存在本机", "历史条数", "自动清理", "默认目录", "快捷命令"]) {
+    assert.match(source, new RegExp(copy));
+  }
+  assert.match(source, /save\(\{ fileShelfEnabled: v \}\)/);
+  assert.match(source, /save\(\{ clipboardHistoryEnabled: v \}\)/);
+  assert.match(source, /save\(\{ terminalEnabled: v \}\)/);
+  assert.match(source, /terminalSavedCommands/);
+  assert.match(source, /删除/);
+  assert.match(source, /await save\([\s\S]*terminalSavedCommands:[\s\S]*renderPage\(\)/);
+  assert.match(source, /selectDirectory/);
+  assert.match(source, /terminal-command-editor/);
+  assert.doesNotMatch(source, /window\.prompt/);
+  assert.match(css, /\.terminal-command-editor/);
+});
+
+test("Island behavior lets users choose the toolbox page shown after reopening", () => {
+  assert.match(source, /重新展开时/);
+  assert.match(source, /智能体主页（默认）/);
+  assert.match(source, /toolboxReopenMode/);
+});
+
+test("workstation and productivity details use accessible inline disclosures", () => {
+  assert.match(source, /function featureSettingsRow\(/);
+  assert.match(source, /aria-expanded/);
+  assert.match(source, /aria-controls/);
+  assert.match(source, /详细设置/);
+  assert.match(source, /expandedSettingDetails/);
+  assert.doesNotMatch(source, /const clipboardSettings = section\("剪贴板"/);
+  assert.doesNotMatch(source, /const terminalSettings = section\("快捷终端"/);
+  assert.match(css, /\.feature-settings-card/);
+  assert.match(css, /\.feature-settings-detail/);
+  assert.match(css, /\.feature-settings-disclosure/);
+});
+
+test("file shelf settings persist a selectable default quick-share provider", () => {
+  const source = readFileSync(new URL("../src/renderer/settings-app.js", import.meta.url), "utf8");
+  const settingsSource = readFileSync(new URL("../src/shared/settings.cjs", import.meta.url), "utf8");
+  const preloadSource = readFileSync(new URL("../src/preload/settings.js", import.meta.url), "utf8");
+  assert.match(settingsSource, /shelfQuickShareProvider:\s*"AirDrop"/);
+  assert.match(source, /默认快速分享/);
+  assert.match(source, /getShelfShareProviders/);
+  assert.match(preloadSource, /getShelfShareProviders/);
+});
+
 test("the default General page offers a confirmed safe quit action", () => {
   assert.match(source, /function requestQuitApp\(\)/);
   assert.match(source, /window\.confirm\("退出 WorkIsland？\\n\\n这会关闭 Island、桌宠与后台监听。"\)/);
@@ -31,14 +76,14 @@ test("the default General page offers a confirmed safe quit action", () => {
   assert.doesNotMatch(source, /button\("退出应用", \(\) => api\.quitApp\(\), "danger"\)/);
 });
 
-test("about settings route the manual, feedback and beta community through stable website URLs", () => {
-  assert.match(source, /帮助与内测/);
+test("about settings route the manual, feedback and community through stable website URLs", () => {
+  assert.match(source, /帮助与社区/);
   assert.match(source, /https:\/\/workisland\.yanglaishe\.cn\/guide\//);
   assert.match(source, /产品手册/);
   assert.match(source, /https:\/\/workisland\.yanglaishe\.cn\/#feedback/);
-  assert.match(source, /https:\/\/workisland\.yanglaishe\.cn\/#beta-group/);
+  assert.match(source, /https:\/\/workisland\.yanglaishe\.cn\/#community/);
   assert.match(source, /提交反馈/);
-  assert.match(source, /加入内测群/);
+  assert.match(source, /加入社区/);
 });
 
 test("settings use product images instead of letter placeholders", () => {

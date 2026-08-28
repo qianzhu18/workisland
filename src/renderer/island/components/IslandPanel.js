@@ -4,6 +4,12 @@ import { g as getFireIconByTokenCount, s as sanitizeAgentDisplayText, c as clean
 import { f as formatTokenCount } from "../../shared/tokens.js";
 import { M as Markdown, r as remarkGfm } from "../../vendor/markdown.js";
 import { canContinueSessionViaTerminalPrompt, filterSurfaceSessions, sortVisibleSessions } from "../session-model.mjs";
+import { MediaCard } from "./MediaCard.js";
+import { PerformancePopover } from "./PerformancePopover.js";
+import { ShelfPanel } from "./ShelfPanel.js";
+import { ClipboardPanel } from "./ClipboardPanel.js";
+import { TerminalPanel } from "./TerminalPanel.js";
+import { enabledToolboxModules, selectToolboxModule } from "./productivity-toolbox-model.mjs";
 const defaultIcon = new URL("../assets/status/idle.svg", import.meta.url).href;
 const runningIcon = new URL("../assets/status/running.svg", import.meta.url).href;
 const approvalIcon = new URL("../assets/status/approval.svg", import.meta.url).href;
@@ -25,6 +31,44 @@ function useActionable(sessions, surface, options) {
     [sessions, surface]
   );
   return { actionableId, actionableRef, visibleSessions };
+}
+function ToolIconFrame({ children }) {
+  return React.createElement("svg", {
+    className: "toolbox-line-icon",
+    viewBox: "0 0 18 18",
+    width: 16,
+    height: 16,
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.45,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    "aria-hidden": "true"
+  }, children);
+}
+function ShelfToolIcon() {
+  return React.createElement(ToolIconFrame, null,
+    React.createElement("path", { d: "M2.4 5.1h4l1.45 1.55h7.75v6.55a1.4 1.4 0 0 1-1.4 1.4H3.8a1.4 1.4 0 0 1-1.4-1.4Z" }),
+    React.createElement("path", { d: "M2.4 6.65V4.8a1.4 1.4 0 0 1 1.4-1.4h2.05l1.45 1.7" })
+  );
+}
+function ClipboardToolIcon() {
+  return React.createElement(ToolIconFrame, null,
+    React.createElement("rect", { x: 3.4, y: 3.5, width: 11.2, height: 12.2, rx: 1.8 }),
+    React.createElement("path", { d: "M6.7 4.5V3.35c0-.6.5-1.05 1.1-1.05h2.4c.6 0 1.1.45 1.1 1.05V4.5M6.5 8h5M6.5 11h5" })
+  );
+}
+function TerminalToolIcon() {
+  return React.createElement(ToolIconFrame, null,
+    React.createElement("rect", { x: 2.3, y: 3.1, width: 13.4, height: 11.8, rx: 2 }),
+    React.createElement("path", { d: "m5.3 7 2 2-2 2M9.4 11h3.2" })
+  );
+}
+function AgentHomeIcon() {
+  return React.createElement(ToolIconFrame, null,
+    React.createElement("path", { d: "m3 8 6-5 6 5v6.5H3Z" }),
+    React.createElement("path", { d: "M7 14.5v-4h4v4" })
+  );
 }
 const TokenBurnFire = ({ tokenCount }) => {
   const iconSrc = reactExports.useMemo(() => {
@@ -210,6 +254,11 @@ function AgentUsageRow({
   visibleSessionIds,
   pillFirstRow,
   showUsageQuota = true,
+  performanceState,
+  performanceEnabled = true,
+  enabledToolboxModules = [],
+  activeToolboxModule = "agent",
+  onToolboxModuleChange,
   onOpenSettings,
   onOpenAbout,
   onOpenPet
@@ -229,12 +278,34 @@ function AgentUsageRow({
   const handleClearSessions = () => {
     window.islandBridge?.deleteSessions(visibleSessionIds);
   };
+  const utilityModules = [
+    ["shelf", "文件架", ShelfToolIcon],
+    ["clipboard", "剪贴板", ClipboardToolIcon],
+    ["terminal", "终端", TerminalToolIcon]
+  ].filter(([id]) => enabledToolboxModules.includes(id));
+  const utilityButtons = utilityModules.map(([id, label, Icon]) => React.createElement("button", {
+    key: id,
+    type: "button",
+    className: `panel-btn toolbox-icon-button${activeToolboxModule === id ? " is-active" : ""}`,
+    title: label,
+    "aria-label": label,
+    "aria-pressed": activeToolboxModule === id,
+    onClick: () => onToolboxModuleChange?.(activeToolboxModule === id ? "agent" : id)
+  }, React.createElement(Icon)));
+  const agentHomeButton = activeToolboxModule !== "agent" && React.createElement("button", {
+    key: "agent",
+    type: "button",
+    className: "panel-btn toolbox-icon-button",
+    title: "智能体主页",
+    "aria-label": "智能体主页",
+    onClick: () => onToolboxModuleChange?.("agent")
+  }, React.createElement(AgentHomeIcon));
   const quotaCells = agentsWithQuota.filter((tool) => {
     if (tool === "claude" && !pillFirstRow.claudeSubscription) return false;
     if (tool === "codex" && !pillFirstRow.codexSubscription) return false;
     return true;
   }).map((tool, idx, arr) => /* @__PURE__ */ React.createElement(React.Fragment, { key: tool }, /* @__PURE__ */ React.createElement(AgentQuotaCell, { tool, quota: agentQuotas[tool] }), idx < arr.length - 1 && /* @__PURE__ */ React.createElement("span", { className: "usage-cell-divider" }, "|")));
-  return /* @__PURE__ */ React.createElement("div", { className: "usage-row", style: { minHeight: notchHeight } }, showUsageQuota && /* @__PURE__ */ React.createElement("div", { className: "usage-row-agents" }, quotaCells), /* @__PURE__ */ React.createElement("div", { className: "usage-row-actions" }, visibleSessionIds.length > 0 && /* @__PURE__ */ React.createElement("button", { className: "panel-btn", onClick: handleClearSessions, title: i18n.k1005723937({}, "清理会话") }, /* @__PURE__ */ React.createElement("img", { src: cleanIcon, alt: "clean sessions", width: 16, height: 16 })), pillFirstRow.upgradeButton && hasUpdate && /* @__PURE__ */ React.createElement(StatusIcon, { icon: updateIcon, badgeColor: "#4A90D9", title: i18n.k3734051999({}, "有新版本可用"), onClick: onOpenAbout }), pillFirstRow.tokenCount && /* @__PURE__ */ React.createElement(TokenUsage, { tokenCount: tokenBurnTotal, onClick: () => onOpenSettings("statistics") }), pillFirstRow.soundIcon && /* @__PURE__ */ React.createElement("button", { className: "panel-btn", onClick: handleToggleSound, title: muted ? "Unmute" : "Mute" }, /* @__PURE__ */ React.createElement("img", { src: muted ? voiceMuteIcon : voiceIcon, alt: muted ? "muted" : "sound" })), /* @__PURE__ */ React.createElement("button", { className: "panel-btn panel-pet-button", type: "button", onClick: onOpenPet, title: "打开或关闭桌宠", "aria-label": "打开或关闭桌宠" }, /* @__PURE__ */ React.createElement(PetButtonIcon)), /* @__PURE__ */ React.createElement("button", { className: "panel-btn", onClick: () => onOpenSettings("display"), title: "Settings" }, /* @__PURE__ */ React.createElement("img", { src: settingIcon, alt: "settings" }))));
+  return /* @__PURE__ */ React.createElement("div", { className: "usage-row", style: { minHeight: notchHeight } }, showUsageQuota && /* @__PURE__ */ React.createElement("div", { className: "usage-row-agents" }, quotaCells), /* @__PURE__ */ React.createElement("div", { className: "usage-row-actions" }, visibleSessionIds.length > 0 && /* @__PURE__ */ React.createElement("button", { className: "panel-btn", onClick: handleClearSessions, title: i18n.k1005723937({}, "清理会话") }, /* @__PURE__ */ React.createElement("img", { src: cleanIcon, alt: "clean sessions", width: 16, height: 16 })), pillFirstRow.upgradeButton && hasUpdate && /* @__PURE__ */ React.createElement(StatusIcon, { icon: updateIcon, badgeColor: "#4A90D9", title: i18n.k3734051999({}, "有新版本可用"), onClick: onOpenAbout }), pillFirstRow.soundIcon && /* @__PURE__ */ React.createElement("button", { className: "panel-btn", onClick: handleToggleSound, title: muted ? "Unmute" : "Mute" }, /* @__PURE__ */ React.createElement("img", { src: muted ? voiceMuteIcon : voiceIcon, alt: muted ? "muted" : "sound" })), agentHomeButton, utilityButtons, performanceEnabled && /* @__PURE__ */ React.createElement(PerformancePopover, { state: performanceState }), /* @__PURE__ */ React.createElement("button", { className: "panel-btn panel-pet-button", type: "button", onClick: onOpenPet, title: "打开或关闭桌宠", "aria-label": "打开或关闭桌宠" }, /* @__PURE__ */ React.createElement(PetButtonIcon)), /* @__PURE__ */ React.createElement("button", { className: "panel-btn", onClick: () => onOpenSettings("display"), title: "Settings" }, /* @__PURE__ */ React.createElement("img", { src: settingIcon, alt: "settings" }))));
 }
 const TOOL_BADGE_COLORS = {
   claude: "#DA7250",
@@ -1276,14 +1347,39 @@ function IslandPanel({
   hasUpdate,
   tokenBurnTotal,
   pillFirstRow,
+  mediaState,
+  lyricsState,
+  mediaEnabled = true,
+  performanceState,
+  performanceEnabled = true,
+  fileShelfEnabled = true,
+  clipboardHistoryEnabled = false,
+  terminalEnabled = true,
+  terminalSavedCommands = [],
+  requestedToolboxModule = null,
   onSessionRowClick,
   onOpenSettings,
   onOpenAbout,
   onOpenPet,
   onCollapse,
-  onFollowUpChange
+  onFollowUpChange,
+  onActiveModuleChange
 }) {
   const [followUpSessionId, setFollowUpSessionId] = React.useState(null);
+  const [activeModule, setActiveModule] = React.useState("agent");
+  const enabledModules = enabledToolboxModules({ fileShelfEnabled, clipboardHistoryEnabled, terminalEnabled });
+  const agentAttention = Boolean(surface?.actionableSessionId) || sessions.some((session) => ["waitingForApproval", "waitingForAnswer", "failed"].includes(session.phase));
+  React.useEffect(() => {
+    setActiveModule((current) => selectToolboxModule({ current, attention: agentAttention, enabled: enabledModules }));
+  }, [agentAttention, fileShelfEnabled, clipboardHistoryEnabled, terminalEnabled]);
+  React.useEffect(() => {
+    onActiveModuleChange?.(activeModule);
+  }, [activeModule, onActiveModuleChange]);
+  React.useEffect(() => {
+    if (!agentAttention && requestedToolboxModule?.id && enabledModules.includes(requestedToolboxModule.id)) {
+      setActiveModule(requestedToolboxModule.id);
+    }
+  }, [requestedToolboxModule, agentAttention, enabledModules.join("|")]);
   const { actionableId, actionableRef, visibleSessions } = useActionable(sessions, surface, {
     disableScroll: !!followUpSessionId
   });
@@ -1335,11 +1431,16 @@ function IslandPanel({
       tokenBurnTotal,
       visibleSessionIds: visibleSessions.map((session) => session.id),
       pillFirstRow,
+      performanceState,
+      performanceEnabled,
+      enabledToolboxModules: enabledModules,
+      activeToolboxModule: activeModule,
+      onToolboxModuleChange: setActiveModule,
       onOpenSettings,
       onOpenAbout,
       onOpenPet
     }
-  ), /* @__PURE__ */ React.createElement("div", { className: "panel-divider" }), /* @__PURE__ */ React.createElement("div", { className: "session-list", ref: sessionListRef }, visibleSessions.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "session-list-empty" }, /* @__PURE__ */ React.createElement(
+  ), /* @__PURE__ */ React.createElement("div", { className: "panel-divider" }), activeModule === "shelf" && /* @__PURE__ */ React.createElement(ShelfPanel), activeModule === "clipboard" && /* @__PURE__ */ React.createElement(ClipboardPanel), activeModule === "terminal" && /* @__PURE__ */ React.createElement(TerminalPanel, { savedCommands: terminalSavedCommands, onOpenSettings: () => onOpenSettings("general") }), /* @__PURE__ */ React.createElement("div", { className: `workspace-content${mediaEnabled && mediaState?.active && mediaState?.title ? " has-media" : ""}${activeModule === "agent" ? "" : " is-hidden"}` }, mediaEnabled && mediaState?.active && mediaState?.title && /* @__PURE__ */ React.createElement(MediaCard, { media: mediaState, lyrics: lyricsState }), /* @__PURE__ */ React.createElement("div", { className: "workspace-agent-pane" }, /* @__PURE__ */ React.createElement("div", { className: "session-list", ref: sessionListRef }, visibleSessions.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "session-list-empty" }, /* @__PURE__ */ React.createElement(
     "img",
     {
       className: "session-list-empty-icon",
@@ -1389,7 +1490,7 @@ function IslandPanel({
         }
       )))
     );
-  })));
+  })))));
 }
 export {
   AgentToolBadge as A,

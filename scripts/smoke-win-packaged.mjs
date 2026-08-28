@@ -6,7 +6,8 @@
 // Usage: node scripts/smoke-win-packaged.mjs <path-to-exe> [timeoutMs]
 
 import { spawn } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 
@@ -17,22 +18,21 @@ if (!exe || !existsSync(exe)) {
   process.exit(2);
 }
 
-const appData = process.env.APPDATA
-  || path.join(process.env.USERPROFILE || "", "AppData", "Roaming");
-
-// CI 中 npm run check 的单元测试会往真实的 userData/logs 写日志，
-// 先清掉，避免陈旧内容伪造 ready / fail 信号。
-for (const entry of (() => {
-  try { return readdirSync(appData); } catch { return []; }
-})()) {
-  if (!/work.?island/i.test(entry)) continue;
-  try { rmSync(path.join(appData, entry, "logs"), { recursive: true, force: true }); } catch {}
-}
+const smokeRoot = mkdtempSync(path.join(os.tmpdir(), "workisland-packaged-smoke-"));
+const appData = path.join(smokeRoot, "user-data");
+mkdirSync(appData, { recursive: true });
+const smokeUserDataArg = `--smoke-user-data=${appData}`;
 
 // Electron 可能使用 productName 或 package name 作为 userData 目录名，
 // 甚至 portable 解包后名称不同：扫描 AppData 下所有 *ork*sland* 候选。
 function findLogFiles() {
   const candidates = [];
+  const directLogs = path.join(appData, "logs");
+  try {
+    for (const file of readdirSync(directLogs)) {
+      if (file.endsWith(".log")) candidates.push(path.join(directLogs, file));
+    }
+  } catch {}
   try {
     for (const entry of readdirSync(appData)) {
       if (!/work.?island/i.test(entry)) continue;
@@ -68,7 +68,7 @@ const FAIL_MARKERS = [
 // 应用僵尸化（拒绝退出/窗口隐藏后常驻）会让本模式超时失败。
 if (process.argv.includes("--expect-self-quit")) {
   const QUIT_DELAY_MS = 4000;
-  const quitChild = spawn(exe, [`--smoke-quit-after=${QUIT_DELAY_MS}`], {
+  const quitChild = spawn(exe, [smokeUserDataArg, `--smoke-quit-after=${QUIT_DELAY_MS}`], {
     stdio: ["ignore", "pipe", "pipe"]
   });
   let quitOutput = "";
@@ -98,7 +98,7 @@ if (process.argv.includes("--expect-self-quit")) {
 }
 
 let output = "";
-const child = spawn(exe, [], {
+const child = spawn(exe, [smokeUserDataArg], {
   stdio: ["ignore", "pipe", "pipe"]
 });
 child.stdout.on("data", (d) => { output += d; });

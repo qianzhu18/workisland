@@ -105,6 +105,25 @@ const DEFAULT_SETTINGS = {
   islandDisplayModeVersion: 1,
   autoCollapseOnMouseLeave: true,
   completionPopupDurationSec: 5,
+  mediaEnabled: true,
+  mediaTrackChangeNotifications: true,
+  // Online lyrics send only track metadata to LRCLIB, so privacy-first default is off.
+  lyricsEnabled: false,
+  performanceEnabled: true,
+  // Resource alerts are opt-in so a workstation dashboard never becomes noisy.
+  performanceAlertsEnabled: false,
+  fileShelfEnabled: true,
+  shelfQuickShareProvider: "AirDrop",
+  // Clipboard history is opt-in because copied content can contain secrets.
+  clipboardHistoryEnabled: false,
+  clipboardHistoryLimit: 100,
+  clipboardRetentionHours: 24,
+  terminalEnabled: true,
+  terminalShell: "",
+  terminalDefaultDirectory: "agent-project",
+  terminalCustomDirectory: "",
+  terminalSavedCommands: [],
+  toolboxReopenMode: "agent",
   showUsageQuota: true,
   usageDisplayValue: "used",
   disableClaudeTerminalTitle: true,
@@ -238,6 +257,41 @@ function mergeSettings(parsed = {}) {
       : { ...fallback };
   }
   merged.shortcuts = { modifiers, bindings };
+
+  const allowedClipboardLimits = new Set([25, 50, 100, 250]);
+  const allowedRetentionHours = new Set([0, 1, 8, 24, 168]);
+  merged.clipboardHistoryLimit = allowedClipboardLimits.has(parsed.clipboardHistoryLimit)
+    ? parsed.clipboardHistoryLimit
+    : DEFAULT_SETTINGS.clipboardHistoryLimit;
+  merged.clipboardRetentionHours = allowedRetentionHours.has(parsed.clipboardRetentionHours)
+    ? parsed.clipboardRetentionHours
+    : DEFAULT_SETTINGS.clipboardRetentionHours;
+  merged.shelfQuickShareProvider = typeof parsed.shelfQuickShareProvider === "string" && parsed.shelfQuickShareProvider.trim().length > 0 && parsed.shelfQuickShareProvider.length <= 160
+    ? parsed.shelfQuickShareProvider.trim()
+    : DEFAULT_SETTINGS.shelfQuickShareProvider;
+  merged.terminalDefaultDirectory = ["agent-project", "home", "custom"].includes(parsed.terminalDefaultDirectory)
+    ? parsed.terminalDefaultDirectory
+    : DEFAULT_SETTINGS.terminalDefaultDirectory;
+  merged.terminalShell = typeof parsed.terminalShell === "string" && parsed.terminalShell.length <= 1024
+    ? parsed.terminalShell
+    : "";
+  merged.terminalCustomDirectory = typeof parsed.terminalCustomDirectory === "string" && parsed.terminalCustomDirectory.length <= 4096
+    ? parsed.terminalCustomDirectory
+    : "";
+  merged.terminalSavedCommands = Array.isArray(parsed.terminalSavedCommands)
+    ? parsed.terminalSavedCommands.slice(0, 50).flatMap((entry) => {
+        if (!entry || typeof entry !== "object") return [];
+        const id = typeof entry.id === "string" ? entry.id.trim().slice(0, 80) : "";
+        const name = typeof entry.name === "string" ? entry.name.trim().slice(0, 80) : "";
+        const command = typeof entry.command === "string" ? entry.command.trim().slice(0, 8192) : "";
+        if (!id || !name || !command) return [];
+        const cwdMode = ["agent-project", "home", "custom"].includes(entry.cwdMode) ? entry.cwdMode : "agent-project";
+        return [{ id, name, command, cwdMode }];
+      })
+    : [];
+  merged.toolboxReopenMode = ["agent", "last"].includes(parsed.toolboxReopenMode)
+    ? parsed.toolboxReopenMode
+    : DEFAULT_SETTINGS.toolboxReopenMode;
 
   return merged;
 }

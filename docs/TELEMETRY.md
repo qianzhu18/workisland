@@ -2,7 +2,7 @@
 
 状态：`active` · 对应 [PRD-005](./product/prd/PRD-005-ANONYMOUS-TELEMETRY.md)
 
-WorkIsland 内置一套**默认开启**的匿名使用统计（2026-08-22 起的政策，在此版本之前为 opt-in）。本文说明它采集什么、不采集什么，以及如何配置接收端（PostHog Cloud）和查看内测指标。
+WorkIsland 内置一套**默认开启**的匿名使用统计（2026-08-22 起的政策，在此版本之前为 opt-in）。本文说明它采集什么、不采集什么，以及如何配置接收端（PostHog Cloud）和查看公开发布指标。
 
 ## 隐私承诺（对用户的完整承诺，也是实现的验收标准）
 
@@ -35,9 +35,9 @@ WorkIsland 内置一套**默认开启**的匿名使用统计（2026-08-22 起的
 4. 打包构建（`app.isPackaged` 为 true）后，匿名使用统计默认开启，PostHog Live events 即可看到 `app_launched`（用户在设置中关闭则停止）。
 5. 开发调试：开发模式不出网；匿名统计开启时事件会写入 `<userData>/telemetry/pending.json`，可直接检查将要上报的内容。
 
-免费版额度备忘：1 个 Project、约 2 万事件/月。内测 50 人 × 每天约 10–20 个事件 ≈ 1.5–3 万/月，可能触顶；触顶时优先做事件降频（如 `session_started` 聚合为按天计数）或迁移自建端（见下）。单 Project 足够：多版本用 `appVersion` 属性区分。
+免费版额度备忘：1 个 Project、约 2 万事件/月。50 名公开测试用户 × 每天约 10–20 个事件 ≈ 1.5–3 万/月，可能触顶；触顶时优先做事件降频（如 `session_started` 聚合为按天计数）或迁移自建端（见下）。单 Project 足够：多版本用 `appVersion` 属性区分。
 
-## 推荐 Insight 配置（对应内测毕业标准）
+## 推荐 Insight 配置（对应公开发布毕业标准）
 
 在 PostHog 中创建：
 

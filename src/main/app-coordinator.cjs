@@ -21,10 +21,45 @@ const { HermesHookManager, AidenHookManager, TraexCliHookManager } = require("./
 const { PluginHookManager, DeepSeekHarnessHookManager } = require("./hooks-custom.cjs");
 const { ZCodeHookManager, WorkBuddyHookManager, CodeBuddyHookManager } = require("./hooks-work-agents.cjs");
 const { initSoundDirs, playSoundEvent } = require("./sound-service.cjs");
+const { createAgentSoundDeduplicator, resolveCodexTranscriptSoundEvent } = require("./agent-sound-policy.cjs");
 const { reportTokenUsage, getHermesCumulativeTokens, diffHermesCumulativeTokens } = require("./adapters-extended.cjs");
 const { getAgentDescriptor, validateAgentWiring } = require("../shared/agent-catalog.cjs");
 const { createPresentationRequest } = require("./presentation-policy.cjs");
 const { EVENTS } = require("../shared/telemetry.cjs");
+const { MediaService } = require("./media-service.cjs");
+const { LyricsService } = require("./lyrics-service.cjs");
+const { createAppIconResolver } = require("./app-icon-resolver.cjs");
+const { PerformanceService } = require("./performance-service.cjs");
+const { ShelfService } = require("./shelf-service.cjs");
+const { ClipboardHistoryService } = require("./clipboard-history-service.cjs");
+const { TerminalService } = require("./terminal-service.cjs");
+const { resolveRecentProjectCwd, resolveTerminalCommand } = require("../shared/terminal-state.cjs");
+
+function createElectronClipboardAdapter() {
+  return {
+    readSnapshot() {
+      const image = electron.clipboard.readImage();
+      if (image && !image.isEmpty()) {
+        const resized = image.resize({ width: Math.min(720, image.getSize().width), quality: "good" });
+        return { type: "image", dataUrl: resized.toDataURL() };
+      }
+      const text = electron.clipboard.readText();
+      if (!text) return null;
+      let type = "text";
+      try {
+        const url = new URL(text.trim());
+        if (["http:", "https:"].includes(url.protocol)) type = "url";
+      } catch {
+        if (/\n|[{}();]|\b(const|let|function|class|import|SELECT)\b/.test(text)) type = "code";
+      }
+      return { type, text };
+    },
+    writeEntry(entry) {
+      if (entry.type === "image") electron.clipboard.writeImage(electron.nativeImage.createFromDataURL(entry.dataUrl));
+      else if (typeof entry.text === "string") electron.clipboard.writeText(entry.text);
+    }
+  };
+}
 
 function createAppCoordinatorClass({
   BridgeServer,
@@ -78,6 +113,12 @@ function createAppCoordinatorClass({
     saveTimer = null;
     quotaService = new QuotaService();
     statsService = getStatsService();
+    mediaService;
+    lyricsService;
+    performanceService;
+    shelfService;
+    clipboardHistoryService;
+    terminalService;
     processMonitor;
     onSettingsChangeCallback = null;
     reconcileTimer = null;
@@ -90,6 +131,10 @@ function createAppCoordinatorClass({
     // edge idempotent within a short window without suppressing a later,
     // identical prompt.
     submissionNotificationBySession = /* @__PURE__ */ new Map();
+    // Hook adapters and the Codex transcript watcher can report the same
+    // lifecycle transition independently. Audio needs a separate per-session
+    // guard because hook adapters request sounds before event dedup runs.
+    agentSoundDedup = createAgentSoundDeduplicator();
     /**
      * Codex 会话元数据（transcript_path + 当前 turn_id），由 hookProcessed 事件维护，
      * 供 sweepInterruptedCodexSessions 读 transcript 末尾的 turn_aborted/interrupted 用。
@@ -148,6 +193,38 @@ function createAppCoordinatorClass({
       );
       this.state = createInitialState();
       this.settings = this.settingsRepository.load();
+      const mediaResourceDir = electron.app.isPackaged
+        ? path.join(process.resourcesPath, "mediaremote-adapter")
+        : path.join(electron.app.getAppPath(), "resources", "mediaremote-adapter");
+      const mediaWindowsScriptPath = electron.app.isPackaged
+        ? path.join(process.resourcesPath, "scripts", "media-session.ps1")
+        : path.join(electron.app.getAppPath(), "resources", "scripts", "media-session.ps1");
+      const resolveAppIcon = createAppIconResolver({
+        getFileIcon: (appPath) => electron.app.getFileIcon(appPath, { size: "normal" })
+      });
+      this.mediaService = new MediaService({ resourceDir: mediaResourceDir, windowsScriptPath: mediaWindowsScriptPath, resolveAppIcon });
+      this.lyricsService = new LyricsService({ storePath: path.join(electron.app.getPath("userData"), "lyrics-cache.json") });
+      this.performanceService = new PerformanceService();
+      const userDataPath = electron.app.getPath("userData");
+      this.shelfService = new ShelfService({ storePath: path.join(userDataPath, "shelf.json") });
+      this.clipboardHistoryService = new ClipboardHistoryService({
+        storePath: path.join(userDataPath, "clipboard-history.json"),
+        clipboardAdapter: createElectronClipboardAdapter()
+      });
+      this.terminalService = new TerminalService();
+      this.mediaService.setEnabled(this.settings.mediaEnabled !== false);
+      this.lyricsService.setEnabled(this.settings.mediaEnabled !== false && this.settings.lyricsEnabled === true);
+      this.performanceService.enabled = this.settings.performanceEnabled !== false;
+      this.mediaService.on("update", (state) => {
+        this.broadcastWorkstationState(IPC.MEDIA_STATE_UPDATE, state);
+        void this.lyricsService.setTrack(state);
+      });
+      this.lyricsService.on("update", (state) => this.broadcastWorkstationState(IPC.LYRICS_STATE_UPDATE, state));
+      this.performanceService.on("update", (state) => this.broadcastWorkstationState(IPC.PERFORMANCE_STATE_UPDATE, state));
+      this.shelfService.on("update", (state) => this.broadcastWorkstationState(IPC.SHELF_STATE_UPDATE, state));
+      this.clipboardHistoryService.on("update", (state) => this.broadcastWorkstationState(IPC.CLIPBOARD_HISTORY_UPDATE, state));
+      this.terminalService.on("status", (state) => this.broadcastWorkstationState(IPC.TERMINAL_STATUS_UPDATE, state));
+      this.terminalService.on("data", (data) => this.broadcastWorkstationState(IPC.TERMINAL_DATA, data));
       this.petMode = new PetModeController({
         registerReady: (callback) => electron.ipcMain.once(IPC.PET_READY, callback),
         sessionUpdateChannel: IPC.PET_SESSION_UPDATE,
@@ -234,6 +311,10 @@ function createAppCoordinatorClass({
           );
           return;
         }
+        const transcriptSoundEvent = resolveCodexTranscriptSoundEvent(event);
+        if (transcriptSoundEvent) {
+          this.playAgentSound(transcriptSoundEvent, event.sessionId, event.timestamp);
+        }
         log.info(
           "[AppCoordinator] agentEvent: type=%s session=%s tool=%s source=%s",
           event.type,
@@ -317,12 +398,24 @@ function createAppCoordinatorClass({
           reportTokenUsage(info.tool, info.sessionId, info.tokenUsage);
         }
       );
-      this.bridge.setSoundEventHandler((eventId) => {
-        playSoundEvent(eventId, this.settings);
+      this.bridge.setSoundEventHandler((eventId, context) => {
+        this.playAgentSound(eventId, context?.sessionId, context?.timestamp);
       });
       this.bridge.start();
       this.quotaService.start();
       this.processMonitor.start();
+      this.mediaService.start();
+      void this.lyricsService.setTrack(this.mediaService.getSnapshot());
+      this.performanceService.start();
+      void this.shelfService.start();
+      void this.clipboardHistoryService.start().then(() => {
+        this.clipboardHistoryService.setPolicy({
+          limit: this.settings.clipboardHistoryLimit,
+          retentionHours: this.settings.clipboardRetentionHours
+        });
+        this.clipboardHistoryService.setEnabled(this.settings.clipboardHistoryEnabled === true);
+      });
+      this.terminalService.setEnabled(this.settings.terminalEnabled !== false);
       this.startCodexTranscriptWatcher();
       // 启动发现：WorkIsland 只靠 hook 被动感知会话，它启动之前就在跑的对话
       // 要等下一个 hook 事件才会现身。主动扫一次正在运行的 claude CLI 进程
@@ -341,6 +434,10 @@ function createAppCoordinatorClass({
       this.startFullscreenCheck();
       this.autoReInstallHooks();
       playSoundEvent("appLaunch", this.settings);
+    }
+    playAgentSound(eventId, sessionId, timestamp) {
+      if (!this.agentSoundDedup.shouldPlay(eventId, sessionId, timestamp)) return false;
+      return playSoundEvent(eventId, this.settings);
     }
     /**
      * 启动 Codex transcript watcher（独立于 hook 的完成检测通道）。
@@ -568,6 +665,10 @@ function createAppCoordinatorClass({
       return readClaudeTranscriptState(file);
     }
     async autoReInstallHooks() {
+      if (process.argv.some((arg) => arg.startsWith("--smoke-user-data="))) {
+        log.info("[AppCoordinator] packaged smoke mode, skipping Hook reconciliation");
+        return;
+      }
       const toggles = this.settings.hookToggles ?? {};
       for (const [agentId, manager] of this.hookManagers) {
         try {
@@ -609,6 +710,11 @@ function createAppCoordinatorClass({
       this.bridge.stop();
       this.quotaService.stop();
       this.processMonitor.stop();
+      this.mediaService.stop();
+      this.lyricsService.dispose();
+      this.performanceService.stop();
+      this.clipboardHistoryService.dispose();
+      this.terminalService.dispose();
       if (this.codexTranscriptWatcher) {
         this.codexTranscriptWatcher.stop();
         this.codexTranscriptWatcher = null;
@@ -649,6 +755,12 @@ function createAppCoordinatorClass({
         this.broadcastSessionUpdate();
         this.broadcastSoundState();
         this.pushTodayBurnToWindows();
+        this.broadcastWorkstationState(IPC.MEDIA_STATE_UPDATE, this.mediaService.getSnapshot());
+        this.broadcastWorkstationState(IPC.LYRICS_STATE_UPDATE, this.lyricsService.snapshot());
+        this.broadcastWorkstationState(IPC.PERFORMANCE_STATE_UPDATE, this.performanceService.getSnapshot());
+        this.broadcastWorkstationState(IPC.SHELF_STATE_UPDATE, this.shelfService.snapshot());
+        this.broadcastWorkstationState(IPC.CLIPBOARD_HISTORY_UPDATE, this.clipboardHistoryService.snapshot());
+        this.broadcastWorkstationState(IPC.TERMINAL_STATUS_UPDATE, this.terminalService.snapshot());
       });
     }
     /**
@@ -866,6 +978,25 @@ function createAppCoordinatorClass({
         this.evaluateFullscreenVisibility();
       }
       if ("petScale" in partial) this.petMode.resize(this.settings.petScale);
+      if ("mediaEnabled" in partial) {
+        this.mediaService.setEnabled(this.settings.mediaEnabled !== false);
+        if (this.settings.mediaEnabled !== false) this.mediaService.start();
+      }
+      if ("mediaEnabled" in partial || "lyricsEnabled" in partial) {
+        this.lyricsService.setEnabled(this.settings.mediaEnabled !== false && this.settings.lyricsEnabled === true);
+        if (this.settings.mediaEnabled !== false && this.settings.lyricsEnabled === true) {
+          void this.lyricsService.setTrack(this.mediaService.getSnapshot());
+        }
+      }
+      if ("performanceEnabled" in partial) this.performanceService.setEnabled(this.settings.performanceEnabled !== false);
+      if ("clipboardHistoryEnabled" in partial) this.clipboardHistoryService.setEnabled(this.settings.clipboardHistoryEnabled === true);
+      if ("clipboardHistoryLimit" in partial || "clipboardRetentionHours" in partial) {
+        this.clipboardHistoryService.setPolicy({
+          limit: this.settings.clipboardHistoryLimit,
+          retentionHours: this.settings.clipboardRetentionHours
+        });
+      }
+      if ("terminalEnabled" in partial) this.terminalService.setEnabled(this.settings.terminalEnabled !== false);
       if ("approvalModes" in partial) {
         this.autoReInstallHooks();
       }
@@ -1061,6 +1192,69 @@ function createAppCoordinatorClass({
     }
     getStatsSnapshot(timeRange) {
       return this.statsService.getSnapshot(timeRange);
+    }
+    getMediaState() { return this.mediaService.getSnapshot(); }
+    sendMediaCommand(command) { return this.mediaService.sendCommand(command); }
+    getLyricsState() { return this.lyricsService.snapshot(); }
+    clearLyricsCache() { return this.lyricsService.clearCache(); }
+    getPerformanceState() { return this.performanceService.getSnapshot(); }
+    setPerformanceDetailsVisible(visible) { this.performanceService.setDetailsVisible(visible); }
+    actOnProcess(request) { return this.performanceService.actOnProcess(request); }
+    getShelfState() { return this.shelfService.snapshot(); }
+    addShelfPaths(paths) { return this.shelfService.addPaths(paths); }
+    addShelfPayload(payload) { return this.shelfService.addPayload(payload); }
+    removeShelfItems(ids) { return this.shelfService.remove(ids); }
+    clearShelf() { return this.shelfService.clear(); }
+    getShelfItem(id) { return this.shelfService.find(id); }
+    async openShelfItem(id) {
+      const item = this.shelfService.find(id);
+      if (!item?.path || !item.available) return false;
+      return (await electron.shell.openPath(item.path)) === "";
+    }
+    revealShelfItem(id) {
+      const item = this.shelfService.find(id);
+      if (!item?.path || !item.available) return false;
+      electron.shell.showItemInFolder(item.path);
+      return true;
+    }
+    async quickLookShelfItem(id) {
+      const item = this.shelfService.find(id);
+      if (!item?.path || !item.available) return false;
+      if (process.platform === "win32") return (await electron.shell.openPath(item.path)) === "";
+      require("node:child_process").spawn("/usr/bin/qlmanage", ["-p", item.path], { detached: true, stdio: "ignore" }).unref();
+      return true;
+    }
+    getClipboardHistory() { return this.clipboardHistoryService.snapshot(); }
+    replayClipboardEntry(id) { return this.clipboardHistoryService.replay(id); }
+    favoriteClipboardEntry(id, favorite) { return this.clipboardHistoryService.favorite(id, favorite); }
+    removeClipboardEntries(ids) { return this.clipboardHistoryService.remove(ids); }
+    clearClipboardHistory() { return this.clipboardHistoryService.clear(); }
+    getTerminalState() { return this.terminalService.snapshot(); }
+    getTerminalLaunchOptions(options = {}) {
+      return {
+        projectCwd: resolveRecentProjectCwd(this.state.sessions.values(), fs.existsSync),
+        customCwd: this.settings.terminalCustomDirectory,
+        cwdMode: this.settings.terminalDefaultDirectory,
+        shell: this.settings.terminalShell,
+        ...options
+      };
+    }
+    startTerminal(options = {}) {
+      return this.terminalService.start(this.getTerminalLaunchOptions(options));
+    }
+    sendTerminalInput(data) { return this.terminalService.input(data); }
+    resizeTerminal(size) { return this.terminalService.resize(size); }
+    restartTerminal(options = {}) { return this.terminalService.restart(this.getTerminalLaunchOptions(options)); }
+    stopTerminal() { this.terminalService.stop(); return this.terminalService.snapshot(); }
+    runSavedTerminalCommand(id) {
+      const command = resolveTerminalCommand(id, this.settings.terminalSavedCommands);
+      if (!command) return false;
+      this.startTerminal({ cwdMode: command.cwdMode });
+      return this.terminalService.input(`${command.command}\r`);
+    }
+    broadcastWorkstationState(channel, state) {
+      if (!this.islandWindow || this.islandWindow.isDestroyed()) return;
+      this.islandWindow.webContents.send(channel, state);
     }
     /**
      * 排到下一个本地 0 点触发 push，触发后重新排下一次。

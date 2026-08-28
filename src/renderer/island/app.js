@@ -4,6 +4,7 @@ import { r as reactExports, R as React, a as ReactDOM } from "../vendor/react-ru
 import { D as DEFAULT_NOTCH_INFO, r as requiresAttention, d as dominantPhase, I as IslandPill, g as getIslandClipShape, a as getIslandMaxBodyWidth } from "./components/IslandPill.js";
 import { c as create } from "../vendor/store.js";
 import { I as IslandPanel } from "./components/IslandPanel.js";
+import { enabledToolboxModules, resolveToolboxReopenModule } from "./components/productivity-toolbox-model.mjs";
 import { isVisibleInIsland } from "./session-model.mjs";
 import { resolveFocusLossPresentation, shouldCollapseOnFocusLoss } from "./focus-policy.mjs";
 const useSessionStore = create((set) => ({
@@ -102,6 +103,9 @@ const HOVER_OPEN_DELAY_MS = 200;
 const MOUSE_LEAVE_CLOSE_DELAY_MS = 300;
 const CLOSE_WINDOW_RESIZE_DELAY_MS = 300;
 const OPEN_WINDOW_SHADOW_MARGIN_PX = 32;
+function isToolboxInteractionFocused() {
+  return Boolean(document.activeElement?.closest?.(".toolbox-panel input, .toolbox-panel textarea, .terminal-host"));
+}
 function IslandApp() {
   useIslandState();
   const {
@@ -121,7 +125,7 @@ function IslandApp() {
   const collapseTick = useSessionStore((s) => s.collapseTick);
   const switchSessionTick = useSessionStore((s) => s.switchSessionTick);
   const switchSessionDirection = useSessionStore((s) => s.switchSessionDirection);
-  const { notchStatus, transitionClass, isPopping, open, close } = useIslandAnimation();
+  const { notchStatus, transitionClass, isPopping, open, close, pop } = useIslandAnimation();
   const panelLayerRef = reactExports.useRef(null);
   const [panelHeight, setPanelHeight] = reactExports.useState(300);
   const [mounted, setMounted] = reactExports.useState(false);
@@ -141,6 +145,9 @@ function IslandApp() {
     null
   );
   const isFollowUpActiveRef = reactExports.useRef(false);
+  // 当前展开的是哪个工作台模块；用于在鼠标离开时判断是否仍停留于常驻工具面板
+  // （文件架/剪贴板/终端），避免误触发的 mouseleave 把面板收起后造成点击穿透死锁。
+  const activeModuleRef = reactExports.useRef("agent");
   const pendingFollowUpDismissRef = reactExports.useRef(false);
   const focusLossHandledRef = reactExports.useRef(false);
   const handleFollowUpChange = reactExports.useCallback((active) => {
@@ -155,6 +162,25 @@ function IslandApp() {
   const [hoverToOpen, setHoverToOpen] = reactExports.useState(DEFAULT_SETTINGS.hoverToOpen);
   const [autoCollapseOnMouseLeave, setAutoCollapseOnMouseLeave] = reactExports.useState(DEFAULT_SETTINGS.autoCollapseOnMouseLeave);
   const [showUsageQuota, setShowUsageQuota] = reactExports.useState(DEFAULT_SETTINGS.showUsageQuota);
+  const [mediaEnabled, setMediaEnabled] = reactExports.useState(DEFAULT_SETTINGS.mediaEnabled);
+  const [mediaTrackChangeNotifications, setMediaTrackChangeNotifications] = reactExports.useState(DEFAULT_SETTINGS.mediaTrackChangeNotifications);
+  const [performanceEnabled, setPerformanceEnabled] = reactExports.useState(DEFAULT_SETTINGS.performanceEnabled);
+  const [performanceAlertsEnabled, setPerformanceAlertsEnabled] = reactExports.useState(DEFAULT_SETTINGS.performanceAlertsEnabled);
+  const [fileShelfEnabled, setFileShelfEnabled] = reactExports.useState(DEFAULT_SETTINGS.fileShelfEnabled);
+  const [clipboardHistoryEnabled, setClipboardHistoryEnabled] = reactExports.useState(DEFAULT_SETTINGS.clipboardHistoryEnabled);
+  const [terminalEnabled, setTerminalEnabled] = reactExports.useState(DEFAULT_SETTINGS.terminalEnabled);
+  const [terminalSavedCommands, setTerminalSavedCommands] = reactExports.useState(DEFAULT_SETTINGS.terminalSavedCommands);
+  const [toolboxReopenMode, setToolboxReopenMode] = reactExports.useState(DEFAULT_SETTINGS.toolboxReopenMode);
+  const [requestedToolboxModule, setRequestedToolboxModule] = reactExports.useState(null);
+  const [pillFileDragActive, setPillFileDragActive] = reactExports.useState(false);
+  const fileDropLatest = reactExports.useRef({ enabled: false, openShelf: () => {} });
+  const [mediaState, setMediaState] = reactExports.useState({ active: false });
+  const [lyricsState, setLyricsState] = reactExports.useState({ status: "idle", lines: [], plainText: "" });
+  const [performanceState, setPerformanceState] = reactExports.useState({ cpuPct: 0, memoryPct: 0, processes: [] });
+  const [performanceAlert, setPerformanceAlert] = reactExports.useState("");
+  const previousTrackRef = reactExports.useRef("");
+  const highLoadSinceRef = reactExports.useRef(0);
+  const performanceAlertTimerRef = reactExports.useRef(null);
   const [tokenBurnTotal, setTokenBurnTotal] = reactExports.useState(0);
   const [autoCollapseDurationMs, setAutoCollapseDurationMs] = reactExports.useState(
     DEFAULT_SETTINGS.completionPopupDurationSec * 1e3
@@ -174,6 +200,15 @@ function IslandApp() {
       setHoverToOpen(s.hoverToOpen);
       setAutoCollapseOnMouseLeave(s.autoCollapseOnMouseLeave);
       setShowUsageQuota(s.showUsageQuota);
+      setMediaEnabled(s.mediaEnabled);
+      setMediaTrackChangeNotifications(s.mediaTrackChangeNotifications);
+      setPerformanceEnabled(s.performanceEnabled);
+      setPerformanceAlertsEnabled(s.performanceAlertsEnabled);
+      setFileShelfEnabled(s.fileShelfEnabled);
+      setClipboardHistoryEnabled(s.clipboardHistoryEnabled);
+      setTerminalEnabled(s.terminalEnabled);
+      setTerminalSavedCommands(s.terminalSavedCommands || []);
+      setToolboxReopenMode(s.toolboxReopenMode || "agent");
     });
     const offSettings = window.islandBridge?.onSettingsChanged((s) => {
       setAutoCollapseDurationMs(s.completionPopupDurationSec * 1e3);
@@ -181,10 +216,60 @@ function IslandApp() {
       setHoverToOpen(s.hoverToOpen);
       setAutoCollapseOnMouseLeave(s.autoCollapseOnMouseLeave);
       setShowUsageQuota(s.showUsageQuota);
+      setMediaEnabled(s.mediaEnabled);
+      setMediaTrackChangeNotifications(s.mediaTrackChangeNotifications);
+      setPerformanceEnabled(s.performanceEnabled);
+      setPerformanceAlertsEnabled(s.performanceAlertsEnabled);
+      setFileShelfEnabled(s.fileShelfEnabled);
+      setClipboardHistoryEnabled(s.clipboardHistoryEnabled);
+      setTerminalEnabled(s.terminalEnabled);
+      setTerminalSavedCommands(s.terminalSavedCommands || []);
+      setToolboxReopenMode(s.toolboxReopenMode || "agent");
     });
     return () => {
       offBurn?.();
       offSettings?.();
+    };
+  }, []);
+  reactExports.useEffect(() => {
+    const track = mediaState?.active ? `${mediaState.appBundleId}|${mediaState.title}|${mediaState.artist}` : "";
+    if (track && previousTrackRef.current && track !== previousTrackRef.current && mediaTrackChangeNotifications && !sessions.some((session) => requiresAttention(session.phase))) pop();
+    previousTrackRef.current = track;
+  }, [mediaState?.appBundleId, mediaState?.title, mediaState?.artist, mediaState?.active, mediaTrackChangeNotifications, sessions, pop]);
+  reactExports.useEffect(() => {
+    if (!performanceAlertsEnabled) {
+      highLoadSinceRef.current = 0;
+      setPerformanceAlert("");
+      return;
+    }
+    const overloaded = performanceState.cpuPct >= 90 || performanceState.memoryPct >= 92;
+    if (!overloaded) {
+      highLoadSinceRef.current = 0;
+      return;
+    }
+    if (!highLoadSinceRef.current) highLoadSinceRef.current = Date.now();
+    if (Date.now() - highLoadSinceRef.current < 10e3 || sessions.some((session) => requiresAttention(session.phase))) return;
+    const label = performanceState.cpuPct >= 90 ? `CPU 高占用 ${Math.round(performanceState.cpuPct)}%` : `内存高占用 ${Math.round(performanceState.memoryPct)}%`;
+    setPerformanceAlert(label);
+    pop();
+    if (performanceAlertTimerRef.current) clearTimeout(performanceAlertTimerRef.current);
+    performanceAlertTimerRef.current = setTimeout(() => setPerformanceAlert(""), 6e3);
+    highLoadSinceRef.current = Number.POSITIVE_INFINITY;
+  }, [performanceState.cpuPct, performanceState.memoryPct, performanceAlertsEnabled, sessions, pop]);
+  reactExports.useEffect(() => {
+    let mounted2 = true;
+    const bridge = window.islandBridge;
+    bridge?.getMediaState?.().then((state) => mounted2 && state && setMediaState(state));
+    bridge?.getLyricsState?.().then((state) => mounted2 && state && setLyricsState(state));
+    bridge?.getPerformanceState?.().then((state) => mounted2 && state && setPerformanceState(state));
+    const offMedia = bridge?.onMediaStateUpdate?.((state) => setMediaState(state));
+    const offLyrics = bridge?.onLyricsStateUpdate?.((state) => setLyricsState(state));
+    const offPerformance = bridge?.onPerformanceUpdate?.((state) => setPerformanceState(state));
+    return () => {
+      mounted2 = false;
+      offMedia?.();
+      offLyrics?.();
+      offPerformance?.();
     };
   }, []);
   reactExports.useEffect(() => {
@@ -252,46 +337,6 @@ function IslandApp() {
         clearTimeout(collapsePanelToPillTimerRef.current);
     };
   }, []);
-  reactExports.useEffect(() => {
-    const handleWindowBlur = () => {
-      const followUpFocused = isFollowUpActiveRef.current
-        && document.activeElement?.closest?.("[data-follow-up-input]");
-      // 失焦即隐身——不再受 autoCollapseOnMouseLeave 开关阻断。该开关的旧语义
-      // （收起成胶囊）与"完全隐身"诉求冲突：开关关闭时旧逻辑完全不隐藏，岛会
-      // 常驻成黑胶囊。这里只要可见且非 follow-up 输入聚焦就隐身。
-      const shouldCollapse = shouldCollapseOnFocusLoss({
-        isVisible: mounted,
-        enabled: true,
-        followUpFocused
-      });
-      if (!shouldCollapse) {
-        focusLossHandledRef.current = false;
-        if (followUpFocused) pendingFollowUpDismissRef.current = true;
-        return;
-      }
-      // Electron's native blur and the DOM blur can arrive for the same focus
-      // transition; collapse once to avoid duplicate surface acknowledgements.
-      if (focusLossHandledRef.current) return;
-      focusLossHandledRef.current = true;
-      pendingFollowUpDismissRef.current = false;
-      if (resolveFocusLossPresentation({ isVisible: mounted, followUpFocused }) !== "pill") return;
-      // 普通失焦只收成默认胶囊，保持左侧角色可见。
-      clearSurface();
-      close();
-      window.islandBridge?.surfaceDismissed();
-    };
-    const handleWindowFocus = () => {
-      focusLossHandledRef.current = false;
-    };
-    window.addEventListener("blur", handleWindowBlur);
-    window.addEventListener("workisland-window-blur", handleWindowBlur);
-    window.addEventListener("focus", handleWindowFocus);
-    return () => {
-      window.removeEventListener("blur", handleWindowBlur);
-      window.removeEventListener("workisland-window-blur", handleWindowBlur);
-      window.removeEventListener("focus", handleWindowFocus);
-    };
-  }, [close, clearSurface, mounted]);
   const collapsePanelToPill = reactExports.useCallback(() => {
     if (mouseLeaveCloseTimer.current) {
       clearTimeout(mouseLeaveCloseTimer.current);
@@ -313,11 +358,55 @@ function IslandApp() {
       clearTimeout(collapsePanelToPillTimerRef.current);
       collapsePanelToPillTimerRef.current = null;
     }
+    const enabledModules = enabledToolboxModules({ fileShelfEnabled, clipboardHistoryEnabled, terminalEnabled });
+    const nextModule = resolveToolboxReopenModule({
+      mode: toolboxReopenMode,
+      lastModule: activeModuleRef.current,
+      enabled: enabledModules
+    });
+    setRequestedToolboxModule({ id: nextModule, nonce: Date.now() });
     window.islandBridge?.leaveIsland();
     close();
     clearSurface();
     window.islandBridge?.surfaceDismissed();
-  }, [close, clearSurface]);
+  }, [clipboardHistoryEnabled, close, clearSurface, fileShelfEnabled, terminalEnabled, toolboxReopenMode]);
+  reactExports.useEffect(() => {
+    const handleWindowBlur = () => {
+      const followUpFocused = isFollowUpActiveRef.current
+        && document.activeElement?.closest?.("[data-follow-up-input]");
+      // 失焦即隐身——不再受 autoCollapseOnMouseLeave 开关阻断。该开关的旧语义
+      // （收起成胶囊）与"完全隐身"诉求冲突：开关关闭时旧逻辑完全不隐藏，岛会
+      // 常驻成黑胶囊。这里只要可见且非 follow-up 输入聚焦就隐身。
+      const shouldCollapse = shouldCollapseOnFocusLoss({
+        isVisible: mounted,
+        enabled: true,
+        followUpFocused: Boolean(followUpFocused)
+      });
+      if (!shouldCollapse) {
+        focusLossHandledRef.current = false;
+        if (followUpFocused) pendingFollowUpDismissRef.current = true;
+        return;
+      }
+      // Electron's native blur and the DOM blur can arrive for the same focus
+      // transition; collapse once to avoid duplicate surface acknowledgements.
+      if (focusLossHandledRef.current) return;
+      focusLossHandledRef.current = true;
+      pendingFollowUpDismissRef.current = false;
+      if (resolveFocusLossPresentation({ isVisible: mounted, followUpFocused }) !== "pill") return;
+      collapsePanelToPill();
+    };
+    const handleWindowFocus = () => {
+      focusLossHandledRef.current = false;
+    };
+    window.addEventListener("blur", handleWindowBlur);
+    window.addEventListener("workisland-window-blur", handleWindowBlur);
+    window.addEventListener("focus", handleWindowFocus);
+    return () => {
+      window.removeEventListener("blur", handleWindowBlur);
+      window.removeEventListener("workisland-window-blur", handleWindowBlur);
+      window.removeEventListener("focus", handleWindowFocus);
+    };
+  }, [collapsePanelToPill, mounted]);
   const notchStatusRef = reactExports.useRef(notchStatus);
   reactExports.useEffect(() => {
     const prev = notchStatusRef.current;
@@ -394,7 +483,7 @@ function IslandApp() {
   reactExports.useEffect(() => {
     if (!surface) return;
     if (openReason !== "notification" || !notificationAutoDismiss) return;
-    if (isFollowUpActiveRef.current) return;
+    if (isFollowUpActiveRef.current || isToolboxInteractionFocused()) return;
     if (autoCollapseTimer.current) clearTimeout(autoCollapseTimer.current);
     autoCollapseTimer.current = setTimeout(() => {
       autoCollapseTimer.current = null;
@@ -432,7 +521,7 @@ function IslandApp() {
   function getPillExtra() {
     let extra;
     if (notchInfo.hasNotch) {
-      extra = visibleCount > 0 ? 72 : 62;
+      extra = visibleCount > 0 ? 72 : mediaState?.active && mediaState?.title ? 96 : 62;
     } else if (visibleCount === 0 || phase === null) {
       extra = 72;
     } else {
@@ -531,6 +620,9 @@ function IslandApp() {
       }, HOVER_OPEN_DELAY_MS);
     }
   }, [hoverToOpen, notchStatus, open, presentSurface, surface]);
+  const reportActiveModule = reactExports.useCallback((module) => {
+    activeModuleRef.current = module;
+  }, []);
   const handleMouseLeave = reactExports.useCallback(() => {
     if (hoverOpenTimer.current) {
       clearTimeout(hoverOpenTimer.current);
@@ -540,16 +632,14 @@ function IslandApp() {
     // 鼠标离开后收成默认胶囊，保持左侧角色可见。
     if (!isOpen) return;
     const isFollowUpFocused = isFollowUpActiveRef.current && document.hasFocus() && document.activeElement?.closest("[data-follow-up-input]");
-    if (isFollowUpFocused) {
+    if (isFollowUpFocused || isToolboxInteractionFocused()) {
       pendingFollowUpDismissRef.current = true;
       return;
     }
     mouseLeaveCloseTimer.current = setTimeout(() => {
-      clearSurface();
-      close();
-      window.islandBridge?.surfaceDismissed();
+      collapsePanelToPill();
     }, MOUSE_LEAVE_CLOSE_DELAY_MS);
-  }, [isOpen, close, clearSurface]);
+  }, [collapsePanelToPill, isOpen]);
   const handlePillClick = reactExports.useCallback(() => {
     if (hoverOpenTimer.current) {
       clearTimeout(hoverOpenTimer.current);
@@ -562,6 +652,113 @@ function IslandApp() {
     if (!surface) presentSurface({ type: "sessionList" }, "click");
     open();
   }, [open, presentSurface, surface]);
+  fileDropLatest.current = {
+    enabled: fileShelfEnabled,
+    openShelf: () => {
+      setRequestedToolboxModule({ id: "shelf", nonce: Date.now() });
+      handlePillClick();
+    }
+  };
+  reactExports.useEffect(() => {
+    let dragExitTimer = null;
+    const hasFiles = (event) => Array.from(event.dataTransfer?.types || []).includes("Files");
+    const onDragEnter = (event) => {
+      if (!fileDropLatest.current.enabled || !hasFiles(event)) return;
+      if (dragExitTimer) {
+        clearTimeout(dragExitTimer);
+        dragExitTimer = null;
+      }
+      event.preventDefault();
+      setPillFileDragActive(true);
+      window.islandBridge?.setFileDragActive?.(true);
+      fileDropLatest.current.openShelf();
+    };
+    const onDragOver = (event) => {
+      if (!fileDropLatest.current.enabled || !hasFiles(event)) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "copy";
+    };
+    const onDrop = async (event) => {
+      // Always clear first: the drop target may have changed while the Island
+      // expanded, but the collapsed pill must never retain its green state.
+      setPillFileDragActive(false);
+      window.islandBridge?.setFileDragActive?.(false);
+      if (!fileDropLatest.current.enabled || !hasFiles(event)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const internalShelfValue = event.dataTransfer.getData("application/x-workisland-shelf-id");
+      if (internalShelfValue && event.target?.closest?.(".shelf-share-zone")) {
+        let shared = false;
+        let error = "";
+        try {
+          let ids;
+          try { ids = JSON.parse(internalShelfValue); } catch { ids = [internalShelfValue]; }
+          const result = await window.islandBridge?.shareShelfItemsViaDefault?.(Array.isArray(ids) ? ids : [ids]);
+          shared = result?.ok === true;
+          if (!shared) error = "系统分享暂时不可用";
+        } catch (shareError) {
+          error = shareError?.message || "系统分享暂时不可用";
+        }
+        window.dispatchEvent(new CustomEvent("workisland:shelf-drop-result", { detail: { addedCount: 0, shared, error } }));
+        return;
+      }
+      const files = Array.from(event.dataTransfer.files || []);
+      for (const item of Array.from(event.dataTransfer.items || [])) {
+        if (item.kind !== "file") continue;
+        const file = item.getAsFile?.();
+        if (file && !files.includes(file)) files.push(file);
+      }
+      const uriList = event.dataTransfer.getData("text/uri-list") || event.dataTransfer.getData("text/plain");
+      let added = [];
+      let error = "";
+      try {
+        added = await window.islandBridge?.addShelfDrop?.(files, uriList) || [];
+      } catch (dropError) {
+        error = dropError?.message || "文件读取失败";
+      }
+      window.dispatchEvent(new CustomEvent("workisland:shelf-drop-result", {
+        detail: { addedCount: added.length, error }
+      }));
+      if (added.length) {
+        fileDropLatest.current.openShelf();
+      }
+    };
+    const resetDragState = () => {
+      setPillFileDragActive(false);
+      window.islandBridge?.setFileDragActive?.(false);
+    };
+    const stopNativeDropListener = window.islandBridge?.onNativeShelfDropResult?.((result) => {
+      resetDragState();
+      const addedCount = Number(result?.addedCount || 0);
+      window.dispatchEvent(new CustomEvent("workisland:shelf-drop-result", {
+        detail: { addedCount, shared: result?.shared === true, error: result?.error || "" }
+      }));
+      if (addedCount > 0 || result?.shared === true) fileDropLatest.current.openShelf();
+    });
+    const onDragLeave = (event) => {
+      if (event.relatedTarget != null) return;
+      if (dragExitTimer) clearTimeout(dragExitTimer);
+      // Expansion can briefly report a null relatedTarget while Finder still
+      // owns the drag. Delay unlock so the new shelf surface can receive drop.
+      dragExitTimer = setTimeout(resetDragState, 350);
+    };
+    // Capture-phase listeners stay mounted for the whole renderer lifetime.
+    // This prevents Electron/macOS from losing drop when expansion replaces
+    // the element underneath the cursor during an active Finder drag.
+    document.addEventListener("dragenter", onDragEnter, true);
+    document.addEventListener("dragover", onDragOver, true);
+    document.addEventListener("dragleave", onDragLeave, true);
+    document.addEventListener("drop", onDrop, true);
+    return () => {
+      if (dragExitTimer) clearTimeout(dragExitTimer);
+      document.removeEventListener("dragenter", onDragEnter, true);
+      document.removeEventListener("dragover", onDragOver, true);
+      document.removeEventListener("dragleave", onDragLeave, true);
+      document.removeEventListener("drop", onDrop, true);
+      window.islandBridge?.setFileDragActive?.(false);
+      stopNativeDropListener?.();
+    };
+  }, []);
   const handlePetButtonClick = reactExports.useCallback((event) => {
     event.stopPropagation();
     if (hoverOpenTimer.current) {
@@ -645,7 +842,7 @@ function IslandApp() {
       /* @__PURE__ */ React.createElement(
         "div",
         {
-          className: `island-pill-layer${isOpen ? " is-hidden" : ""}`,
+          className: `island-pill-layer${isOpen ? " is-hidden" : ""}${pillFileDragActive ? " is-file-drop-target" : ""}`,
           style: { width: pillWidth, height: notchH }
         },
         /* @__PURE__ */ React.createElement(
@@ -654,11 +851,15 @@ function IslandApp() {
             sessions,
             hasAttention,
             hasNotch: notchInfo.hasNotch,
+            notchWidth: notchW,
+            useNotchMedia: notchInfo.hasNotch,
             visibleCount,
             hasUpdate,
             tokenBurnTotal,
             onClick: handlePillClick,
-            onUpdateClick: handleOpenAbout
+            onUpdateClick: handleOpenAbout,
+            media: mediaEnabled ? mediaState : null,
+            performanceAlert
           }
         )
       ),
@@ -681,12 +882,23 @@ function IslandApp() {
             tokenBurnTotal,
             pillFirstRow,
             showUsageQuota,
+            mediaState,
+            lyricsState,
+            mediaEnabled,
+            performanceState,
+            performanceEnabled,
+            fileShelfEnabled,
+            clipboardHistoryEnabled,
+            terminalEnabled,
+            terminalSavedCommands,
+            requestedToolboxModule,
             onSessionRowClick: handleSessionRowClick,
             onOpenSettings: handleOpenSettings,
             onOpenAbout: handleOpenAbout,
             onOpenPet: handlePetButtonClick,
             onCollapse: collapsePanelToPill,
-            onFollowUpChange: handleFollowUpChange
+            onFollowUpChange: handleFollowUpChange,
+            onActiveModuleChange: reportActiveModule
           }
         )
       )
