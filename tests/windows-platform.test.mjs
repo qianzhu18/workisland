@@ -37,7 +37,7 @@ test("Windows Terminal hook context preserves WT_SESSION", () => {
   assert.equal(payload.terminal_session_id, "{pane-guid}");
 });
 
-test("Windows navigation activates an existing app before launching a fallback", async () => {
+test("Windows navigation activates existing windows and never spawns a bare terminal", async () => {
   const calls = [];
   const navigation = createWindowsNavigation({
     execFile: (command, args, options, callback) => {
@@ -45,12 +45,32 @@ test("Windows navigation activates an existing app before launching a fallback",
       callback(null, "RESULT:activated", "");
     }
   });
-  assert.deepEqual(resolveWindowsApp("Windows Terminal"), { title: "Windows Terminal", executable: "wt.exe" });
+  assert.deepEqual(resolveWindowsApp("Windows Terminal"), { title: "Windows Terminal", executable: null });
   assert.equal(await navigation.jumpToTarget({ app: "Windows Terminal" }), true);
   assert.equal(calls[0].command, "powershell.exe");
   assert.equal(calls[0].options.windowsHide, true);
   assert.equal(calls[0].options.env.WORKISLAND_APP_TITLE, "Windows Terminal");
-  assert.equal(calls[0].options.env.WORKISLAND_APP_EXECUTABLE, "wt.exe");
+  assert.equal(calls[0].options.env.WORKISLAND_APP_EXECUTABLE, "");
+  assert.equal(calls[0].options.env.WORKISLAND_APP_LAUNCHABLE, "0");
+  assert.equal(calls[0].options.env.WORKISLAND_APP_PID, "0");
+
+  // codex 在 Windows 上是 CLI：跳转只允许聚焦（按 pid/标题），绝不 Start-Process。
+  const codexApp = resolveWindowsApp("codex");
+  assert.deepEqual(codexApp, { title: "Codex", executable: null });
+  assert.equal(await navigation.jumpToTarget({ app: "codex", pid: 4242 }), true);
+  assert.equal(calls[1].options.env.WORKISLAND_APP_TITLE, "Codex");
+  assert.equal(calls[1].options.env.WORKISLAND_APP_EXECUTABLE, "");
+  assert.equal(calls[1].options.env.WORKISLAND_APP_LAUNCHABLE, "0");
+  assert.equal(calls[1].options.env.WORKISLAND_APP_PID, "4242");
+  assert.ok(!calls[1].args.join(" ").includes("Start-Process wt"), "must not blindly launch Windows Terminal");
+  const codexScript = calls[1].args[calls[1].args.length - 1];
+  assert.match(codexScript, /AppActivate\(\$targetPid\)/);
+  assert.match(codexScript, /windowsterminal\.exe/);
+
+  // GUI 客户端保留启动兜底（窗口全关时）。
+  assert.deepEqual(resolveWindowsApp("cursor"), { title: "Cursor", executable: "Cursor.exe", launchable: true });
+  assert.equal(await navigation.jumpToTarget({ app: "cursor" }), true);
+  assert.equal(calls[2].options.env.WORKISLAND_APP_LAUNCHABLE, "1");
 
   const failedNavigation = createWindowsNavigation({
     execFile: (command, args, options, callback) => callback(null, "RESULT:failed", "")
