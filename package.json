@@ -87,6 +87,14 @@
         "to": "bin/flux-hooks"
       },
       {
+        "from": "resources/bin/workisland-cli",
+        "to": "bin/workisland-cli"
+      },
+      {
+        "from": "docs/AI-CUSTOMIZATION.md",
+        "to": "ai-manual/AI-CUSTOMIZATION.md"
+      },
+      {
         "from": "resources/mediaremote-adapter",
         "to": "mediaremote-adapter"
       },

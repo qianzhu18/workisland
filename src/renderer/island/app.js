@@ -7,6 +7,7 @@ import { I as IslandPanel } from "./components/IslandPanel.js";
 import { enabledToolboxModules, resolveToolboxReopenModule } from "./components/productivity-toolbox-model.mjs";
 import { isVisibleInIsland } from "./session-model.mjs";
 import { resolveFocusLossPresentation, shouldCollapseOnFocusLoss } from "./focus-policy.mjs";
+import { applyIslandAppearance } from "./theme.mjs";
 const useSessionStore = create((set) => ({
   sessions: [],
   notchInfo: window.islandBridge?.__initialNotchInfo ?? DEFAULT_NOTCH_INFO,
@@ -171,6 +172,7 @@ function IslandApp() {
   const [terminalEnabled, setTerminalEnabled] = reactExports.useState(DEFAULT_SETTINGS.terminalEnabled);
   const [terminalSavedCommands, setTerminalSavedCommands] = reactExports.useState(DEFAULT_SETTINGS.terminalSavedCommands);
   const [toolboxReopenMode, setToolboxReopenMode] = reactExports.useState(DEFAULT_SETTINGS.toolboxReopenMode);
+  const [islandAppearance, setIslandAppearance] = reactExports.useState(DEFAULT_SETTINGS.islandAppearance);
   const [requestedToolboxModule, setRequestedToolboxModule] = reactExports.useState(null);
   const [pillFileDragActive, setPillFileDragActive] = reactExports.useState(false);
   const fileDropLatest = reactExports.useRef({ enabled: false, openShelf: () => {} });
@@ -209,6 +211,7 @@ function IslandApp() {
       setTerminalEnabled(s.terminalEnabled);
       setTerminalSavedCommands(s.terminalSavedCommands || []);
       setToolboxReopenMode(s.toolboxReopenMode || "agent");
+      setIslandAppearance(s.islandAppearance);
     });
     const offSettings = window.islandBridge?.onSettingsChanged((s) => {
       setAutoCollapseDurationMs(s.completionPopupDurationSec * 1e3);
@@ -225,12 +228,22 @@ function IslandApp() {
       setTerminalEnabled(s.terminalEnabled);
       setTerminalSavedCommands(s.terminalSavedCommands || []);
       setToolboxReopenMode(s.toolboxReopenMode || "agent");
+      setIslandAppearance(s.islandAppearance);
     });
     return () => {
       offBurn?.();
       offSettings?.();
     };
   }, []);
+  reactExports.useEffect(() => {
+    // AI customization surface: island background theme (solid / gradient /
+    // managed image). Failures fall back to the classic black inside
+    // applyIslandAppearance, so a broken image never blanks the island.
+    void applyIslandAppearance(
+      islandAppearance,
+      (imageRef) => window.islandBridge?.getIslandBackgroundImage?.(imageRef)
+    ).catch(() => {});
+  }, [islandAppearance]);
   reactExports.useEffect(() => {
     const track = mediaState?.active ? `${mediaState.appBundleId}|${mediaState.title}|${mediaState.artist}` : "";
     if (track && previousTrackRef.current && track !== previousTrackRef.current && mediaTrackChangeNotifications && !sessions.some((session) => requiresAttention(session.phase))) pop();

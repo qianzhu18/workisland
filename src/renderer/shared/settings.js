@@ -150,6 +150,7 @@ const DEFAULT_SETTINGS = {
   showDebugWindow: false,
   petScale: 1,
   petSprite: "codex:qianxue",
+  islandAppearance: { kind: "default" },
   hapticFeedback: true,
   hasCompletedOnboarding: false,
   firstLaunchAt: 0,

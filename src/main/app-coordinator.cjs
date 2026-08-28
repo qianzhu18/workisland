@@ -34,6 +34,9 @@ const { ShelfService } = require("./shelf-service.cjs");
 const { ClipboardHistoryService } = require("./clipboard-history-service.cjs");
 const { TerminalService } = require("./terminal-service.cjs");
 const { resolveRecentProjectCwd, resolveTerminalCommand } = require("../shared/terminal-state.cjs");
+const { createAppearanceService } = require("./appearance-service.cjs");
+const { createAppearanceController } = require("./appearance-controller.cjs");
+const { normalizeIslandAppearance } = require("../shared/appearance.cjs");
 
 function createElectronClipboardAdapter() {
   return {
@@ -232,9 +235,20 @@ function createAppCoordinatorClass({
         }
       });
       initSoundDirs();
+      this.appearanceService = createAppearanceService({
+        getUserDataPath: () => electron.app.getPath("userData")
+      });
       this.bridge = new BridgeServer({
         shouldAcceptHook: (source) => this.shouldAcceptHookSource(source)
       });
+      // AI customization commands (workisland-cli) share the settings
+      // pipeline: updateSettings persists once and broadcasts to the island,
+      // settings, and pet windows.
+      this.bridge.setAppearanceController(createAppearanceController({
+        appearanceService: this.appearanceService,
+        getSettings: () => this.getSettings(),
+        updateSettings: (partial) => this.updateSettings(partial, "bridge")
+      }));
       this.hookManagers = /* @__PURE__ */ new Map([
         ["claude", new ClaudeHookManager()],
         ["codex", new CodexHookManager()],
@@ -928,6 +942,19 @@ function createAppCoordinatorClass({
     updateSettings(partial, source) {
       const prevSoundEnabled = this.settings.sound?.enabled ?? false;
       const prevClaudeSubscriptionEnabled = this.settings.pillFirstRow.claudeSubscription;
+      if (partial && Object.prototype.hasOwnProperty.call(partial, "islandAppearance")) {
+        // Every writer (settings UI, bridge/AI, migrations) funnels through
+        // here — normalize the theme once so persisted state is always the
+        // readable, whitelisted shape. Invalid input keeps the current theme.
+        try {
+          const { appearance } = normalizeIslandAppearance(partial.islandAppearance);
+          partial = { ...partial, islandAppearance: appearance };
+        } catch (err) {
+          log.warn("[AppCoordinator] rejected invalid islandAppearance:", err.message);
+          const { islandAppearance, ...rest } = partial;
+          partial = rest;
+        }
+      }
       this.settings = { ...this.settings, ...partial };
       this.settingsRepository.scheduleSave(this.settings);
       // 匿名遥测：开关变化必须立即同步给服务（关闭即清空未上报队列）；

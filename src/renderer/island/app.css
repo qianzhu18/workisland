@@ -79,7 +79,9 @@ body {
 .island {
   position: absolute;
   inset: 0;
-  background: #000;
+  /* --island-bg is set by the appearance theme (AI customization API);
+   * absent variable keeps the classic opaque black island. */
+  background: var(--island-bg, #000);
   pointer-events: auto;
   will-change: clip-path;
 }

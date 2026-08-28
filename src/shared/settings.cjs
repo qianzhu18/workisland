@@ -33,6 +33,10 @@ const {
   DEFAULT_APPROVAL_MODES,
   normalizeApprovalModes
 } = require("./approval-policy.cjs");
+const {
+  DEFAULT_ISLAND_APPEARANCE,
+  normalizeIslandAppearance
+} = require("./appearance.cjs");
 
 const DEFAULT_SOUND_EVENTS = {
   appLaunch: { enabled: true },
@@ -139,6 +143,10 @@ const DEFAULT_SETTINGS = {
   // Ship the Codex V2 千雪 pet as the deterministic first-run default. The
   // legacy Orca sprite remains available as a custom compatibility option.
   petSprite: "codex:qianxue",
+  // Island background theme (AI customization API). "default" keeps the
+  // classic opaque black island; see src/shared/appearance.cjs for the
+  // validated shape of the other kinds.
+  islandAppearance: { ...DEFAULT_ISLAND_APPEARANCE },
   hapticFeedback: true,
   hasCompletedOnboarding: false,
   firstLaunchAt: 0,
@@ -211,6 +219,16 @@ function mergeSettings(parsed = {}) {
   // untouched.
   if (!parsed.petSprite || parsed.petSprite === "orca.png") {
     merged.petSprite = DEFAULT_SETTINGS.petSprite;
+  }
+
+  // Island appearance is written by the settings UI and the AI customization
+  // bridge. A persisted shape that no longer validates (schema evolution or
+  // manual edits) falls back to the default instead of breaking startup.
+  try {
+    const { appearance } = normalizeIslandAppearance(parsed.islandAppearance);
+    merged.islandAppearance = appearance;
+  } catch {
+    merged.islandAppearance = { ...DEFAULT_ISLAND_APPEARANCE };
   }
 
   // Telemetry policy v2 (2026-08-22 owner decision: default-on, disclosed in

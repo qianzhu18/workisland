@@ -35,6 +35,10 @@ function createBridgeServerClass({
     recorder = null;
     sessionTitleProvider = null;
     shouldAcceptHook;
+    // AI customization surface (appearance + pet ops). Injected by
+    // AppCoordinator after construction; commands are rejected with a
+    // structured error until then.
+    appearanceController = null;
     // PluginAdapter 不进 adapterRegistry，由 BridgeServer 在 plugin: 前缀分支显式调用。
     pluginAdapter = new PluginAdapter();
     /**
@@ -91,6 +95,9 @@ function createBridgeServerClass({
     }
     setSessionTitleProvider(provider) {
       this.sessionTitleProvider = provider;
+    }
+    setAppearanceController(controller) {
+      this.appearanceController = controller;
     }
     start() {
       ensureSocketDir();
@@ -222,6 +229,16 @@ function createBridgeServerClass({
     }
     handleCommand(clientId, command) {
       switch (command.type) {
+        case "getAppearance":
+        case "setAppearance":
+        case "resetAppearance":
+        case "listPets":
+        case "setPet":
+        case "installPet":
+        case "validateSprite": {
+          this.handleAppearanceCommand(clientId, command);
+          break;
+        }
         case "resolvePermission":
           this.resolvePermission(command.sessionId, command.resolution);
           break;
@@ -291,6 +308,39 @@ function createBridgeServerClass({
           break;
         }
       }
+    }
+    /**
+     * AI customization commands (appearance + pets). These are the only
+     * bridge commands that answer with a data payload:
+     *   { type: "result", data } on success
+     *   { type: "error", code, message } on failure (validation errors carry
+     *   code "VALIDATION" so clients can distinguish bad input from failures)
+     * Older clients ignore unknown response types, so the envelope extension
+     * stays backward compatible.
+     */
+    handleAppearanceCommand(clientId, command) {
+      const handler = this.appearanceController?.[command.type];
+      if (typeof handler !== "function") {
+        this.sendResponse(clientId, {
+          type: "error",
+          code: "UNAVAILABLE",
+          message: `appearance controller unavailable for command: ${command.type}`
+        });
+        return;
+      }
+      Promise.resolve()
+        .then(() => handler.call(this.appearanceController, command))
+        .then((data) => {
+          this.sendResponse(clientId, { type: "result", data });
+        })
+        .catch((err) => {
+          log.warn("[BridgeServer]", "appearance command failed:", command.type, err.message);
+          this.sendResponse(clientId, {
+            type: "error",
+            code: err?.name === "AppearanceValidationError" || err?.code === "SPRITE_VALIDATION_FAILED" ? "VALIDATION" : "ERROR",
+            message: err?.message || String(err)
+          });
+        });
     }
     createAdapterContext(hookPayload) {
       return {

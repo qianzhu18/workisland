@@ -584,8 +584,68 @@ function appearancePage() {
   const panel = section("面板", "限制展开面板的高度，避免遮挡主要工作区。");
   const heights = [["420", "紧凑 · 420 px"], ["540", "标准 · 540 px"], ["680", "宽松 · 680 px"]];
   panel.append(row("最大高度", "修改后下一次展开生效。", select(String(state.settings.panelMaxHeightPx || 540), heights, v => save({ panelMaxHeightPx: Number(v) }), "面板最大高度")));
-  root.append(pet, panel);
+  root.append(islandBackgroundSection(), pet, panel);
   return root;
+}
+
+const ISLAND_APPEARANCE_PRESETS = [
+  { id: "default", label: "默认 · 纯黑", value: { kind: "default" } },
+  { id: "deep-blue", label: "深海蓝", value: { kind: "solid", color: "#0B1E3A", opacity: 1 } },
+  { id: "forest", label: "墨绿", value: { kind: "solid", color: "#0A231A", opacity: 1 } },
+  { id: "night-purple", label: "夜紫渐变", value: { kind: "gradient", color: "#1F1330", color2: "#0B0716", angle: 135, opacity: 1 } },
+  { id: "frost", label: "半透石墨", value: { kind: "solid", color: "#0E0F13", opacity: 0.72 } }
+];
+
+function islandBackgroundSection() {
+  const island = section("岛屿背景", "自定义 Island 的背景颜色、透明度与背景图；本机 AI Agent 也可通过 workisland-cli 接口修改。");
+  const current = state.settings.islandAppearance || { kind: "default" };
+  const matchingPreset = ISLAND_APPEARANCE_PRESETS.find(
+    preset => JSON.stringify(preset.value) === JSON.stringify(current)
+  );
+  const presetOptions = ISLAND_APPEARANCE_PRESETS.map(preset => [preset.id, preset.label]);
+  if (!matchingPreset) {
+    const kindLabel = current.kind === "gradient" ? "渐变" : current.kind === "image" ? "背景图" : "纯色";
+    presetOptions.push(["__custom__", `当前自定义 · ${kindLabel}`]);
+  }
+  const presetSelect = select(
+    matchingPreset ? matchingPreset.id : "__custom__",
+    presetOptions,
+    value => {
+      const preset = ISLAND_APPEARANCE_PRESETS.find(entry => entry.id === value);
+      if (preset) save({ islandAppearance: preset.value });
+    },
+    "岛屿背景预设"
+  );
+  const color = document.createElement("input");
+  color.type = "color";
+  color.className = "color-input";
+  color.value = /^#[0-9a-fA-F]{6}$/.test(current.color || "") ? current.color : "#000000";
+  color.setAttribute("aria-label", "自定义背景颜色");
+  color.addEventListener("change", () => save({
+    islandAppearance: { kind: "solid", color: color.value, opacity: current.kind === "image" ? 1 : (current.opacity ?? 1) }
+  }));
+  const opacity = document.createElement("input");
+  opacity.type = "range"; opacity.min = "0.15"; opacity.max = "1"; opacity.step = "0.05";
+  opacity.value = String(current.kind === "image" ? 1 : (current.opacity ?? 1));
+  opacity.disabled = current.kind === "image" || current.kind === "default";
+  const opacityValue = el("span", "range-value", `${Math.round(Number(opacity.value) * 100)}%`);
+  opacity.addEventListener("input", () => opacityValue.textContent = `${Math.round(Number(opacity.value) * 100)}%`);
+  opacity.addEventListener("change", () => save({
+    islandAppearance: {
+      kind: current.kind === "gradient" ? "gradient" : "solid",
+      color: current.color || "#000000",
+      ...(current.kind === "gradient" ? { color2: current.color2 || "#000000", angle: current.angle ?? 135 } : {}),
+      opacity: Number(opacity.value)
+    }
+  }));
+  const opacityControl = el("div", "range-control"); opacityControl.append(opacity, opacityValue);
+  island.append(
+    row("背景预设", "选择常用深色主题；过亮的颜色会被自动压暗以保持文字可读。", presetSelect),
+    row("自定义颜色", "直接指定纯色背景。", color),
+    row("背景不透明度", "纯色与渐变背景的透明程度；背景图模式不可用。", opacityControl),
+    row("恢复默认", "清除 AI 或手动设置，回到经典纯黑 Island。", button("重置背景", () => save({ islandAppearance: { kind: "default" } }), "secondary"))
+  );
+  return island;
 }
 
 function soundPage() {

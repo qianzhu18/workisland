@@ -7,8 +7,16 @@ const child_process = require("node:child_process");
 const promises = require("node:fs/promises");
 const { IPC } = require("../shared/ipc.cjs");
 const { listPluginAgentMeta } = require("./agent-registry.cjs");
-const { listCodexPets, resolveCodexPet } = require("./codex-pet.cjs");
 const { previewSound, getUserSoundsDir } = require("./sound-service.cjs");
+const {
+  DEFAULT_SPRITE,
+  BUILT_IN_CODEX_PETS,
+  getUserSpritesDir,
+  resolveSpriteSelection,
+  initSpriteDirs,
+  listAvailablePets
+} = require("./pet-library.cjs");
+const { listCodexPets } = require("./codex-pet.cjs");
 const path__namespace = path;
 const QUICK_SHARE_PROVIDER_TITLES = Object.freeze({
   Mail: "邮件",
@@ -148,101 +156,6 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
       properties: ["openDirectory", "createDirectory"]
     });
     return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
-  }
-  const DEFAULT_SPRITE = "codex:qianxue";
-  const LEGACY_DEFAULT_SPRITE = "orca.png";
-  const BUILT_IN_CODEX_PETS = Object.freeze({
-    qianxue: Object.freeze({
-      id: "qianxue",
-      displayName: "千雪",
-      description: "WorkIsland 内置 Codex V2 桌宠。",
-      spriteVersionNumber: 2,
-      spriteFile: "qianxue.webp",
-      value: "codex:qianxue"
-    }),
-    "codex-buddy": Object.freeze({
-      id: "codex-buddy",
-      displayName: "宝剑 Skyler",
-      description: "WorkIsland 内置 Codex V2 桌宠。",
-      spriteVersionNumber: 2,
-      spriteFile: "codex-buddy.webp",
-      value: "codex:codex-buddy"
-    })
-  });
-  function getDefaultSpritesDir() {
-    if (electron.app.isPackaged) {
-      return path.resolve(process.resourcesPath, "pet-sprites");
-    }
-    return path.resolve(electron.app.getAppPath(), "resources", "pet-sprites");
-  }
-  function getUserSpritesDir() {
-    return path.join(electron.app.getPath("userData"), "pet-sprites");
-  }
-  /**
-   * 解析桌宠 sprite 文件路径。
-   *
-   * 支持三种格式：
-   *   1. 默认（null/空）→ DEFAULT_SPRITE（内置 codex:qianxue）
-   *   2. 文件名（xxx.png / xxx.webp）→ 在 user/default sprites 目录查找
-   *   3. "codex:<pet-name>" → 解析 ~/.codex/pets/<pet-name>/spritesheet.webp
-   *      （兼容 Codex V2 桌宠协议，pet.json 描述布局）
-   */
-  function resolveSpriteSelection(fileName) {
-    const raw = fileName || DEFAULT_SPRITE;
-    // Codex pet 协议：codex:<pet-name>
-    if (raw.startsWith("codex:")) {
-      const petName = raw.slice("codex:".length);
-      const builtInPet = BUILT_IN_CODEX_PETS[petName];
-      if (builtInPet) {
-        const filePath = path.join(getDefaultSpritesDir(), builtInPet.spriteFile);
-        if (!fs.existsSync(filePath)) {
-          throw new Error(`Bundled Codex pet spritesheet not found: ${filePath}`);
-        }
-        return {
-          filePath,
-          protocol: "codex-v2",
-          pet: { ...builtInPet, spritePath: filePath }
-        };
-      }
-      const pet = resolveCodexPet(petName);
-      return { filePath: pet.spritePath, protocol: "codex-v2", pet };
-    }
-    // 普通文件名：接受 .png 和 .webp
-    const safe = path.basename(raw);
-    if (safe !== raw || safe.includes("..")) {
-      throw new Error("Invalid sprite filename");
-    }
-    const lower = safe.toLowerCase();
-    if (!lower.endsWith(".png") && !lower.endsWith(".webp")) {
-      throw new Error("Only .png and .webp are allowed");
-    }
-    const userPath = path.join(getUserSpritesDir(), safe);
-    const filePath = fs.existsSync(userPath) ? userPath : path.join(getDefaultSpritesDir(), safe);
-    return { filePath, protocol: "orca-v1" };
-  }
-  let spriteDirsInitialized = false;
-  function initSpriteDirs() {
-    if (spriteDirsInitialized) return;
-    const userDir = getUserSpritesDir();
-    const defaultDir = getDefaultSpritesDir();
-    try {
-      if (!fs.existsSync(userDir)) {
-        fs.mkdirSync(userDir, { recursive: true });
-      }
-      // Keep the legacy Orca asset available for custom/compatibility use.
-      // The built-in Codex V2 pet is read directly from packaged resources.
-      const dest = path.join(userDir, LEGACY_DEFAULT_SPRITE);
-      if (!fs.existsSync(dest)) {
-        const src = path.join(defaultDir, LEGACY_DEFAULT_SPRITE);
-        if (fs.existsSync(src)) {
-          fs.copyFileSync(src, dest);
-        }
-      }
-      spriteDirsInitialized = true;
-    } catch (err) {
-      spriteDirsInitialized = false;
-      console.error("[SpriteService] failed to init user sprites dir:", err);
-    }
   }
   function trackedOn(channel, handler) {
     electron.ipcMain.on(channel, handler);
@@ -516,6 +429,11 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
     electron.ipcMain.on(IPC.PET_OPEN_SPRITES_DIR, () => {
       initSpriteDirs();
       electron.shell.openPath(getUserSpritesDir());
+    });
+    electron.ipcMain.handle(IPC.APPEARANCE_GET_BACKGROUND_IMAGE, (_event, imageRef) => {
+      // Renderer-facing half of the AI customization API: resolve a managed
+      // background image to a data URL (island CSP only allows data:/blob:).
+      return coordinator.appearanceService?.getBackgroundImageDataUrl(imageRef) ?? null;
     });
     electron.ipcMain.handle(IPC.PET_GET_SPRITE_PATH, async (_event, fileName) => {
       initSpriteDirs();
