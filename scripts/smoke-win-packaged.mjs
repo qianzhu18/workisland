@@ -47,10 +47,15 @@ function findLogFiles() {
   return candidates;
 }
 
-// 应用使用按天轮转的 flux-desktop-YYYY-MM-DD.log；首启流程展示
-// WelcomeWindow 而非 IslandWindow，因此 ready 判定只看 whenReady。
-const READY_MARKERS = [
+// 就绪 = 主进程 whenReady + 任一渲染进程完成加载（首启为 WelcomeWindow，
+// 非首启为 IslandWindow）。只看 whenReady 会漏掉 ready 之后立刻崩溃、
+// 窗口从未渲染的回归（issue #55）。
+const BASE_READY_MARKERS = [
   "[main] app.whenReady() fired"
+];
+const RENDERER_READY_MARKERS = [
+  "[main] welcome renderer did-finish-load",
+  "[main] island renderer did-finish-load"
 ];
 const FAIL_MARKERS = [
   "Uncaught exception",
@@ -87,7 +92,10 @@ const result = await new Promise((resolve) => {
       }
       if (FAIL_MARKERS.some((marker) => text.includes(marker))) {
         finish({ status: "failed", text, logFile });
-      } else if (READY_MARKERS.every((marker) => text.includes(marker))) {
+      } else if (
+        BASE_READY_MARKERS.every((marker) => text.includes(marker)) &&
+        RENDERER_READY_MARKERS.some((marker) => text.includes(marker))
+      ) {
         finish({ status: "ready", text, logFile });
       }
     }

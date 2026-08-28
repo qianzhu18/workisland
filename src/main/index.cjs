@@ -885,6 +885,7 @@ async function runIslandApp() {
         }
       });
       iw.browserWindow.webContents.on("did-finish-load", () => {
+        log.info("[main] island renderer did-finish-load");
         if (rendererCrashCount > 0) {
           log.info(`[main] renderer is stable again; resetting crash count (was ${rendererCrashCount})`);
           rendererCrashCount = 0;
@@ -922,6 +923,9 @@ async function runIslandApp() {
 
   function showWelcomeWindow({ afterComplete } = {}) {
     const welcomeWindow = new WelcomeWindow();
+    welcomeWindow.browserWindow.webContents.once("did-finish-load", () => {
+      log.info("[main] welcome renderer did-finish-load");
+    });
 
     let resolved = false;
     const cleanupWelcome = () => {

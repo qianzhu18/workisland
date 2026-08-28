@@ -195,6 +195,8 @@ jobs:
             这是 WorkIsland 的首个 Windows 桌面版本（Alpha 级别，正在测试与内测中）。产品可能存在问题，不建议作为日常主力工具使用；遇到 Bug 请通过 [Issue](https://github.com/qianzhu18/workisland/issues) 或内测群反馈。
 
             - 支持 Windows 11 x64，提供 NSIS 安装包与便携版
-            - 安装包未签名，首次运行可能弹出 SmartScreen 警告（点击「仍要运行」）
+            - 安装包未签名，浏览器与 Windows 可能拦截，属正常现象：
+              1. 下载阶段：Edge/Chrome 提示「不常用下载/已阻止」时，选择「保留」/「仍要下载」（Edge：下载列表 → ⋯ → 保留）
+              2. 运行阶段：SmartScreen 蓝色弹窗 → 「更多信息」→ 「仍要运行」
             - 已知限制：无法按 WT_SESSION 精确切换 Windows Terminal 标签页；不支持 Windows 10 / 32 位；暂无自动更新
             - macOS 稳定版请前往 [v3.0.0](https://github.com/qianzhu18/workisland/releases/latest)

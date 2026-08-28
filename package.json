@@ -123,7 +123,7 @@
     },
     "win": {
       "target": ["nsis", "portable"],
-      "icon": "resources/icon.png"
+      "icon": "resources/icon.ico"
     },
     "nsis": {
       "artifactName": "${productName}-Setup-${version}-${arch}.${ext}",
