@@ -38,6 +38,18 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --ignore-scripts
+      - name: Install Electron binary (retry; npm ci skips postinstall)
+        run: |
+          for attempt in 1 2 3; do
+            echo "Electron install attempt ${attempt}"
+            if node node_modules/electron/install.js; then
+              echo "Electron binary installed"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Electron install failed after 3 attempts"
+          exit 1
       - run: npm run build:assets
       - run: npm run build:native
       - run: npm run check
