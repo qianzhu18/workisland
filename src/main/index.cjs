@@ -698,11 +698,21 @@ function flushLogSync() {
   }
 }
 async function runIslandApp() {
+  const smokeUserDataArg = process.argv.find((arg) => arg.startsWith("--smoke-user-data="));
+  if (smokeUserDataArg) {
+    const smokeUserDataPath = smokeUserDataArg.slice("--smoke-user-data=".length);
+    if (smokeUserDataPath && path.isAbsolute(smokeUserDataPath)) electron.app.setPath("userData", smokeUserDataPath);
+  }
+  if (!electron.app.requestSingleInstanceLock()) {
+    log.warn("[main] another WorkIsland instance already holds the lock — exiting this duplicate");
+    electron.app.quit();
+    return;
+  }
   const { resolveRuntimeMode } = require("./runtime-mode.cjs");
   const runtimeMode = resolveRuntimeMode(process.env);
   const developmentMode = runtimeMode.isDevelopment;
   const developmentUserData = runtimeMode.userDataPath;
-  if (developmentMode && developmentUserData) {
+  if (!smokeUserDataArg && developmentMode && developmentUserData) {
     electron.app.setPath("userData", path.resolve(developmentUserData));
   }
   let displayManager = null;
@@ -712,9 +722,33 @@ async function runIslandApp() {
   log.info("[main] process starting, electron version:", process.versions.electron);
   log.info("[main] pid:", process.pid);
   electron.app.on("window-all-closed", () => {
+    if (process.platform !== "darwin") {
+      log.info("[main] all windows closed — quitting");
+      electron.app.quit();
+    }
   });
+  if (process.platform === "win32") {
+    // Windows 注销/关机时不一定走优雅退出路径，直接结束避免残留进程。
+    electron.app.on("session-end", () => {
+      log.info("[main] session-end — forcing exit");
+      electron.app.exit(0);
+    });
+  }
   await electron.app.whenReady();
   log.info("[main] app.whenReady() fired");
+  // CI 退出回归（issue #56）：--smoke-quit-after=<ms> 在就绪后自动退出，
+  // 供打包 smoke 验证应用不会僵尸化（不再依赖 taskkill 强杀）。
+  const smokeQuitArg = process.argv.find((arg) => arg.startsWith("--smoke-quit-after="));
+  if (smokeQuitArg) {
+    const smokeQuitDelay = Number(smokeQuitArg.split("=")[1]) || 0;
+    if (smokeQuitDelay > 0) {
+      log.info(`[main] smoke-quit-after=${smokeQuitDelay}ms armed`);
+      setTimeout(() => {
+        log.info("[main] smoke-quit-after elapsed — calling app.quit()");
+        electron.app.quit();
+      }, smokeQuitDelay);
+    }
+  }
   const sentinelPath = getCrashSentinelPath();
   if (fs.existsSync(sentinelPath)) {
     log.warn("[main] crash sentinel detected — previous process did not exit cleanly");
@@ -733,6 +767,10 @@ async function runIslandApp() {
   } catch {
   }
   const coordinator = new AppCoordinator();
+  electron.app.on("second-instance", () => {
+    log.info("[main] second-instance launch — surfacing settings window");
+    coordinator.openSettingsWindow();
+  });
   updateService = createUpdateService({
     app: electron.app,
     shell: electron.shell,
@@ -779,8 +817,14 @@ async function runIslandApp() {
         log.warn("[main] quit watchdog: all windows destroyed, awaiting will-quit");
         return;
       }
-      log.warn("[main] quit timed out with windows still alive — treating as cancelled, restoring isQuitting=false");
-      setQuitting(false);
+      log.warn("[main] quit timed out with windows still alive — destroying windows and forcing exit");
+      for (const win of aliveWindows) {
+        try {
+          win.destroy();
+        } catch {
+        }
+      }
+      electron.app.exit(0);
     }, QUIT_WATCHDOG_MS);
   });
   electron.app.on("will-quit", () => {
@@ -799,6 +843,11 @@ async function runIslandApp() {
       fs.unlinkSync(sentinelPath);
     } catch {
     }
+    // 硬退出兜底：优雅清理超时（如钩子子进程未退出）时强制结束，避免僵尸实例占用管道。
+    setTimeout(() => {
+      log.warn("[main] will-quit did not complete in time — forcing exit");
+      electron.app.exit(0);
+    }, 3000).unref();
   });
   electron.app.setName("WorkIsland");
   utils.electronApp.setAppUserModelId("app.workisland.desktop");
@@ -845,6 +894,7 @@ async function runIslandApp() {
     }
   };
   let islandWindow;
+  let statusTray = null;
   let rendererCrashCount = 0;
   const MAX_RENDERER_RETRIES = 2;
   function createIslandWindow() {
@@ -905,6 +955,7 @@ async function runIslandApp() {
         }
       });
       iw.browserWindow.webContents.on("did-finish-load", () => {
+        log.info("[main] island renderer did-finish-load");
         if (rendererCrashCount > 0) {
           log.info(`[main] renderer is stable again; resetting crash count (was ${rendererCrashCount})`);
           rendererCrashCount = 0;
@@ -942,6 +993,9 @@ async function runIslandApp() {
 
   function showWelcomeWindow({ afterComplete } = {}) {
     const welcomeWindow = new WelcomeWindow();
+    welcomeWindow.browserWindow.webContents.once("did-finish-load", () => {
+      log.info("[main] welcome renderer did-finish-load");
+    });
 
     let resolved = false;
     const cleanupWelcome = () => {
@@ -970,6 +1024,39 @@ async function runIslandApp() {
     });
   }
 
+  // Windows/Linux 没有 Dock，托盘是常驻可见的显示/退出入口（issue #56）。
+  function createStatusTray() {
+    if (process.platform === "darwin" || statusTray) return;
+    try {
+      const icon = electron.nativeImage.createFromPath(path.join(__dirname, "../../resources/icon.png"));
+      if (icon.isEmpty()) {
+        log.warn("[main] tray icon not found — skipping tray creation");
+        return;
+      }
+      statusTray = new electron.Tray(icon.resize({ width: 16, height: 16 }));
+      statusTray.setToolTip("WorkIsland");
+      const zh = (coordinator.getSettings().locale || "zh") !== "en";
+      const menu = electron.Menu.buildFromTemplate([
+        { label: zh ? "显示灵动岛" : "Show Island", click: () => {
+          islandWindow?.revealForHover();
+        } },
+        { label: zh ? "设置…" : "Settings…", click: () => {
+          coordinator.openSettingsWindow();
+        } },
+        { type: "separator" },
+        { label: zh ? "退出 WorkIsland" : "Quit WorkIsland", click: () => {
+          electron.app.quit();
+        } }
+      ]);
+      statusTray.setContextMenu(menu);
+      statusTray.on("click", () => {
+        islandWindow?.revealForHover();
+      });
+    } catch (err) {
+      log.warn("[main] failed to create status tray:", err?.message || err);
+    }
+  }
+
   if (needsOnboarding) {
     log.info("[main] first launch — showing WelcomeWindow");
     if (!coordinator.getSettings().firstLaunchAt) {
@@ -978,9 +1065,11 @@ async function runIslandApp() {
     showWelcomeWindow({ afterComplete: () => {
       coordinator.updateSettings({ hasCompletedOnboarding: true });
       startIsland({ expandAfterOnboarding: true });
+      createStatusTray();
     } });
   } else {
     startIsland();
+    createStatusTray();
   }
   coordinator.setPetWindowFactory((x, y) => {
     const petWindow = new PetWindow(x, y, coordinator.getSettings().petScale);
@@ -1129,4 +1218,11 @@ for (const signal of ["SIGINT", "SIGTERM", "SIGUSR1"]) {
     if (!isQuitting) electron.app.quit();
   });
 }
-runIslandApp();
+const portableHookArg = process.argv.find((arg) => arg.startsWith("--workisland-hook-source="));
+if (portableHookArg) {
+  const source = portableHookArg.slice("--workisland-hook-source=".length);
+  process.argv.push("--source", source);
+  void require("../island/hooks-cli/index.cjs").run().finally(() => electron.app.exit(0));
+} else {
+  runIslandApp();
+}

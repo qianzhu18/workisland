@@ -53,3 +53,16 @@ jobs:
       - run: npm run build:assets
       - run: npm run build:native
       - run: npm run check
+
+  windows-x64:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run build:assets
+      - run: npm run check

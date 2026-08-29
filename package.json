@@ -1,8 +1,8 @@
 {
   "name": "workisland",
   "productName": "WorkIsland",
-  "version": "3.1.0",
-  "description": "macOS 本地 Work Agent 工作状态与注意力路由器",
+  "version": "1.0.0-alpha.5",
+  "description": "macOS 与 Windows 本地 Work Agent 工作状态与注意力路由器",
   "private": true,
   "main": "./src/main/index.cjs",
   "author": "WorkIsland contributors",
@@ -10,6 +10,7 @@
   "keywords": [
     "electron",
     "macos",
+    "windows",
     "work-agent",
     "dynamic-island"
   ],
@@ -25,6 +26,7 @@
     "setup:electron": "npm install --prefix ./.tools/electron-shell --no-save electron@43.3.0 --cache ./.npm-cache",
     "build:native": "node ./scripts/build-native.mjs",
     "package:mac": "npm run build:assets && npm run build:native && npm run check && electron-builder --mac --arm64 --publish never",
+    "package:win": "npm run build:assets && npm run check && electron-builder --win nsis portable --x64 --publish never",
     "release:check": "node ./scripts/release-check.mjs",
     "check": "npm run build:renderer && node ./scripts/check.mjs && node ./scripts/test-source.mjs && npm run test:unit",
     "test:unit": "node --test tests/*.test.mjs",
@@ -32,6 +34,7 @@
     "smoke:hook:isolated": "node ./scripts/smoke-hook.mjs --isolated",
     "smoke:approval:isolated": "node ./scripts/smoke-approval.mjs",
     "smoke:ui": "node ./scripts/smoke-ui.mjs",
+    "smoke:win": "node ./scripts/smoke-win-packaged.mjs",
     "doctor": "node ./scripts/doctor.mjs"
   },
   "engines": {
@@ -59,6 +62,7 @@
       "output": "release"
     },
     "asar": true,
+    "npmRebuild": false,
     "asarUnpack": [
       "resources/bin/panel_fix.node",
       "node_modules/node-pty/**/*"
@@ -95,6 +99,14 @@
         "to": "scripts/collect-logs.sh"
       },
       {
+        "from": "resources/scripts/collect-logs.ps1",
+        "to": "scripts/collect-logs.ps1"
+      },
+      {
+        "from": "resources/scripts/media-session.ps1",
+        "to": "scripts/media-session.ps1"
+      },
+      {
         "from": "resources/dsh-workisland-bridge",
         "to": "dsh-workisland-bridge"
       }
@@ -121,6 +133,20 @@
     },
     "dmg": {
       "title": "WorkIsland"
+    },
+    "win": {
+      "target": ["nsis", "portable"],
+      "icon": "resources/icon.ico"
+    },
+    "nsis": {
+      "artifactName": "${productName}-Setup-${version}-${arch}.${ext}",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "portable": {
+      "artifactName": "${productName}-Portable-${version}-${arch}.${ext}"
     }
   }
 }

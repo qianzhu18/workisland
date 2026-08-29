@@ -55,6 +55,10 @@ async function evaluate(target, expression) {
   return result;
 }
 
+const welcome = (await targets()).find((candidate) => candidate.url.includes("/welcome.html"));
+if (welcome) {
+  await evaluate(welcome, "document.querySelector('.welcome-btn')?.click(); true");
+}
 const island = await waitForTarget("/island.html");
 if (await evaluate(island, "typeof window.islandBridge") !== "object") {
   throw new Error("islandBridge is not exposed");
@@ -109,7 +113,14 @@ const petSpriteRendered = await evaluate(
 if (!petSpriteRendered) throw new Error("The pet sprite did not render to canvas");
 const islandStayedOpen = await evaluate(
   island,
-  "document.querySelector('.island-pop-wrapper')?.classList.contains('is-open') === true"
+  `(async () => {
+    const deadline = Date.now() + 2000;
+    while (Date.now() < deadline) {
+      if (document.querySelector('.island-pop-wrapper')?.classList.contains('is-open')) return true;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    return false;
+  })()`
 );
 if (!islandStayedOpen) throw new Error("Opening the pet changed the island's expanded state");
 await evaluate(pet, "window.petBridge.togglePanel(); true");

@@ -2,11 +2,16 @@ import { chmodSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { join, resolve } from "node:path";
 
-function ensureNodePtyHelperExecutable(root, { platform = process.platform, arch = process.arch } = {}) {
+function ensureNodePtyHelperExecutable(root, {
+  platform = process.platform,
+  arch = process.arch,
+  pathExists = existsSync,
+  chmod = chmodSync
+} = {}) {
   if (platform !== "darwin" || !["arm64", "x64"].includes(arch)) return false;
   const helper = join(root, "node_modules", "node-pty", "prebuilds", `darwin-${arch}`, "spawn-helper");
-  if (!existsSync(helper)) return false;
-  chmodSync(helper, 0o755);
+  if (!pathExists(helper)) return false;
+  chmod(helper, 0o755);
   return true;
 }
 

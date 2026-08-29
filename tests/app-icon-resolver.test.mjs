@@ -21,6 +21,7 @@ test("app icon resolver returns a cached bounded PNG data URL for an installed b
   const lookups = [];
   const iconReads = [];
   const resolveAppIcon = createAppIconResolver({
+    platform: "darwin",
     locateApplication: async (bundleId) => {
       lookups.push(bundleId);
       return "/System/Applications/Music.app";
@@ -46,6 +47,7 @@ test("app icon resolver prefers the icon declared by the application bundle", as
   const fallbackReads = [];
   const convertedPaths = [];
   const resolveAppIcon = createAppIconResolver({
+    platform: "darwin",
     locateApplication: async () => "/Applications/NeteaseMusic.app",
     pathExists: (candidate) => new Set([
       "/Applications/NeteaseMusic.app",
@@ -72,6 +74,7 @@ test("app icon resolver prefers the icon declared by the application bundle", as
 test("app icon resolver rejects invalid identifiers and non-application paths", async () => {
   let lookups = 0;
   const resolveInvalid = createAppIconResolver({
+    platform: "darwin",
     locateApplication: async () => { lookups += 1; return "/tmp/not-an-app"; },
     pathExists: () => true,
     getFileIcon: async () => fakeNativeImage()
@@ -86,16 +89,19 @@ test("app icon resolver rejects invalid identifiers and non-application paths", 
 test("app icon resolver fails closed for missing, empty, and oversized icons", async () => {
   const cases = [
     createAppIconResolver({
+      platform: "darwin",
       locateApplication: async () => "",
       pathExists: () => false,
       getFileIcon: async () => fakeNativeImage()
     }),
     createAppIconResolver({
+      platform: "darwin",
       locateApplication: async () => "/Applications/Player.app",
       pathExists: () => true,
       getFileIcon: async () => ({ isEmpty: () => true })
     }),
     createAppIconResolver({
+      platform: "darwin",
       locateApplication: async () => "/Applications/Player.app",
       pathExists: () => true,
       getFileIcon: async () => fakeNativeImage(Buffer.alloc(64)),
@@ -104,4 +110,15 @@ test("app icon resolver fails closed for missing, empty, and oversized icons", a
   ];
 
   for (const resolveAppIcon of cases) assert.equal(await resolveAppIcon("com.example.player"), "");
+});
+
+test("Windows app icon resolver accepts executable paths and uses the shell icon", async () => {
+  const image = fakeNativeImage(Buffer.from("windows-icon"));
+  const resolveAppIcon = createAppIconResolver({
+    platform: "win32",
+    locateApplication: async () => "C:\\Program Files\\Player\\Player.exe",
+    pathExists: () => true,
+    getFileIcon: async () => image
+  });
+  assert.equal(await resolveAppIcon("Player.exe"), `data:image/png;base64,${Buffer.from("windows-icon").toString("base64")}`);
 });

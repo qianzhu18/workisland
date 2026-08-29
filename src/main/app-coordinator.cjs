@@ -198,10 +198,13 @@ function createAppCoordinatorClass({
       const mediaResourceDir = electron.app.isPackaged
         ? path.join(process.resourcesPath, "mediaremote-adapter")
         : path.join(electron.app.getAppPath(), "resources", "mediaremote-adapter");
+      const mediaWindowsScriptPath = electron.app.isPackaged
+        ? path.join(process.resourcesPath, "scripts", "media-session.ps1")
+        : path.join(electron.app.getAppPath(), "resources", "scripts", "media-session.ps1");
       const resolveAppIcon = createAppIconResolver({
         getFileIcon: (appPath) => electron.app.getFileIcon(appPath, { size: "normal" })
       });
-      this.mediaService = new MediaService({ resourceDir: mediaResourceDir, resolveAppIcon });
+      this.mediaService = new MediaService({ resourceDir: mediaResourceDir, windowsScriptPath: mediaWindowsScriptPath, resolveAppIcon });
       this.lyricsService = new LyricsService({ storePath: path.join(electron.app.getPath("userData"), "lyrics-cache.json") });
       this.performanceService = new PerformanceService();
       const userDataPath = electron.app.getPath("userData");
@@ -511,6 +514,7 @@ function createAppCoordinatorClass({
      * 该会话的下一个 hook 事件会自然补上。
      */
     async discoverRunningClaudeSessions() {
+      if (process.platform !== "darwin") return;
       const RECOVERY_LOOKBACK_MS = 24 * 60 * 60 * 1e3;
       const cp = require("child_process");
       const { promisify: pify } = require("util");
@@ -695,6 +699,10 @@ function createAppCoordinatorClass({
       return readClaudeTranscriptState(file);
     }
     async autoReInstallHooks() {
+      if (process.argv.some((arg) => arg.startsWith("--smoke-user-data="))) {
+        log.info("[AppCoordinator] packaged smoke mode, skipping Hook reconciliation");
+        return;
+      }
       const toggles = this.settings.hookToggles ?? {};
       for (const [agentId, manager] of this.hookManagers) {
         try {
@@ -1243,9 +1251,10 @@ function createAppCoordinatorClass({
       electron.shell.showItemInFolder(item.path);
       return true;
     }
-    quickLookShelfItem(id) {
+    async quickLookShelfItem(id) {
       const item = this.shelfService.find(id);
       if (!item?.path || !item.available) return false;
+      if (process.platform === "win32") return (await electron.shell.openPath(item.path)) === "";
       require("node:child_process").spawn("/usr/bin/qlmanage", ["-p", item.path], { detached: true, stdio: "ignore" }).unref();
       return true;
     }
