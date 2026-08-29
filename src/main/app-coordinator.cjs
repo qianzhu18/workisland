@@ -37,6 +37,10 @@ const { resolveRecentProjectCwd, resolveTerminalCommand } = require("../shared/t
 const { createAppearanceService } = require("./appearance-service.cjs");
 const { createAppearanceController } = require("./appearance-controller.cjs");
 const { normalizeIslandAppearance } = require("../shared/appearance.cjs");
+const { createTemplateService } = require("./template-service.cjs");
+const { createTemplateController } = require("./template-controller.cjs");
+const { getCodexPetsDir } = require("./codex-pet.cjs");
+const petLibrary = require("./pet-library.cjs");
 
 function createElectronClipboardAdapter() {
   return {
@@ -246,6 +250,27 @@ function createAppCoordinatorClass({
       // settings, and pet windows.
       this.bridge.setAppearanceController(createAppearanceController({
         appearanceService: this.appearanceService,
+        getSettings: () => this.getSettings(),
+        updateSettings: (partial) => this.updateSettings(partial, "bridge")
+      }));
+      // Template runtime (PRD-018): the official builtin package ships with
+      // the app (resources/templates); user packages install under
+      // <userData>/appearance-templates. Applies ride the same settings
+      // pipeline as raw appearance edits.
+      this.templateService = createTemplateService({
+        getBuiltinTemplatesDir: () => path.join(
+          electron.app.isPackaged ? process.resourcesPath : path.join(electron.app.getAppPath(), "resources"),
+          "templates",
+          "builtin"
+        ),
+        getUserDataPath: () => electron.app.getPath("userData"),
+        appVersion: electron.app.getVersion()
+      });
+      this.bridge.setTemplateController(createTemplateController({
+        templateService: this.templateService,
+        appearanceService: this.appearanceService,
+        petLibrary,
+        getCodexPetsDir,
         getSettings: () => this.getSettings(),
         updateSettings: (partial) => this.updateSettings(partial, "bridge")
       }));

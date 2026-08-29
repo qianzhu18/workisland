@@ -35,10 +35,11 @@ function createBridgeServerClass({
     recorder = null;
     sessionTitleProvider = null;
     shouldAcceptHook;
-    // AI customization surface (appearance + pet ops). Injected by
-    // AppCoordinator after construction; commands are rejected with a
-    // structured error until then.
+    // AI customization surface (appearance + pet ops, and template ops).
+    // Injected by AppCoordinator after construction; commands are rejected
+    // with a structured error until then.
     appearanceController = null;
+    templateController = null;
     // PluginAdapter 不进 adapterRegistry，由 BridgeServer 在 plugin: 前缀分支显式调用。
     pluginAdapter = new PluginAdapter();
     /**
@@ -98,6 +99,9 @@ function createBridgeServerClass({
     }
     setAppearanceController(controller) {
       this.appearanceController = controller;
+    }
+    setTemplateController(controller) {
+      this.templateController = controller;
     }
     start() {
       ensureSocketDir();
@@ -236,7 +240,17 @@ function createBridgeServerClass({
         case "setPet":
         case "installPet":
         case "validateSprite": {
-          this.handleAppearanceCommand(clientId, command);
+          this.dispatchControllerCommand(clientId, this.appearanceController, command, "appearance");
+          break;
+        }
+        case "listTemplates":
+        case "inspectTemplate":
+        case "previewTemplate":
+        case "applyTemplate":
+        case "resetTemplate":
+        case "validateTemplate":
+        case "exportTemplate": {
+          this.dispatchControllerCommand(clientId, this.templateController, command, "template");
           break;
         }
         case "resolvePermission":
@@ -310,34 +324,39 @@ function createBridgeServerClass({
       }
     }
     /**
-     * AI customization commands (appearance + pets). These are the only
-     * bridge commands that answer with a data payload:
+     * AI customization commands (appearance/pets + templates). These are the
+     * only bridge commands that answer with a data payload:
      *   { type: "result", data } on success
      *   { type: "error", code, message } on failure (validation errors carry
      *   code "VALIDATION" so clients can distinguish bad input from failures)
      * Older clients ignore unknown response types, so the envelope extension
      * stays backward compatible.
      */
-    handleAppearanceCommand(clientId, command) {
-      const handler = this.appearanceController?.[command.type];
+    dispatchControllerCommand(clientId, controller, command, label) {
+      const handler = controller?.[command.type];
       if (typeof handler !== "function") {
         this.sendResponse(clientId, {
           type: "error",
           code: "UNAVAILABLE",
-          message: `appearance controller unavailable for command: ${command.type}`
+          message: `${label} controller unavailable for command: ${command.type}`
         });
         return;
       }
       Promise.resolve()
-        .then(() => handler.call(this.appearanceController, command))
+        .then(() => handler.call(controller, command))
         .then((data) => {
           this.sendResponse(clientId, { type: "result", data });
         })
         .catch((err) => {
-          log.warn("[BridgeServer]", "appearance command failed:", command.type, err.message);
+          log.warn("[BridgeServer]", `${label} command failed:`, command.type, err.message);
           this.sendResponse(clientId, {
             type: "error",
-            code: err?.name === "AppearanceValidationError" || err?.code === "SPRITE_VALIDATION_FAILED" ? "VALIDATION" : "ERROR",
+            code: err?.name === "AppearanceValidationError"
+              || err?.name === "TemplateValidationError"
+              || err?.code === "SPRITE_VALIDATION_FAILED"
+              || err?.code === "TEMPLATE_VALIDATION_FAILED"
+              ? "VALIDATION"
+              : "ERROR",
             message: err?.message || String(err)
           });
         });

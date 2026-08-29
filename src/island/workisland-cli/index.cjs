@@ -33,6 +33,18 @@ const USAGE = `workisland-cli — WorkIsland AI 自定义接口
   workisland-cli pet set <sprite>                              切换桌宠(如 codex:qianxue / my-pet.webp)
   workisland-cli pet install <sprite.png|webp> [--name <name>] [--no-select]  安装(并默认选用)精灵图
   workisland-cli validate <sprite.png|webp>                    校验精灵图几何尺寸(生成-校验-重试闭环)
+
+模板(推荐入口,详见 workisland-cli manual):
+  workisland-cli template list [--source builtin|local]        列出内置与已安装模板
+  workisland-cli template inspect <id[@version]|目录>           查看模板清单/模块/许可
+  workisland-cli template preview <id[@version]|目录>           预览五状态/背景/桌宠(只读)
+  workisland-cli template apply <id[@version]|目录> [--modules island,background,pet] [--sync-codex]
+                                                               应用模板(默认 island 模块)
+  workisland-cli template reset [--module island|background|pet|all]
+                                                               恢复官方默认(不删除已装模板/宠物)
+  workisland-cli template validate <目录>                      校验模板包(作者流程)
+  workisland-cli template export <目录> --out <zip>            导出校验过的模板 zip(作者流程)
+
   workisland-cli manual                                        输出完整 AI 接口手册
 
 选项:
@@ -121,6 +133,52 @@ function parseArgs(argv) {
     return { action: "validate", sourcePath, socketPath };
   }
 
+  if (group === "template") {
+    if (sub === "list") {
+      const source = readArgValue(rest, "--source");
+      if (source !== undefined && !["builtin", "local", "github"].includes(source)) {
+        return { action: "usage", error: "--source 仅支持 builtin | local | github" };
+      }
+      return { action: "template-list", source, socketPath };
+    }
+    if (sub === "inspect" || sub === "preview") {
+      const target = rest[2];
+      if (!target) return { action: "usage", error: `template ${sub} 需要 <id[@version] | 目录>` };
+      return { action: sub === "inspect" ? "template-inspect" : "template-preview", target, socketPath };
+    }
+    if (sub === "apply") {
+      const target = rest[2];
+      if (!target) return { action: "usage", error: "template apply 需要 <id[@version] | 目录>" };
+      const modules = readArgValue(rest, "--modules");
+      return {
+        action: "template-apply",
+        target,
+        modules,
+        syncCodex: hasFlag(rest, "--sync-codex"),
+        socketPath
+      };
+    }
+    if (sub === "reset") {
+      const module = readArgValue(rest, "--module");
+      if (module !== undefined && !["island", "background", "pet", "all"].includes(module)) {
+        return { action: "usage", error: "--module 仅支持 island | background | pet | all" };
+      }
+      return { action: "template-reset", module: module ?? "all", socketPath };
+    }
+    if (sub === "validate") {
+      const target = rest[2];
+      if (!target) return { action: "usage", error: "template validate 需要 <模板目录>" };
+      return { action: "template-validate", target, socketPath };
+    }
+    if (sub === "export") {
+      const dir = rest[2];
+      const out = readArgValue(rest, "--out");
+      if (!dir || !out) return { action: "usage", error: "template export 需要 <模板目录> 与 --out <zip>" };
+      return { action: "template-export", dir, out, socketPath };
+    }
+    return { action: "usage" };
+  }
+
   return { action: "usage" };
 }
 
@@ -158,6 +216,25 @@ async function buildBridgeCommand(plan) {
       return { type: "installPet", sourcePath: plan.sourcePath, name: plan.name, select: plan.select };
     case "validate":
       return { type: "validateSprite", sourcePath: plan.sourcePath };
+    case "template-list":
+      return { type: "listTemplates", source: plan.source };
+    case "template-inspect":
+      return { type: "inspectTemplate", target: plan.target };
+    case "template-preview":
+      return { type: "previewTemplate", target: plan.target };
+    case "template-apply":
+      return {
+        type: "applyTemplate",
+        target: plan.target,
+        modules: plan.modules,
+        syncCodex: plan.syncCodex
+      };
+    case "template-reset":
+      return { type: "resetTemplate", module: plan.module };
+    case "template-validate":
+      return { type: "validateTemplate", target: plan.target };
+    case "template-export":
+      return { type: "exportTemplate", dir: plan.dir, out: plan.out };
     default:
       throw new Error(`unsupported action: ${plan.action}`);
   }
@@ -297,9 +374,12 @@ async function main() {
   }
   if (response.type === "result") {
     process.stdout.write(`${JSON.stringify({ ok: true, ...response.data }, null, 2)}\n`);
-    // `validate` answers as data even for failed checks; mirror the outcome
-    // in the exit code so scripts can branch without parsing JSON.
-    if (plan.action === "validate" && response.data?.ok === false) return EXIT_VALIDATION;
+    // `validate` (sprite + template) answers as data even for failed
+    // checks; mirror the outcome in the exit code so scripts can branch
+    // without parsing JSON.
+    if ((plan.action === "validate" || plan.action === "template-validate") && response.data?.ok === false) {
+      return EXIT_VALIDATION;
+    }
     return EXIT_OK;
   }
   if (response.type === "error") {
