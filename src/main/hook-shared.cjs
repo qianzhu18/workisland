@@ -18,8 +18,8 @@ function saveSessions(sessions) {
   } catch {
   }
 }
-function shellQuote(p) {
-  if (process.platform === "win32") return `"${String(p).replaceAll('"', '\\"')}"`;
+function shellQuote(p, platform = process.platform) {
+  if (platform === "win32") return `"${String(p).replaceAll('"', '\\"')}"`;
   return `'${p}'`;
 }
 function buildDevHooksCliCommand(source) {
@@ -35,10 +35,10 @@ function wrapWithInstallCheck(guardPath, command, { platform = process.platform,
     const sourceMatch = String(command).match(/--source\s+(?:"([^"]+)"|'([^']+)'|(\S+))/);
     const source = sourceMatch?.[1] || sourceMatch?.[2] || sourceMatch?.[3];
     if (portableExecutable && source) {
-      return `if not exist ${shellQuote(portableExecutable)} exit /b 0 & ${shellQuote(portableExecutable)} --workisland-hook-source=${source}`;
+      return `if not exist ${shellQuote(portableExecutable, platform)} exit /b 0 & ${shellQuote(portableExecutable, platform)} --workisland-hook-source=${source}`;
     }
     const normalized = command.replace(/^ELECTRON_RUN_AS_NODE=1\s+/, 'set "ELECTRON_RUN_AS_NODE=1"&& ');
-    return `if not exist ${shellQuote(guardPath)} exit /b 0 & ${normalized}`;
+    return `if not exist ${shellQuote(guardPath, platform)} exit /b 0 & ${normalized}`;
   }
   return `[ -e ${shellQuote(guardPath)} ] || exit 0; ${command}`;
 }
