@@ -49,11 +49,12 @@ const {
 // shelf references/paste/share, opt-in clipboard history, directory selection,
 // one managed PTY session, a renderer-to-main file-drag interaction lock, and
 // privacy-gated lyrics state/cache controls.
-assert.equal(Object.keys(IPC).length, 142, "IPC contract changed; review both main and preload consumers");
+assert.equal(Object.keys(IPC).length, 143, "IPC contract changed; review both main and preload consumers");
 assert.equal(new Set(Object.values(IPC)).size, Object.keys(IPC).length, "IPC channels must be unique");
 assert.ok(Object.isFrozen(IPC), "IPC contract must be immutable");
 assert.equal(IPC.APPEARANCE_GET_BACKGROUND_IMAGE, "appearance:get-background-image");
 assert.equal(IPC.TEMPLATE_GET_ACTIVE_STATUS_ASSETS, "template:get-active-status-assets");
+assert.equal(IPC.TEMPLATE_LIST, "template:list");
 assert.equal(IPC.PET_DRAG_TO_ISLAND, "pet:drag-to-island");
 assert.equal(IPC.SETTINGS_GET_CUSTOM_ICON, "settings:get-custom-icon");
 assert.equal(IPC.PET_TOGGLE, "pet:toggle");

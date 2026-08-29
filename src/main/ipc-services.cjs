@@ -441,6 +441,14 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
       // the island's icons (PRD-018 §7.4).
       return coordinator.getActiveTemplateStatusAssets?.() ?? { assets: null };
     });
+    electron.ipcMain.handle(IPC.TEMPLATE_LIST, () => {
+      // Settings-page template picker: same validated list the CLI serves.
+      const templates = coordinator.templateService?.listTemplates() ?? [];
+      return {
+        active: coordinator.getSettings().appearanceTemplate ?? null,
+        templates
+      };
+    });
     electron.ipcMain.handle(IPC.PET_GET_SPRITE_PATH, async (_event, fileName) => {
       initSpriteDirs();
       // The renderer may omit the argument; use the setting so custom files

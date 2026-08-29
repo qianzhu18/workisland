@@ -7,6 +7,7 @@ electron.contextBridge.exposeInMainWorld("settingsApi", {
   getLocale: () => electron.ipcRenderer.invoke(ipc.IPC.GET_LOCALE),
   setLocale: (locale) => electron.ipcRenderer.invoke(ipc.IPC.SET_LOCALE, { locale }),
   setSettings: (partial) => electron.ipcRenderer.invoke(ipc.IPC.SETTINGS_SET, partial),
+  listTemplates: () => electron.ipcRenderer.invoke(ipc.IPC.TEMPLATE_LIST),
   clearLyricsCache: () => electron.ipcRenderer.invoke(ipc.IPC.LYRICS_CLEAR_CACHE),
   getShelfShareProviders: () => electron.ipcRenderer.invoke(ipc.IPC.SHELF_GET_SHARE_PROVIDERS),
   selectDirectory: () => electron.ipcRenderer.invoke(ipc.IPC.SETTINGS_SELECT_DIRECTORY),

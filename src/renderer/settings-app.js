@@ -31,7 +31,7 @@ const AGENT_ICON_URLS = Object.freeze({
   "plugin:pi": "../assets/brands/pi.svg"
 });
 const VERIFY_ON_REAL_EVENT_AGENT_IDS = new Set(["dsh", "trae"]);
-const state = { settings: null, statuses: new Map(), displays: [], codexPets: [], shareProviders: [], activeTab: "general", busy: new Set(), expandedSettingDetails: new Set(), latestUpdate: null, telemetryStatus: null, commandDraft: { name: "", command: "" } };
+const state = { settings: null, statuses: new Map(), displays: [], codexPets: [], templates: { active: null, templates: [] }, shareProviders: [], activeTab: "general", busy: new Set(), expandedSettingDetails: new Set(), latestUpdate: null, telemetryStatus: null, commandDraft: { name: "", command: "" } };
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -152,6 +152,14 @@ async function loadCodexPets() {
     state.codexPets = (await api.getCodexPets?.()) || [];
   } catch {
     state.codexPets = [];
+  }
+}
+
+async function loadTemplates() {
+  try {
+    state.templates = (await api.listTemplates?.()) || { active: null, templates: [] };
+  } catch {
+    state.templates = { active: null, templates: [] };
   }
 }
 
@@ -544,6 +552,7 @@ function agentsPage() {
 
 function appearancePage() {
   const root = document.createDocumentFragment();
+  root.append(templateSection());
   const pet = section("桌宠", "桌宠与 Island 使用同一套会话状态，切换不会中断监控。");
   const configuredSprite = state.settings.petSprite || DEFAULT_PET_SPRITE;
   const spriteOptions = [
@@ -586,6 +595,37 @@ function appearancePage() {
   panel.append(row("最大高度", "修改后下一次展开生效。", select(String(state.settings.panelMaxHeightPx || 540), heights, v => save({ panelMaxHeightPx: Number(v) }), "面板最大高度")));
   root.append(islandBackgroundSection(), pet, panel);
   return root;
+}
+
+function templateSection() {
+  const tpl = section("外观模板", "以模板为单位更换 Island 的状态角色、背景与桌宠；本机 AI Agent 可通过 workisland-template Skill 完成同样的流程。");
+  const active = state.settings.appearanceTemplate || { id: "builtin:workisland-xiaoyu", version: "*" };
+  const validTemplates = (state.templates.templates || []).filter(entry => entry.valid);
+  const options = validTemplates.map(entry => [`${entry.id}@${entry.version}`, `${entry.name} · ${entry.id}${entry.modules.length ? `（${entry.modules.join("/")}）` : ""} · ${entry.license}`]);
+  const activeKey = `${active.id}@${active.version}`;
+  if (!options.some(([value]) => value === activeKey)) {
+    options.unshift([activeKey, `${active.id}@${active.version} · 当前设置`]);
+  }
+  const templateSelect = select(activeKey, options, value => {
+    const at = value.lastIndexOf("@");
+    save({
+      appearanceTemplate: { id: value.slice(0, at), version: value.slice(at + 1) }
+    }).then(() => showToast("模板已切换，Island 状态角色将实时刷新"));
+  }, "外观模板");
+  const reset = button("恢复官方默认", async () => {
+    await save({
+      appearanceTemplate: { id: "builtin:workisland-xiaoyu", version: "1.0.0" }
+    });
+    await loadTemplates();
+    renderPage();
+    showToast("已恢复官方小宇模板");
+  }, "secondary");
+  tpl.append(
+    row("当前模板", "模板决定会话状态图标（idle/运行/待审批/完成/错误）的角色形象；官方内置 WorkIsland 小宇（守岛人）。", templateSelect),
+    row("恢复默认", "切回官方小宇模板；不会删除已安装的模板和你的 Codex 宠物。", reset),
+    row("AI 换装", "对 Agent 说“帮我换个外观模板”，装有 workisland-template Skill 的 Agent 会先预览再经你确认后应用。", el("span", "range-value", "Skill 入口"))
+  );
+  return tpl;
 }
 
 const ISLAND_APPEARANCE_PRESETS = [
@@ -772,6 +812,7 @@ async function start() {
   await loadTelemetryStatus();
   await loadDisplays();
   await loadCodexPets();
+  await loadTemplates();
   document.querySelectorAll(".nav-item").forEach(item => item.addEventListener("click", () => {
     state.activeTab = item.dataset.tab;
     renderPage();
