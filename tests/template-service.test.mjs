@@ -42,7 +42,7 @@ function createFixture() {
   const userData = join(base, "user-data");
   mkdirSync(builtinDir, { recursive: true });
   mkdirSync(userData, { recursive: true });
-  writeTemplate(join(builtinDir, "builtin-workisland-xiaoyu"), { id: OFFICIAL_TEMPLATE_ID, version: "1.0.0" });
+  writeTemplate(join(builtinDir, "workisland-xiaoyu"), { id: OFFICIAL_TEMPLATE_ID, version: "1.0.0" });
   const service = createTemplateService({
     getBuiltinTemplatesDir: () => builtinDir,
     getUserDataPath: () => userData,
@@ -54,7 +54,7 @@ function createFixture() {
 test("validateTemplateDir accepts a well-formed package and reports modules", () => {
   const { base, service } = createFixture();
   try {
-    const result = service.validateTemplateDir(join(base, "builtin-root", "builtin-workisland-xiaoyu"));
+    const result = service.validateTemplateDir(join(base, "builtin-root", "workisland-xiaoyu"));
     assert.equal(result.ok, true);
     assert.equal(result.manifest.id, OFFICIAL_TEMPLATE_ID);
     assert.deepEqual(result.modules, ["island"]);
@@ -172,7 +172,7 @@ test("resolveStatusAssets returns data URLs and falls back to the official templ
 test("resolveStatusAssets returns null assets when even the builtin package is broken", () => {
   const { base, builtinDir, service } = createFixture();
   try {
-    rmSync(join(builtinDir, "builtin-workisland-xiaoyu", "template.json"));
+    rmSync(join(builtinDir, "workisland-xiaoyu", "template.json"));
     const result = service.resolveStatusAssets(OFFICIAL_TEMPLATE_ID, "1.0.0");
     assert.equal(result.assets, null);
     assert.ok(result.error.length > 0);

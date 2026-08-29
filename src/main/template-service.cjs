@@ -42,7 +42,9 @@ function createTemplateService({ getBuiltinTemplatesDir, getUserDataPath, appVer
   }
 
   function builtinTemplateDir(id) {
-    return path.join(getBuiltinTemplatesDir(), templateDirNameForId(id));
+    // On-disk package folders drop the "builtin:" namespace prefix (PRD-018
+    // §7.3: resources/templates/builtin/workisland-xiaoyu/).
+    return path.join(getBuiltinTemplatesDir(), templateDirNameForId(String(id).replace(/^builtin:/, "")));
   }
 
   /**

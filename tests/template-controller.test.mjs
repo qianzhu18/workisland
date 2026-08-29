@@ -52,9 +52,9 @@ function createFixture() {
   const builtinDir = join(base, "builtin-root");
   const userData = join(base, "user-data");
   const codexPetsDir = join(base, "codex-pets");
-  mkdirSync(join(builtinDir, "builtin-workisland-xiaoyu"), { recursive: true });
+  mkdirSync(join(builtinDir, "workisland-xiaoyu"), { recursive: true });
   mkdirSync(userData, { recursive: true });
-  writePackage(join(builtinDir, "builtin-workisland-xiaoyu"), { id: "builtin:workisland-xiaoyu" });
+  writePackage(join(builtinDir, "workisland-xiaoyu"), { id: "builtin:workisland-xiaoyu" });
   const settings = {
     appearanceTemplate: { id: "builtin:workisland-xiaoyu", version: "1.0.0" },
     islandAppearance: { kind: "default" },
@@ -122,7 +122,7 @@ test("inspect and preview are read-only for a path target", () => {
 });
 
 test("applyTemplate updates settings once and honors module selection", () => {
-  const { base, controller, saved, settings } = createFixture();
+  const { base, controller, saved, settings, userData } = createFixture();
   try {
     const dir = join(base, "pkg");
     mkdirSync(dir, { recursive: true });
@@ -134,6 +134,9 @@ test("applyTemplate updates settings once and honors module selection", () => {
     assert.equal(saved[0].islandAppearance.color, "#0b1e3a");
     assert.equal("petSprite" in saved[0], false, "不请求 pet 模块时不触碰桌宠");
     assert.equal(settings.petSprite, "codex:qianxue");
+    // Path applies install the package so the active reference stays
+    // resolvable and the renderer can load its status assets.
+    assert.ok(existsSync(join(userData, "appearance-templates", "author.theme", "1.0.0", "template.json")));
     assert.throws(
       () => controller.applyTemplate({ target: dir, modules: "pet" }),
       /不包含 pet 模块/

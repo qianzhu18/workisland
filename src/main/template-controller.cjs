@@ -125,7 +125,15 @@ function createTemplateController({
     requireServices();
     const request = payload && typeof payload === "object" ? payload : {};
     const requestedModules = parseModules(request.modules, payload);
-    const resolved = resolveInstalled(request.target ?? request.id);
+    let resolved = resolveInstalled(request.target ?? request.id);
+    // Applying from a path installs the package first so the recorded
+    // appearanceTemplate reference stays resolvable after restarts (and the
+    // renderer can load its status assets instead of hitting the builtin
+    // fallback).
+    if (!resolved.installed && !resolved.manifest.id.startsWith("builtin:")) {
+      templateService.installTemplateFromDir(resolved.dir);
+      resolved = resolveInstalled(`${resolved.manifest.id}@${resolved.manifest.version}`);
+    }
     const manifest = resolved.manifest;
 
     // Module/package agreement: asking for a module the template lacks fails
