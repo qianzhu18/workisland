@@ -139,6 +139,17 @@ if (!existsSync(hooksCliPath)) {
   process.exit(1);
 }
 const islandAppSource = readFileSync(join(root, "src/renderer/island/app.js"), "utf8");
+// PRD-018 §7.4: the builtin xiaoyu package is the single source of the five
+// status SVGs. The renderer copies are first-frame fallbacks only and must
+// stay byte-identical — drift here means someone edited one side by hand.
+for (const statusFile of ["idle.svg", "running.svg", "approval.svg", "complete.svg", "error.svg"]) {
+  const rendererAsset = readFileSync(join(root, "src/renderer/island/assets/status", statusFile));
+  const builtinAsset = readFileSync(join(root, "resources/templates/builtin/workisland-xiaoyu/island-status", statusFile));
+  if (!rendererAsset.equals(builtinAsset)) {
+    console.error(`Status asset drifted from the builtin template package: ${statusFile}. Edit resources/templates/builtin/workisland-xiaoyu and re-sync the renderer copy.`);
+    process.exit(1);
+  }
+}
 for (const removedDragEntry of ["PILL_DRAG_THRESHOLD_Y", "handlePillMouseDown", "dragPetMove"]) {
   if (islandAppSource.includes(removedDragEntry)) {
     console.error(`Removed pull-down pet entry returned: ${removedDragEntry}`);

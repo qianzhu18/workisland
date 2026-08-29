@@ -207,6 +207,9 @@ electron.contextBridge.exposeInMainWorld("islandBridge", {
   getIslandBackgroundImage(imageRef) {
     return electron.ipcRenderer.invoke(ipc.IPC.APPEARANCE_GET_BACKGROUND_IMAGE, imageRef);
   },
+  getActiveTemplateStatusAssets() {
+    return electron.ipcRenderer.invoke(ipc.IPC.TEMPLATE_GET_ACTIVE_STATUS_ASSETS);
+  },
   getLocale() {
     return electron.ipcRenderer.invoke(ipc.IPC.GET_LOCALE);
   },

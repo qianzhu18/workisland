@@ -435,6 +435,12 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
       // background image to a data URL (island CSP only allows data:/blob:).
       return coordinator.appearanceService?.getBackgroundImageDataUrl(imageRef) ?? null;
     });
+    electron.ipcMain.handle(IPC.TEMPLATE_GET_ACTIVE_STATUS_ASSETS, () => {
+      // Active template's five status SVGs as validated data URLs; the main
+      // process owns the builtin fallback so a broken package never blanks
+      // the island's icons (PRD-018 §7.4).
+      return coordinator.getActiveTemplateStatusAssets?.() ?? { assets: null };
+    });
     electron.ipcMain.handle(IPC.PET_GET_SPRITE_PATH, async (_event, fileName) => {
       initSpriteDirs();
       // The renderer may omit the argument; use the setting so custom files

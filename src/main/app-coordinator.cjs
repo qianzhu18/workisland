@@ -961,6 +961,21 @@ function createAppCoordinatorClass({
     shouldAcceptHookSource(source) {
       return this.isHookToolEnabled(source);
     }
+    /**
+     * 活动模板的五状态 SVG（data URL）。主进程兜底：模板损坏/缺失时
+     * 返回官方小宇包；连官方包都不可用时返回 null，渲染端保留构建期
+     * 资产——岛屿永远不显示空白状态图标。
+     */
+    getActiveTemplateStatusAssets() {
+      const template = this.settings.appearanceTemplate
+        ?? { id: "builtin:workisland-xiaoyu", version: "*" };
+      try {
+        return this.templateService.resolveStatusAssets(template.id, template.version);
+      } catch (err) {
+        log.warn("[AppCoordinator] resolveStatusAssets failed:", err.message);
+        return { assets: null };
+      }
+    }
     getSnapTotalTokens(snapshot) {
       return snapshot.totalInputTokens + snapshot.totalOutputTokens + snapshot.totalCacheReadTokens + snapshot.totalCacheCreationTokens;
     }

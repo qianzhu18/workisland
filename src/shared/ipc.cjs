@@ -105,6 +105,8 @@ const IPC = Object.freeze({
 
   APPEARANCE_GET_BACKGROUND_IMAGE: "appearance:get-background-image",
 
+  TEMPLATE_GET_ACTIVE_STATUS_ASSETS: "template:get-active-status-assets",
+
   WELCOME_GET_STARTED: "welcome:get-started",
   WELCOME_GET_FIRST_LAUNCH_AT: "welcome:get-first-launch-at",
   ISLAND_ONBOARDING_EXPAND: "island:onboarding-expand",
