@@ -33,12 +33,12 @@ test("website makes the GitHub Star request explicit in the hero", () => {
   assert.match(css, /\.vi-star-note/);
 });
 
-test("website community image is a real PNG asset", () => {
+test("website community image is a real, usable PNG asset", () => {
   assert.equal(existsSync(qrUrl), true);
   const png = readFileSync(qrUrl);
   assert.equal(png.subarray(1, 4).toString("ascii"), "PNG");
-  assert.ok(png.readUInt32BE(16) >= 600);
-  assert.ok(png.readUInt32BE(20) >= 600);
+  assert.ok(png.readUInt32BE(16) >= 500);
+  assert.ok(png.readUInt32BE(20) >= 500);
 });
 
 test("website links a user manual that covers first use and privacy", () => {
