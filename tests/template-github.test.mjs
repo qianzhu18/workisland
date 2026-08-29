@@ -162,6 +162,10 @@ test("publishTemplate requires --confirm, gh auth, and refuses duplicates", asyn
     assert.equal(published.published, true);
     assert.match(published.releaseUrl, /^https:\/\/github\.com\//);
     assert.equal(published.catalogEntry.id, "author.remote");
+    assert.equal(
+      published.catalogEntry.zipUrl,
+      `https://github.com/example/repo/releases/download/templates-author.remote-v1.0.0/${keepZip.split("/").at(-1)}`
+    );
     assert.match(published.catalogEntry.zipSha256, /^[0-9a-f]{64}$/);
     assert.ok(published.nextStep.includes("catalog.json"));
     assert.deepEqual(ghCalls.filter((cmd) => cmd === "auth" || cmd === "release"), ["auth", "release", "release"]);

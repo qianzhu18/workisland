@@ -240,7 +240,11 @@ function createTemplateGithubTransport({ fetcher, exec, logger } = {}) {
         version: manifest.version,
         author: manifest.author,
         license: manifest.license,
-        zipUrl: `${releaseUrl}/download/${path.basename(zipPath)}`,
+        // `gh release create` returns the human-facing tag page
+        // (`…/releases/tag/<tag>`), not an asset base URL. Build the stable
+        // GitHub asset endpoint explicitly so a catalog entry is immediately
+        // usable by `template download`.
+        zipUrl: `https://github.com/${repo}/releases/download/${encodeURIComponent(tag)}/${encodeURIComponent(path.basename(zipPath))}`,
         zipSha256,
         modules: Object.keys(manifest.assets)
       },
