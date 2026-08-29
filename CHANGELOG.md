@@ -6,6 +6,10 @@
 
 ### Added
 
+- 新增外观模板系统:官方小宇(守岛人)成为可恢复的默认模板 `builtin:workisland-xiaoyu`,五个会话状态 SVG 改为运行时从校验过的模板包加载(损坏自动回退官方包);模板含清单/哈希校验、SVG 安检、事务化安装与模块级恢复。
+- 新增 `workisland-cli template` 命令组:list / inspect / preview / apply / reset / validate / export / skill install / download / publish,支持 GitHub 静态目录下载(域名白名单 + 双重哈希校验)与经 `gh` 的显式 `--confirm` 发布。
+- 随附 `workisland-template` Agent Skill:强制"检查 → 预览 → 用户确认 → 应用"的换装流程,可一键安装到本机 Codex。
+- 设置 → 外观新增「外观模板」区块,不使用 Agent 也能完成同样的模板选择与恢复。
 - 新增 AI 自定义接口:本机 Agent 可通过随附的 `workisland-cli` 修改灵动岛背景(纯色 / 渐变 / 背景图,含透明度与压暗遮罩)并安装、切换桌宠精灵图,全部走本地 Unix socket,不开任何网络端口;配套 AI 手册见 [docs/AI-CUSTOMIZATION.md](docs/AI-CUSTOMIZATION.md),也可用 `workisland-cli manual` 直接输出。
 - 设置 → 外观新增「岛屿背景」:预设主题、自定义颜色、透明度与一键重置,AI 设置的结果同样在此可见可改。
 - 过亮的背景颜色会被自动压暗以保证浅色文字可读;精灵图安装前强制几何校验(Codex V2 1536×2288 / Orca v1 1024×896)。
