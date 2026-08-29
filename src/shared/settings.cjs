@@ -37,6 +37,7 @@ const {
   DEFAULT_ISLAND_APPEARANCE,
   normalizeIslandAppearance
 } = require("./appearance.cjs");
+const { OFFICIAL_TEMPLATE_ID, DEFAULT_APPEARANCE_TEMPLATE, normalizeAppearanceTemplate, normalizeAppearanceOverrides } = require("./template-defaults.cjs");
 
 const DEFAULT_SOUND_EVENTS = {
   appLaunch: { enabled: true },
@@ -147,6 +148,13 @@ const DEFAULT_SETTINGS = {
   // classic opaque black island; see src/shared/appearance.cjs for the
   // validated shape of the other kinds.
   islandAppearance: { ...DEFAULT_ISLAND_APPEARANCE },
+  // Active appearance template (PRD-018). New and historical installs both
+  // resolve to the official 小宇 builtin package; the migration deliberately
+  // leaves islandAppearance / petSprite untouched so previously chosen
+  // backgrounds and pets survive the upgrade.
+  appearanceTemplate: { ...DEFAULT_APPEARANCE_TEMPLATE },
+  // Per-module escapes on top of the active template (v1: background only).
+  appearanceOverrides: {},
   hapticFeedback: true,
   hasCompletedOnboarding: false,
   firstLaunchAt: 0,
@@ -230,6 +238,12 @@ function mergeSettings(parsed = {}) {
   } catch {
     merged.islandAppearance = { ...DEFAULT_ISLAND_APPEARANCE };
   }
+
+  // Template selection / overrides (PRD-018). Invalid persisted shapes reset
+  // to the official builtin — never to "no template", which would blank the
+  // island status icons.
+  merged.appearanceTemplate = normalizeAppearanceTemplate(parsed.appearanceTemplate);
+  merged.appearanceOverrides = normalizeAppearanceOverrides(parsed.appearanceOverrides, normalizeIslandAppearance);
 
   // Telemetry policy v2 (2026-08-22 owner decision: default-on, disclosed in
   // Settings). One-time migration: any explicit choice recorded under the old

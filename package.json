@@ -83,6 +83,10 @@
         "to": "pet-sprites"
       },
       {
+        "from": "resources/templates",
+        "to": "templates"
+      },
+      {
         "from": "resources/bin/flux-hooks",
         "to": "bin/flux-hooks"
       },
