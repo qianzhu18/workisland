@@ -22,7 +22,7 @@ const { PluginHookManager, DeepSeekHarnessHookManager } = require("./hooks-custo
 const { ZCodeHookManager, WorkBuddyHookManager, CodeBuddyHookManager } = require("./hooks-work-agents.cjs");
 const { initSoundDirs, playSoundEvent } = require("./sound-service.cjs");
 const { createAgentSoundDeduplicator, resolveCodexTranscriptSoundEvent } = require("./agent-sound-policy.cjs");
-const { reportTokenUsage, getHermesCumulativeTokens, diffHermesCumulativeTokens } = require("./adapters-extended.cjs");
+const { reportTokenUsage, getHermesCumulativeTokens, diffHermesCumulativeTokens, collectAndReportTokens } = require("./adapters-extended.cjs");
 const { getAgentDescriptor, validateAgentWiring } = require("../shared/agent-catalog.cjs");
 const { createPresentationRequest } = require("./presentation-policy.cjs");
 const { EVENTS } = require("../shared/telemetry.cjs");
@@ -163,6 +163,8 @@ function createAppCoordinatorClass({
      * 用 5 秒窗口 dedup 让两条通道都跑但只放行第一个。
      */
     agentEventDedup = null;
+    // claude 会话的 transcript 路径（来自 hookProcessed），turn 结束时采集 token 用
+    claudeTranscriptPaths = new Map();
     /**
      * 记录每个 Hermes session 已经写入 Flux 统计的累计 token 基线。
      *
@@ -349,6 +351,23 @@ function createAppCoordinatorClass({
             }
           }
         }
+        if (event.type === "sessionCompleted" && (event.tool === "claude" || event.tool === "codex")) {
+          // turn 结束采集一次。挂在 sessionCompleted 而不是 hookProcessed：
+          // 后者每个 hook 都触发，反复整读大 transcript 太重。
+          // codex 的 hook 常常不带 transcript_path（codexSessionMeta 为空），
+          // 但 transcript watcher 本来就按 session id 跟踪着 rollout 文件，用它兜底。
+          const transcriptPath = event.tool === "claude"
+            ? this.claudeTranscriptPaths.get(event.sessionId)
+            : this.codexSessionMeta.get(event.sessionId)?.transcriptPath
+              ?? this.codexTranscriptWatcher?.getTranscriptPath(event.sessionId);
+          if (transcriptPath) {
+            collectAndReportTokens(event.tool, event.sessionId, transcriptPath).catch((err) => {
+              log.warn("[AppCoordinator] %s token collect failed:", event.tool, err?.message ?? err);
+            });
+          } else {
+            log.info("[TokenCollector] 跳过：%s/%s 无 transcript 路径可用", event.tool, event.sessionId);
+          }
+        }
         if (shouldRecordCompletedSessionStat(event)) {
           const session = getSession(this.state, event.sessionId);
           if (session) {
@@ -367,6 +386,9 @@ function createAppCoordinatorClass({
         "hookProcessed",
         (info) => {
           const session = info.sessionId ? getSession(this.state, info.sessionId) : void 0;
+          if (info.tool === "claude" && info.sessionId && info.transcriptPath) {
+            this.claudeTranscriptPaths.set(info.sessionId, info.transcriptPath);
+          }
           if (info.tool === "codex" && info.sessionId && info.transcriptPath) {
             const prev = this.codexSessionMeta.get(info.sessionId);
             const latestTurnId = info.turnId ?? prev?.latestTurnId;
@@ -458,6 +480,18 @@ function createAppCoordinatorClass({
         });
         this.codexTranscriptWatcher.start();
         log.info("[AppCoordinator] codex transcript watcher started");
+        // 启动回填：codex 可能几小时不完成一轮，若只挂在 sessionCompleted 上，
+        // 统计里会长期停在 0。watcher 扫的是 24h 内的 rollout，逐个采集一次；
+        // applyBaselineDiff 用累计值差分，重复回填不会重复计数。
+        setTimeout(() => {
+          const tracked = this.codexTranscriptWatcher?.listTracked() ?? [];
+          for (const file of tracked) {
+            collectAndReportTokens("codex", file.sessionId, file.path).catch((err) => {
+              log.warn("[AppCoordinator] codex token backfill failed:", err?.message ?? err);
+            });
+          }
+          if (tracked.length) log.info("[AppCoordinator] codex token backfill: %d file(s)", tracked.length);
+        }, 5e3);
       } catch (err) {
         // watcher 启动失败不应阻断 app 启动；hook 通道仍可工作
         log.warn("[AppCoordinator] codex transcript watcher failed to start:", err.message);
