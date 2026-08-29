@@ -249,7 +249,10 @@ function createBridgeServerClass({
         case "applyTemplate":
         case "resetTemplate":
         case "validateTemplate":
-        case "exportTemplate": {
+        case "exportTemplate":
+        case "installTemplateSkill":
+        case "downloadTemplate":
+        case "publishTemplate": {
           this.dispatchControllerCommand(clientId, this.templateController, command, "template");
           break;
         }

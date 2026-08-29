@@ -44,6 +44,11 @@ const USAGE = `workisland-cli — WorkIsland AI 自定义接口
                                                                恢复官方默认(不删除已装模板/宠物)
   workisland-cli template validate <目录>                      校验模板包(作者流程)
   workisland-cli template export <目录> --out <zip>            导出校验过的模板 zip(作者流程)
+  workisland-cli template skill install [--client codex]       安装 workisland-template Skill 到本机 Agent
+  workisland-cli template download <id[@version]> --catalog <url>
+                                                               从 GitHub 静态目录下载并安装模板
+  workisland-cli template publish <zip> --repo <owner/repo> --confirm
+                                                               发布模板 zip 到 GitHub Release(作者流程,需 gh)
 
   workisland-cli manual                                        输出完整 AI 接口手册
 
@@ -176,6 +181,31 @@ function parseArgs(argv) {
       if (!dir || !out) return { action: "usage", error: "template export 需要 <模板目录> 与 --out <zip>" };
       return { action: "template-export", dir, out, socketPath };
     }
+    if (sub === "skill") {
+      const action = rest[2];
+      if (action !== "install") return { action: "usage", error: "template skill 目前支持 install" };
+      const client = readArgValue(rest, "--client") ?? "codex";
+      return { action: "template-skill-install", client, socketPath };
+    }
+    if (sub === "download") {
+      const target = rest[2];
+      const catalog = readArgValue(rest, "--catalog");
+      if (!target || !catalog) return { action: "usage", error: "template download 需要 <id[@version]> 与 --catalog <url>" };
+      const at = target.lastIndexOf("@");
+      return {
+        action: "template-download",
+        id: at > 0 ? target.slice(0, at) : target,
+        version: at > 0 ? target.slice(at + 1) : "*",
+        catalog,
+        socketPath
+      };
+    }
+    if (sub === "publish") {
+      const zip = rest[2];
+      const repo = readArgValue(rest, "--repo");
+      if (!zip || !repo) return { action: "usage", error: "template publish 需要 <zip> 与 --repo <owner/repo>" };
+      return { action: "template-publish", zip, repo, confirm: hasFlag(rest, "--confirm"), socketPath };
+    }
     return { action: "usage" };
   }
 
@@ -235,6 +265,12 @@ async function buildBridgeCommand(plan) {
       return { type: "validateTemplate", target: plan.target };
     case "template-export":
       return { type: "exportTemplate", dir: plan.dir, out: plan.out };
+    case "template-skill-install":
+      return { type: "installTemplateSkill", client: plan.client };
+    case "template-download":
+      return { type: "downloadTemplate", id: plan.id, version: plan.version, catalog: plan.catalog };
+    case "template-publish":
+      return { type: "publishTemplate", zip: plan.zip, repo: plan.repo, confirm: plan.confirm };
     default:
       throw new Error(`unsupported action: ${plan.action}`);
   }

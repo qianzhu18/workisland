@@ -39,7 +39,8 @@ const { createAppearanceController } = require("./appearance-controller.cjs");
 const { normalizeIslandAppearance } = require("../shared/appearance.cjs");
 const { createTemplateService } = require("./template-service.cjs");
 const { createTemplateController } = require("./template-controller.cjs");
-const { getCodexPetsDir } = require("./codex-pet.cjs");
+const { createTemplateGithubTransport } = require("./template-github.cjs");
+const { getCodexPetsDir, getCodexHome } = require("./codex-pet.cjs");
 const petLibrary = require("./pet-library.cjs");
 
 function createElectronClipboardAdapter() {
@@ -272,7 +273,13 @@ function createAppCoordinatorClass({
         petLibrary,
         getCodexPetsDir,
         getSettings: () => this.getSettings(),
-        updateSettings: (partial) => this.updateSettings(partial, "bridge")
+        updateSettings: (partial) => this.updateSettings(partial, "bridge"),
+        getBundledSkillsDir: () => path.join(
+          electron.app.isPackaged ? process.resourcesPath : path.join(electron.app.getAppPath(), "resources"),
+          "skills"
+        ),
+        getCodexHome: () => getCodexHome(),
+        github: createTemplateGithubTransport()
       }));
       this.hookManagers = /* @__PURE__ */ new Map([
         ["claude", new ClaudeHookManager()],

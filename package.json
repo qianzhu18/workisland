@@ -87,6 +87,10 @@
         "to": "templates"
       },
       {
+        "from": "resources/skills",
+        "to": "skills"
+      },
+      {
         "from": "resources/bin/flux-hooks",
         "to": "bin/flux-hooks"
       },

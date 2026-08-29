@@ -20,7 +20,10 @@ function createTemplateController({
   petLibrary,
   getCodexPetsDir,
   getSettings,
-  updateSettings
+  updateSettings,
+  getBundledSkillsDir,
+  getCodexHome,
+  github
 }) {
   function requireServices() {
     if (!templateService) throw new Error("template service unavailable");
@@ -289,6 +292,78 @@ function createTemplateController({
     return { zip: zipPath, sha256, files: files.length, template: summary({ manifest: validation.manifest, installed: false }) };
   }
 
+  /**
+   * Install the bundled workisland-template Skill into a local Agent
+   * client's skills directory (PRD-018 §7.6). v1 target: Codex
+   * ($CODEX_HOME/skills, default ~/.codex/skills).
+   */
+  function installTemplateSkill(payload) {
+    const client = payload?.client ?? "codex";
+    if (client !== "codex") {
+      throw new TemplateValidationError(`暂不支持的 Agent 客户端: ${String(client).slice(0, 40)}（当前支持 codex）`);
+    }
+    if (typeof getBundledSkillsDir !== "function" || typeof getCodexHome !== "function") {
+      throw new Error("skill installer unavailable");
+    }
+    const source = path.join(getBundledSkillsDir(), "workisland-template");
+    const skillFile = path.join(source, "SKILL.md");
+    if (!fs.existsSync(skillFile)) {
+      throw new TemplateValidationError(`随附 Skill 缺失: ${skillFile}`);
+    }
+    const target = path.join(getCodexHome(), "skills", "workisland-template");
+    fs.mkdirSync(target, { recursive: true });
+    fs.cpSync(source, target, { recursive: true });
+    return { client, installedPath: target, skill: "workisland-template" };
+  }
+
+  /**
+   * Download a template from a GitHub static catalog (PRD-018 §7.7):
+   * fetch catalog → match id@version → verify catalog zip hash → extract →
+   * full package validation → transactional install.
+   */
+  async function downloadTemplate(payload) {
+    requireServices();
+    if (!github) throw new Error("github transport unavailable");
+    const id = typeof payload?.id === "string" ? payload.id.trim() : "";
+    const version = typeof payload?.version === "string" && payload.version.trim() ? payload.version.trim() : "*";
+    const catalogUrl = typeof payload?.catalog === "string" ? payload.catalog.trim() : "";
+    if (!id || !catalogUrl) throw new TemplateValidationError("download 需要 id 与 --catalog <catalog-url>");
+    const staged = await github.downloadTemplateFromCatalog({ id, version, catalogUrl });
+    // The transport only fetches and hash-checks; the same local validator
+    // and transactional installer gate everything after the wire.
+    const installed = templateService.installTemplateFromDir(staged.dir);
+    github.cleanupStaging(staged.stagingDir);
+    return {
+      downloaded: true,
+      installed: true,
+      id: installed.id,
+      version: installed.version,
+      dir: installed.dir,
+      zipSha256: staged.zipSha256
+    };
+  }
+
+  /**
+   * Explicit publish (author flow). Requires confirm, a locally re-validated
+   * zip, and a logged-in `gh`; creates a GitHub Release with the zip asset
+   * and prints the catalog entry to add via PR.
+   */
+  async function publishTemplate(payload) {
+    requireServices();
+    if (!github) throw new Error("github transport unavailable");
+    const request = payload && typeof payload === "object" ? payload : {};
+    const zip = typeof request.zip === "string" ? request.zip.trim() : "";
+    const repo = typeof request.repo === "string" ? request.repo.trim() : "";
+    if (!zip || !repo) throw new TemplateValidationError("publish 需要 <zip> 与 --repo <owner/repo>");
+    if (request.confirm !== true) {
+      throw new TemplateValidationError("publish 是公开操作，必须显式 --confirm");
+    }
+    if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) {
+      throw new TemplateValidationError(`非法仓库标识: ${repo.slice(0, 60)}`);
+    }
+    return github.publishTemplateZip({ zipPath: path.resolve(zip), repo });
+  }
+
   function readTemplateAppearance(templateDir) {
     try {
       return JSON.parse(fs.readFileSync(path.join(templateDir, "background", "appearance.json"), "utf8"));
@@ -359,6 +434,9 @@ function createTemplateController({
     resetTemplate,
     validateTemplate,
     exportTemplate,
+    installTemplateSkill,
+    downloadTemplate,
+    publishTemplate,
     parseTemplateTarget
   };
 }

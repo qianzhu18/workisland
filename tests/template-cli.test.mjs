@@ -37,9 +37,27 @@ test("parseArgs maps every template subcommand", () => {
   assert.deepEqual(exportPlan, {
     action: "template-export", dir: "/tmp/pkg", out: "/tmp/x.zip", socketPath: undefined
   });
+  assert.deepEqual(parseArgs(["node", "cli", "template", "skill", "install", "--client", "codex"]), {
+    action: "template-skill-install", client: "codex", socketPath: undefined
+  });
+  assert.equal(parseArgs(["node", "cli", "template", "skill"]).action, "usage");
+  const download = parseArgs(["node", "cli", "template", "download", "author.theme@1.2.0", "--catalog", "https://raw.githubusercontent.com/o/r/main/catalog.json"]);
+  assert.deepEqual(download, {
+    action: "template-download",
+    id: "author.theme",
+    version: "1.2.0",
+    catalog: "https://raw.githubusercontent.com/o/r/main/catalog.json",
+    socketPath: undefined
+  });
+  assert.equal(parseArgs(["node", "cli", "template", "download", "x", "--catalog"]).action, "usage");
+  const publish = parseArgs(["node", "cli", "template", "publish", "/tmp/x.zip", "--repo", "o/r", "--confirm"]);
+  assert.deepEqual(publish, {
+    action: "template-publish", zip: "/tmp/x.zip", repo: "o/r", confirm: true, socketPath: undefined
+  });
   // Missing operands are usage errors.
   assert.equal(parseArgs(["node", "cli", "template", "apply"]).action, "usage");
   assert.equal(parseArgs(["node", "cli", "template", "export", "/tmp/pkg"]).action, "usage");
+  assert.equal(parseArgs(["node", "cli", "template", "publish", "/tmp/x.zip"]).action, "usage");
 });
 
 test("buildBridgeCommand turns template plans into protocol frames", async () => {
