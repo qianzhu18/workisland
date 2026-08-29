@@ -37,7 +37,8 @@ const YAML_DUMP_OPTIONS$1 = {
   noRefs: true
 };
 function containsFluxMarker$5(text) {
-  return FLUX_MARKERS$4.some((m) => text.includes(m));
+  const normalized = String(text).replaceAll("\\", "/");
+  return FLUX_MARKERS$4.some((m) => normalized.includes(m));
 }
 function isFluxHookEntry$3(entry) {
   if (!entry || typeof entry !== "object") return false;
@@ -156,7 +157,8 @@ const CONFIG_CANDIDATES = [
   path.join(os.homedir(), "Library", "Application Support", "coco", "coco.yaml")
 ];
 function containsFluxMarker$4(text) {
-  return FLUX_MARKERS$3.some((m) => text.includes(m));
+  const normalized = String(text).replaceAll("\\", "/");
+  return FLUX_MARKERS$3.some((m) => normalized.includes(m));
 }
 function isFluxHookEntry$2(entry) {
   if (!entry || typeof entry !== "object") return false;
@@ -305,7 +307,8 @@ const CURSOR_EVENTS = [
   "stop"
 ];
 function containsFluxMarker$3(command) {
-  return typeof command === "string" && (command.includes("flux-hooks") || command.includes("hooks-cli/index."));
+  const normalized = typeof command === "string" ? command.replaceAll("\\", "/") : "";
+  return normalized.includes("flux-hooks") || normalized.includes("hooks-cli/index.");
 }
 function isFluxCursorHookEntry(entry) {
   return containsFluxMarker$3(entry?.command);
@@ -514,10 +517,13 @@ function buildCommand$6() {
   if (utils.is.dev) {
     return buildDevHooksCliCommand("cursor");
   }
-  return `ELECTRON_RUN_AS_NODE=1 ${shellQuote(process.execPath)} ${shellQuote(getHookBinaryPath$8())} --source cursor`;
+  return wrapWithInstallCheck(
+    process.execPath,
+    `ELECTRON_RUN_AS_NODE=1 ${shellQuote(process.execPath)} ${shellQuote(getHookBinaryPath$8())} --source cursor`
+  );
 }
 function fingerprintCursorHookCommand(command) {
-  if (command.includes("hooks-cli/index.")) return "dev:node-hooks-cli";
+  if (command.includes("hooks-cli/index.") || command.includes("hooks-cli\\index.")) return "dev:node-hooks-cli";
   if (command.includes("flux-hooks") && command.includes("ELECTRON_RUN_AS_NODE=1")) return "prod:electron+flux-hooks";
   return "unknown";
 }
@@ -621,7 +627,8 @@ const TRAE_EVENTS = [
   { event: "Notification" }
 ];
 function isFluxHookEntry$1(entry) {
-  return entry.type === "command" && (entry.command.includes("flux-hooks") || entry.command.includes("hooks-cli/index."));
+  const command = typeof entry?.command === "string" ? entry.command.replaceAll("\\", "/") : "";
+  return entry?.type === "command" && (command.includes("flux-hooks") || command.includes("hooks-cli/index."));
 }
 function isFluxHookGroup(group) {
   return group.hooks.some(isFluxHookEntry$1);

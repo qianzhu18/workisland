@@ -51,6 +51,7 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
     return pending;
   }
   async function listShelfShareProviders() {
+    if (process.platform === "win32") return [{ id: "__system__", title: "复制文件路径", iconDataUrl: "" }];
     try {
       const providers = await getShareProviders();
       return (Array.isArray(providers) ? providers : []).flatMap((provider) => {
@@ -70,6 +71,10 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
     const availablePaths = [...new Set(Array.isArray(paths) ? paths : [])].filter((entry) => typeof entry === "string" && fs.existsSync(entry));
     if (availablePaths.length === 0) return { ok: false, providerId: "", fallback: false };
     const providerId = coordinator.getSettings().shelfQuickShareProvider || "AirDrop";
+    if (process.platform === "win32") {
+      electron.clipboard.writeText(availablePaths.join("\r\n"));
+      return { ok: true, providerId: "__system__", fallback: true };
+    }
     if (providerId !== "__system__" && shareFilesViaProvider(availablePaths, providerId)) {
       return { ok: true, providerId, fallback: false };
     }
@@ -573,7 +578,6 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
       };
     });
     electron.ipcMain.handle(IPC.COLLECT_LOGS, async () => {
-      const scriptPath = electron.app.isPackaged ? path__namespace.join(process.resourcesPath, "scripts", "collect-logs.sh") : path__namespace.join(electron.app.getAppPath(), "scripts", "collect-logs.sh");
       const desktopDir = electron.app.getPath("desktop");
       let outputDir = desktopDir;
       try {
@@ -581,11 +585,22 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
       } catch {
         outputDir = electron.app.getPath("temp");
       }
+      const isWindows = process.platform === "win32";
+      const scriptName = isWindows ? "collect-logs.ps1" : "collect-logs.sh";
+      const scriptPath = electron.app.isPackaged
+        ? path__namespace.join(process.resourcesPath, "scripts", scriptName)
+        : path__namespace.join(electron.app.getAppPath(), "resources", "scripts", scriptName);
       const env = { ...process.env };
-      const SAFE_PATH = "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin";
-      env.PATH = env.PATH ? `${env.PATH}:${SAFE_PATH}` : SAFE_PATH;
+      if (!isWindows) {
+        const safePath = "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin";
+        env.PATH = env.PATH ? `${env.PATH}:${safePath}` : safePath;
+      }
+      const executable = isWindows ? "powershell.exe" : "/bin/bash";
+      const args = isWindows
+        ? ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", scriptPath, "-OutputDirectory", outputDir, "-ApplicationLogs", electron.app.getPath("logs"), "-HookLogs", path.join(require("node:os").homedir(), ".flux", "logs")]
+        : [scriptPath, "-o", outputDir];
       const { stdout } = await new Promise((resolve, reject) => {
-        child_process.execFile("/bin/bash", [scriptPath, "-o", outputDir], { timeout: 12e4, env, maxBuffer: 10 * 1024 * 1024 }, (err, stdout2, stderr) => {
+        child_process.execFile(executable, args, { timeout: 12e4, env, windowsHide: true, maxBuffer: 10 * 1024 * 1024 }, (err, stdout2, stderr) => {
           if (err) {
             const detail = (stderr || "") + (stdout2 ? `
   [stdout tail] ${stdout2.slice(-500)}` : "");
@@ -595,7 +610,7 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
           resolve({ stdout: stdout2, stderr });
         });
       });
-      const match = stdout.match(/输出文件:\s*(.+\.zip)/);
+      const match = isWindows ? stdout.match(/OUTPUT_FILE:(.+\.zip)/) : stdout.match(/输出文件:\s*(.+\.zip)/);
       const zipPath = match ? match[1].trim() : "";
       if (zipPath) {
         electron.shell.showItemInFolder(zipPath);

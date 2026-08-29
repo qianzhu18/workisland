@@ -795,12 +795,14 @@
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: stretch;
   position: relative;
 }
 
 .approval-btn {
-  flex: 1;
+  /* Basis on content size so flex-wrap moves whole buttons to the next row
+     instead of crushing them below their label width in narrow panels. */
+  flex: 1 1 auto;
   min-width: 0;
   padding: 5px 6px;
   border-radius: 4px;
@@ -817,7 +819,8 @@
   align-items: center;
   justify-content: center;
   text-align: center;
-  height: 24px;
+  /* Grow with wrapped labels instead of a fixed height that clips them. */
+  min-height: 24px;
   line-height: 1.4545454545454546;
   transition:
     opacity 0.15s ease,
@@ -896,6 +899,9 @@
   color: inherit;
   opacity: 0.75;
   line-height: 1.2;
+  /* Keep the shortcut badge intact when the label wraps. */
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .approval-btn.deny .kbd {
   background: rgba(255, 255, 255, 0.1);

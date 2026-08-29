@@ -1,6 +1,7 @@
 import { r as reactExports, R as React } from "../vendor/react-runtime.js";
 
 const workIslandLogo = new URL("../../../resources/icon.png", import.meta.url).href;
+const isWindows = window.welcomeBridge?.platform === "win32";
 
 function WelcomeApp() {
   const [visible, setVisible] = reactExports.useState(false);
@@ -34,7 +35,9 @@ function WelcomeApp() {
       React.createElement(
         "p",
         { className: "welcome-description" },
-        "在 Mac 顶部查看 Work Agent 工作状态、处理需要确认的事项，并在任务完成时获得声音与触觉提醒。"
+        isWindows
+          ? "在 Windows 桌面顶部查看 Work Agent 工作状态、处理需要确认的事项，并在任务完成时获得系统声音提醒。"
+          : "在 Mac 顶部查看 Work Agent 工作状态、处理需要确认的事项，并在任务完成时获得声音与触觉提醒。"
       )
     ),
     React.createElement(

@@ -246,7 +246,7 @@ function terminalDirectoryControl() {
 }
 
 function quickShareProviderControl() {
-  const current = state.settings.shelfQuickShareProvider || "AirDrop";
+  const current = api.platform === "win32" ? "__system__" : (state.settings.shelfQuickShareProvider || "AirDrop");
   const providers = state.shareProviders.length
     ? state.shareProviders
     : [{ id: current, title: current }, { id: "__system__", title: "系统分享菜单" }];
@@ -263,7 +263,7 @@ function generalPage() {
     featureSettingsRow(
       "media",
       "媒体播放",
-      "自动识别 macOS 当前播放的媒体；播放时显示封面、进度和控制按钮，没有媒体时恢复完整 Agent 视图。",
+      `自动识别 ${api.platform === "win32" ? "Windows" : "macOS"} 当前播放的媒体；播放时显示封面、进度和控制按钮，没有媒体时恢复完整 Agent 视图。`,
       toggle(state.settings.mediaEnabled, v => save({ mediaEnabled: v }), "媒体播放"),
       () => [
         row("切歌动态提醒", "歌曲变化时短暂显示新封面与曲名；Agent 审批、失败和完成提醒始终优先。", toggle(state.settings.mediaTrackChangeNotifications, v => save({ mediaTrackChangeNotifications: v }), "切歌动态提醒")),

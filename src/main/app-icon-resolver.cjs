@@ -10,6 +10,7 @@ const execFile = promisify(childProcess.execFile);
 
 const DEFAULT_MAX_DATA_URL_LENGTH = 512 * 1024;
 const BUNDLE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9.-]{0,199}$/;
+const WINDOWS_APP_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._! -]{0,259}$/;
 const ICON_FILE_PATTERN = /^[A-Za-z0-9_. -]{1,200}$/;
 
 function locateApplicationWithSpotlight(bundleId) {
@@ -51,7 +52,25 @@ async function readDeclaredIconName(appPath) {
 function declaredIconPath(appPath, iconName) {
   if (typeof iconName !== "string" || !ICON_FILE_PATTERN.test(iconName)) return "";
   const fileName = path.extname(iconName) ? iconName : `${iconName}.icns`;
-  return path.join(appPath, "Contents", "Resources", fileName);
+  const pathApi = appPath.includes("/") ? path.posix : path.win32;
+  return pathApi.join(appPath, "Contents", "Resources", fileName);
+}
+
+function locateWindowsApplication(appId) {
+  return new Promise((resolve) => {
+    const powerShell = path.win32.join(process.env.SystemRoot || "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
+    const script = [
+      "$id=$env:WORKISLAND_APP_ID",
+      "$process=Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -and ($_.ProcessName -ieq $id -or [IO.Path]::GetFileName($_.Path) -ieq $id) } | Select-Object -First 1",
+      "if($process){$process.Path}"
+    ].join("; ");
+    childProcess.execFile(powerShell, ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script], {
+      timeout: 2_000,
+      maxBuffer: 64 * 1024,
+      windowsHide: true,
+      env: { ...process.env, WORKISLAND_APP_ID: appId }
+    }, (error, stdout) => resolve(error ? "" : String(stdout || "").trim().split(/\r?\n/)[0] || ""));
+  });
 }
 
 async function readDeclaredIcon(iconPath) {
@@ -77,7 +96,8 @@ function pngDataUrl(png, maxDataUrlLength) {
 }
 
 function createAppIconResolver({
-  locateApplication = locateApplicationWithSpotlight,
+  platform = process.platform,
+  locateApplication = platform === "win32" ? locateWindowsApplication : locateApplicationWithSpotlight,
   pathExists = fs.existsSync,
   readDeclaredIconName: getDeclaredIconName = readDeclaredIconName,
   readDeclaredIcon: getDeclaredIcon = readDeclaredIcon,
@@ -88,17 +108,21 @@ function createAppIconResolver({
   const cache = new Map();
 
   return async function resolveAppIcon(bundleId) {
-    if (typeof bundleId !== "string" || !BUNDLE_ID_PATTERN.test(bundleId)) return "";
+    const identifierPattern = platform === "win32" ? WINDOWS_APP_ID_PATTERN : BUNDLE_ID_PATTERN;
+    if (typeof bundleId !== "string" || !identifierPattern.test(bundleId)) return "";
     if (cache.has(bundleId)) return cache.get(bundleId);
 
     const pending = Promise.resolve()
       .then(() => locateApplication(bundleId))
       .then(async (appPath) => {
-        if (typeof appPath !== "string" || !appPath.toLowerCase().endsWith(".app") || !pathExists(appPath)) return "";
-        const iconPath = declaredIconPath(appPath, await getDeclaredIconName(appPath));
-        if (iconPath && pathExists(iconPath)) {
-          const declaredDataUrl = pngDataUrl(await getDeclaredIcon(iconPath), maxDataUrlLength);
-          if (declaredDataUrl) return declaredDataUrl;
+        const expectedExtension = platform === "win32" ? ".exe" : ".app";
+        if (typeof appPath !== "string" || !appPath.toLowerCase().endsWith(expectedExtension) || !pathExists(appPath)) return "";
+        if (platform !== "win32") {
+          const iconPath = declaredIconPath(appPath, await getDeclaredIconName(appPath));
+          if (iconPath && pathExists(iconPath)) {
+            const declaredDataUrl = pngDataUrl(await getDeclaredIcon(iconPath), maxDataUrlLength);
+            if (declaredDataUrl) return declaredDataUrl;
+          }
         }
         const nativeImage = await getFileIcon(appPath);
         if (!nativeImage || nativeImage.isEmpty?.()) return "";
@@ -114,8 +138,10 @@ function createAppIconResolver({
 module.exports = {
   BUNDLE_ID_PATTERN,
   DEFAULT_MAX_DATA_URL_LENGTH,
+  WINDOWS_APP_ID_PATTERN,
   createAppIconResolver,
   declaredIconPath,
+  locateWindowsApplication,
   locateApplicationWithSpotlight,
   readDeclaredIcon
 };

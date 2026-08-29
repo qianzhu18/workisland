@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { test } from "node:test";
 
 const require = createRequire(import.meta.url);
-const { calculateCpuUsage, parseMemoryPressure, parseProcessRows, parseVmStat, PerformanceService } = require("../src/main/performance-service.cjs");
+const { calculateCpuUsage, parseMemoryPressure, parseProcessRows, parseVmStat, parseWindowsProcessRows, PerformanceService } = require("../src/main/performance-service.cjs");
 
 test("performance helpers calculate bounded CPU and safe process rows", () => {
   const previous = [{ times: { user: 100, nice: 0, sys: 50, idle: 850, irq: 0 } }];
@@ -37,6 +37,7 @@ test("process parsing keeps every current-user row and marks WorkIsland protecte
 function processActionService({ command = "/Applications/Safari.app/Contents/MacOS/Safari", uid = 501, killError } = {}) {
   const signals = [];
   const service = new PerformanceService({
+    platform: "darwin",
     currentUid: 501,
     killProcess(pid, signal) {
       if (killError) throw killError;
@@ -76,6 +77,7 @@ test("performance service rejects protected, foreign, and changed processes", as
 test("performance service only samples process details while visible", async () => {
   let detailCalls = 0;
   const service = new PerformanceService({
+    platform: "darwin",
     osApi: {
       cpus: () => [{ times: { user: 10, nice: 0, sys: 10, idle: 80, irq: 0 } }],
       totalmem: () => 100,
@@ -91,4 +93,38 @@ test("performance service only samples process details while visible", async () 
   service.setDetailsVisible(true);
   await service.sample();
   assert.ok(detailCalls >= 1);
+});
+
+test("Windows process rows calculate CPU deltas and protect WorkIsland", () => {
+  const firstJson = JSON.stringify([
+    { pid: 321, name: "Player", cpuSeconds: 10, memoryBytes: 1_000, path: "C:\\Player.exe", startedAt: "2026-01-01T00:00:00.000Z" },
+    { pid: 999, name: "WorkIsland", cpuSeconds: 2, memoryBytes: 2_000, path: "C:\\WorkIsland.exe", startedAt: "2026-01-01T00:00:00.000Z" }
+  ]);
+  const first = parseWindowsProcessRows(firstJson, { currentPid: 999, cpuCount: 2 });
+  const previousSamples = new Map(first.map((row) => [row.identity, row.cpuSeconds]));
+  const second = parseWindowsProcessRows(firstJson.replace('"cpuSeconds":10', '"cpuSeconds":11'), {
+    previousSamples, elapsedMs: 1_000, cpuCount: 2, currentPid: 999
+  });
+  assert.equal(second[0].cpuPct, 50);
+  assert.equal(second[1].protected, true);
+  assert.match(second[0].fingerprint, /^[a-f0-9]{64}$/);
+});
+
+test("Windows performance sampling uses PowerShell only when process details are visible", async () => {
+  let calls = 0;
+  const service = new PerformanceService({
+    platform: "win32",
+    currentPid: 999,
+    osApi: {
+      cpus: () => [{ times: { user: 10, nice: 0, sys: 10, idle: 80, irq: 0 } }],
+      totalmem: () => 100,
+      freemem: () => 40
+    },
+    execFile: async () => { calls += 1; return { stdout: "[]" }; }
+  });
+  await service.sample();
+  assert.equal(calls, 0);
+  service.detailsVisible = true;
+  await service.sample();
+  assert.equal(calls, 1);
 });

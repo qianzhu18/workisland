@@ -20,6 +20,7 @@ test("media service parses MediaRemote Adapter JSON Lines and sends allowlisted 
   const spawns = [];
   const commands = [];
   const service = new MediaService({
+    platform: "darwin",
     spawnChild: (...args) => { spawns.push(args); return child; },
     execute: (...args) => { commands.push(args); },
     resourceDir: "/tmp/mediaremote-adapter"
@@ -48,7 +49,7 @@ test("media service parses MediaRemote Adapter JSON Lines and sends allowlisted 
 
 test("disabled media service does not spawn", () => {
   let spawns = 0;
-  const service = new MediaService({ spawnChild: () => { spawns += 1; return fakeChild(); }, resourceDir: "/tmp/mediaremote-adapter" });
+  const service = new MediaService({ platform: "darwin", spawnChild: () => { spawns += 1; return fakeChild(); }, resourceDir: "/tmp/mediaremote-adapter" });
   service.setEnabled(false);
   service.start();
   assert.equal(spawns, 0);
@@ -60,6 +61,7 @@ test("media service publishes metadata immediately and then enriches it with the
   const child = fakeChild();
   let resolveIcon;
   const service = new MediaService({
+    platform: "darwin",
     spawnChild: () => child,
     resolveAppIcon: () => new Promise((resolve) => { resolveIcon = resolve; }),
     resourceDir: "/tmp/mediaremote-adapter"
@@ -82,6 +84,7 @@ test("media service never attaches a completed icon lookup to a different media 
   const child = fakeChild();
   const pending = new Map();
   const service = new MediaService({
+    platform: "darwin",
     spawnChild: () => child,
     resolveAppIcon: (bundleId) => new Promise((resolve) => pending.set(bundleId, resolve)),
     resourceDir: "/tmp/mediaremote-adapter"
@@ -98,4 +101,26 @@ test("media service never attaches a completed icon lookup to a different media 
   pending.get("com.netease.163music")("data:image/png;base64,bmV0ZWFzZQ==");
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(service.getSnapshot().appIconDataUrl, "data:image/png;base64,bmV0ZWFzZQ==");
+});
+
+test("Windows media service polls GSMTC and routes allowlisted commands through PowerShell", async () => {
+  const commands = [];
+  const service = new MediaService({
+    platform: "win32",
+    pollIntervalMs: 60_000,
+    windowsScriptPath: "C:\\WorkIsland\\media-session.ps1",
+    env: { SystemRoot: "C:\\Windows" },
+    query: async () => ({ stdout: JSON.stringify({
+      active: true, playing: true, title: "Windows Song", appBundleId: "Player.exe", appName: "Player",
+      canPlayPause: true, canNext: true, canPrevious: true, updatedAt: 1
+    }) }),
+    execute: (...args) => commands.push(args)
+  });
+  service.start();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(service.getSnapshot().title, "Windows Song");
+  assert.equal(service.sendCommand({ command: "next" }), true);
+  assert.equal(commands[0][1].some((value) => value.endsWith("media-session.ps1")), true);
+  assert.equal(commands[0][1].at(commands[0][1].indexOf("-Action") + 1), "next");
+  service.stop();
 });
