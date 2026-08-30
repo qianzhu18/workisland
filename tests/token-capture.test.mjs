@@ -85,3 +85,41 @@ test("codex token parser returns null when the rollout carries no token_count", 
   const file = write("codex-none.jsonl", [{ payload: { type: "thread_settings_applied", thread_settings: { model: "gpt-x" } } }]);
   assert.equal(await parseCodexTokens(file), null);
 });
+
+// ── 重启基线（applyBaselineDiff 回落 getTokenTotals）─────────────────────────
+// 进程内 accountedTokens 为空模拟「重启后第一次采集」；已入账累计值必须充当基线，
+// 否则 transcript 的整段历史用量会被再记一遍（Usage 看板信任的基础）。
+const { getStatsService } = require("../src/main/stats-service.cjs");
+
+test("first collection after restart uses recorded totals as baseline (no double counting)", async (t) => {
+  const stats = getStatsService();
+  t.after(() => stats.dispose());
+  stats.recordToken("claude", "restart-s1", 100, 40, 30, 10);
+  const file = write("claude-restart.jsonl", [
+    { type: "assistant", requestId: "r1", message: { model: "claude-x", usage: { input_tokens: 150, output_tokens: 60, cache_read_input_tokens: 50, cache_creation_input_tokens: 15 } } }
+  ]);
+  const { collectAndReportTokens } = require("../src/main/adapters-extended.cjs");
+  await collectAndReportTokens("claude", "restart-s1", file);
+  const totals = stats.getTokenTotals("claude", "restart-s1");
+  assert.deepEqual(
+    { input: totals.input, output: totals.output, cacheRead: totals.cacheRead, cacheCreation: totals.cacheCreation },
+    { input: 150, output: 60, cacheRead: 50, cacheCreation: 15 },
+    "post-restart collection must land on the transcript cumulative, not re-add it"
+  );
+});
+
+test("cache-only deltas are recorded, not silently dropped", async (t) => {
+  const stats = getStatsService();
+  t.after(() => stats.dispose());
+  stats.recordToken("claude", "cache-only-s1", 100, 40, 30, 10);
+  const file = write("claude-cache-only.jsonl", [
+    { type: "assistant", requestId: "r1", message: { model: "claude-x", usage: { input_tokens: 100, output_tokens: 40, cache_read_input_tokens: 80, cache_creation_input_tokens: 10 } } }
+  ]);
+  const { collectAndReportTokens } = require("../src/main/adapters-extended.cjs");
+  await collectAndReportTokens("claude", "cache-only-s1", file);
+  const totals = stats.getTokenTotals("claude", "cache-only-s1");
+  assert.equal(totals.cacheRead, 80, "the cache-read delta of 50 must be accounted");
+  assert.equal(totals.input, 100, "unchanged input must not be re-counted");
+  assert.equal(totals.output, 40, "unchanged output must not be re-counted");
+});
+

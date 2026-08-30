@@ -359,6 +359,29 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
     electron.ipcMain.handle(IPC.STATS_GET_SNAPSHOT, (_event, { timeRange }) => {
       return coordinator.getStatsSnapshot(timeRange);
     });
+    electron.ipcMain.handle(IPC.USAGE_GET_SUMMARY, (_event, { days } = {}) => {
+      return coordinator.getUsageSummary(days);
+    });
+    electron.ipcMain.handle(IPC.USAGE_GET_SESSION_INSIGHTS, (_event, { days } = {}) => {
+      return coordinator.getSessionInsights(days);
+    });
+    // PRD-015 T7：导出 JSON（保存对话框 + 写文件，数据留在用户手里）
+    electron.ipcMain.handle(IPC.USAGE_EXPORT_DATA, async () => {
+      const data = coordinator.exportUsageData();
+      const win = coordinator.islandWindow && !coordinator.islandWindow.isDestroyed() ? coordinator.islandWindow : undefined;
+      const stamp = new Date(data.exportedAt).toISOString().slice(0, 10);
+      const result = await electron.dialog.showSaveDialog(win, {
+        title: "导出用量数据",
+        defaultPath: `workisland-usage-${stamp}.json`,
+        filters: [{ name: "JSON", extensions: ["json"] }]
+      });
+      if (result.canceled || !result.filePath) return { ok: false, cancelled: true };
+      fs.writeFileSync(result.filePath, JSON.stringify(data, null, 2), "utf-8");
+      return { ok: true, path: result.filePath };
+    });
+    electron.ipcMain.handle(IPC.USAGE_CLEAR_DATA, () => {
+      return coordinator.clearUsageData();
+    });
     electron.ipcMain.handle(IPC.MEDIA_GET_STATE, () => coordinator.getMediaState());
     electron.ipcMain.handle(IPC.MEDIA_COMMAND, (_event, command) => coordinator.sendMediaCommand(command));
     electron.ipcMain.handle(IPC.LYRICS_GET_STATE, () => coordinator.getLyricsState());
