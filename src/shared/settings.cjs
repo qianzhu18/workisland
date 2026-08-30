@@ -124,6 +124,10 @@ const DEFAULT_SETTINGS = {
   terminalCustomDirectory: "",
   terminalSavedCommands: [],
   toolboxReopenMode: "agent",
+  // User-dragged order of utility modules (shelf/clipboard/terminal). Empty
+  // array means the built-in default order; unknown ids are dropped on merge
+  // and newly introduced modules append after the ordered ones.
+  toolboxModuleOrder: [],
   showUsageQuota: true,
   usageDisplayValue: "used",
   disableClaudeTerminalTitle: true,
@@ -292,6 +296,13 @@ function mergeSettings(parsed = {}) {
   merged.toolboxReopenMode = ["agent", "last"].includes(parsed.toolboxReopenMode)
     ? parsed.toolboxReopenMode
     : DEFAULT_SETTINGS.toolboxReopenMode;
+  {
+    const known = ["shelf", "clipboard", "terminal"];
+    const order = Array.isArray(parsed.toolboxModuleOrder)
+      ? parsed.toolboxModuleOrder.filter((id) => known.includes(id))
+      : [];
+    merged.toolboxModuleOrder = Array.from(new Set(order));
+  }
 
   return merged;
 }

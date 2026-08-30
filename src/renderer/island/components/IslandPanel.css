@@ -69,6 +69,23 @@
   align-items: center;
   gap: 12px;
   flex-shrink: 0;
+  max-width: 60%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.usage-row-actions::-webkit-scrollbar {
+  display: none;
+}
+
+/* Draggable utility modules: hint affordance without changing hit targets. */
+.toolbox-icon-button[draggable="true"] {
+  -webkit-user-drag: element;
+  touch-action: none;
+}
+
+.toolbox-icon-button[draggable="true"]:active {
+  cursor: grabbing;
 }
 
 .update-tag {
