@@ -169,6 +169,7 @@ function IslandApp() {
   const [fileShelfEnabled, setFileShelfEnabled] = reactExports.useState(DEFAULT_SETTINGS.fileShelfEnabled);
   const [clipboardHistoryEnabled, setClipboardHistoryEnabled] = reactExports.useState(DEFAULT_SETTINGS.clipboardHistoryEnabled);
   const [terminalEnabled, setTerminalEnabled] = reactExports.useState(DEFAULT_SETTINGS.terminalEnabled);
+  const [usageDashboardEnabled, setUsageDashboardEnabled] = reactExports.useState(DEFAULT_SETTINGS.usageDashboardEnabled);
   const [terminalSavedCommands, setTerminalSavedCommands] = reactExports.useState(DEFAULT_SETTINGS.terminalSavedCommands);
   const [toolboxReopenMode, setToolboxReopenMode] = reactExports.useState(DEFAULT_SETTINGS.toolboxReopenMode);
   const [requestedToolboxModule, setRequestedToolboxModule] = reactExports.useState(null);
@@ -207,6 +208,7 @@ function IslandApp() {
       setFileShelfEnabled(s.fileShelfEnabled);
       setClipboardHistoryEnabled(s.clipboardHistoryEnabled);
       setTerminalEnabled(s.terminalEnabled);
+      setUsageDashboardEnabled(s.usageDashboardEnabled);
       setTerminalSavedCommands(s.terminalSavedCommands || []);
       setToolboxReopenMode(s.toolboxReopenMode || "agent");
     });
@@ -223,6 +225,7 @@ function IslandApp() {
       setFileShelfEnabled(s.fileShelfEnabled);
       setClipboardHistoryEnabled(s.clipboardHistoryEnabled);
       setTerminalEnabled(s.terminalEnabled);
+      setUsageDashboardEnabled(s.usageDashboardEnabled);
       setTerminalSavedCommands(s.terminalSavedCommands || []);
       setToolboxReopenMode(s.toolboxReopenMode || "agent");
     });
@@ -358,7 +361,7 @@ function IslandApp() {
       clearTimeout(collapsePanelToPillTimerRef.current);
       collapsePanelToPillTimerRef.current = null;
     }
-    const enabledModules = enabledToolboxModules({ fileShelfEnabled, clipboardHistoryEnabled, terminalEnabled });
+    const enabledModules = enabledToolboxModules({ fileShelfEnabled, clipboardHistoryEnabled, terminalEnabled, usageDashboardEnabled });
     const nextModule = resolveToolboxReopenModule({
       mode: toolboxReopenMode,
       lastModule: activeModuleRef.current,
@@ -369,7 +372,7 @@ function IslandApp() {
     close();
     clearSurface();
     window.islandBridge?.surfaceDismissed();
-  }, [clipboardHistoryEnabled, close, clearSurface, fileShelfEnabled, terminalEnabled, toolboxReopenMode]);
+  }, [clipboardHistoryEnabled, close, clearSurface, fileShelfEnabled, terminalEnabled, usageDashboardEnabled, toolboxReopenMode]);
   reactExports.useEffect(() => {
     const handleWindowBlur = () => {
       const followUpFocused = isFollowUpActiveRef.current
@@ -890,6 +893,7 @@ function IslandApp() {
             fileShelfEnabled,
             clipboardHistoryEnabled,
             terminalEnabled,
+            usageDashboardEnabled,
             terminalSavedCommands,
             requestedToolboxModule,
             onSessionRowClick: handleSessionRowClick,

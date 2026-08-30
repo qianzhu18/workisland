@@ -4,19 +4,14 @@ const electron = require("electron");
 const fs = require("fs");
 const path = require("path");
 const log = require("electron-log");
+const { listCoreAgentDescriptors } = require("../shared/agent-catalog.cjs");
 
-function getStatsPaths() {
-  const statsDir = path.join(electron.app.getPath("userData"), "stats");
-  return {
-    statsDir,
-    sessionsFile: path.join(statsDir, "session_records.json"),
-    tokensFile: path.join(statsDir, "token_records.json")
-  };
-}
-const MAX_RECORDS = 1e4;
+const MAX_RECORDS = 1e5;
 const SAVE_DEBOUNCE_MS = 3e5;
-const RETENTION_DAYS = 8;
-const ALL_TOOLS = ["claude", "codex", "coco", "trae", "opencode", "cursor", "kimi", "hermes", "gemini", "copilot-cli", "sara", "aiden", "traex"];
+// PRD-015：保留期从 8 天扩展到 90 天（可通过 settings.statsRetentionDays 覆盖）。
+const DEFAULT_RETENTION_DAYS = 90;
+// 与 agent-catalog 对齐，避免零填充聚合时漏掉后来新增的 agent。
+const ALL_TOOLS = listCoreAgentDescriptors().map((d) => d.agentId);
 function collectActiveTools(sessions, tokens) {
   const set = new Set(ALL_TOOLS);
   for (const r of sessions) set.add(r.tool);
@@ -29,21 +24,50 @@ class StatsService {
   saveTimer = null;
   dirty = false;
   listeners = /* @__PURE__ */ new Set();
-  constructor() {
+  /**
+   * 支持依赖注入（测试传入临时目录，见 tests/stats-service.test.mjs）；
+   * 不传时落到 userData/stats，保留期用默认值，由 AppCoordinator 按
+   * settings.statsRetentionDays 再行覆盖。
+   */
+  constructor({ statsDir, retentionDays } = {}) {
+    this.statsDir = statsDir ?? path.join(electron.app.getPath("userData"), "stats");
+    this.sessionsFile = path.join(this.statsDir, "session_records.json");
+    this.tokensFile = path.join(this.statsDir, "token_records.json");
+    this.retentionDays = DEFAULT_RETENTION_DAYS;
+    if (typeof retentionDays === "number" && Number.isFinite(retentionDays)) {
+      this.setRetentionDays(retentionDays);
+    }
     this.loadFromDisk();
+  }
+  /** 保留期配置（天），收紧到 [8, 730] 防误配。 */
+  setRetentionDays(days) {
+    const n = Math.round(Number(days));
+    if (!Number.isFinite(n)) return;
+    this.retentionDays = Math.min(730, Math.max(8, n));
   }
   /** 订阅 token 变更事件，返回取消订阅函数 */
   onChange(listener) {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
   }
-  recordSession(tool, startedAt, completedAt) {
-    this.sessions.push({ tool, startedAt, completedAt });
+  recordSession(tool, startedAt, completedAt, sessionId) {
+    const record = { tool, startedAt, completedAt };
+    if (sessionId) record.sessionId = sessionId;
+    this.sessions.push(record);
     this.dirty = true;
     this.scheduleSave();
   }
-  recordToken(tool, sessionId, inputTokens, outputTokens, cacheReadTokens, cacheCreationTokens, remote) {
-    const record = { tool, sessionId, timestamp: Date.now(), inputTokens, outputTokens, cacheReadTokens, cacheCreationTokens };
+  recordToken(tool, sessionId, inputTokens, outputTokens, cacheReadTokens, cacheCreationTokens, remote, model) {
+    const record = {
+      tool,
+      sessionId,
+      timestamp: Date.now(),
+      inputTokens,
+      outputTokens,
+      cacheReadTokens,
+      cacheCreationTokens,
+      model: model || "unknown"
+    };
     if (remote) {
       record.isRemote = true;
       if (remote.remoteHost) record.remoteHost = remote.remoteHost;
@@ -201,10 +225,9 @@ class StatsService {
     return `${y}-${m}-${day}`;
   }
   loadFromDisk() {
-    const { sessionsFile, tokensFile } = getStatsPaths();
     try {
-      if (fs.existsSync(sessionsFile)) {
-        const raw = fs.readFileSync(sessionsFile, "utf-8");
+      if (fs.existsSync(this.sessionsFile)) {
+        const raw = fs.readFileSync(this.sessionsFile, "utf-8");
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
           this.sessions = parsed;
@@ -215,11 +238,13 @@ class StatsService {
       log.warn("[StatsService] failed to load session records:", err);
     }
     try {
-      if (fs.existsSync(tokensFile)) {
-        const raw = fs.readFileSync(tokensFile, "utf-8");
+      if (fs.existsSync(this.tokensFile)) {
+        const raw = fs.readFileSync(this.tokensFile, "utf-8");
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
-          this.tokens = parsed;
+          // 迁移：PRD-015 之前的记录没有 model 字段，读入时归一化为 "unknown"，
+          // 不丢弃任何历史数据；保留期延长后旧记录也继续可用。
+          this.tokens = parsed.map((r) => (r && !r.model ? { ...r, model: "unknown" } : r));
           log.info("[StatsService] loaded %d token records from disk", this.tokens.length);
         }
       }
@@ -237,7 +262,7 @@ class StatsService {
   flushToDisk() {
     if (!this.dirty) return;
     this.dirty = false;
-    const retentionCutoff = Date.now() - RETENTION_DAYS * 24 * 60 * 60 * 1e3;
+    const retentionCutoff = Date.now() - this.retentionDays * 24 * 60 * 60 * 1e3;
     this.sessions = this.sessions.filter((r) => r.completedAt >= retentionCutoff);
     this.tokens = this.tokens.filter((r) => r.timestamp >= retentionCutoff);
     if (this.sessions.length > MAX_RECORDS) {
@@ -246,22 +271,21 @@ class StatsService {
     if (this.tokens.length > MAX_RECORDS) {
       this.tokens = this.tokens.slice(-MAX_RECORDS);
     }
-    const { statsDir, sessionsFile, tokensFile } = getStatsPaths();
     try {
-      fs.mkdirSync(statsDir, { recursive: true });
+      fs.mkdirSync(this.statsDir, { recursive: true });
     } catch {
     }
     try {
-      const tmp = sessionsFile + ".tmp";
+      const tmp = this.sessionsFile + ".tmp";
       fs.writeFileSync(tmp, JSON.stringify(this.sessions), "utf-8");
-      fs.renameSync(tmp, sessionsFile);
+      fs.renameSync(tmp, this.sessionsFile);
     } catch (err) {
       log.warn("[StatsService] failed to save session records:", err);
     }
     try {
-      const tmp = tokensFile + ".tmp";
+      const tmp = this.tokensFile + ".tmp";
       fs.writeFileSync(tmp, JSON.stringify(this.tokens), "utf-8");
-      fs.renameSync(tmp, tokensFile);
+      fs.renameSync(tmp, this.tokensFile);
     } catch (err) {
       log.warn("[StatsService] failed to save token records:", err);
     }
@@ -281,5 +305,4 @@ function getStatsService() {
   }
   return _instance;
 }
-
-module.exports = { StatsService, getStatsService };
+module.exports = { StatsService, getStatsService, DEFAULT_RETENTION_DAYS };

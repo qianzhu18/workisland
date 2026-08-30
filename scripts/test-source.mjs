@@ -48,8 +48,9 @@ const {
 // #28 (dock mode) was reverted; productivity toolbox adds narrow channels for
 // shelf references/paste/share, opt-in clipboard history, directory selection,
 // one managed PTY session, a renderer-to-main file-drag interaction lock, and
-// privacy-gated lyrics state/cache controls.
-assert.equal(Object.keys(IPC).length, 140, "IPC contract changed; review both main and preload consumers");
+// privacy-gated lyrics state/cache controls. PRD-015 adds usage summary/insights/
+// export/clear channels for the Usage dashboard.
+assert.equal(Object.keys(IPC).length, 144, "IPC contract changed; review both main and preload consumers");
 assert.equal(new Set(Object.values(IPC)).size, Object.keys(IPC).length, "IPC channels must be unique");
 assert.ok(Object.isFrozen(IPC), "IPC contract must be immutable");
 assert.equal(IPC.PET_DRAG_TO_ISLAND, "pet:drag-to-island");

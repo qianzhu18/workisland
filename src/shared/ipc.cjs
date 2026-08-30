@@ -147,6 +147,10 @@ const IPC = Object.freeze({
   APP_UPDATE_AVAILABLE: "app:update-available",
   USAGE_GET_QUOTA: "usage:get-quota",
   USAGE_GET_QUOTA_MAP: "usage:get-quota-map",
+  USAGE_GET_SUMMARY: "usage:get-summary",
+  USAGE_GET_SESSION_INSIGHTS: "usage:get-session-insights",
+  USAGE_EXPORT_DATA: "usage:export-data",
+  USAGE_CLEAR_DATA: "usage:clear-data",
   STATS_GET_SNAPSHOT: "stats:get-snapshot",
 
   DEBUG_GET_STATUS: "debug:get-status",

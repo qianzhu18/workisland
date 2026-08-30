@@ -297,7 +297,7 @@ function mergeSettings(parsed = {}) {
     ? parsed.toolboxReopenMode
     : DEFAULT_SETTINGS.toolboxReopenMode;
   {
-    const known = ["shelf", "clipboard", "terminal"];
+    const known = ["shelf", "clipboard", "terminal", "usage"];
     const order = Array.isArray(parsed.toolboxModuleOrder)
       ? parsed.toolboxModuleOrder.filter((id) => known.includes(id))
       : [];
