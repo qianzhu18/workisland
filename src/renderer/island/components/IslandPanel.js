@@ -10,7 +10,7 @@ import { ShelfPanel } from "./ShelfPanel.js";
 import { ClipboardPanel } from "./ClipboardPanel.js";
 import { TerminalPanel } from "./TerminalPanel.js";
 import { UsagePanel } from "./UsagePanel.js";
-import { enabledToolboxModules, selectToolboxModule } from "./productivity-toolbox-model.mjs";
+import { enabledToolboxModules, orderToolboxModules, reorderToolboxModules, selectToolboxModule } from "./productivity-toolbox-model.mjs";
 const defaultIcon = new URL("../assets/status/idle.svg", import.meta.url).href;
 const runningIcon = new URL("../assets/status/running.svg", import.meta.url).href;
 const approvalIcon = new URL("../assets/status/approval.svg", import.meta.url).href;
@@ -266,6 +266,8 @@ function AgentUsageRow({
   enabledToolboxModules = [],
   activeToolboxModule = "agent",
   onToolboxModuleChange,
+  toolboxModuleOrder = [],
+  onToolboxModuleReorder,
   onOpenSettings,
   onOpenAbout,
   onOpenPet
@@ -285,12 +287,24 @@ function AgentUsageRow({
   const handleClearSessions = () => {
     window.islandBridge?.deleteSessions(visibleSessionIds);
   };
-  const utilityModules = [
+  const dragSourceIdRef = reactExports.useRef(null);
+  const utilityModuleDefs = [
     ["shelf", "文件架", ShelfToolIcon],
     ["clipboard", "剪贴板", ClipboardToolIcon],
     ["terminal", "终端", TerminalToolIcon],
     ["usage", "用量", UsageToolIcon]
-  ].filter(([id]) => enabledToolboxModules.includes(id));
+  ];
+  const utilityModules = orderToolboxModules(
+    utilityModuleDefs.filter(([id]) => enabledToolboxModules.includes(id)).map(([id]) => id),
+    toolboxModuleOrder
+  ).map((id) => utilityModuleDefs.find(([moduleId]) => moduleId === id));
+  const handleUtilityDragStart = (id) => { dragSourceIdRef.current = id; };
+  const handleUtilityDrop = (id) => {
+    const sourceId = dragSourceIdRef.current;
+    dragSourceIdRef.current = null;
+    if (!sourceId || sourceId === id) return;
+    onToolboxModuleReorder?.(sourceId, id);
+  };
   const utilityButtons = utilityModules.map(([id, label, Icon]) => React.createElement("button", {
     key: id,
     type: "button",
@@ -298,6 +312,10 @@ function AgentUsageRow({
     title: label,
     "aria-label": label,
     "aria-pressed": activeToolboxModule === id,
+    draggable: true,
+    onDragStart: () => handleUtilityDragStart(id),
+    onDragOver: (event) => event.preventDefault(),
+    onDrop: (event) => { event.preventDefault(); handleUtilityDrop(id); },
     onClick: () => onToolboxModuleChange?.(activeToolboxModule === id ? "agent" : id)
   }, React.createElement(Icon)));
   const agentHomeButton = activeToolboxModule !== "agent" && React.createElement("button", {
@@ -1376,7 +1394,26 @@ function IslandPanel({
 }) {
   const [followUpSessionId, setFollowUpSessionId] = React.useState(null);
   const [activeModule, setActiveModule] = React.useState("agent");
+  const [moduleOrder, setModuleOrder] = React.useState([]);
+  React.useEffect(() => {
+    let disposed = false;
+    window.islandBridge?.getSettings?.().then((settings) => {
+      if (!disposed) setModuleOrder(Array.isArray(settings?.toolboxModuleOrder) ? settings.toolboxModuleOrder : []);
+    }).catch(() => {});
+    const unsubscribe = window.islandBridge?.onSettingsChanged?.((settings) => {
+      setModuleOrder(Array.isArray(settings?.toolboxModuleOrder) ? settings.toolboxModuleOrder : []);
+    });
+    return () => {
+      disposed = true;
+      unsubscribe?.();
+    };
+  }, []);
   const enabledModules = enabledToolboxModules({ fileShelfEnabled, clipboardHistoryEnabled, terminalEnabled, usageDashboardEnabled });
+  const handleToolboxModuleReorder = (sourceId, targetId) => {
+    const nextOrder = reorderToolboxModules(["shelf", "clipboard", "terminal", "usage"], sourceId, targetId);
+    setModuleOrder(nextOrder);
+    window.islandBridge?.setSettings?.({ toolboxModuleOrder: nextOrder });
+  };
   const agentAttention = Boolean(surface?.actionableSessionId) || sessions.some((session) => ["waitingForApproval", "waitingForAnswer", "failed"].includes(session.phase));
   React.useEffect(() => {
     setActiveModule((current) => selectToolboxModule({ current, attention: agentAttention, enabled: enabledModules }));
@@ -1445,6 +1482,8 @@ function IslandPanel({
       enabledToolboxModules: enabledModules,
       activeToolboxModule: activeModule,
       onToolboxModuleChange: setActiveModule,
+      toolboxModuleOrder: moduleOrder,
+      onToolboxModuleReorder: handleToolboxModuleReorder,
       onOpenSettings,
       onOpenAbout,
       onOpenPet
