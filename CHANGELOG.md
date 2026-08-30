@@ -4,10 +4,14 @@
 
 ## [Unreleased]
 
+## [1.0.0-alpha.5] - 2026-08-30
+
 ### Added
 
 - Windows Alpha 5 同步 v3.1 工作台：接入 Windows 系统媒体会话（GSMTC）、PowerShell 终端、性能进程浏览、Shelf 文件架、私有剪贴板历史、媒体来源图标、Echo 动作与 Codex 生命周期声音。
 - Windows 媒体工作台支持系统播放控制、进度、封面与在线歌词；Shelf 支持打开、定位、预览和复制文件路径。
+- 新增用量洞察面板：工具箱第五个模块，采集并聚合 Claude 与 Codex 会话的实际 token 用量，基于 LiteLLM 价格数据（带离线缓存）估算费用，支持会话级洞察；统计保留 90 天并记录所用模型。
+- 工具箱的工具模块支持拖拽排序，顺序持久化保存在设置中。
 - 新增 AI 自定义接口:本机 Agent 可通过随附的 `workisland-cli` 修改灵动岛背景(纯色 / 渐变 / 背景图,含透明度与压暗遮罩)并安装、切换桌宠精灵图,全部走本地 Unix socket,不开任何网络端口;配套 AI 手册见 [docs/AI-CUSTOMIZATION.md](docs/AI-CUSTOMIZATION.md),也可用 `workisland-cli manual` 直接输出。
 - 设置 → 外观新增「岛屿背景」:预设主题、自定义颜色、透明度与一键重置,AI 设置的结果同样在此可见可改。
 - 过亮的背景颜色会被自动压暗以保证浅色文字可读;精灵图安装前强制几何校验(Codex V2 1536×2288 / Orca v1 1024×896)。
@@ -16,6 +20,7 @@
 
 - 修复 macOS 路径、Shell、进程采样和媒体适配器假设阻止 Windows 工作台启动的问题。
 - 修复窄分屏(左右 Split View)布局下审批按钮被挤压、文字无法阅读的问题。
+- 修复 Windows 批处理脚本按注入平台正确引用路径、含空格路径失效的问题。
 
 ## [3.1.0] - 2026-08-28
 
@@ -45,6 +50,7 @@
 
 首轮 macOS Pilot Beta，验证安装、Agent 连接、任务状态、回源和反馈闭环。
 
+[1.0.0-alpha.5]: https://github.com/qianzhu18/workisland/releases/tag/v1.0.0-alpha.5
 [3.1.0]: https://github.com/qianzhu18/workisland/releases/tag/v3.1.0
 [3.0.0]: https://github.com/qianzhu18/workisland/releases/tag/v3.0.0
 [0.3.0-beta.1]: https://github.com/qianzhu18/workisland/releases/tag/v0.3.0-beta.1
