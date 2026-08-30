@@ -48,8 +48,9 @@ const {
 // #28 (dock mode) was reverted; productivity toolbox adds narrow channels for
 // shelf references/paste/share, opt-in clipboard history, directory selection,
 // one managed PTY session, a renderer-to-main file-drag interaction lock, and
-// privacy-gated lyrics state/cache controls.
-assert.equal(Object.keys(IPC).length, 143, "IPC contract changed; review both main and preload consumers");
+// privacy-gated lyrics state/cache controls. Usage insights and the appearance/
+// template APIs expand the public bridge contract to 147 reviewed channels.
+assert.equal(Object.keys(IPC).length, 147, "IPC contract changed; review both main and preload consumers");
 assert.equal(new Set(Object.values(IPC)).size, Object.keys(IPC).length, "IPC channels must be unique");
 assert.ok(Object.isFrozen(IPC), "IPC contract must be immutable");
 assert.equal(IPC.APPEARANCE_GET_BACKGROUND_IMAGE, "appearance:get-background-image");
@@ -186,9 +187,9 @@ assert.deepEqual(normalizeApprovalModes({ codex: "terminalNative", unknown: "bri
   "copilot-cli": "bridge",
   traex: "bridge"
 });
-assert.equal(quoteShellArgument("it's"), `'it'"'"'s'`);
+assert.equal(quoteShellArgument("it's", "linux"), `'it'"'"'s'`);
 assert.equal(
-  createHooksCliCommand({ appPath: "/tmp/Flux App", source: "codex", nodePath: "/usr/bin/node" }),
+  createHooksCliCommand({ appPath: "/tmp/Flux App", source: "codex", nodePath: "/usr/bin/node", platform: "linux" }),
   `'/usr/bin/node' '/tmp/Flux App/src/island/hooks-cli/index.cjs' --source 'codex'`
 );
 
@@ -213,11 +214,11 @@ assert.ok(WORKBUDDY_EVENTS.some(({ event }) => event === "PermissionRequest"));
 assert.ok(WORKBUDDY_EVENTS.some(({ event }) => event === "StopFailure"));
 assert.equal(
   getWorkBuddyConfigPath("/tmp/workisland-no-workbuddy"),
-  "/tmp/workisland-no-workbuddy/.workbuddy/settings.json"
+  join("/tmp/workisland-no-workbuddy", ".workbuddy", "settings.json")
 );
 assert.equal(
   getCodeBuddyConfigPath("/tmp/workisland-no-workbuddy"),
-  "/tmp/workisland-no-workbuddy/.codebuddy/settings.json"
+  join("/tmp/workisland-no-workbuddy", ".codebuddy", "settings.json")
 );
 
 const settingsTestDirectory = mkdtempSync(join(tmpdir(), "flux-settings-"));
@@ -435,7 +436,7 @@ assert.deepEqual(decoded.messages, [{ type: "hello", hello: { protocolVersion: 1
 assert.deepEqual(decoded.remainder, secondFrame.subarray(0, 8));
 assert.equal(decodeLines(Buffer.concat([decoded.remainder, secondFrame.subarray(8)])).messages.length, 1);
 assert.equal(getSocketPath({ FLUX_SOCKET_PATH: "/tmp/custom.sock" }, "/unused"), "/tmp/custom.sock");
-assert.equal(getSocketPath({}, "/tmp/home"), "/tmp/home/.flux/run/bridge.sock");
+assert.equal(getSocketPath({}, "/tmp/home", "linux"), "/tmp/home/.flux/run/bridge.sock");
 
 const windowClasses = createWindowClasses({
   electron: {},

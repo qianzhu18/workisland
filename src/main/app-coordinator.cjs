@@ -11,6 +11,8 @@ const { SettingsRepository } = require("./settings-repository.cjs");
 const { PetModeController } = require("./pet-mode-controller.cjs");
 const { QuotaService } = require("./quota-service.cjs");
 const { getStatsService } = require("./stats-service.cjs");
+const { UsageService } = require("./usage-service.cjs");
+const { getUsagePricing } = require("./usage-pricing.cjs");
 const { resolveApprovalMode } = require("../shared/approval-policy.cjs");
 const { saveSessions } = require("./hook-shared.cjs");
 const { readClaudeTranscriptState } = require("./transcript-recovery.cjs");
@@ -22,7 +24,7 @@ const { PluginHookManager, DeepSeekHarnessHookManager } = require("./hooks-custo
 const { ZCodeHookManager, WorkBuddyHookManager, CodeBuddyHookManager } = require("./hooks-work-agents.cjs");
 const { initSoundDirs, playSoundEvent } = require("./sound-service.cjs");
 const { createAgentSoundDeduplicator, resolveCodexTranscriptSoundEvent } = require("./agent-sound-policy.cjs");
-const { reportTokenUsage, getHermesCumulativeTokens, diffHermesCumulativeTokens } = require("./adapters-extended.cjs");
+const { reportTokenUsage, getHermesCumulativeTokens, diffHermesCumulativeTokens, collectAndReportTokens } = require("./adapters-extended.cjs");
 const { getAgentDescriptor, validateAgentWiring } = require("../shared/agent-catalog.cjs");
 const { createPresentationRequest } = require("./presentation-policy.cjs");
 const { EVENTS } = require("../shared/telemetry.cjs");
@@ -171,6 +173,8 @@ function createAppCoordinatorClass({
      * 用 5 秒窗口 dedup 让两条通道都跑但只放行第一个。
      */
     agentEventDedup = null;
+    // claude 会话的 transcript 路径（来自 hookProcessed），turn 结束时采集 token 用
+    claudeTranscriptPaths = new Map();
     /**
      * 记录每个 Hermes session 已经写入 Flux 统计的累计 token 基线。
      *
@@ -201,13 +205,19 @@ function createAppCoordinatorClass({
       );
       this.state = createInitialState();
       this.settings = this.settingsRepository.load();
+      // PRD-015：保留期可配（settings.statsRetentionDays，默认 90 天）。
+      this.statsService.setRetentionDays(this.settings.statsRetentionDays);
+      this.usageService = new UsageService({ statsService: this.statsService, pricing: getUsagePricing() });
       const mediaResourceDir = electron.app.isPackaged
         ? path.join(process.resourcesPath, "mediaremote-adapter")
         : path.join(electron.app.getAppPath(), "resources", "mediaremote-adapter");
+      const mediaWindowsScriptPath = electron.app.isPackaged
+        ? path.join(process.resourcesPath, "scripts", "media-session.ps1")
+        : path.join(electron.app.getAppPath(), "resources", "scripts", "media-session.ps1");
       const resolveAppIcon = createAppIconResolver({
         getFileIcon: (appPath) => electron.app.getFileIcon(appPath, { size: "normal" })
       });
-      this.mediaService = new MediaService({ resourceDir: mediaResourceDir, resolveAppIcon });
+      this.mediaService = new MediaService({ resourceDir: mediaResourceDir, windowsScriptPath: mediaWindowsScriptPath, resolveAppIcon });
       this.lyricsService = new LyricsService({ storePath: path.join(electron.app.getPath("userData"), "lyrics-cache.json") });
       this.performanceService = new PerformanceService();
       const userDataPath = electron.app.getPath("userData");
@@ -395,10 +405,27 @@ function createAppCoordinatorClass({
             }
           }
         }
+        if (event.type === "sessionCompleted" && (event.tool === "claude" || event.tool === "codex")) {
+          // turn 结束采集一次。挂在 sessionCompleted 而不是 hookProcessed：
+          // 后者每个 hook 都触发，反复整读大 transcript 太重。
+          // codex 的 hook 常常不带 transcript_path（codexSessionMeta 为空），
+          // 但 transcript watcher 本来就按 session id 跟踪着 rollout 文件，用它兜底。
+          const transcriptPath = event.tool === "claude"
+            ? this.claudeTranscriptPaths.get(event.sessionId)
+            : this.codexSessionMeta.get(event.sessionId)?.transcriptPath
+              ?? this.codexTranscriptWatcher?.getTranscriptPath(event.sessionId);
+          if (transcriptPath) {
+            collectAndReportTokens(event.tool, event.sessionId, transcriptPath).catch((err) => {
+              log.warn("[AppCoordinator] %s token collect failed:", event.tool, err?.message ?? err);
+            });
+          } else {
+            log.info("[TokenCollector] 跳过：%s/%s 无 transcript 路径可用", event.tool, event.sessionId);
+          }
+        }
         if (shouldRecordCompletedSessionStat(event)) {
           const session = getSession(this.state, event.sessionId);
           if (session) {
-            this.statsService.recordSession(event.tool, session.createdAt, event.timestamp);
+            this.statsService.recordSession(event.tool, session.createdAt, event.timestamp, event.sessionId);
           }
           this.telemetry?.trackLifecycleEvent?.(EVENTS.SESSION_COMPLETED, {
             sessionId: event.sessionId,
@@ -413,6 +440,9 @@ function createAppCoordinatorClass({
         "hookProcessed",
         (info) => {
           const session = info.sessionId ? getSession(this.state, info.sessionId) : void 0;
+          if (info.tool === "claude" && info.sessionId && info.transcriptPath) {
+            this.claudeTranscriptPaths.set(info.sessionId, info.transcriptPath);
+          }
           if (info.tool === "codex" && info.sessionId && info.transcriptPath) {
             const prev = this.codexSessionMeta.get(info.sessionId);
             const latestTurnId = info.turnId ?? prev?.latestTurnId;
@@ -504,6 +534,18 @@ function createAppCoordinatorClass({
         });
         this.codexTranscriptWatcher.start();
         log.info("[AppCoordinator] codex transcript watcher started");
+        // 启动回填：codex 可能几小时不完成一轮，若只挂在 sessionCompleted 上，
+        // 统计里会长期停在 0。watcher 扫的是 24h 内的 rollout，逐个采集一次；
+        // applyBaselineDiff 用累计值差分，重复回填不会重复计数。
+        setTimeout(() => {
+          const tracked = this.codexTranscriptWatcher?.listTracked() ?? [];
+          for (const file of tracked) {
+            collectAndReportTokens("codex", file.sessionId, file.path).catch((err) => {
+              log.warn("[AppCoordinator] codex token backfill failed:", err?.message ?? err);
+            });
+          }
+          if (tracked.length) log.info("[AppCoordinator] codex token backfill: %d file(s)", tracked.length);
+        }, 5e3);
       } catch (err) {
         // watcher 启动失败不应阻断 app 启动；hook 通道仍可工作
         log.warn("[AppCoordinator] codex transcript watcher failed to start:", err.message);
@@ -523,6 +565,7 @@ function createAppCoordinatorClass({
      * 该会话的下一个 hook 事件会自然补上。
      */
     async discoverRunningClaudeSessions() {
+      if (process.platform !== "darwin") return;
       const RECOVERY_LOOKBACK_MS = 24 * 60 * 60 * 1e3;
       const cp = require("child_process");
       const { promisify: pify } = require("util");
@@ -707,6 +750,10 @@ function createAppCoordinatorClass({
       return readClaudeTranscriptState(file);
     }
     async autoReInstallHooks() {
+      if (process.argv.some((arg) => arg.startsWith("--smoke-user-data="))) {
+        log.info("[AppCoordinator] packaged smoke mode, skipping Hook reconciliation");
+        return;
+      }
       const toggles = this.settings.hookToggles ?? {};
       for (const [agentId, manager] of this.hookManagers) {
         try {
@@ -1259,6 +1306,18 @@ function createAppCoordinatorClass({
     getStatsSnapshot(timeRange) {
       return this.statsService.getSnapshot(timeRange);
     }
+    getUsageSummary(days) {
+      return this.usageService.getUsageSummary({ days });
+    }
+    getSessionInsights(days) {
+      return this.usageService.getSessionInsights({ days });
+    }
+    exportUsageData() {
+      return this.usageService.exportUsageData();
+    }
+    clearUsageData() {
+      return this.usageService.clearUsageData();
+    }
     getMediaState() { return this.mediaService.getSnapshot(); }
     sendMediaCommand(command) { return this.mediaService.sendCommand(command); }
     getLyricsState() { return this.lyricsService.snapshot(); }
@@ -1283,9 +1342,10 @@ function createAppCoordinatorClass({
       electron.shell.showItemInFolder(item.path);
       return true;
     }
-    quickLookShelfItem(id) {
+    async quickLookShelfItem(id) {
       const item = this.shelfService.find(id);
       if (!item?.path || !item.available) return false;
+      if (process.platform === "win32") return (await electron.shell.openPath(item.path)) === "";
       require("node:child_process").spawn("/usr/bin/qlmanage", ["-p", item.path], { detached: true, stdio: "ignore" }).unref();
       return true;
     }

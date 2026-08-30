@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { chmodSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -11,6 +11,7 @@ test("packaged app declares terminal runtime assets and native unpacking", () =>
   assert.equal(typeof pkg.dependencies["node-pty"], "string");
   assert.equal(typeof pkg.dependencies["@xterm/xterm"], "string");
   assert.equal(pkg.build.asarUnpack.some((pattern) => pattern.includes("node-pty")), true);
+  assert.equal(pkg.build.npmRebuild, false, "node-pty ships N-API prebuilds, so packaging must not require Visual Studio");
   assert.equal(pkg.scripts.postinstall, "node ./scripts/prepare-node-pty.mjs");
 });
 
@@ -20,7 +21,7 @@ test("node-pty preparation restores the macOS spawn helper execute bit", async (
   const helper = path.join(root, "node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper");
   mkdirSync(path.dirname(helper), { recursive: true });
   writeFileSync(helper, "helper");
-  chmodSync(helper, 0o644);
-  ensureNodePtyHelperExecutable(root, { platform: "darwin", arch: "arm64" });
-  assert.equal(statSync(helper).mode & 0o111, 0o111);
+  const changes = [];
+  ensureNodePtyHelperExecutable(root, { platform: "darwin", arch: "arm64", chmod: (...args) => changes.push(args) });
+  assert.deepEqual(changes, [[helper, 0o755]]);
 });

@@ -24,6 +24,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/macOS-Apple%20Silicon-000000?logo=apple&logoColor=white" alt="macOS Apple Silicon">
+  <img src="https://img.shields.io/badge/Windows-11%20x64-0078D4?logo=windows11&logoColor=white" alt="Windows 11 x64">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue.svg" alt="Apache 2.0 license"></a>
   <a href="https://workisland.yanglaishe.cn/"><img src="https://img.shields.io/badge/website-workisland.yanglaishe.cn-0ea5e9" alt="WorkIsland website"></a>
 </p>
@@ -34,13 +35,13 @@
 
 When several AI coding tasks run in the background, the expensive part is not starting them. It is noticing the one that needs a decision, then finding the right terminal or IDE session again.
 
-WorkIsland keeps that loop in one local macOS surface. It watches task state, raises only the work that needs you, and brings you back to the originating conversation when you are ready to continue.
+WorkIsland keeps that loop in one local macOS or Windows surface. It watches task state, raises only the work that needs you, and brings you back to the originating conversation when you are ready to continue.
 
 ## Install
 
-**For users:** download the Apple Silicon DMG from [GitHub Releases](https://github.com/qianzhu18/workisland/releases), move `WorkIsland.app` to Applications, then launch it. No cloud account is required.
+**For users:** download the Apple Silicon DMG or Windows x64 installer/portable EXE from [GitHub Releases](https://github.com/qianzhu18/workisland/releases). Windows builds are currently unsigned Alpha releases, so SmartScreen may ask for confirmation. No cloud account is required.
 
-**For contributors:** WorkIsland requires an Apple Silicon Mac and Node.js 22 or later.
+**For contributors:** WorkIsland requires an Apple Silicon Mac or Windows 11 x64 and Node.js 22 or later.
 
 ```bash
 git clone https://github.com/qianzhu18/workisland.git
@@ -51,11 +52,14 @@ npm run dev:isolated
 
 Use `npm run dev` only when you deliberately want to connect the app to your real local Agent Hook configuration. The isolated mode keeps development data inside the repository.
 
+Use `npm run package:win` to build both the Windows installer and portable EXE.
+
 ## What You Can Do
 
-- **See the state that matters** - running, approval needed, question waiting, completed, or failed tasks stay visible near the macOS notch.
+- **See the state that matters** - running, approval needed, question waiting, completed, or failed tasks stay visible near the macOS notch or Windows top island.
 - **Handle approvals and questions in place** - respond when an agent needs a decision instead of polling every terminal.
-- **Return to the right source session** - jump back to the matching Terminal, iTerm2, Ghostty, or Warp conversation.
+- **Return to the right source session** - jump back to the matching Terminal, iTerm2, Ghostty, Warp, Windows Terminal, PowerShell, Cursor, or VS Code conversation.
+- **Use the local workstation** - media and lyrics, process performance, Shelf, private clipboard history, and a persistent terminal work on both macOS and Windows.
 - **Monitor through two local signals** - Hooks and transcript watching complement each other, so task completion remains observable when one channel is unavailable.
 - **Keep the workflow local-first** - task content stays on the Mac; the app does not require a cloud account to monitor local work.
 - **Make notifications fit your attention** - choose the island, desktop companion, sounds, shortcuts, and notification timing that suit your workflow.
@@ -70,7 +74,7 @@ WorkIsland has first-party adapters for Claude Code, Codex, Coco, Cursor, TraeCo
 | --- | --- |
 | [WorkIsland Website](https://workisland.yanglaishe.cn/) | Product overview, real interface, and latest download |
 | [Product Guide](https://workisland.yanglaishe.cn/guide/) | Install, first agent task, privacy, and feedback |
-| [GitHub Releases](https://github.com/qianzhu18/workisland/releases) | Apple Silicon DMG and release notes |
+| [GitHub Releases](https://github.com/qianzhu18/workisland/releases) | Apple Silicon DMG, Windows x64 builds, and release notes |
 | [GitHub Issues](https://github.com/qianzhu18/workisland/issues/new/choose) | Bug reports and publicly discussable suggestions |
 | [Security policy](SECURITY.md) | Private way to report security issues |
 

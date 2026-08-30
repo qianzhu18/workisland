@@ -9,7 +9,8 @@ import { PerformancePopover } from "./PerformancePopover.js";
 import { ShelfPanel } from "./ShelfPanel.js";
 import { ClipboardPanel } from "./ClipboardPanel.js";
 import { TerminalPanel } from "./TerminalPanel.js";
-import { enabledToolboxModules, selectToolboxModule } from "./productivity-toolbox-model.mjs";
+import { UsagePanel } from "./UsagePanel.js";
+import { enabledToolboxModules, orderToolboxModules, reorderToolboxModules, selectToolboxModule } from "./productivity-toolbox-model.mjs";
 const defaultIcon = new URL("../assets/status/idle.svg", import.meta.url).href;
 const runningIcon = new URL("../assets/status/running.svg", import.meta.url).href;
 const approvalIcon = new URL("../assets/status/approval.svg", import.meta.url).href;
@@ -110,6 +111,12 @@ function TerminalToolIcon() {
   return React.createElement(ToolIconFrame, null,
     React.createElement("rect", { x: 2.3, y: 3.1, width: 13.4, height: 11.8, rx: 2 }),
     React.createElement("path", { d: "m5.3 7 2 2-2 2M9.4 11h3.2" })
+  );
+}
+function UsageToolIcon() {
+  return React.createElement(ToolIconFrame, null,
+    React.createElement("path", { d: "M15.6 11.4V9.2M12.4 11.4V5.8M9.2 11.4V7.6M6 11.4v-2.6" }),
+    React.createElement("path", { d: "M2.6 13.6h12.8" })
   );
 }
 function AgentHomeIcon() {
@@ -307,6 +314,8 @@ function AgentUsageRow({
   enabledToolboxModules = [],
   activeToolboxModule = "agent",
   onToolboxModuleChange,
+  toolboxModuleOrder = [],
+  onToolboxModuleReorder,
   onOpenSettings,
   onOpenAbout,
   onOpenPet
@@ -326,11 +335,24 @@ function AgentUsageRow({
   const handleClearSessions = () => {
     window.islandBridge?.deleteSessions(visibleSessionIds);
   };
-  const utilityModules = [
+  const dragSourceIdRef = reactExports.useRef(null);
+  const utilityModuleDefs = [
     ["shelf", "文件架", ShelfToolIcon],
     ["clipboard", "剪贴板", ClipboardToolIcon],
-    ["terminal", "终端", TerminalToolIcon]
-  ].filter(([id]) => enabledToolboxModules.includes(id));
+    ["terminal", "终端", TerminalToolIcon],
+    ["usage", "用量", UsageToolIcon]
+  ];
+  const utilityModules = orderToolboxModules(
+    utilityModuleDefs.filter(([id]) => enabledToolboxModules.includes(id)).map(([id]) => id),
+    toolboxModuleOrder
+  ).map((id) => utilityModuleDefs.find(([moduleId]) => moduleId === id));
+  const handleUtilityDragStart = (id) => { dragSourceIdRef.current = id; };
+  const handleUtilityDrop = (id) => {
+    const sourceId = dragSourceIdRef.current;
+    dragSourceIdRef.current = null;
+    if (!sourceId || sourceId === id) return;
+    onToolboxModuleReorder?.(sourceId, id);
+  };
   const utilityButtons = utilityModules.map(([id, label, Icon]) => React.createElement("button", {
     key: id,
     type: "button",
@@ -338,6 +360,10 @@ function AgentUsageRow({
     title: label,
     "aria-label": label,
     "aria-pressed": activeToolboxModule === id,
+    draggable: true,
+    onDragStart: () => handleUtilityDragStart(id),
+    onDragOver: (event) => event.preventDefault(),
+    onDrop: (event) => { event.preventDefault(); handleUtilityDrop(id); },
     onClick: () => onToolboxModuleChange?.(activeToolboxModule === id ? "agent" : id)
   }, React.createElement(Icon)));
   const agentHomeButton = activeToolboxModule !== "agent" && React.createElement("button", {
@@ -1404,6 +1430,7 @@ function IslandPanel({
   fileShelfEnabled = true,
   clipboardHistoryEnabled = false,
   terminalEnabled = true,
+  usageDashboardEnabled = true,
   terminalSavedCommands = [],
   requestedToolboxModule = null,
   onSessionRowClick,
@@ -1417,11 +1444,30 @@ function IslandPanel({
   const [followUpSessionId, setFollowUpSessionId] = React.useState(null);
   const [activeModule, setActiveModule] = React.useState("agent");
   const statusIcons = useIslandStatusIcons();
-  const enabledModules = enabledToolboxModules({ fileShelfEnabled, clipboardHistoryEnabled, terminalEnabled });
+  const [moduleOrder, setModuleOrder] = React.useState([]);
+  React.useEffect(() => {
+    let disposed = false;
+    window.islandBridge?.getSettings?.().then((settings) => {
+      if (!disposed) setModuleOrder(Array.isArray(settings?.toolboxModuleOrder) ? settings.toolboxModuleOrder : []);
+    }).catch(() => {});
+    const unsubscribe = window.islandBridge?.onSettingsChanged?.((settings) => {
+      setModuleOrder(Array.isArray(settings?.toolboxModuleOrder) ? settings.toolboxModuleOrder : []);
+    });
+    return () => {
+      disposed = true;
+      unsubscribe?.();
+    };
+  }, []);
+  const enabledModules = enabledToolboxModules({ fileShelfEnabled, clipboardHistoryEnabled, terminalEnabled, usageDashboardEnabled });
+  const handleToolboxModuleReorder = (sourceId, targetId) => {
+    const nextOrder = reorderToolboxModules(["shelf", "clipboard", "terminal", "usage"], sourceId, targetId);
+    setModuleOrder(nextOrder);
+    window.islandBridge?.setSettings?.({ toolboxModuleOrder: nextOrder });
+  };
   const agentAttention = Boolean(surface?.actionableSessionId) || sessions.some((session) => ["waitingForApproval", "waitingForAnswer", "failed"].includes(session.phase));
   React.useEffect(() => {
     setActiveModule((current) => selectToolboxModule({ current, attention: agentAttention, enabled: enabledModules }));
-  }, [agentAttention, fileShelfEnabled, clipboardHistoryEnabled, terminalEnabled]);
+  }, [agentAttention, fileShelfEnabled, clipboardHistoryEnabled, terminalEnabled, usageDashboardEnabled]);
   React.useEffect(() => {
     onActiveModuleChange?.(activeModule);
   }, [activeModule, onActiveModuleChange]);
@@ -1486,11 +1532,13 @@ function IslandPanel({
       enabledToolboxModules: enabledModules,
       activeToolboxModule: activeModule,
       onToolboxModuleChange: setActiveModule,
+      toolboxModuleOrder: moduleOrder,
+      onToolboxModuleReorder: handleToolboxModuleReorder,
       onOpenSettings,
       onOpenAbout,
       onOpenPet
     }
-  ), /* @__PURE__ */ React.createElement("div", { className: "panel-divider" }), activeModule === "shelf" && /* @__PURE__ */ React.createElement(ShelfPanel), activeModule === "clipboard" && /* @__PURE__ */ React.createElement(ClipboardPanel), activeModule === "terminal" && /* @__PURE__ */ React.createElement(TerminalPanel, { savedCommands: terminalSavedCommands, onOpenSettings: () => onOpenSettings("general") }), /* @__PURE__ */ React.createElement("div", { className: `workspace-content${mediaEnabled && mediaState?.active && mediaState?.title ? " has-media" : ""}${activeModule === "agent" ? "" : " is-hidden"}` }, mediaEnabled && mediaState?.active && mediaState?.title && /* @__PURE__ */ React.createElement(MediaCard, { media: mediaState, lyrics: lyricsState }), /* @__PURE__ */ React.createElement("div", { className: "workspace-agent-pane" }, /* @__PURE__ */ React.createElement("div", { className: "session-list", ref: sessionListRef }, visibleSessions.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "session-list-empty" }, /* @__PURE__ */ React.createElement(
+  ), /* @__PURE__ */ React.createElement("div", { className: "panel-divider" }), activeModule === "shelf" && /* @__PURE__ */ React.createElement(ShelfPanel), activeModule === "clipboard" && /* @__PURE__ */ React.createElement(ClipboardPanel), activeModule === "terminal" && /* @__PURE__ */ React.createElement(TerminalPanel, { savedCommands: terminalSavedCommands, onOpenSettings: () => onOpenSettings("general") }), activeModule === "usage" && /* @__PURE__ */ React.createElement(UsagePanel), /* @__PURE__ */ React.createElement("div", { className: `workspace-content${mediaEnabled && mediaState?.active && mediaState?.title ? " has-media" : ""}${activeModule === "agent" ? "" : " is-hidden"}` }, mediaEnabled && mediaState?.active && mediaState?.title && /* @__PURE__ */ React.createElement(MediaCard, { media: mediaState, lyrics: lyricsState }), /* @__PURE__ */ React.createElement("div", { className: "workspace-agent-pane" }, /* @__PURE__ */ React.createElement("div", { className: "session-list", ref: sessionListRef }, visibleSessions.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "session-list-empty" }, /* @__PURE__ */ React.createElement(
     "img",
     {
       className: "session-list-empty-icon",

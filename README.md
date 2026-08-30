@@ -12,7 +12,7 @@
 <p align="center"><strong>让 AI 编程 Agent 持续运转，同时不打断你自己的工作流。</strong></p>
 
 <p align="center">
-  一款本地优先的 macOS 任务监控器，面向 Claude Code、Codex、Cursor 等编程 Agent。一眼看清哪些任务需要你处理，就地审批或回复，再一步回到对应的源会话。
+  一款本地优先的 macOS 与 Windows 任务监控器，面向 Claude Code、Codex、Cursor 等编程 Agent。一眼看清哪些任务需要你处理，就地审批或回复，再一步回到对应的源会话。
 </p>
 
 <p align="center">
@@ -25,6 +25,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/macOS-Apple%20Silicon-000000?logo=apple&logoColor=white" alt="macOS Apple Silicon">
+  <img src="https://img.shields.io/badge/Windows-11%20x64-0078D4?logo=windows11&logoColor=white" alt="Windows 11 x64">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue.svg" alt="Apache 2.0 许可证"></a>
   <a href="https://workisland.yanglaishe.cn/"><img src="https://img.shields.io/badge/website-workisland.yanglaishe.cn-0ea5e9" alt="WorkIsland 官网"></a>
 </p>
@@ -39,9 +40,9 @@ WorkIsland 把这一闭环收拢到同一个本地 macOS 界面里：它盯着�
 
 ## 安装
 
-**普通用户：** 从 [GitHub Releases](https://github.com/qianzhu18/workisland/releases) 下载 Apple Silicon 版 DMG，把 `WorkIsland.app` 拖进「应用程序」，然后启动即可，无需任何云端账号。
+**普通用户：** 从 [GitHub Releases](https://github.com/qianzhu18/workisland/releases) 下载 Apple Silicon DMG 或 Windows x64 安装版 / 便携版 EXE，无需任何云端账号。Windows 包目前是未签名 Alpha，首次启动可能出现 SmartScreen 提示。
 
-**贡献者：** WorkIsland 需要一台 Apple Silicon Mac 以及 Node.js 22 及以上版本。
+**贡献者：** WorkIsland 需要一台 Apple Silicon Mac 或 Windows 11 x64 设备，以及 Node.js 22 及以上版本。
 
 ```bash
 git clone https://github.com/qianzhu18/workisland.git
@@ -52,18 +53,24 @@ npm run dev:isolated
 
 只有当你确实想让应用连接你本地的真实 Agent Hook 配置时，才使用 `npm run dev`。隔离模式会把开发数据保留在仓库内部。
 
+在 Windows 上使用 `npm run package:win` 构建安装版与便携版 EXE。
+
 ## 你能做什么
 
-- **看清关键状态**——运行中、待审批、待回答、已完成、已失败的任务，始终显示在 macOS 刘海附近。
+- **看清关键状态**——运行中、待审批、待回答、已完成、已失败的任务，始终显示在 macOS 刘海或 Windows 顶部浮岛附近。
 - **就地处理审批与提问**——Agent 需要决策时直接回复，不必挨个终端轮询。
-- **回到正确的源会话**——一键跳回对应的 Terminal、iTerm2、Ghostty 或 Warp 对话。
+- **回到正确的源会话**——一键跳回对应的 Terminal、iTerm2、Ghostty、Warp、Windows Terminal、PowerShell、Cursor 或 VS Code 会话。
+- **使用 Windows 原生链路**——按用户隔离的命名管道 Hooks、系统声音、应用激活和诊断导出，不开放网络端口。
+- **展开本地工作台**——媒体与歌词、性能进程、Shelf、私有剪贴板和持久化终端均可在 macOS 与 Windows 使用。
 - **双本地信号监控**——Hooks 与转录文件监听互为补充，单一通道不可用时仍能观察任务完成情况。
-- **本地优先的工作流**——任务内容只留在 Mac 上，监控本地工作无需云端账号。
+- **本地优先的工作流**——任务内容只留在当前设备，监控本地工作无需云端账号。
 - **通知贴合你的注意力**——自由选择灵动岛、桌面伴侣、声音、快捷键与通知时机，适配你的工作节奏。
 
 ## Agent 兼容性
 
 WorkIsland 为以下 Agent 提供官方原生适配：Claude Code、Codex、Coco、Cursor、TraeCode、ZCode、WorkBuddy / CodeBuddy、OpenCode、Sara、Kimi Code、Gemini CLI、GitHub Copilot CLI、Hermes、Aiden、DeepSeek Harness 与 TRAE CLI。MiMo、Trae Work、Trae CN 以及通用的自定义 Hook 连接暂未列出，因为它们尚未通过真实端到端集成测试。TraeCode 需在应用内开启 Hooks 开关与本地自动执行模式后，事件才能送达 WorkIsland。
+
+Windows Alpha 可以激活来源应用并恢复已记录的真实窗口；审批与后续文字输入仍在终端原生界面完成。
 
 ## 产品链接
 

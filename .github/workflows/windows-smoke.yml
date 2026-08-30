@@ -1,0 +1,56 @@
+name: windows-smoke
+
+# Windows 运行时自测：在 GitHub windows-latest 真机 runner 上打包并启动
+# 便携版 exe，验证主进程能到达 ready 状态。不产出 release 产物。
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "windows/**"
+
+permissions:
+  contents: read
+
+jobs:
+  windows-smoke:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Run cross-platform checks (unit tests on Windows)
+        run: npm run check
+      - name: Package Windows portable build
+        # package:win 内含 check（上面已跑过），这里只做资产生成 + 打包，节省时间
+        run: |
+          npm run build:assets
+          npx electron-builder --win portable --x64 --publish never
+      - name: Locate portable exe
+        shell: bash
+        run: |
+          exe="$(ls release/*Portable*x64.exe 2>/dev/null | head -1)"
+          if [ -z "$exe" ]; then echo "portable exe not found"; ls release; exit 1; fi
+          echo "SMOKE_EXE=$exe" >> "$GITHUB_ENV"
+      - name: Launch packaged app and verify ready state
+        shell: bash
+        run: node scripts/smoke-win-packaged.mjs "$SMOKE_EXE" 90000
+      - name: Verify the packaged app can quit on its own
+        # 退出回归（issue #56）：应用必须能自行退出，僵尸化即失败
+        shell: bash
+        run: node scripts/smoke-win-packaged.mjs "$SMOKE_EXE" 90000 --expect-self-quit
+      - name: Collect logs on failure
+        if: failure()
+        shell: bash
+        run: |
+          mkdir -p smoke-logs
+          cp -r "$APPDATA/WorkIsland/logs" smoke-logs/ 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: WorkIsland-windows-smoke-logs
+          path: smoke-logs
+          if-no-files-found: ignore

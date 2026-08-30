@@ -49,6 +49,19 @@ electron.contextBridge.exposeInMainWorld("islandBridge", {
   getQuotaMap() {
     return electron.ipcRenderer.invoke(ipc.IPC.USAGE_GET_QUOTA_MAP);
   },
+  // PRD-015：Usage 看板查询/导出/清除
+  getUsageSummary(days) {
+    return electron.ipcRenderer.invoke(ipc.IPC.USAGE_GET_SUMMARY, { days });
+  },
+  getSessionInsights(days) {
+    return electron.ipcRenderer.invoke(ipc.IPC.USAGE_GET_SESSION_INSIGHTS, { days });
+  },
+  exportUsageData() {
+    return electron.ipcRenderer.invoke(ipc.IPC.USAGE_EXPORT_DATA);
+  },
+  clearUsageData() {
+    return electron.ipcRenderer.invoke(ipc.IPC.USAGE_CLEAR_DATA);
+  },
   onSoundStateUpdate(cb) {
     electron.ipcRenderer.on(ipc.IPC.ISLAND_SOUND_STATE, (_event, enabled) => cb(enabled));
   },
@@ -200,6 +213,9 @@ electron.contextBridge.exposeInMainWorld("islandBridge", {
   },
   getSettings() {
     return electron.ipcRenderer.invoke(ipc.IPC.SETTINGS_GET);
+  },
+  setSettings(partial) {
+    return electron.ipcRenderer.invoke(ipc.IPC.SETTINGS_SET, partial);
   },
   getPetSpritePath() {
     return electron.ipcRenderer.invoke(ipc.IPC.PET_GET_SPRITE_PATH);

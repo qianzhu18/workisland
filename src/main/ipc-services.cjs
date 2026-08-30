@@ -59,6 +59,7 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
     return pending;
   }
   async function listShelfShareProviders() {
+    if (process.platform === "win32") return [{ id: "__system__", title: "复制文件路径", iconDataUrl: "" }];
     try {
       const providers = await getShareProviders();
       return (Array.isArray(providers) ? providers : []).flatMap((provider) => {
@@ -78,6 +79,10 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
     const availablePaths = [...new Set(Array.isArray(paths) ? paths : [])].filter((entry) => typeof entry === "string" && fs.existsSync(entry));
     if (availablePaths.length === 0) return { ok: false, providerId: "", fallback: false };
     const providerId = coordinator.getSettings().shelfQuickShareProvider || "AirDrop";
+    if (process.platform === "win32") {
+      electron.clipboard.writeText(availablePaths.join("\r\n"));
+      return { ok: true, providerId: "__system__", fallback: true };
+    }
     if (providerId !== "__system__" && shareFilesViaProvider(availablePaths, providerId)) {
       return { ok: true, providerId, fallback: false };
     }
@@ -266,6 +271,29 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
     });
     electron.ipcMain.handle(IPC.STATS_GET_SNAPSHOT, (_event, { timeRange }) => {
       return coordinator.getStatsSnapshot(timeRange);
+    });
+    electron.ipcMain.handle(IPC.USAGE_GET_SUMMARY, (_event, { days } = {}) => {
+      return coordinator.getUsageSummary(days);
+    });
+    electron.ipcMain.handle(IPC.USAGE_GET_SESSION_INSIGHTS, (_event, { days } = {}) => {
+      return coordinator.getSessionInsights(days);
+    });
+    // PRD-015 T7：导出 JSON（保存对话框 + 写文件，数据留在用户手里）
+    electron.ipcMain.handle(IPC.USAGE_EXPORT_DATA, async () => {
+      const data = coordinator.exportUsageData();
+      const win = coordinator.islandWindow && !coordinator.islandWindow.isDestroyed() ? coordinator.islandWindow : undefined;
+      const stamp = new Date(data.exportedAt).toISOString().slice(0, 10);
+      const result = await electron.dialog.showSaveDialog(win, {
+        title: "导出用量数据",
+        defaultPath: `workisland-usage-${stamp}.json`,
+        filters: [{ name: "JSON", extensions: ["json"] }]
+      });
+      if (result.canceled || !result.filePath) return { ok: false, cancelled: true };
+      fs.writeFileSync(result.filePath, JSON.stringify(data, null, 2), "utf-8");
+      return { ok: true, path: result.filePath };
+    });
+    electron.ipcMain.handle(IPC.USAGE_CLEAR_DATA, () => {
+      return coordinator.clearUsageData();
     });
     electron.ipcMain.handle(IPC.MEDIA_GET_STATE, () => coordinator.getMediaState());
     electron.ipcMain.handle(IPC.MEDIA_COMMAND, (_event, command) => coordinator.sendMediaCommand(command));
@@ -482,7 +510,6 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
       };
     });
     electron.ipcMain.handle(IPC.COLLECT_LOGS, async () => {
-      const scriptPath = electron.app.isPackaged ? path__namespace.join(process.resourcesPath, "scripts", "collect-logs.sh") : path__namespace.join(electron.app.getAppPath(), "scripts", "collect-logs.sh");
       const desktopDir = electron.app.getPath("desktop");
       let outputDir = desktopDir;
       try {
@@ -490,11 +517,22 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
       } catch {
         outputDir = electron.app.getPath("temp");
       }
+      const isWindows = process.platform === "win32";
+      const scriptName = isWindows ? "collect-logs.ps1" : "collect-logs.sh";
+      const scriptPath = electron.app.isPackaged
+        ? path__namespace.join(process.resourcesPath, "scripts", scriptName)
+        : path__namespace.join(electron.app.getAppPath(), "resources", "scripts", scriptName);
       const env = { ...process.env };
-      const SAFE_PATH = "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin";
-      env.PATH = env.PATH ? `${env.PATH}:${SAFE_PATH}` : SAFE_PATH;
+      if (!isWindows) {
+        const safePath = "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin";
+        env.PATH = env.PATH ? `${env.PATH}:${safePath}` : safePath;
+      }
+      const executable = isWindows ? "powershell.exe" : "/bin/bash";
+      const args = isWindows
+        ? ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", scriptPath, "-OutputDirectory", outputDir, "-ApplicationLogs", electron.app.getPath("logs"), "-HookLogs", path.join(require("node:os").homedir(), ".flux", "logs")]
+        : [scriptPath, "-o", outputDir];
       const { stdout } = await new Promise((resolve, reject) => {
-        child_process.execFile("/bin/bash", [scriptPath, "-o", outputDir], { timeout: 12e4, env, maxBuffer: 10 * 1024 * 1024 }, (err, stdout2, stderr) => {
+        child_process.execFile(executable, args, { timeout: 12e4, env, windowsHide: true, maxBuffer: 10 * 1024 * 1024 }, (err, stdout2, stderr) => {
           if (err) {
             const detail = (stderr || "") + (stdout2 ? `
   [stdout tail] ${stdout2.slice(-500)}` : "");
@@ -504,7 +542,7 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
           resolve({ stdout: stdout2, stderr });
         });
       });
-      const match = stdout.match(/输出文件:\s*(.+\.zip)/);
+      const match = isWindows ? stdout.match(/OUTPUT_FILE:(.+\.zip)/) : stdout.match(/输出文件:\s*(.+\.zip)/);
       const zipPath = match ? match[1].trim() : "";
       if (zipPath) {
         electron.shell.showItemInFolder(zipPath);

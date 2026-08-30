@@ -3,6 +3,7 @@
 const { EventEmitter } = require("node:events");
 const fs = require("node:fs");
 const os = require("node:os");
+const path = require("node:path");
 const { normalizeTerminalSize, resolveTerminalCwd } = require("../shared/terminal-state.cjs");
 
 const MAX_TERMINAL_INPUT = 64 * 1024;
@@ -13,13 +14,33 @@ function defaultSpawnPty(shell, args, options) {
   return require("node-pty").spawn(shell, args, options);
 }
 
+function resolveTerminalShell({ platform = process.platform, requestedShell = "", env = process.env, pathExists = fs.existsSync } = {}) {
+  if (platform === "win32") {
+    const candidates = [
+      requestedShell,
+      env.WORKISLAND_TERMINAL_SHELL,
+      env.SystemRoot ? path.win32.join(env.SystemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe") : "",
+      env.ComSpec
+    ].filter(Boolean);
+    const shell = candidates.find((candidate) => path.win32.isAbsolute(candidate) && pathExists(candidate)) || "powershell.exe";
+    return { shell, args: /(?:power)?shell(?:\.exe)?$/i.test(shell) ? ["-NoLogo"] : [] };
+  }
+  const shell = requestedShell && requestedShell.startsWith("/") && pathExists(requestedShell)
+    ? requestedShell
+    : env.SHELL && env.SHELL.startsWith("/") && pathExists(env.SHELL)
+      ? env.SHELL
+      : "/bin/zsh";
+  return { shell, args: ["-l"] };
+}
+
 class TerminalService extends EventEmitter {
-  constructor({ spawnPty = defaultSpawnPty, homeDir = os.homedir(), pathExists = fs.existsSync, env = process.env } = {}) {
+  constructor({ spawnPty = defaultSpawnPty, homeDir = os.homedir(), pathExists = fs.existsSync, env = process.env, platform = process.platform } = {}) {
     super();
     this.spawnPty = spawnPty;
     this.homeDir = homeDir;
     this.pathExists = pathExists;
     this.env = { ...env };
+    this.platform = platform;
     this.enabled = true;
     this.panelVisible = false;
     this.pty = null;
@@ -33,12 +54,8 @@ class TerminalService extends EventEmitter {
     const resolvedCwd = cwd && this.pathExists(cwd)
       ? cwd
       : resolveTerminalCwd({ projectCwd, customCwd, homeDir: this.homeDir, mode: cwdMode, pathExists: this.pathExists });
-    const resolvedShell = shell && shell.startsWith("/") && this.pathExists(shell)
-      ? shell
-      : this.env.SHELL && this.env.SHELL.startsWith("/") && this.pathExists(this.env.SHELL)
-        ? this.env.SHELL
-        : "/bin/zsh";
-    const child = this.spawnPty(resolvedShell, ["-l"], {
+    const resolved = resolveTerminalShell({ platform: this.platform, requestedShell: shell, env: this.env, pathExists: this.pathExists });
+    const child = this.spawnPty(resolved.shell, resolved.args, {
       name: "xterm-256color",
       cols: 100,
       rows: 28,
@@ -47,7 +64,7 @@ class TerminalService extends EventEmitter {
     });
     this.pty = child;
     this.outputBuffer = "";
-    this.status = { running: true, cwd: resolvedCwd, shell: resolvedShell, exitCode: null };
+    this.status = { running: true, cwd: resolvedCwd, shell: resolved.shell, exitCode: null };
     child.onData?.((data) => {
       const chunk = String(data).slice(0, MAX_OUTPUT_CHUNK);
       this.outputBuffer = `${this.outputBuffer}${chunk}`.slice(-MAX_RETAINED_OUTPUT);
@@ -99,4 +116,4 @@ class TerminalService extends EventEmitter {
   dispose() { this.stop(); }
 }
 
-module.exports = { MAX_TERMINAL_INPUT, TerminalService };
+module.exports = { MAX_TERMINAL_INPUT, resolveTerminalShell, TerminalService };

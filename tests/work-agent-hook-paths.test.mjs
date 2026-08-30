@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { test } from "node:test";
+import path from "node:path";
 
 const require = createRequire(import.meta.url);
 const Module = require("node:module");
@@ -20,8 +21,8 @@ const {
 Module._load = originalLoad;
 
 test("WorkBuddy and CodeBuddy use separate config files and hook sources", () => {
-  assert.equal(getWorkBuddyConfigPath("/tmp/home"), "/tmp/home/.workbuddy/settings.json");
-  assert.equal(getCodeBuddyConfigPath("/tmp/home"), "/tmp/home/.codebuddy/settings.json");
+  assert.equal(getWorkBuddyConfigPath("/tmp/home"), path.join("/tmp/home", ".workbuddy", "settings.json"));
+  assert.equal(getCodeBuddyConfigPath("/tmp/home"), path.join("/tmp/home", ".codebuddy", "settings.json"));
   assert.equal(new WorkBuddyHookManager().agentId, "workbuddy");
   assert.equal(new CodeBuddyHookManager().agentId, "codebuddy");
 });

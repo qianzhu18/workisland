@@ -245,6 +245,12 @@ function buildCommand$2() {
     return buildDevHooksCliCommand("hermes");
   }
   const bin = getHookBinaryPath$3();
+  if (process.platform === "win32") {
+    return wrapWithInstallCheck(
+      process.execPath,
+      `ELECTRON_RUN_AS_NODE=1 ${shellQuote(process.execPath)} ${shellQuote(bin)} --source hermes`
+    );
+  }
   return `/bin/sh -c '[ -e "$1" ] || exit 0; ELECTRON_RUN_AS_NODE=1 exec "$1" "$2" --source hermes' sh ${shellQuote(process.execPath)} ${shellQuote(bin)}`;
 }
 async function readJson(filePath) {

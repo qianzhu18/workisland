@@ -72,7 +72,8 @@ const required = [
   "resources/pet-sprites/qianxue.webp",
   "resources/icon.png",
   "resources/icon.icns",
-  "resources/scripts/collect-logs.sh"
+  "resources/scripts/collect-logs.sh",
+  "resources/scripts/collect-logs.ps1"
 ];
 
 const missing = required.filter((file) => !existsSync(join(root, file)));

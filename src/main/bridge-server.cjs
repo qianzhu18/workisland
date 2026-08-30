@@ -113,6 +113,11 @@ function createBridgeServerClass({
           const probe = net.createConnection({ path: this.socketPath }, () => {
             probe.end();
             log.error("[BridgeServer]", "another instance is already listening — giving up");
+            try {
+              require("electron").app.quit();
+            } catch {
+              // 非 Electron 环境（单元测试）无需处理
+            }
           });
           probe.on("error", () => {
             try {

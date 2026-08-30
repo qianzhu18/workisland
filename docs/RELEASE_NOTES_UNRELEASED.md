@@ -1,49 +1,37 @@
-# WorkIsland v3.1.0 Release Notes（发布候选）
+# WorkIsland v3.2.0-rc.1 Release Notes（macOS 候选）
 
-状态：`release-candidate — 尚未打 Tag、尚未创建 GitHub Release`
+状态：`release-candidate — 仅可生成本机未签名验证包；尚未打 Tag、尚未创建 GitHub Release`
 
-本文件登记从 `v3.0.0` 以来进入 `main` 的用户可见变化。对外发布前必须完成 `npm run check`、`npm run release:check -- --tag v3.1.0`、macOS arm64 DMG 抽查和 GitHub Actions 发布门禁。
+这是 macOS Apple Silicon 的 `v3.2.0-rc.1` 候选版本。它延续 macOS `v3.x` 正式版本线；Windows `v1.0.0-alpha.*` 为独立内测线，不包含在本版本或本次 DMG 中。
 
-完整历史见仓库根目录的 [`CHANGELOG.md`](../CHANGELOG.md)，官网版本页见 [WorkIsland 更新日志](https://workisland.yanglaishe.cn/changelog/)。
+完整历史见仓库根目录的 [`CHANGELOG.md`](../CHANGELOG.md)，版本范围、验收与回滚见 [PRD-011](./product/prd/PRD-011-v3.2.0-macOS-Template-Appearance-Release.md)。
 
 ## 本版本范围
 
-### Agent Core 与状态可靠性
+### 外观模板与恢复
 
-- Codex 转录 watcher 的开始、完成和错误事件现在可以触发对应声音。
-- Hook 与转录双通道使用短窗口去重，避免同一会话重复播放声音。
-- 继续保留“没有可靠事件就不伪造状态”的本地优先原则。
+- 新增外观模板系统。官方小宇（守岛人）是可恢复默认模板；五个会话状态 SVG 在运行时从校验过的模板包加载，损坏时回退官方包。
+- 模板包包含清单、文件哈希、许可证与 SVG 安检；安装采用事务化写入，不完整或篡改内容不会替换现有配置。
+- 设置 → 外观新增「外观模板」区块，可选择、检查和恢复模板，无需使用终端。
 
-### Agent-aware Workstation
+### 本机 AI 外观自定义
 
-- Media 工作台支持同步歌词、当前行高亮和专辑封面动效。
-- Shelf 持久化安全的本地文件引用，Clipboard 提供本地历史，Terminal 提供持久化本地 PTY 工作区。
-- Performance 支持按 CPU 或内存浏览进程，媒体状态显示来源应用图标。
-- 工具箱的展开、收起和设置导航生命周期统一，修复点击 Shelf 文件后 Island 卡死的问题。
-
-### 桌面陪伴
-
-- Echo 桌宠在空闲时轮换情绪并执行轻量动作。
-- 任务完成、需要处理、睡醒、拖拽和点击都会有对应转场反馈。
-- Echo 模式下支持受节流的视线跟随；其他桌宠素材不受影响。
-
-### Distribution
-
-- 增加根目录 `CHANGELOG.md` 与官网 `/changelog/`，集中展示用户可读的版本变化。
-- README、官网首页和产品手册均提供更新日志入口。
+- 本机 Agent 可使用 `workisland-cli` 预览并在明确确认后修改 Island 背景、透明度、渐变、背景图和桌宠精灵图。
+- `workisland-cli template` 支持检查、预览、应用、重置、导出、下载与受限发布；GitHub 下载使用域名白名单与双重哈希校验。
+- 所有控制通过本机 Unix socket 完成，不开放网络端口；详细边界见 [AI Customization](./AI-CUSTOMIZATION.md)。
 
 ## 发布前验收
 
-- [ ] `package.json` 与 `package-lock.json` 版本均为 `3.1.0`。
+- [ ] `package.json` 与 `package-lock.json` 均为 `3.2.0-rc.1`。
 - [ ] `npm run check` 通过。
-- [ ] `npm run release:check -- --tag v3.1.0` 通过。
-- [ ] `npm run package:mac` 成功生成 Apple Silicon DMG；抽查 asar 中的歌词、音频策略、工具箱和桌宠资源。
-- [ ] DMG 完成签名、公证、Staple、Gatekeeper 校验，并生成 `SHA256SUMS.txt`。
-- [ ] GitHub Release 为稳定版，DMG 和 SHA-256 校验文件可公开下载。
-- [ ] 官网首页、手册、更新日志和下载链接可访问。
+- [ ] `npm run release:check -- --tag v3.2.0-rc.1` 通过。
+- [ ] Apple Silicon 本机生成未签名 DMG，并完成新装、升级、模板切换、恢复、CLI 确认和首个 Agent 事件走查。
+- [ ] `release.yml` 已验证：macOS 仅处理非 Alpha Tag；Windows 仅处理 Alpha Tag。
+- [ ] RC 仅标记为 GitHub Pre-release；通过验收后才以 `v3.2.0` 推送稳定版。
 
 ## 已知限制与回滚
 
-- 本版本仍只发布 macOS Apple Silicon 稳定包；Windows Alpha 线不随本版本发布。
-- #36 dock 附件、#38 token 统计和 #42 Windows Draft 不在本版本范围内，等待各自的冲突/验证/产品决策闭环。
-- 如果发现 P0 问题，发布新的修复版本，不覆盖 `v3.1.0` Tag 或替换既有 DMG。
+- 本机生成的未签名 DMG 只供受邀验证，可能被 Gatekeeper 拦截；不得当作公开安装包分发。
+- 模板远程下载仅支持受限 GitHub 静态目录；不会执行模板中携带的脚本。
+- Windows 11 x64 Alpha 的限制、SmartScreen 指引和验收独立记录在 PRD-010。
+- 出现 P0 时撤回 RC 下载入口或发布新的 `v3.2.0-rc.N` / `v3.2.1`，绝不覆盖既有 Tag。

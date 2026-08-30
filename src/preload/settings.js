@@ -2,6 +2,7 @@
 const electron = require("electron");
 const ipc = require("../../src/shared/ipc.cjs");
 electron.contextBridge.exposeInMainWorld("settingsApi", {
+  platform: process.platform,
   getSettings: () => electron.ipcRenderer.invoke(ipc.IPC.SETTINGS_GET),
   getTelemetryStatus: () => electron.ipcRenderer.invoke(ipc.IPC.SETTINGS_GET_TELEMETRY_STATUS),
   getLocale: () => electron.ipcRenderer.invoke(ipc.IPC.GET_LOCALE),

@@ -15,7 +15,9 @@ function discoverRunningDshProfiles(psOutput) {
     const name = profileMatch[1].trim();
     const homeDir = homeMatch[1].trim();
     if (!name || !homeDir) continue;
-    const profileDir = path.join(homeDir, "profiles", name);
+    const profileDir = homeDir.startsWith("/")
+      ? path.posix.join(homeDir, "profiles", name)
+      : path.join(homeDir, "profiles", name);
     if (!profiles.has(profileDir)) {
       profiles.set(profileDir, {
         pid: Number(pidMatch[1]),

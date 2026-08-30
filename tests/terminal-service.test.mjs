@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 import test from "node:test";
-import { TerminalService } from "../src/main/terminal-service.cjs";
+import { resolveTerminalShell, TerminalService } from "../src/main/terminal-service.cjs";
 import { normalizeSavedCommand, normalizeTerminalSize, resolveRecentProjectCwd, resolveTerminalCommand, resolveTerminalCwd } from "../src/shared/terminal-state.cjs";
 
 function fakePty() {
@@ -66,4 +66,13 @@ test("terminal chooses the most recently active Agent project with a real direct
   ];
   assert.equal(resolveRecentProjectCwd(sessions, value => value === "/old" || value === "/latest"), "/latest");
   assert.equal(resolveRecentProjectCwd([], () => true), "");
+});
+
+test("terminal selects Windows PowerShell and its native startup arguments", () => {
+  const powerShell = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe";
+  assert.deepEqual(resolveTerminalShell({
+    platform: "win32",
+    env: { SystemRoot: "C:\\Windows", ComSpec: "C:\\Windows\\System32\\cmd.exe" },
+    pathExists: (candidate) => candidate === powerShell
+  }), { shell: powerShell, args: ["-NoLogo"] });
 });
