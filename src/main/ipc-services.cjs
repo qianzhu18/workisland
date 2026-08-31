@@ -259,6 +259,18 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
     electron.ipcMain.handle(IPC.SETTINGS_GET_TELEMETRY_STATUS, () => {
       return coordinator.getTelemetryStatus();
     });
+    electron.ipcMain.handle(IPC.SETTINGS_GET_AGENT_CONTROL_STATUS, () => {
+      return coordinator.getAgentControlStatus();
+    });
+    electron.ipcMain.handle(IPC.SETTINGS_CONNECT_AGENT_CONTROL_CLIENT, (_event, { clientId } = {}) => {
+      return coordinator.connectAgentControlClient(clientId);
+    });
+    electron.ipcMain.handle(IPC.SETTINGS_DISCONNECT_AGENT_CONTROL_CLIENT, (_event, { clientId } = {}) => {
+      return coordinator.disconnectAgentControlClient(clientId);
+    });
+    electron.ipcMain.handle(IPC.SETTINGS_GET_AGENT_CONTROL_MANUAL_CONFIG, (_event, { clientId } = {}) => {
+      return coordinator.getAgentControlManualConfig(clientId);
+    });
     electron.ipcMain.handle(IPC.APP_CHECK_FOR_UPDATES, () => checkForUpdates({ force: true, notify: false }));
     electron.ipcMain.handle(IPC.GET_LOCALE, () => {
       return coordinator.getSettings().locale ?? "zh";

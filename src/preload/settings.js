@@ -58,6 +58,10 @@ electron.contextBridge.exposeInMainWorld("settingsApi", {
     electron.ipcRenderer.on(ipc.IPC.SETTINGS_SHORTCUT_STATUS, (_event, status) => cb(status));
   },
   getShortcutStatus: () => electron.ipcRenderer.invoke(ipc.IPC.SETTINGS_GET_SHORTCUT_STATUS),
+  getAgentControlStatus: () => electron.ipcRenderer.invoke(ipc.IPC.SETTINGS_GET_AGENT_CONTROL_STATUS),
+  connectAgentControlClient: (clientId) => electron.ipcRenderer.invoke(ipc.IPC.SETTINGS_CONNECT_AGENT_CONTROL_CLIENT, { clientId }),
+  disconnectAgentControlClient: (clientId) => electron.ipcRenderer.invoke(ipc.IPC.SETTINGS_DISCONNECT_AGENT_CONTROL_CLIENT, { clientId }),
+  getAgentControlManualConfig: (clientId) => electron.ipcRenderer.invoke(ipc.IPC.SETTINGS_GET_AGENT_CONTROL_MANUAL_CONFIG, { clientId }),
   collectLogs: () => electron.ipcRenderer.invoke(ipc.IPC.COLLECT_LOGS),
   getStatsSnapshot: (timeRange) => electron.ipcRenderer.invoke(ipc.IPC.STATS_GET_SNAPSHOT, { timeRange })
 });

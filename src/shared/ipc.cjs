@@ -138,6 +138,10 @@ const IPC = Object.freeze({
   SETTINGS_COPY_IMAGE_DATA_URL_TO_CLIPBOARD: "settings:copy-image-data-url-to-clipboard",
   SETTINGS_SHORTCUT_STATUS: "settings:shortcut-status",
   SETTINGS_GET_SHORTCUT_STATUS: "settings:get-shortcut-status",
+  SETTINGS_GET_AGENT_CONTROL_STATUS: "settings:get-agent-control-status",
+  SETTINGS_CONNECT_AGENT_CONTROL_CLIENT: "settings:connect-agent-control-client",
+  SETTINGS_DISCONNECT_AGENT_CONTROL_CLIENT: "settings:disconnect-agent-control-client",
+  SETTINGS_GET_AGENT_CONTROL_MANUAL_CONFIG: "settings:get-agent-control-manual-config",
 
   GET_LOCALE: "locale:get",
   SET_LOCALE: "locale:set",

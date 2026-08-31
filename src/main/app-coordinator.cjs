@@ -39,6 +39,7 @@ const { resolveRecentProjectCwd, resolveTerminalCommand } = require("../shared/t
 const { listCodexPets } = require("./codex-pet.cjs");
 const { LocalControlAudit } = require("./local-control-audit.cjs");
 const { LocalControlService } = require("./local-control-service.cjs");
+const { CodexMcpConfigManager } = require("./mcp-client-config.cjs");
 
 function createElectronClipboardAdapter() {
   return {
@@ -126,6 +127,8 @@ function createAppCoordinatorClass({
     terminalService;
     processMonitor;
     localControlService;
+    localControlAudit;
+    mcpClientConfig;
     onSettingsChangeCallback = null;
     reconcileTimer = null;
     islandHiddenForFullscreen = false;
@@ -245,8 +248,12 @@ function createAppCoordinatorClass({
           log.info(`[AppCoordinator] switching display mode: ${from} -> ${to}`);
         }
       });
-      const localControlAudit = new LocalControlAudit({
+      this.localControlAudit = new LocalControlAudit({
         filePath: path.join(userDataPath, "local-agent-control-activity.json")
+      });
+      this.mcpClientConfig = new CodexMcpConfigManager({
+        command: process.execPath,
+        serverPath: path.join(electron.app.getAppPath(), "src", "island", "workisland-mcp", "index.mjs")
       });
       this.localControlService = new LocalControlService({
         getSettings: () => this.getSettings(),
@@ -257,7 +264,7 @@ function createAppCoordinatorClass({
         openSettingsTab: (section) => this.openSettingsTab(section),
         setDisplaySurface: (surface) => this.setDisplaySurface(surface),
         getProductState: () => this.getLocalControlProductState(),
-        audit: localControlAudit
+        audit: this.localControlAudit
       });
       initSoundDirs();
       this.bridge = new BridgeServer({
@@ -972,6 +979,29 @@ function createAppCoordinatorClass({
     }
     getDisplayMode() {
       return this.petMode.isActive ? "pet" : "island";
+    }
+    getAgentControlStatus() {
+      const activity = this.localControlAudit.list();
+      return {
+        enabled: this.settings.localAgentControlEnabled === true,
+        client: this.mcpClientConfig.status(activity),
+        activity: activity.slice(-20).reverse()
+      };
+    }
+    connectAgentControlClient(clientId) {
+      if (clientId !== "codex") throw Object.assign(new Error("Unsupported MCP client."), { code: "CLIENT_NOT_SUPPORTED" });
+      if (this.settings.localAgentControlEnabled !== true) {
+        throw Object.assign(new Error("请先开启“允许智能体控制 WorkIsland”。"), { code: "LOCAL_CONTROL_DISABLED" });
+      }
+      return this.mcpClientConfig.connect();
+    }
+    disconnectAgentControlClient(clientId) {
+      if (clientId !== "codex") throw Object.assign(new Error("Unsupported MCP client."), { code: "CLIENT_NOT_SUPPORTED" });
+      return this.mcpClientConfig.disconnect();
+    }
+    getAgentControlManualConfig(clientId) {
+      if (clientId !== "codex") throw Object.assign(new Error("Unsupported MCP client."), { code: "CLIENT_NOT_SUPPORTED" });
+      return this.mcpClientConfig.manualConfiguration();
     }
     getInstalledPetIds() {
       const ids = new Set([
