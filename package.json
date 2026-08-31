@@ -6,7 +6,8 @@
   "private": true,
   "main": "./src/main/index.cjs",
   "bin": {
-    "workisland": "src/island/workisland-cli/index.cjs"
+    "workisland": "src/island/workisland-cli/index.cjs",
+    "workisland-mcp": "src/island/workisland-mcp/index.mjs"
   },
   "author": "WorkIsland contributors",
   "license": "Apache-2.0",
@@ -47,12 +48,15 @@
   "dependencies": {
     "@electron-toolkit/utils": "4.0.0",
     "@iarna/toml": "2.2.5",
+    "@modelcontextprotocol/server": "^2.0.0",
     "@xterm/xterm": "6.0.0",
     "electron-log": "5.4.4",
     "js-yaml": "4.3.1",
-    "node-pty": "1.1.0"
+    "node-pty": "1.1.0",
+    "zod": "^4.5.4"
   },
   "devDependencies": {
+    "@modelcontextprotocol/client": "^2.0.0",
     "electron": "43.3.0",
     "electron-builder": "^26.15.3",
     "ws": "^8.21.2"
@@ -138,7 +142,10 @@
       "title": "WorkIsland"
     },
     "win": {
-      "target": ["nsis", "portable"],
+      "target": [
+        "nsis",
+        "portable"
+      ],
       "icon": "resources/icon.ico"
     },
     "nsis": {
