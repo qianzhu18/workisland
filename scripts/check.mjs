@@ -17,6 +17,8 @@ const required = [
   "src/main/session-policy.cjs",
   "src/main/external-url-policy.cjs",
   "src/main/update-service.cjs",
+  "src/main/local-control-service.cjs",
+  "src/main/settings-change-presenter.cjs",
   "src/main/index.cjs",
   "src/preload/island.js",
   "src/preload/settings.js",
@@ -28,6 +30,7 @@ const required = [
   "src/renderer/island/session-model.mjs",
   "src/renderer/island/components/IslandPanel.js",
   "src/renderer/island/components/IslandPanel.css",
+  "src/renderer/island/components/SettingsChangeCard.js",
   "src/renderer/island/assets/status/running.svg",
   "src/renderer/island/assets/status/approval.svg",
   "src/renderer/island/assets/status/complete.svg",
@@ -57,7 +60,11 @@ const required = [
   "resources/icon.png",
   "resources/icon.icns",
   "resources/scripts/collect-logs.sh",
-  "resources/scripts/collect-logs.ps1"
+  "resources/scripts/collect-logs.ps1",
+  "src/island/workisland-cli/index.cjs",
+  "src/island/workisland-mcp/index.mjs",
+  "src/island/workisland-mcp/tools.mjs",
+  "docs/local-agent-control.md"
 ];
 
 const missing = required.filter((file) => !existsSync(join(root, file)));
@@ -99,6 +106,22 @@ const forbiddenDeclared = declaredDependencies.filter((name) => forbiddenDepende
 if (forbiddenDeclared.length) {
   console.error(`Out-of-scope dependencies remain in package.json: ${forbiddenDeclared.join(", ")}`);
   process.exit(1);
+}
+
+const mcpDirectory = join(root, "src/island/workisland-mcp");
+const mcpSource = collectJavaScript(mcpDirectory).map((file) => readFileSync(file, "utf8")).join("\n");
+const forbiddenMcpPatterns = [
+  [/from ["']electron["']|require\(["']electron["']\)/, "Electron access"],
+  [/node:child_process/, "child process execution"],
+  [/createServer\s*\(|\.listen\s*\(/, "network listener"],
+  [/settings\.json|config\.json/, "raw settings file access"],
+  [/resolvePermission|answerQuestion|deleteSession|runSavedTerminalCommand/, "privileged session action"]
+];
+for (const [pattern, label] of forbiddenMcpPatterns) {
+  if (pattern.test(mcpSource)) {
+    console.error(`The MCP translation layer contains forbidden ${label}.`);
+    process.exit(1);
+  }
 }
 
 for (const file of targets) {
