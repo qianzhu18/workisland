@@ -31,7 +31,7 @@ const AGENT_ICON_URLS = Object.freeze({
   "plugin:pi": "../assets/brands/pi.svg"
 });
 const VERIFY_ON_REAL_EVENT_AGENT_IDS = new Set(["dsh", "trae"]);
-const state = { settings: null, statuses: new Map(), displays: [], codexPets: [], shareProviders: [], activeTab: "general", busy: new Set(), expandedSettingDetails: new Set(), latestUpdate: null, telemetryStatus: null, commandDraft: { name: "", command: "" } };
+const state = { settings: null, statuses: new Map(), displays: [], codexPets: [], shareProviders: [], activeTab: "general", busy: new Set(), expandedSettingDetails: new Set(), latestUpdate: null, telemetryStatus: null, agentControl: null, agentControlManual: null, commandDraft: { name: "", command: "" } };
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -152,6 +152,36 @@ async function loadCodexPets() {
     state.codexPets = (await api.getCodexPets?.()) || [];
   } catch {
     state.codexPets = [];
+  }
+}
+
+async function loadAgentControlStatus(render = false) {
+  try {
+    const [status, manual] = await Promise.all([
+      api.getAgentControlStatus?.(),
+      api.getAgentControlManualConfig?.("codex")
+    ]);
+    state.agentControl = status || { enabled: false, client: null, activity: [] };
+    state.agentControlManual = manual || null;
+  } catch (error) {
+    state.agentControl = {
+      enabled: state.settings?.localAgentControlEnabled === true,
+      client: null,
+      activity: [],
+      error: error?.message || "无法读取智能体控制状态"
+    };
+  }
+  if (render && state.activeTab === "agent-control") renderPage();
+}
+
+async function copyAgentControlConfig() {
+  const text = state.agentControlManual?.toml || "";
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast("配置已复制");
+  } catch {
+    showToast("无法复制，请手动选择配置文本", true);
   }
 }
 
@@ -542,6 +572,104 @@ function agentsPage() {
   return root;
 }
 
+async function changeAgentControlClient(connect, action) {
+  if (state.busy.has("agent-control-codex")) return;
+  state.busy.add("agent-control-codex");
+  action.disabled = true;
+  action.textContent = connect ? "连接中…" : "移除中…";
+  try {
+    if (connect) await api.connectAgentControlClient("codex");
+    else await api.disconnectAgentControlClient("codex");
+    await loadAgentControlStatus();
+    renderPage();
+    showToast(connect ? "Codex 配置已写入；重开会话后即可调用" : "已移除 WorkIsland MCP 配置");
+  } catch (error) {
+    state.agentControl = { ...(state.agentControl || {}), error: error?.message || "配置失败" };
+    renderPage();
+    showToast(error?.message || "配置失败", true);
+  } finally {
+    state.busy.delete("agent-control-codex");
+  }
+}
+
+function agentControlPage() {
+  const root = document.createDocumentFragment();
+  const control = state.agentControl || {
+    enabled: state.settings.localAgentControlEnabled === true,
+    client: null,
+    activity: []
+  };
+  const enabled = state.settings.localAgentControlEnabled === true;
+  const authorization = section("智能体控制", "默认关闭。开启后，已配置的本机 MCP 客户端可以调用 WorkIsland 明确开放的安全工具。");
+  authorization.append(row(
+    "允许智能体控制 WorkIsland",
+    "这是总开关；仅开启它不会自动连接任何智能体。关闭后，已经配置的客户端也会立即被拒绝。",
+    toggle(enabled, async value => {
+      await save({ localAgentControlEnabled: value });
+      await loadAgentControlStatus();
+      renderPage();
+    }, "允许智能体控制 WorkIsland")
+  ));
+
+  const clientSection = section("连接本机智能体", "连接会备份 Codex 配置，添加 WorkIsland 条目，并开启当前 Codex 版本加载本机 MCP 所需的兼容开关。配置成功不等于已经调用成功。");
+  const client = control.client;
+  if (client) {
+    const card = el("div", "agent-control-client");
+    const copy = el("div", "agent-content");
+    const heading = el("div", "agent-heading");
+    const stateText = client.connectionState === "connected"
+      ? "已连接"
+      : client.connectionState === "configured"
+        ? "已配置，等待首次调用"
+        : client.installed ? "已检测，尚未配置" : "未检测到客户端";
+    const badgeClass = client.connectionState === "connected" ? "installed" : client.configured ? "pending" : "missing";
+    heading.append(el("strong", "", client.label || "Codex"), el("span", `status ${badgeClass}`, stateText));
+    copy.append(
+      heading,
+      el("div", "agent-detail", client.configured
+        ? `配置位置：${client.configPath}`
+        : "开启总开关后点击“连接 Codex”；已打开的 Codex 会话需要重开一次才能发现新工具。")
+    );
+    const action = button(client.configured ? "移除" : "连接 Codex", () => changeAgentControlClient(!client.configured, action), client.configured ? "secondary" : "primary");
+    action.disabled = state.busy.has("agent-control-codex") || (!client.configured && (!enabled || !client.installed));
+    card.append(copy, action);
+    clientSection.append(card);
+  } else {
+    clientSection.append(el("div", "agent-control-empty", "正在检测 Codex…"));
+  }
+
+  const manual = section("手动配置", "其他支持本机 stdio MCP 的客户端，可按其说明使用同一命令。WorkIsland 不会自动改动尚未验证的客户端配置。");
+  const configBlock = el("pre", "agent-control-code", state.agentControlManual?.toml || "正在生成配置…");
+  manual.append(configBlock, el("div", "section-actions"));
+  manual.lastElementChild.append(button("复制配置", copyAgentControlConfig));
+
+  const recent = section("最近活动", "只记录客户端、工具名、允许的设置键与结果；不保存提示词、会话内容、路径或终端信息。");
+  const activity = el("div", "agent-control-activity");
+  if (!Array.isArray(control.activity) || control.activity.length === 0) {
+    activity.append(el("div", "agent-control-empty", "还没有 MCP 调用。首次真实调用后，这里会出现记录并显示“已连接”。"));
+  } else {
+    for (const item of control.activity) {
+      const entry = el("div", "agent-control-activity-row");
+      const title = `${item.client || "本机客户端"} · ${item.tool || "调用"}`;
+      const details = [item.result === "success" ? "成功" : item.errorCode || "已拒绝"];
+      if (Array.isArray(item.keys) && item.keys.length) details.push(item.keys.join("、"));
+      if (Number.isFinite(item.timestamp)) details.push(new Date(item.timestamp).toLocaleString());
+      entry.append(el("strong", "", title), el("span", "", details.join(" · ")));
+      activity.append(entry);
+    }
+  }
+  recent.append(activity);
+
+  const errorMessage = state.agentControl?.error || control.error;
+  if (errorMessage) {
+    const error = el("div", "agent-control-error", errorMessage);
+    error.setAttribute("role", "alert");
+    root.append(error);
+  }
+  root.append(authorization, clientSection, manual, recent);
+  return root;
+}
+
 function appearancePage() {
   const root = document.createDocumentFragment();
   const pet = section("桌宠", "桌宠与 Island 使用同一套会话状态，切换不会中断监控。");
@@ -689,7 +817,7 @@ function aboutPage() {
   return root;
 }
 
-const PAGES = { general: generalPage, agents: agentsPage, appearance: appearancePage, sound: soundPage, about: aboutPage };
+const PAGES = { general: generalPage, agents: agentsPage, "agent-control": agentControlPage, appearance: appearancePage, sound: soundPage, about: aboutPage };
 
 function renderPage() {
   const content = document.querySelector("#content");
@@ -712,10 +840,12 @@ async function start() {
   await loadTelemetryStatus();
   await loadDisplays();
   await loadCodexPets();
+  await loadAgentControlStatus();
   document.querySelectorAll(".nav-item").forEach(item => item.addEventListener("click", () => {
     state.activeTab = item.dataset.tab;
     renderPage();
     if (state.activeTab === "agents") refreshAgents().catch(error => showToast(error.message, true));
+    if (state.activeTab === "agent-control") loadAgentControlStatus(true).catch(() => {});
   }));
   api.onNavigateToTab?.(tab => {
     const aliases = { hooks: "agents", pet: "appearance", display: "general" };
@@ -731,6 +861,7 @@ async function start() {
   refreshAgents().catch(() => {});
   setInterval(() => {
     if (state.activeTab === "agents") refreshAgents().catch(() => {});
+    if (state.activeTab === "agent-control") loadAgentControlStatus(true).catch(() => {});
   }, AGENT_STATUS_REFRESH_INTERVAL_MS);
 }
 

@@ -50,7 +50,8 @@ const {
 // one managed PTY session, a renderer-to-main file-drag interaction lock, and
 // privacy-gated lyrics state/cache controls. PRD-015 adds usage summary/insights/
 // export/clear channels for the Usage dashboard.
-assert.equal(Object.keys(IPC).length, 144, "IPC contract changed; review both main and preload consumers");
+// Agent Control adds its settings configuration and reversible Island notice channels.
+assert.equal(Object.keys(IPC).length, 150, "IPC contract changed; review both main and preload consumers");
 assert.equal(new Set(Object.values(IPC)).size, Object.keys(IPC).length, "IPC channels must be unique");
 assert.ok(Object.isFrozen(IPC), "IPC contract must be immutable");
 assert.equal(IPC.PET_DRAG_TO_ISLAND, "pet:drag-to-island");
