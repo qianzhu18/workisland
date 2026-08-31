@@ -38,6 +38,7 @@ test("connect preserves unrelated Codex settings and creates a recoverable backu
     args: ["/Applications/WorkIsland.app/Contents/Resources/app.asar/src/island/workisland-mcp/index.mjs"],
     env: { ELECTRON_RUN_AS_NODE: "1", WORKISLAND_MCP_CLIENT: "Codex" }
   });
+  assert.equal(parsed.features.mcp_2026_07_28, true);
   assert.equal(fs.readFileSync(result.backupPath, "utf8"), original);
   assert.equal(result.configured, true);
   assert.equal(manager.status([]).connectionState, "configured");
@@ -53,11 +54,12 @@ test("reconnecting updates one WorkIsland entry without duplicates", () => {
 });
 
 test("disconnect removes only WorkIsland and keeps other MCP clients", () => {
-  const { configPath, manager } = harness("[mcp_servers.other]\ncommand = \"other\"\n\n[mcp_servers.workisland]\ncommand = \"old\"\n");
+  const { configPath, manager } = harness("[features]\nmcp_2026_07_28 = true\nunrelated = true\n\n[mcp_servers.other]\ncommand = \"other\"\n\n[mcp_servers.workisland]\ncommand = \"old\"\n");
   const result = manager.disconnect();
   const parsed = toml.parse(fs.readFileSync(configPath, "utf8"));
   assert.deepEqual(parsed.mcp_servers.other, { command: "other" });
   assert.equal(parsed.mcp_servers.workisland, undefined);
+  assert.deepEqual(parsed.features, { mcp_2026_07_28: true, unrelated: true });
   assert.equal(result.configured, false);
 });
 
@@ -86,5 +88,5 @@ test("manual configuration contains the same bounded stdio entry", () => {
   assert.match(manual.toml, /\[mcp_servers\.workisland\]/);
   assert.equal(manual.entry.command.includes("WorkIsland.app"), true);
   assert.deepEqual(toml.parse(manual.toml).mcp_servers.workisland, manual.entry);
+  assert.equal(toml.parse(manual.toml).features.mcp_2026_07_28, true);
 });
-

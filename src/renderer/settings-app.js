@@ -611,7 +611,7 @@ function agentControlPage() {
     }, "允许智能体控制 WorkIsland")
   ));
 
-  const clientSection = section("连接本机智能体", "连接会在对应客户端的 MCP 配置中只添加 WorkIsland 条目，并在修改前备份原文件。配置成功不等于已经调用成功。");
+  const clientSection = section("连接本机智能体", "连接会备份 Codex 配置，添加 WorkIsland 条目，并开启当前 Codex 版本加载本机 MCP 所需的兼容开关。配置成功不等于已经调用成功。");
   const client = control.client;
   if (client) {
     const card = el("div", "agent-control-client");

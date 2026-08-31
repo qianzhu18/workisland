@@ -85,6 +85,13 @@ class CodexMcpConfigManager {
   connect() {
     const { text, parsed } = this.#read();
     const backupPath = this.#backup(text);
+    parsed.features = parsed.features && typeof parsed.features === "object"
+      ? parsed.features
+      : {};
+    // Current Codex builds gate user-configured local MCP tools behind this
+    // compatibility flag. Without it, `codex mcp list` shows the server while
+    // fresh agent sessions receive no tools.
+    parsed.features.mcp_2026_07_28 = true;
     parsed.mcp_servers = parsed.mcp_servers && typeof parsed.mcp_servers === "object"
       ? parsed.mcp_servers
       : {};
@@ -130,7 +137,10 @@ class CodexMcpConfigManager {
   }
 
   manualConfiguration() {
-    const document = { mcp_servers: { workisland: this.entry } };
+    const document = {
+      features: { mcp_2026_07_28: true },
+      mcp_servers: { workisland: this.entry }
+    };
     return {
       client: "Codex",
       configPath: this.configPath,

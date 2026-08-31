@@ -7,7 +7,7 @@ WorkIsland 可以把一小组本地功能提供给 Codex 等支持 MCP 的智能
 此功能**默认关闭**。开启需要两个独立步骤：
 
 1. 在 WorkIsland 打开「设置 → 智能体控制」，开启“允许智能体控制 WorkIsland”。
-2. 点击“连接 Codex”。WorkIsland 会先备份 `~/.codex/config.toml`，再只写入 `mcp_servers.workisland`。已有模型、其他 MCP 和其他配置会保留。
+2. 点击“连接 Codex”。WorkIsland 会先备份 `~/.codex/config.toml`，再写入 `mcp_servers.workisland`，并开启当前 Codex 版本加载用户 MCP 所需的 `features.mcp_2026_07_28` 兼容开关。已有模型、其他 MCP 和其他配置会保留。
 
 “已配置，等待首次调用”表示配置文件已写好；只有 Codex 真正成功调用过 WorkIsland 工具后，页面才显示“已连接”。配置后请新建一个 Codex 会话，让客户端重新加载 MCP 列表。Codex 使用本地 stdio MCP 配置，WorkIsland 以 Electron 的 Node 模式启动随应用打包的 `workisland-mcp` 入口。
 
@@ -16,6 +16,9 @@ WorkIsland 可以把一小组本地功能提供给 Codex 等支持 MCP 的智能
 其他支持本地 stdio MCP 的客户端可以使用「智能体控制」页面生成的**手动配置**。不要照抄固定的应用路径：页面展示的是当前安装位置、可直接使用的 command、args 和 env。等价结构如下：
 
 ```toml
+[features]
+mcp_2026_07_28 = true
+
 [mcp_servers.workisland]
 command = "/Applications/WorkIsland.app/Contents/MacOS/WorkIsland"
 args = ["/Applications/WorkIsland.app/Contents/Resources/app.asar/src/island/workisland-mcp/index.mjs"]
@@ -74,6 +77,6 @@ workisland state
 
 ## 移除
 
-在「设置 → 智能体控制」点击“断开 Codex”，WorkIsland 只会移除 `mcp_servers.workisland`，不会删除其他 MCP。然后关闭主开关；正在运行的客户端会从下一次请求开始立即失去权限。最后重启或新建 Codex 会话刷新工具列表。
+在「设置 → 智能体控制」点击“断开 Codex”，WorkIsland 只会移除 `mcp_servers.workisland`，不会删除其他 MCP，也不会替用户关闭可能已被其他 MCP 使用的兼容开关。然后关闭主开关；正在运行的客户端会从下一次请求开始立即失去权限。最后重启或新建 Codex 会话刷新工具列表。
 
 如需手动移除，先备份 `~/.codex/config.toml`，只删除 `[mcp_servers.workisland]` 及其 env 子表。WorkIsland 自动生成的备份文件名包含 `.workisland-backup-<时间戳>`。
