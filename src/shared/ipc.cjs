@@ -81,6 +81,7 @@ const IPC = Object.freeze({
   TERMINAL_RESTART: "terminal:restart",
   TERMINAL_STOP: "terminal:stop",
   TERMINAL_RUN_SAVED_COMMAND: "terminal:run-saved-command",
+  TERMINAL_INTERACTIVE_CHANGED: "terminal:interactive-changed",
 
   SETTINGS_SELECT_DIRECTORY: "settings:select-directory",
 

@@ -311,6 +311,7 @@ electron.contextBridge.exposeInMainWorld("islandBridge", {
   restartTerminal(options = {}) { return electron.ipcRenderer.invoke(ipc.IPC.TERMINAL_RESTART, options); },
   stopTerminal() { return electron.ipcRenderer.invoke(ipc.IPC.TERMINAL_STOP); },
   runSavedTerminalCommand(id) { return electron.ipcRenderer.invoke(ipc.IPC.TERMINAL_RUN_SAVED_COMMAND, { id: String(id || "") }); },
+  setTerminalInteractive(interactive) { electron.ipcRenderer.send(ipc.IPC.TERMINAL_INTERACTIVE_CHANGED, Boolean(interactive)); },
   // Plugin meta：renderer 缓存供 AgentToolBadge 等做 label/badgeColor 兜底。
   getPluginAgentMeta() {
     return electron.ipcRenderer.invoke(ipc.IPC.PLUGIN_AGENT_META);

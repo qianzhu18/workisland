@@ -21,6 +21,7 @@ export function TerminalPanel({ savedCommands = [], onOpenSettings }) {
       scrollback: 5000
     });
     terminal.open(hostRef.current);
+    window.islandBridge?.setTerminalInteractive?.(true);
     terminalRef.current = terminal;
     if (status.recentOutput) terminal.write(status.recentOutput);
     terminal.onData((data) => window.islandBridge.sendTerminalInput(data));
@@ -36,7 +37,7 @@ export function TerminalPanel({ savedCommands = [], onOpenSettings }) {
     observer.observe(hostRef.current);
     const offData = window.islandBridge?.onTerminalData?.((data) => terminal.write(data));
     window.islandBridge.startTerminal().then((next) => { setStatus(next); resize(); });
-    return () => { offData?.(); observer.disconnect(); terminal.dispose(); terminalRef.current = null; };
+    return () => { window.islandBridge?.setTerminalInteractive?.(false); offData?.(); observer.disconnect(); terminal.dispose(); terminalRef.current = null; };
   }, [full]);
   const commands = savedCommands;
   return React.createElement("section", { className: "toolbox-panel terminal-panel", "data-terminal-interactive": full ? "true" : "false" },
