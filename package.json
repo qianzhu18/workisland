@@ -5,6 +5,9 @@
   "description": "macOS 与 Windows 本地 Work Agent 工作状态与注意力路由器",
   "private": true,
   "main": "./src/main/index.cjs",
+  "bin": {
+    "workisland": "src/island/workisland-cli/index.cjs"
+  },
   "author": "WorkIsland contributors",
   "license": "Apache-2.0",
   "keywords": [
