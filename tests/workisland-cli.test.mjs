@@ -6,16 +6,24 @@ import path from "node:path";
 import test from "node:test";
 import { promisify } from "node:util";
 import { createRequire } from "node:module";
+import { fileURLToPath } from "node:url";
 
 const execFileAsync = promisify(execFile);
 const require = createRequire(import.meta.url);
 const { decodeLines, encodeLine } = require("../src/main/bridge-protocol.cjs");
 const packageJson = require("../package.json");
-const cliPath = new URL("../src/island/workisland-cli/index.cjs", import.meta.url).pathname;
+const cliPath = fileURLToPath(new URL("../src/island/workisland-cli/index.cjs", import.meta.url));
+
+function uniqueEndpoint(prefix) {
+  const unique = `${prefix}-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  return process.platform === "win32"
+    ? `\\\\.\\pipe\\${unique}`
+    : path.join(os.tmpdir(), `${unique}.sock`);
+}
 
 async function withFakeWorkIsland(run) {
   const requests = [];
-  const socketPath = path.join(os.tmpdir(), `workisland-cli-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}.sock`);
+  const socketPath = uniqueEndpoint("workisland-cli");
   const server = net.createServer((socket) => {
     socket.write(encodeLine({ type: "hello", hello: { protocolVersion: 1 } }));
     let buffer = Buffer.alloc(0);
@@ -95,7 +103,7 @@ test("usage errors exit 2 and never contact WorkIsland", async () => {
 });
 
 test("WorkIsland errors exit 1 as JSON with a stable code", async () => {
-  const missing = path.join(os.tmpdir(), `workisland-cli-missing-${process.pid}.sock`);
+  const missing = uniqueEndpoint("workisland-cli-missing");
   await assert.rejects(
     invoke(["state"], missing),
     (error) => {

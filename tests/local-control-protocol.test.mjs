@@ -35,7 +35,7 @@ test("line protocol reports malformed and oversized frames without accepting the
   assert.deepEqual(oversized.errors, [{ code: "FRAME_TOO_LARGE" }]);
 });
 
-test("socket directory is private to the current user", () => {
+test("socket directory is private to the current user", { skip: process.platform === "win32" }, () => {
   const home = path.join(os.tmpdir(), `workisland-socket-${process.pid}-${Date.now()}`);
   ensureSocketDir(home, "darwin");
   const mode = require("node:fs").statSync(getSocketDir(home)).mode & 0o777;
@@ -43,7 +43,10 @@ test("socket directory is private to the current user", () => {
 });
 
 test("local control client matches response ids and ignores bridge hello", async (t) => {
-  const socketPath = path.join(os.tmpdir(), `workisland-client-${process.pid}-${Date.now()}.sock`);
+  const unique = `workisland-client-${process.pid}-${Date.now()}`;
+  const socketPath = process.platform === "win32"
+    ? `\\\\.\\pipe\\${unique}`
+    : path.join(os.tmpdir(), `${unique}.sock`);
   const server = net.createServer((socket) => {
     socket.write(encodeLine({ type: "hello", hello: { protocolVersion: 1 } }));
     socket.once("data", (chunk) => {
@@ -66,13 +69,15 @@ test("local control client matches response ids and ignores bridge hello", async
 });
 
 test("local control client returns stable unavailable and timeout errors", async () => {
+  const unique = `does-not-exist-${process.pid}`;
   await assert.rejects(
     requestLocalControl("control.getSettings", {}, {
-      socketPath: path.join(os.tmpdir(), `does-not-exist-${process.pid}.sock`),
+      socketPath: process.platform === "win32"
+        ? `\\\\.\\pipe\\${unique}`
+        : path.join(os.tmpdir(), `${unique}.sock`),
       connectTimeoutMs: 50,
       responseTimeoutMs: 50
     }),
     (error) => error.code === "WORKISLAND_UNAVAILABLE"
   );
 });
-

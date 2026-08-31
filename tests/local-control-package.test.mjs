@@ -12,7 +12,9 @@ test("the packaged app contains executable CLI and MCP entrypoints", () => {
   assert.equal(pkg.bin["workisland-mcp"], "src/island/workisland-mcp/index.mjs");
   for (const entry of Object.values(pkg.bin)) {
     const file = new URL(entry, root);
-    assert.equal(fs.statSync(file).mode & 0o111, 0o111);
+    if (process.platform !== "win32") {
+      assert.equal(fs.statSync(file).mode & 0o111, 0o111);
+    }
     assert.match(fs.readFileSync(file, "utf8"), /^#!\/usr\/bin\/env node/);
   }
   assert.match(pkg.dependencies["@modelcontextprotocol/server"], /^\^2/);

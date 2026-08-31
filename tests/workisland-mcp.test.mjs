@@ -3,6 +3,7 @@ import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import { createRequire } from "node:module";
@@ -10,7 +11,14 @@ import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const { decodeLines, encodeLine } = require("../src/main/bridge-protocol.cjs");
 const packageJson = require("../package.json");
-const serverPath = new URL("../src/island/workisland-mcp/index.mjs", import.meta.url).pathname;
+const serverPath = fileURLToPath(new URL("../src/island/workisland-mcp/index.mjs", import.meta.url));
+
+function uniqueEndpoint(prefix) {
+  const unique = `${prefix}-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  return process.platform === "win32"
+    ? `\\\\.\\pipe\\${unique}`
+    : path.join(os.tmpdir(), `${unique}.sock`);
+}
 
 const EXPECTED_TOOLS = [
   "describe_settings",
@@ -26,7 +34,7 @@ const EXPECTED_TOOLS = [
 
 async function createFakeWorkIsland(t) {
   const requests = [];
-  const socketPath = path.join(os.tmpdir(), `workisland-mcp-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}.sock`);
+  const socketPath = uniqueEndpoint("workisland-mcp");
   const server = net.createServer((socket) => {
     socket.write(encodeLine({ type: "hello", hello: { protocolVersion: 1 } }));
     let buffer = Buffer.alloc(0);
@@ -95,7 +103,7 @@ test("MCP lists the exact safe tool surface and forwards every tool", async (t) 
 });
 
 test("MCP returns an actionable tool error when WorkIsland is unavailable", async (t) => {
-  const missingSocket = path.join(os.tmpdir(), `workisland-mcp-missing-${process.pid}.sock`);
+  const missingSocket = uniqueEndpoint("workisland-mcp-missing");
   const { client } = await connectClient(t, missingSocket);
   const result = await client.callTool({ name: "get_product_state", arguments: {} });
   assert.equal(result.isError, true);
