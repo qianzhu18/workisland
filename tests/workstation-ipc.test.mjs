@@ -26,6 +26,11 @@ test("Island preload exposes narrow media and performance contracts", () => {
   assert.match(popover, /formatProcessMemory/);
   assert.match(popover, /performance-process-list/);
   assert.match(popover, /process\.protected/);
+  assert.match(popover, /performance-process-status/);
+  assert.match(popover, /正在读取进程…/);
+  assert.match(popover, /暂时无法读取进程/);
+  assert.match(popover, /没有可显示的进程/);
+  assert.match(popover, /window\.setTimeout\(\(\) => setHovered\(false\), 350\)/);
   const pill = readFileSync(new URL("../src/renderer/island/components/IslandPill.js", import.meta.url), "utf8");
   assert.match(pill, /media-wave-bar/);
   assert.match(pill, /getNotchMediaLayout/);
@@ -49,4 +54,5 @@ test("Island preload exposes narrow media and performance contracts", () => {
   assert.match(css, /\.media-rail\s*\{[^}]*grid-template-rows:\s*auto minmax\(0,\s*1fr\)/s);
   assert.match(css, /\.lyrics-panel\s*\{[^}]*position:\s*absolute[^}]*bottom:/s);
   assert.match(css, /performance-process-list[^}]*overflow-y:\s*auto/s);
+  assert.match(css, /\.performance-process-status\s*\{/);
 });
