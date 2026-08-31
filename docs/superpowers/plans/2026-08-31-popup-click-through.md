@@ -109,4 +109,3 @@ Expected: `release/` 下生成新的 arm64 DMG，且打包过程通过签名步�
 - [ ] **Step 3: 核对打包内容**
 
 解包构建产物的 `app.asar`，确认同时包含 `ISLAND_INTERACTION_BOUNDS` 与 `setTerminalInteractive`，避免再次出现“源码已修、正式应用仍旧”的交付断层。
-
