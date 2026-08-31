@@ -94,6 +94,18 @@ class LocalControlService {
     }
   }
 
+  async undoFromUser(changeId) {
+    const client = { name: "WorkIsland user" };
+    try {
+      const result = await this.#undoSettingsChange({ changeId }, client);
+      this.#audit("control.undoSettingsChange", client, "success", result);
+      return result;
+    } catch (error) {
+      this.#audit("control.undoSettingsChange", client, "rejected", undefined, error);
+      throw error;
+    }
+  }
+
   #assertEnabled() {
     if (this.dependencies.getSettings().localAgentControlEnabled !== true) {
       throw localControlError("LOCAL_CONTROL_DISABLED", "Enable Agent Control in WorkIsland Settings before using local tools.");

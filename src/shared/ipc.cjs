@@ -30,6 +30,7 @@ const IPC = Object.freeze({
   ISLAND_RESIZE: "island:resize",
   ISLAND_SWITCH_SESSION: "island:switch-session",
   ISLAND_CONFIRM_SESSION: "island:confirm-session",
+  ISLAND_UNDO_SETTINGS_CHANGES: "island:undo-settings-changes",
 
   MEDIA_GET_STATE: "media:get-state",
   MEDIA_STATE_UPDATE: "media:state-update",
@@ -97,6 +98,7 @@ const IPC = Object.freeze({
   PET_PANEL_READY: "pet-panel:ready",
   PET_PANEL_RESIZE: "pet-panel:resize",
   PET_PANEL_SURFACE: "pet-panel:surface",
+  PET_PANEL_COLLAPSE: "pet-panel:collapse",
   PET_SIZE_UPDATE: "pet:size-update",
   PET_TODAY_BURN_UPDATE: "pet:today-burn-update",
   PET_GET_SPRITE_PATH: "pet:get-sprite-path",

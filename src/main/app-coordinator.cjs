@@ -40,6 +40,7 @@ const { listCodexPets } = require("./codex-pet.cjs");
 const { LocalControlAudit } = require("./local-control-audit.cjs");
 const { LocalControlService } = require("./local-control-service.cjs");
 const { CodexMcpConfigManager } = require("./mcp-client-config.cjs");
+const { SettingsChangePresenter } = require("./settings-change-presenter.cjs");
 
 function createElectronClipboardAdapter() {
   return {
@@ -129,6 +130,7 @@ function createAppCoordinatorClass({
     localControlService;
     localControlAudit;
     mcpClientConfig;
+    settingsChangePresenter;
     onSettingsChangeCallback = null;
     reconcileTimer = null;
     islandHiddenForFullscreen = false;
@@ -255,6 +257,10 @@ function createAppCoordinatorClass({
         command: process.execPath,
         serverPath: path.join(electron.app.getAppPath(), "src", "island", "workisland-mcp", "index.mjs")
       });
+      this.settingsChangePresenter = new SettingsChangePresenter({
+        hasAttention: () => this.getSessions().some((session) => requiresAttention(session.phase)),
+        present: (surface) => this.broadcastSurface({ surface, reason: "notification", autoDismiss: true })
+      });
       this.localControlService = new LocalControlService({
         getSettings: () => this.getSettings(),
         updateSettings: (partial, source) => this.updateSettings(partial, source),
@@ -264,6 +270,7 @@ function createAppCoordinatorClass({
         openSettingsTab: (section) => this.openSettingsTab(section),
         setDisplaySurface: (surface) => this.setDisplaySurface(surface),
         getProductState: () => this.getLocalControlProductState(),
+        presentSettingsChange: (notice) => this.settingsChangePresenter.enqueue(notice),
         audit: this.localControlAudit
       });
       initSoundDirs();
@@ -795,6 +802,7 @@ function createAppCoordinatorClass({
         this.saveTimer = null;
       }
       this.settingsRepository.dispose();
+      this.settingsChangePresenter?.dispose();
       this.petMode.dispose();
       if (this.unsubTokenChange) {
         this.unsubTokenChange();
@@ -1002,6 +1010,16 @@ function createAppCoordinatorClass({
     getAgentControlManualConfig(clientId) {
       if (clientId !== "codex") throw Object.assign(new Error("Unsupported MCP client."), { code: "CLIENT_NOT_SUPPORTED" });
       return this.mcpClientConfig.manualConfiguration();
+    }
+    async undoLocalControlChanges(changeIds) {
+      const results = [];
+      for (const changeId of [...changeIds].reverse()) {
+        results.push(await this.localControlService.undoFromUser(changeId));
+      }
+      return { undone: true, results };
+    }
+    collapsePetPanel() {
+      this.petMode.collapsePanel();
     }
     getInstalledPetIds() {
       const ids = new Set([
@@ -1620,7 +1638,7 @@ function createAppCoordinatorClass({
       if (this.petMode.isActive) {
         this.petMode.presentSurface(
           payload.surface,
-          payload.autoDismiss ? this.settings.completionPopupDurationSec * 1e3 : null
+          payload.autoDismiss ? (payload.surface?.autoDismissMs ?? this.settings.completionPopupDurationSec * 1e3) : null
         );
         // A pet is the user's chosen primary surface. Keep the Island passive
         // so one event never creates two competing full-screen interruptions.

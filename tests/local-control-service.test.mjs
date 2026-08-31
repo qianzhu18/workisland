@@ -109,6 +109,20 @@ test("undo restores values only while they still equal the agent-written values"
   assert.equal(harness.getSettings().completionPopupDurationSec, 20);
 });
 
+test("a user can undo an agent change after turning the master switch off", async () => {
+  const harness = createHarness();
+  const changed = await harness.service.execute("control.updateSettings", {
+    changes: { completionPopupDurationSec: 12 }
+  }, { name: "Codex" });
+
+  harness.getSettings().localAgentControlEnabled = false;
+  const result = await harness.service.undoFromUser(changed.changeId);
+
+  assert.equal(result.undone, true);
+  assert.equal(result.client, "WorkIsland user");
+  assert.equal(harness.getSettings().completionPopupDurationSec, 5);
+});
+
 test("safe UI operations are allowlisted", async () => {
   const harness = createHarness();
 
@@ -126,4 +140,3 @@ test("safe UI operations are allowlisted", async () => {
     (error) => error.code === "UNKNOWN_COMMAND"
   );
 });
-
