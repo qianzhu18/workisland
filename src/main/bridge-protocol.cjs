@@ -6,26 +6,37 @@ const path = require("node:path");
 const crypto = require("node:crypto");
 
 const SOCKET_NAME = "bridge.sock";
+const MAX_FRAME_BYTES = 64 * 1024;
 
 function encodeLine(envelope) {
   return Buffer.from(`${JSON.stringify(envelope)}\n`, "utf8");
 }
 
-function decodeLines(buffer) {
+function decodeLines(buffer, maxFrameBytes = MAX_FRAME_BYTES) {
   const messages = [];
+  const errors = [];
   let start = 0;
   for (let index = 0; index < buffer.length; index += 1) {
     if (buffer[index] !== 10) continue;
     const line = buffer.subarray(start, index);
     start = index + 1;
     if (line.length === 0) continue;
+    if (line.length > maxFrameBytes) {
+      errors.push({ code: "FRAME_TOO_LARGE" });
+      continue;
+    }
     try {
       messages.push(JSON.parse(line.toString("utf8")));
     } catch {
-      // A malformed frame is ignored; the next newline starts a fresh frame.
+      errors.push({ code: "MALFORMED_FRAME" });
     }
   }
-  return { messages, remainder: buffer.subarray(start) };
+  let remainder = buffer.subarray(start);
+  if (remainder.length > maxFrameBytes) {
+    errors.push({ code: "FRAME_TOO_LARGE" });
+    remainder = Buffer.alloc(0);
+  }
+  return { messages, remainder, errors };
 }
 
 function getSocketDir(homeDir = os.homedir()) {
@@ -43,7 +54,9 @@ function getSocketPath(env = process.env, homeDir = os.homedir(), platform = pro
 
 function ensureSocketDir(homeDir = os.homedir(), platform = process.platform) {
   if (platform === "win32") return;
-  fs.mkdirSync(getSocketDir(homeDir), { recursive: true });
+  const socketDir = getSocketDir(homeDir);
+  fs.mkdirSync(socketDir, { recursive: true, mode: 0o700 });
+  fs.chmodSync(socketDir, 0o700);
 }
 
 function cleanupSocket(socketPath) {
@@ -57,6 +70,7 @@ function cleanupSocket(socketPath) {
 
 module.exports = {
   SOCKET_NAME,
+  MAX_FRAME_BYTES,
   encodeLine,
   decodeLines,
   getSocketDir,

@@ -36,6 +36,9 @@ const { ShelfService } = require("./shelf-service.cjs");
 const { ClipboardHistoryService } = require("./clipboard-history-service.cjs");
 const { TerminalService } = require("./terminal-service.cjs");
 const { resolveRecentProjectCwd, resolveTerminalCommand } = require("../shared/terminal-state.cjs");
+const { listCodexPets } = require("./codex-pet.cjs");
+const { LocalControlAudit } = require("./local-control-audit.cjs");
+const { LocalControlService } = require("./local-control-service.cjs");
 
 function createElectronClipboardAdapter() {
   return {
@@ -122,6 +125,7 @@ function createAppCoordinatorClass({
     clipboardHistoryService;
     terminalService;
     processMonitor;
+    localControlService;
     onSettingsChangeCallback = null;
     reconcileTimer = null;
     islandHiddenForFullscreen = false;
@@ -241,9 +245,24 @@ function createAppCoordinatorClass({
           log.info(`[AppCoordinator] switching display mode: ${from} -> ${to}`);
         }
       });
+      const localControlAudit = new LocalControlAudit({
+        filePath: path.join(userDataPath, "local-agent-control-activity.json")
+      });
+      this.localControlService = new LocalControlService({
+        getSettings: () => this.getSettings(),
+        updateSettings: (partial, source) => this.updateSettings(partial, source),
+        getInstalledPetIds: () => this.getInstalledPetIds(),
+        getSessions: () => this.getSessions(),
+        jumpToSession: (sessionId) => this.jumpToSession(sessionId),
+        openSettingsTab: (section) => this.openSettingsTab(section),
+        setDisplaySurface: (surface) => this.setDisplaySurface(surface),
+        getProductState: () => this.getLocalControlProductState(),
+        audit: localControlAudit
+      });
       initSoundDirs();
       this.bridge = new BridgeServer({
-        shouldAcceptHook: (source) => this.shouldAcceptHookSource(source)
+        shouldAcceptHook: (source) => this.shouldAcceptHookSource(source),
+        controlService: this.localControlService
       });
       this.hookManagers = /* @__PURE__ */ new Map([
         ["claude", new ClaudeHookManager()],
@@ -953,6 +972,44 @@ function createAppCoordinatorClass({
     }
     getDisplayMode() {
       return this.petMode.isActive ? "pet" : "island";
+    }
+    getInstalledPetIds() {
+      const ids = new Set([
+        this.settings.petSprite,
+        "codex:qianxue",
+        "codex:codex-buddy",
+        "echo:little",
+        "orca.png"
+      ]);
+      for (const pet of listCodexPets()) {
+        if (typeof pet.value === "string") ids.add(pet.value);
+      }
+      return ids;
+    }
+    getLocalControlProductState() {
+      return {
+        displaySurface: this.getDisplayMode(),
+        expanded: false,
+        modules: {
+          media: this.settings.mediaEnabled !== false,
+          performance: this.settings.performanceEnabled !== false,
+          shelf: this.settings.fileShelfEnabled !== false,
+          terminal: this.settings.terminalEnabled !== false,
+          usage: this.settings.showUsageQuota !== false
+        }
+      };
+    }
+    setDisplaySurface(surface) {
+      if (surface === "island") {
+        this.exitPetMode();
+        return;
+      }
+      if (surface !== "pet" || this.petMode.isActive) return;
+      const display = this.displayMgr?.getCurrentTarget()?.display ?? electron.screen.getPrimaryDisplay();
+      this.enterPetMode(
+        display.bounds.x + Math.round(display.bounds.width / 2),
+        display.bounds.y + Math.round(display.bounds.height / 2)
+      );
     }
     isHookToolEnabled(tool) {
       const explicit = this.settings.hookToggles?.[tool];
