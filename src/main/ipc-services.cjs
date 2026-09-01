@@ -20,7 +20,7 @@ const QUICK_SHARE_PROVIDER_TITLES = Object.freeze({
   "Add to Reading List": "加入阅读列表"
 });
 
-function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPasteboardFileURLs = () => [], copyFilesToPasteboard = () => false, getFileIconDataUrl = () => null, getShareProviders = async () => [], shareFilesViaProvider = () => false, showFilesSharePicker = () => false, getAirDropIconDataUrl = () => null, shareFilesViaAirDrop = () => false, checkForUpdates = async () => ({ status: "unavailable" }) }) {
+function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPasteboardFileURLs = () => [], copyFilesToPasteboard = () => false, getFileIconDataUrl = () => null, getShareProviders = async () => [], shareFilesViaProvider = () => false, showFilesSharePicker = () => false, getAirDropIconDataUrl = () => null, shareFilesViaAirDrop = () => false, checkForUpdates = async () => ({ status: "unavailable" }), downloadUpdate = async () => ({ phase: "unavailable" }), installUpdate = async () => ({ phase: "unavailable" }), getUpdateState = async () => ({ phase: "unavailable" }) }) {
   const CUSTOM_ICON_FILE = "custom-icon.png";
   const MAX_CUSTOM_ICON_BYTES = 10 * 1024 * 1024;
   const shelfPreviewCache = new Map();
@@ -260,6 +260,9 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
       return coordinator.getTelemetryStatus();
     });
     electron.ipcMain.handle(IPC.APP_CHECK_FOR_UPDATES, () => checkForUpdates({ force: true, notify: false }));
+    electron.ipcMain.handle(IPC.APP_UPDATE_DOWNLOAD, () => downloadUpdate());
+    electron.ipcMain.handle(IPC.APP_UPDATE_INSTALL, () => installUpdate());
+    electron.ipcMain.handle(IPC.APP_UPDATE_STATE, () => getUpdateState());
     electron.ipcMain.handle(IPC.GET_LOCALE, () => {
       return coordinator.getSettings().locale ?? "zh";
     });

@@ -50,6 +50,14 @@ electron.contextBridge.exposeInMainWorld("settingsApi", {
     electron.ipcRenderer.on(ipc.IPC.APP_UPDATE_AVAILABLE, handler);
     return () => electron.ipcRenderer.removeListener(ipc.IPC.APP_UPDATE_AVAILABLE, handler);
   },
+  getUpdateState: () => electron.ipcRenderer.invoke(ipc.IPC.APP_UPDATE_STATE),
+  downloadUpdate: () => electron.ipcRenderer.invoke(ipc.IPC.APP_UPDATE_DOWNLOAD),
+  installUpdate: () => electron.ipcRenderer.invoke(ipc.IPC.APP_UPDATE_INSTALL),
+  onUpdateState: (cb) => {
+    const handler = (_event, state) => cb(state);
+    electron.ipcRenderer.on(ipc.IPC.APP_UPDATE_STATE, handler);
+    return () => electron.ipcRenderer.removeListener(ipc.IPC.APP_UPDATE_STATE, handler);
+  },
   getAppVersion: () => electron.ipcRenderer.invoke(ipc.IPC.GET_APP_VERSION),
   onNavigateToTab: (cb) => {
     electron.ipcRenderer.on(ipc.IPC.SETTINGS_NAVIGATE_TO_TAB, (_event, tab) => cb(tab));

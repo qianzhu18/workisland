@@ -51,8 +51,13 @@ const {
 // privacy-gated lyrics state/cache controls. PRD-015 adds usage summary/insights/
 // export/clear channels for the Usage dashboard. Full-terminal interaction and
 // visible-panel mouse bounds add two renderer-to-main signals for keyboard
-// priority and transparent click-through.
-assert.equal(Object.keys(IPC).length, 146, "IPC contract changed; review both main and preload consumers");
+// priority and transparent click-through. Auto-update loop (PRD: 自动更新提示、
+// 下载与安装闭环) adds app:update-download, app:update-install and
+// app:update-state to the shared contract.
+assert.equal(Object.keys(IPC).length, 149, "IPC contract changed; review both main and preload consumers");
+assert.equal(IPC.APP_UPDATE_DOWNLOAD, "app:update-download");
+assert.equal(IPC.APP_UPDATE_INSTALL, "app:update-install");
+assert.equal(IPC.APP_UPDATE_STATE, "app:update-state");
 assert.equal(new Set(Object.values(IPC)).size, Object.keys(IPC).length, "IPC channels must be unique");
 assert.ok(Object.isFrozen(IPC), "IPC contract must be immutable");
 assert.equal(IPC.PET_DRAG_TO_ISLAND, "pet:drag-to-island");
