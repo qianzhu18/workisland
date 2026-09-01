@@ -178,9 +178,6 @@ electron.contextBridge.exposeInMainWorld("islandBridge", {
   openSettingsTab(tab) {
     electron.ipcRenderer.send(ipc.IPC.ISLAND_OPEN_SETTINGS_TAB, tab);
   },
-  undoSettingsChanges(changeIds) {
-    return electron.ipcRenderer.invoke(ipc.IPC.ISLAND_UNDO_SETTINGS_CHANGES, { changeIds });
-  },
   toggleSound() {
     electron.ipcRenderer.send(ipc.IPC.ISLAND_TOGGLE_SOUND);
   },

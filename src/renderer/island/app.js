@@ -493,7 +493,7 @@ function IslandApp() {
       clearSurface();
       close();
       window.islandBridge?.surfaceDismissed();
-    }, surface.autoDismissMs ?? autoCollapseDurationMs);
+    }, autoCollapseDurationMs);
     return () => {
       if (autoCollapseTimer.current) clearTimeout(autoCollapseTimer.current);
     };
