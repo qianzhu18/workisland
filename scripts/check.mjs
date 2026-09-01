@@ -18,6 +18,7 @@ const required = [
   "src/main/external-url-policy.cjs",
   "src/main/update-service.cjs",
   "src/main/local-control-service.cjs",
+  "src/main/mcp-diagnostics.cjs",
   "src/main/settings-change-presenter.cjs",
   "src/main/index.cjs",
   "src/preload/island.js",
@@ -64,6 +65,7 @@ const required = [
   "src/island/workisland-cli/index.cjs",
   "src/island/workisland-mcp/index.mjs",
   "src/island/workisland-mcp/tools.mjs",
+  "src/shared/product-capabilities.cjs",
   "docs/local-agent-control.md"
 ];
 

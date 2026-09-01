@@ -39,9 +39,24 @@ test("the MCP adapter cannot bypass the local main-process policy boundary", () 
   assert.match(source, /requestLocalControl/);
 });
 
-test("Agent Control documentation covers setup privacy and removal", () => {
+test("MCP product-assistant documentation covers discovery setup privacy and removal", () => {
   const docs = fs.readFileSync(new URL("docs/local-agent-control.md", root), "utf8");
-  for (const phrase of ["默认关闭", "Codex", "手动配置", "隐私边界", "移除", "LOCAL_CONTROL_DISABLED", "workisland-mcp", "workisland settings"]) {
+  for (const phrase of [
+    "产品功能", "WorkIsland 已观察到", "诊断", "明确要求", "MCP 服务", "倒数第二",
+    "默认关闭", "Codex", "手动配置", "隐私边界", "移除", "LOCAL_CONTROL_DISABLED",
+    "workisland-mcp", "workisland settings", "list_capabilities", "list_active_sessions",
+    "list_integrations", "get_capability", "diagnose"
+  ]) {
     assert.match(docs, new RegExp(phrase));
+  }
+  assert.doesNotMatch(docs, /设置 → 智能体控制|允许智能体控制 WorkIsland|list_visible_sessions/);
+});
+
+test("source contracts include the MCP catalog and diagnostic boundaries", () => {
+  const check = fs.readFileSync(new URL("scripts/check.mjs", root), "utf8");
+  const sourceTest = fs.readFileSync(new URL("scripts/test-source.mjs", root), "utf8");
+  for (const file of ["src/shared/product-capabilities.cjs", "src/main/mcp-diagnostics.cjs"]) {
+    assert.equal(check.includes(file), true, `missing required source contract: ${file}`);
+    assert.equal(sourceTest.includes(file), true, `missing source test import: ${file}`);
   }
 });
