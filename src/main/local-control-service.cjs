@@ -6,6 +6,10 @@ const {
   readControlledSettings,
   validateControlledChanges
 } = require("../shared/settings-control-schema.cjs");
+const {
+  getProductCapability,
+  listProductCapabilities
+} = require("../shared/product-capabilities.cjs");
 
 const SETTINGS_SECTIONS = new Set(["general", "agents", "workstation", "appearance", "sound", "about", "mcp", "agent-control"]);
 const DISPLAY_SURFACES = new Set(["island", "pet"]);
@@ -58,6 +62,12 @@ class LocalControlService {
           break;
         case "control.getSettings":
           result = { settings: readControlledSettings(this.dependencies.getSettings(), params.keys) };
+          break;
+        case "control.listCapabilities":
+          result = { capabilities: listProductCapabilities(this.#getCapabilityContext()) };
+          break;
+        case "control.getCapability":
+          result = { capability: getProductCapability(params?.id, this.#getCapabilityContext()) };
           break;
         case "control.updateSettings":
           result = await this.#updateSettings(params, safe);
@@ -203,6 +213,15 @@ class LocalControlService {
       modules: base.modules && typeof base.modules === "object" ? { ...base.modules } : {},
       visibleSessionCount: sessions.length,
       requiresAttention: sessions.some((session) => session.requiresAttention)
+    };
+  }
+
+  #getCapabilityContext() {
+    const productState = this.dependencies.getProductState?.() || {};
+    return {
+      settings: this.dependencies.getSettings(),
+      platform: this.dependencies.getPlatform?.() || process.platform,
+      modules: productState.modules && typeof productState.modules === "object" ? productState.modules : {}
     };
   }
 

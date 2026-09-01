@@ -27,7 +27,12 @@ function createHarness(overrides = {}) {
     openSettingsTab: (section) => opened.push(section),
     setDisplaySurface: (surface) => surfaces.push(surface),
     presentSettingsChange: (notice) => notices.push(notice),
-    getProductState: () => ({ displaySurface: "island", expanded: false }),
+    getProductState: () => ({
+      displaySurface: "island",
+      expanded: false,
+      modules: { media: true, performance: true, shelf: true, terminal: true, usage: true }
+    }),
+    getPlatform: () => "darwin",
     audit: { append: (record) => audit.push(record), list: () => audit },
     now: () => 1_800_000_000_000,
     randomId: (() => {
@@ -121,6 +126,23 @@ test("a user can undo an agent change after turning the master switch off", asyn
   assert.equal(result.undone, true);
   assert.equal(result.client, "WorkIsland user");
   assert.equal(harness.getSettings().completionPopupDurationSec, 5);
+});
+
+test("product discovery returns the complete safe catalog and one capability detail", async () => {
+  const harness = createHarness();
+  const listed = await harness.service.execute("control.listCapabilities");
+  assert.equal(listed.capabilities.some(({ id }) => id === "clipboard-history"), true);
+  assert.equal(listed.capabilities.some(({ id }) => id === "agent-monitoring"), true);
+  assert.equal(listed.capabilities.find(({ id }) => id === "media").enabled, true);
+
+  const detail = await harness.service.execute("control.getCapability", { id: "performance" });
+  assert.equal(detail.capability.id, "performance");
+  assert.match(detail.capability.howToUse, /悬停/);
+
+  await assert.rejects(
+    harness.service.execute("control.getCapability", { id: "../../secret" }),
+    (error) => error.code === "CAPABILITY_NOT_FOUND" && !error.message.includes("../../secret")
+  );
 });
 
 test("safe UI operations are allowlisted", async () => {
