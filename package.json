@@ -26,6 +26,7 @@
     "setup:electron": "npm install --prefix ./.tools/electron-shell --no-save electron@43.3.0 --cache ./.npm-cache",
     "build:native": "node ./scripts/build-native.mjs",
     "package:mac": "npm run build:assets && npm run build:native && npm run check && electron-builder --mac --arm64 --publish never",
+    "package:mac:intel": "npm run build:assets && WORKISLAND_NATIVE_ARCH=x86_64 npm run build:native && npm run check && electron-builder --mac --x64 --publish never",
     "package:win": "npm run build:assets && npm run check && electron-builder --win nsis portable --x64 --publish never",
     "release:check": "node ./scripts/release-check.mjs",
     "check": "npm run build:renderer && node ./scripts/check.mjs && node ./scripts/test-source.mjs && npm run test:unit",

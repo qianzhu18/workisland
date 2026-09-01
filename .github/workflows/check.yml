@@ -52,6 +52,11 @@ jobs:
           exit 1
       - run: npm run build:assets
       - run: npm run build:native
+      - name: Cross-build native modules for Intel (x64)
+        run: |
+          node scripts/build-native.mjs --arch x64
+          lipo -info resources/bin/panel_fix.node | grep -q x86_64
+          lipo -info resources/mediaremote-adapter/MediaRemoteAdapter.framework/Versions/A/MediaRemoteAdapter | grep -q x86_64
       - run: npm run check
 
   windows-x64:
