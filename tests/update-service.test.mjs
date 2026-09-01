@@ -114,6 +114,13 @@ test("extractChecksum reads sha256sum formatted lines", () => {
   assert.equal(pickChecksumAsset([asset("SHA256SUMS.txt"), asset("WorkIsland-1.0.0-arm64.dmg")]).name, "SHA256SUMS.txt");
 });
 
+test("pickChecksumAsset prefers the per-arch sums file", () => {
+  const assets = [asset("SHA256SUMS.txt"), asset("SHA256SUMS-arm64.txt"), asset("SHA256SUMS-x64.txt")];
+  assert.equal(pickChecksumAsset(assets, "arm64").name, "SHA256SUMS-arm64.txt");
+  assert.equal(pickChecksumAsset(assets, "x64").name, "SHA256SUMS-x64.txt");
+  assert.equal(pickChecksumAsset([asset("SHA256SUMS.txt")], "x64").name, "SHA256SUMS.txt");
+});
+
 function releasePayload() {
   return {
     tag_name: "v1.0.0",

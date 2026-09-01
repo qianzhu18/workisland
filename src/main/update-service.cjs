@@ -106,8 +106,13 @@ function pickDmgAsset(assets, arch = process.arch) {
   return null;
 }
 
-function pickChecksumAsset(assets) {
+function pickChecksumAsset(assets, arch = process.arch) {
   if (!Array.isArray(assets)) return null;
+  // 发布流水线可能按架构拆分校验文件（SHA256SUMS-arm64.txt /
+  // SHA256SUMS-x64.txt）；优先精确匹配，回退到单一的 SHA256SUMS.txt。
+  const token = arch === "x64" ? "x64" : "arm64";
+  const perArch = assets.find((asset) => asset.name.toLowerCase() === `sha256sums-${token}.txt`);
+  if (perArch) return perArch;
   return assets.find((asset) => asset.name.toLowerCase() === CHECKSUM_ASSET_NAME.toLowerCase()) ?? null;
 }
 
@@ -462,7 +467,7 @@ function createUpdateService({
         onProgress: (progress) => publishState({ progress }),
         logger
       });
-      const checksumAsset = pickChecksumAsset(release.assets);
+      const checksumAsset = pickChecksumAsset(release.assets, arch);
       if (checksumAsset) {
         const checksumResponse = await fetchImpl(checksumAsset.url, {
           headers: { Accept: "text/plain", "User-Agent": "WorkIsland-update-check" }
