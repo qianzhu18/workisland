@@ -8,16 +8,19 @@ const preload = fs.readFileSync(new URL("../src/preload/settings.js", import.met
 const ipc = fs.readFileSync(new URL("../src/shared/ipc.cjs", import.meta.url), "utf8");
 const services = fs.readFileSync(new URL("../src/main/ipc-services.cjs", import.meta.url), "utf8");
 
-test("Settings has a dedicated Agent Control navigation page", () => {
-  assert.match(html, /data-tab="agent-control"/);
-  assert.match(html, />智能体控制</);
-  assert.match(renderer, /function agentControlPage\s*\(/);
-  assert.match(renderer, /["']agent-control["']:\s*agentControlPage/);
+test("Settings names MCP directly and places it immediately before About", () => {
+  const tabs = [...html.matchAll(/data-tab="([^"]+)"/g)].map((match) => match[1]);
+  assert.equal(tabs.at(-2), "mcp");
+  assert.equal(tabs.at(-1), "about");
+  assert.match(html, /data-tab="mcp"[^>]*>.*MCP/s);
+  assert.doesNotMatch(html, />智能体控制</);
+  assert.match(renderer, /function mcpPage\s*\(/);
+  assert.match(renderer, /["']mcp["']:\s*mcpPage/);
 });
 
-test("Agent Control explains authorization and configuration as separate steps", () => {
+test("MCP explains authorization and configuration as separate steps", () => {
   for (const copy of [
-    "允许智能体控制 WorkIsland",
+    "启用 WorkIsland MCP",
     "默认关闭",
     "连接 Codex",
     "已配置，等待首次调用",
@@ -27,6 +30,7 @@ test("Agent Control explains authorization and configuration as separate steps",
   ]) {
     assert.equal(renderer.includes(copy), true, `missing UI copy: ${copy}`);
   }
+  assert.equal(renderer.includes("允许智能体控制 WorkIsland"), false);
 });
 
 test("renderer receives only purpose-built Agent Control IPC methods", () => {

@@ -168,10 +168,10 @@ async function loadAgentControlStatus(render = false) {
       enabled: state.settings?.localAgentControlEnabled === true,
       client: null,
       activity: [],
-      error: error?.message || "无法读取智能体控制状态"
+      error: error?.message || "无法读取 MCP 状态"
     };
   }
-  if (render && state.activeTab === "agent-control") renderPage();
+  if (render && state.activeTab === "mcp") renderPage();
 }
 
 async function copyAgentControlConfig() {
@@ -592,7 +592,7 @@ async function changeAgentControlClient(connect, action) {
   }
 }
 
-function agentControlPage() {
+function mcpPage() {
   const root = document.createDocumentFragment();
   const control = state.agentControl || {
     enabled: state.settings.localAgentControlEnabled === true,
@@ -600,15 +600,15 @@ function agentControlPage() {
     activity: []
   };
   const enabled = state.settings.localAgentControlEnabled === true;
-  const authorization = section("智能体控制", "默认关闭。开启后，已配置的本机 MCP 客户端可以调用 WorkIsland 明确开放的安全工具。");
+  const authorization = section("MCP 服务", "默认关闭。开启后，已配置的本机 MCP 客户端可以调用 WorkIsland 明确开放的安全工具。");
   authorization.append(row(
-    "允许智能体控制 WorkIsland",
+    "启用 WorkIsland MCP",
     "这是总开关；仅开启它不会自动连接任何智能体。关闭后，已经配置的客户端也会立即被拒绝。",
     toggle(enabled, async value => {
       await save({ localAgentControlEnabled: value });
       await loadAgentControlStatus();
       renderPage();
-    }, "允许智能体控制 WorkIsland")
+    }, "启用 WorkIsland MCP")
   ));
 
   const clientSection = section("连接本机智能体", "连接会备份 Codex 配置，添加 WorkIsland 条目，并开启当前 Codex 版本加载本机 MCP 所需的兼容开关。配置成功不等于已经调用成功。");
@@ -817,7 +817,7 @@ function aboutPage() {
   return root;
 }
 
-const PAGES = { general: generalPage, agents: agentsPage, "agent-control": agentControlPage, appearance: appearancePage, sound: soundPage, about: aboutPage };
+const PAGES = { general: generalPage, agents: agentsPage, appearance: appearancePage, sound: soundPage, "mcp": mcpPage, about: aboutPage };
 
 function renderPage() {
   const content = document.querySelector("#content");
@@ -845,10 +845,10 @@ async function start() {
     state.activeTab = item.dataset.tab;
     renderPage();
     if (state.activeTab === "agents") refreshAgents().catch(error => showToast(error.message, true));
-    if (state.activeTab === "agent-control") loadAgentControlStatus(true).catch(() => {});
+    if (state.activeTab === "mcp") loadAgentControlStatus(true).catch(() => {});
   }));
   api.onNavigateToTab?.(tab => {
-    const aliases = { hooks: "agents", pet: "appearance", display: "general" };
+    const aliases = { hooks: "agents", pet: "appearance", display: "general", "agent-control": "mcp" };
     const next = aliases[tab] || tab;
     if (PAGES[next]) { state.activeTab = next; renderPage(); }
   });
@@ -861,7 +861,7 @@ async function start() {
   refreshAgents().catch(() => {});
   setInterval(() => {
     if (state.activeTab === "agents") refreshAgents().catch(() => {});
-    if (state.activeTab === "agent-control") loadAgentControlStatus(true).catch(() => {});
+    if (state.activeTab === "mcp") loadAgentControlStatus(true).catch(() => {});
   }, AGENT_STATUS_REFRESH_INTERVAL_MS);
 }
 

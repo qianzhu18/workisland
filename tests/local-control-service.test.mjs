@@ -126,9 +126,10 @@ test("a user can undo an agent change after turning the master switch off", asyn
 test("safe UI operations are allowlisted", async () => {
   const harness = createHarness();
 
+  await harness.service.execute("control.openSettings", { section: "mcp" });
   await harness.service.execute("control.openSettings", { section: "agent-control" });
   await harness.service.execute("control.setDisplaySurface", { surface: "pet" });
-  assert.deepEqual(harness.opened, ["agent-control"]);
+  assert.deepEqual(harness.opened, ["mcp", "mcp"]);
   assert.deepEqual(harness.surfaces, ["pet"]);
 
   await assert.rejects(

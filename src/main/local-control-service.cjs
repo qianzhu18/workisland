@@ -7,7 +7,7 @@ const {
   validateControlledChanges
 } = require("../shared/settings-control-schema.cjs");
 
-const SETTINGS_SECTIONS = new Set(["general", "agents", "workstation", "appearance", "sound", "about", "agent-control"]);
+const SETTINGS_SECTIONS = new Set(["general", "agents", "workstation", "appearance", "sound", "about", "mcp", "agent-control"]);
 const DISPLAY_SURFACES = new Set(["island", "pet"]);
 const ATTENTION_PHASES = new Set(["waitingForApproval", "waitingForAnswer"]);
 const MAX_JOURNAL_ENTRIES = 50;
@@ -207,7 +207,8 @@ class LocalControlService {
   }
 
   async #openSettings(params) {
-    const section = typeof params?.section === "string" ? params.section : "agent-control";
+    const requestedSection = typeof params?.section === "string" ? params.section : "mcp";
+    const section = requestedSection === "agent-control" ? "mcp" : requestedSection;
     if (!SETTINGS_SECTIONS.has(section)) throw localControlError("ACTION_NOT_ALLOWED", "That Settings section is not available to local control.");
     await this.dependencies.openSettingsTab?.(section);
     return { opened: true, section };
