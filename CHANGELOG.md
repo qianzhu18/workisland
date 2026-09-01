@@ -2,10 +2,12 @@
 
 这里记录 WorkIsland 对用户有意义的版本变化。每个版本的安装包与完整说明以 [GitHub Releases](https://github.com/qianzhu18/workisland/releases) 为准；也可以查看[官网更新日志](https://workisland.yanglaishe.cn/changelog/)。
 
-## [3.2.0-rc.1] - 2026-08-30
+## [3.2.0] - 2026-09-01
 
 ### Added
 
+- 应用内更新闭环：灵动岛顶部的 Codex 额度格子右侧新增版本升级入口，点击可查看新版本、下载与当前芯片匹配的官方安装包（含进度与 SHA-256 校验），并在本机完成安装后自动重启；安装失败自动回退为打开镜像手动拖拽。「设置 → 关于 → 更新」提供同一闭环。
+- 更新入口按芯片架构选择安装包：Apple Silicon 下载 `*arm64.dmg`，Intel 芯片下载 `*x64.dmg`；发布流水线同时产出 Apple Silicon 与 Intel 安装包，新增 Intel Mac 兼容性真值表（docs/COMPATIBILITY.md）。
 - 新增外观模板系统：官方小宇（守岛人）成为可恢复的默认模板 `builtin:workisland-xiaoyu`；五个会话状态 SVG 在运行时从校验过的模板包加载，损坏时自动回退官方包；模板含清单/哈希校验、SVG 安检、事务化安装与模块级恢复。
 - 新增 `workisland-cli template` 命令组：`list` / `inspect` / `preview` / `apply` / `reset` / `validate` / `export` / `skill install` / `download` / `publish`，支持 GitHub 静态目录下载（域名白名单 + 双重哈希校验）与经 `gh` 的显式 `--confirm` 发布。
 - 随附 `workisland-template` Agent Skill，提供“检查 → 预览 → 用户确认 → 应用”的模板换装流程，可一键安装到本机 Codex。
@@ -14,10 +16,10 @@
 - 设置 → 外观新增「岛屿背景」：预设主题、自定义颜色、透明度与一键重置；AI 写入的外观同样可见、可改。
 - 过亮背景会自动压暗以保证浅色文字可读；精灵图安装前强制几何校验（Codex V2 1536×2288 / Orca v1 1024×896）。
 
-### Added
+### Fixed
 
-- 应用内更新闭环：灵动岛顶部的 Codex 额度格子右侧新增版本升级入口，点击可查看新版本、下载与当前芯片匹配的官方安装包（含进度与 SHA-256 校验），并在本机完成安装后自动重启；安装失败自动回退为打开镜像手动拖拽。「设置 → 关于 → 更新」提供同一闭环。
-- 更新入口按芯片架构选择安装包：Apple Silicon 下载 `*arm64.dmg`，Intel 芯片下载 `*x64.dmg`，配合 x64 打包目标支持 Intel Mac（详见兼容性说明）。
+- 修复灵动岛弹窗透明区域拦截点击、影响下方应用操作的问题。
+- 修复终端工作台交互场景下控制键（如 Ctrl+C）被弹层抢占的问题。
 
 ## [1.0.0-alpha.5] - 2026-08-30
 
@@ -62,6 +64,7 @@
 
 首轮 macOS Pilot Beta，验证安装、Agent 连接、任务状态、回源和反馈闭环。
 
+[3.2.0]: https://github.com/qianzhu18/workisland/releases/tag/v3.2.0
 [1.0.0-alpha.5]: https://github.com/qianzhu18/workisland/releases/tag/v1.0.0-alpha.5
 [3.1.0]: https://github.com/qianzhu18/workisland/releases/tag/v3.1.0
 [3.0.0]: https://github.com/qianzhu18/workisland/releases/tag/v3.0.0
