@@ -54,15 +54,6 @@ select { min-width:142px; height:30px; padding:0 28px 0 9px; color:inherit; back
 .button.primary { color:white; background:var(--accent); border-color:transparent; }
 .button.danger { color:var(--danger); }
 .agent-list { display:grid; gap:8px; }
-.agent-control-client { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:14px; min-height:76px; padding:14px 16px; border:1px solid var(--line); border-radius:11px; background:var(--card); }
-.agent-control-code { max-height:220px; margin:0; overflow:auto; padding:14px 16px; border:1px solid var(--line); border-radius:11px; background:rgba(120,120,128,.08); font:11px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; user-select:text; white-space:pre-wrap; overflow-wrap:anywhere; }
-.agent-control-activity { display:grid; overflow:hidden; border:1px solid var(--line); border-radius:11px; background:var(--card); }
-.agent-control-activity-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:16px; padding:11px 14px; border-bottom:1px solid var(--line); font-size:12px; }
-.agent-control-activity-row:last-child { border-bottom:0; }
-.agent-control-activity-row span { color:var(--muted); text-align:right; }
-.agent-control-empty { padding:16px; color:var(--muted); border:1px solid var(--line); border-radius:11px; background:var(--card); }
-.agent-control-activity .agent-control-empty { border:0; background:transparent; }
-.agent-control-error { max-width:760px; margin:0 auto 20px; padding:10px 13px; border:1px solid rgba(255,59,48,.24); border-radius:9px; color:var(--danger); background:rgba(255,59,48,.08); }
 .agent-card { display:grid; grid-template-columns:38px 1fr auto; align-items:center; gap:12px; min-height:72px; padding:12px 14px; background:var(--card); border:1px solid var(--line); border-radius:11px; }
 .agent-icon { display:grid; place-items:center; width:36px; height:36px; overflow:hidden; border:1px solid rgba(0,0,0,.08); border-radius:9px; background:rgba(255,255,255,.96); box-shadow:0 1px 2px rgba(0,0,0,.08); }
 .agent-icon-image { width:27px; height:27px; object-fit:contain; background:transparent; -webkit-user-drag:none; }

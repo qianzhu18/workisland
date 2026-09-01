@@ -36,11 +36,6 @@ const { ShelfService } = require("./shelf-service.cjs");
 const { ClipboardHistoryService } = require("./clipboard-history-service.cjs");
 const { TerminalService } = require("./terminal-service.cjs");
 const { resolveRecentProjectCwd, resolveTerminalCommand } = require("../shared/terminal-state.cjs");
-const { listCodexPets } = require("./codex-pet.cjs");
-const { LocalControlAudit } = require("./local-control-audit.cjs");
-const { LocalControlService } = require("./local-control-service.cjs");
-const { CodexMcpConfigManager } = require("./mcp-client-config.cjs");
-const { SettingsChangePresenter } = require("./settings-change-presenter.cjs");
 
 function createElectronClipboardAdapter() {
   return {
@@ -127,10 +122,6 @@ function createAppCoordinatorClass({
     clipboardHistoryService;
     terminalService;
     processMonitor;
-    localControlService;
-    localControlAudit;
-    mcpClientConfig;
-    settingsChangePresenter;
     onSettingsChangeCallback = null;
     reconcileTimer = null;
     islandHiddenForFullscreen = false;
@@ -250,33 +241,9 @@ function createAppCoordinatorClass({
           log.info(`[AppCoordinator] switching display mode: ${from} -> ${to}`);
         }
       });
-      this.localControlAudit = new LocalControlAudit({
-        filePath: path.join(userDataPath, "local-agent-control-activity.json")
-      });
-      this.mcpClientConfig = new CodexMcpConfigManager({
-        command: process.execPath,
-        serverPath: path.join(electron.app.getAppPath(), "src", "island", "workisland-mcp", "index.mjs")
-      });
-      this.settingsChangePresenter = new SettingsChangePresenter({
-        hasAttention: () => this.getSessions().some((session) => requiresAttention(session.phase)),
-        present: (surface) => this.broadcastSurface({ surface, reason: "notification", autoDismiss: true })
-      });
-      this.localControlService = new LocalControlService({
-        getSettings: () => this.getSettings(),
-        updateSettings: (partial, source) => this.updateSettings(partial, source),
-        getInstalledPetIds: () => this.getInstalledPetIds(),
-        getSessions: () => this.getSessions(),
-        jumpToSession: (sessionId) => this.jumpToSession(sessionId),
-        openSettingsTab: (section) => this.openSettingsTab(section),
-        setDisplaySurface: (surface) => this.setDisplaySurface(surface),
-        getProductState: () => this.getLocalControlProductState(),
-        presentSettingsChange: (notice) => this.settingsChangePresenter.enqueue(notice),
-        audit: this.localControlAudit
-      });
       initSoundDirs();
       this.bridge = new BridgeServer({
-        shouldAcceptHook: (source) => this.shouldAcceptHookSource(source),
-        controlService: this.localControlService
+        shouldAcceptHook: (source) => this.shouldAcceptHookSource(source)
       });
       this.hookManagers = /* @__PURE__ */ new Map([
         ["claude", new ClaudeHookManager()],
@@ -802,7 +769,6 @@ function createAppCoordinatorClass({
         this.saveTimer = null;
       }
       this.settingsRepository.dispose();
-      this.settingsChangePresenter?.dispose();
       this.petMode.dispose();
       if (this.unsubTokenChange) {
         this.unsubTokenChange();
@@ -987,77 +953,6 @@ function createAppCoordinatorClass({
     }
     getDisplayMode() {
       return this.petMode.isActive ? "pet" : "island";
-    }
-    getAgentControlStatus() {
-      const activity = this.localControlAudit.list();
-      return {
-        enabled: this.settings.localAgentControlEnabled === true,
-        client: this.mcpClientConfig.status(activity),
-        activity: activity.slice(-20).reverse()
-      };
-    }
-    connectAgentControlClient(clientId) {
-      if (clientId !== "codex") throw Object.assign(new Error("Unsupported MCP client."), { code: "CLIENT_NOT_SUPPORTED" });
-      if (this.settings.localAgentControlEnabled !== true) {
-        throw Object.assign(new Error("请先开启“允许智能体控制 WorkIsland”。"), { code: "LOCAL_CONTROL_DISABLED" });
-      }
-      return this.mcpClientConfig.connect();
-    }
-    disconnectAgentControlClient(clientId) {
-      if (clientId !== "codex") throw Object.assign(new Error("Unsupported MCP client."), { code: "CLIENT_NOT_SUPPORTED" });
-      return this.mcpClientConfig.disconnect();
-    }
-    getAgentControlManualConfig(clientId) {
-      if (clientId !== "codex") throw Object.assign(new Error("Unsupported MCP client."), { code: "CLIENT_NOT_SUPPORTED" });
-      return this.mcpClientConfig.manualConfiguration();
-    }
-    async undoLocalControlChanges(changeIds) {
-      const results = [];
-      for (const changeId of [...changeIds].reverse()) {
-        results.push(await this.localControlService.undoFromUser(changeId));
-      }
-      return { undone: true, results };
-    }
-    collapsePetPanel() {
-      this.petMode.collapsePanel();
-    }
-    getInstalledPetIds() {
-      const ids = new Set([
-        this.settings.petSprite,
-        "codex:qianxue",
-        "codex:codex-buddy",
-        "echo:little",
-        "orca.png"
-      ]);
-      for (const pet of listCodexPets()) {
-        if (typeof pet.value === "string") ids.add(pet.value);
-      }
-      return ids;
-    }
-    getLocalControlProductState() {
-      return {
-        displaySurface: this.getDisplayMode(),
-        expanded: false,
-        modules: {
-          media: this.settings.mediaEnabled !== false,
-          performance: this.settings.performanceEnabled !== false,
-          shelf: this.settings.fileShelfEnabled !== false,
-          terminal: this.settings.terminalEnabled !== false,
-          usage: this.settings.showUsageQuota !== false
-        }
-      };
-    }
-    setDisplaySurface(surface) {
-      if (surface === "island") {
-        this.exitPetMode();
-        return;
-      }
-      if (surface !== "pet" || this.petMode.isActive) return;
-      const display = this.displayMgr?.getCurrentTarget()?.display ?? electron.screen.getPrimaryDisplay();
-      this.enterPetMode(
-        display.bounds.x + Math.round(display.bounds.width / 2),
-        display.bounds.y + Math.round(display.bounds.height / 2)
-      );
     }
     isHookToolEnabled(tool) {
       const explicit = this.settings.hookToggles?.[tool];
@@ -1638,7 +1533,7 @@ function createAppCoordinatorClass({
       if (this.petMode.isActive) {
         this.petMode.presentSurface(
           payload.surface,
-          payload.autoDismiss ? (payload.surface?.autoDismissMs ?? this.settings.completionPopupDurationSec * 1e3) : null
+          payload.autoDismiss ? this.settings.completionPopupDurationSec * 1e3 : null
         );
         // A pet is the user's chosen primary surface. Keep the Island passive
         // so one event never creates two competing full-screen interruptions.
