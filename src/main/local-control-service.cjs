@@ -78,8 +78,14 @@ class LocalControlService {
         case "control.getProductState":
           result = this.#getProductState();
           break;
+        case "control.listActiveSessions":
+          result = { observationScope: "workisland-visible-sessions", sessions: this.#listVisibleSessions() };
+          break;
         case "control.listVisibleSessions":
           result = { sessions: this.#listVisibleSessions() };
+          break;
+        case "control.listIntegrations":
+          result = { integrations: await this.#listIntegrations() };
           break;
         case "control.focusSession":
           result = await this.#focusSession(params);
@@ -190,6 +196,35 @@ class LocalControlService {
         updatedAt: Number.isFinite(session.updatedAt) ? session.updatedAt : null,
         requiresAttention: ATTENTION_PHASES.has(session.phase),
         canFocus: Boolean(session.jumpTarget)
+      }];
+    });
+  }
+
+  async #listIntegrations() {
+    const reports = await this.dependencies.getIntegrationStatus?.();
+    const sessions = Array.isArray(this.dependencies.getSessions?.()) ? this.dependencies.getSessions() : [];
+    const observedAgents = new Set(sessions.map((session) => session?.tool).filter((tool) => typeof tool === "string"));
+    const hookToggles = this.dependencies.getSettings().hookToggles || {};
+    return (Array.isArray(reports) ? reports : []).flatMap((report) => {
+      const id = typeof report?.agentId === "string" ? report.agentId.slice(0, 80) : "";
+      if (!id) return [];
+      const rawCapabilities = report.capabilities && typeof report.capabilities === "object" ? report.capabilities : {};
+      const capabilities = {
+        liveStatus: rawCapabilities.liveStatus === true,
+        toolActivity: rawCapabilities.toolActivity === true,
+        completion: typeof rawCapabilities.completion === "string" ? rawCapabilities.completion.slice(0, 40) : "observe",
+        approval: typeof rawCapabilities.approval === "string" ? rawCapabilities.approval.slice(0, 40) : "observe",
+        question: typeof rawCapabilities.question === "string" ? rawCapabilities.question.slice(0, 40) : "observe",
+        jump: typeof rawCapabilities.jump === "string" ? rawCapabilities.jump.slice(0, 40) : "none"
+      };
+      const hasExplicitToggle = Object.prototype.hasOwnProperty.call(hookToggles, id);
+      return [{
+        id,
+        name: typeof report.label === "string" ? report.label.slice(0, 80) : id,
+        enabled: hasExplicitToggle ? hookToggles[id] !== false : !id.startsWith("plugin:"),
+        installed: report.installed === true,
+        verifiedByEvent: report.connectionState === "verified" || observedAgents.has(id),
+        capabilities
       }];
     });
   }

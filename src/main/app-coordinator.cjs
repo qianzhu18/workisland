@@ -266,6 +266,7 @@ function createAppCoordinatorClass({
         updateSettings: (partial, source) => this.updateSettings(partial, source),
         getInstalledPetIds: () => this.getInstalledPetIds(),
         getSessions: () => this.getSessions(),
+        getIntegrationStatus: () => this.getHookStatus(),
         jumpToSession: (sessionId) => this.jumpToSession(sessionId),
         openSettingsTab: (section) => this.openSettingsTab(section),
         setDisplaySurface: (surface) => this.setDisplaySurface(surface),

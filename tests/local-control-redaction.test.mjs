@@ -39,7 +39,7 @@ test("visible sessions use opaque ids and omit all content and machine identifie
     randomId: () => "session-public-1"
   });
 
-  const result = await service.execute("control.listVisibleSessions", {});
+  const result = await service.execute("control.listActiveSessions", {});
   assert.deepEqual(result.sessions, [{
     id: "session-public-1",
     agent: "codex",
@@ -59,6 +59,54 @@ test("visible sessions use opaque ids and omit all content and machine identifie
     service.execute("control.focusSession", { id: "raw-session-secret" }),
     (error) => error.code === "SESSION_UNAVAILABLE"
   );
+});
+
+test("integration summaries expose health and capabilities without paths or raw issues", async () => {
+  const settings = { ...createDefaultSettings(), localAgentControlEnabled: true };
+  const service = new LocalControlService({
+    getSettings: () => settings,
+    updateSettings: () => {},
+    getSessions: () => [{ id: "live-codex", tool: "codex", phase: "running", updatedAt: 10 }],
+    getIntegrationStatus: async () => [{
+      agentId: "codex",
+      label: "Codex",
+      installed: true,
+      connectionState: "configured",
+      manifestPath: "/Users/person/.codex/config.toml",
+      issues: ["bad path /Users/person/private"],
+      capabilities: {
+        liveStatus: true,
+        toolActivity: true,
+        completion: "native",
+        approval: "observe",
+        question: "observe",
+        jump: "terminal",
+        secretCapability: "/private/path"
+      }
+    }],
+    audit: { append() {}, list: () => [] }
+  });
+
+  const result = await service.execute("control.listIntegrations");
+  assert.deepEqual(result.integrations, [{
+    id: "codex",
+    name: "Codex",
+    enabled: true,
+    installed: true,
+    verifiedByEvent: true,
+    capabilities: {
+      liveStatus: true,
+      toolActivity: true,
+      completion: "native",
+      approval: "observe",
+      question: "observe",
+      jump: "terminal"
+    }
+  }]);
+  const serialized = JSON.stringify(result);
+  for (const secret of ["manifestPath", "config.toml", "issues", "/private/path", "secretCapability"]) {
+    assert.equal(serialized.includes(secret), false, `response leaked ${secret}`);
+  }
 });
 
 test("audit persistence keeps a bounded fixed-field record", () => {

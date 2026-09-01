@@ -145,6 +145,17 @@ test("product discovery returns the complete safe catalog and one capability det
   );
 });
 
+test("active session command reports only sessions currently observed by WorkIsland", async () => {
+  const harness = createHarness({
+    sessions: [{ id: "internal", tool: "claude", phase: "running", updatedAt: 123, jumpTarget: null }]
+  });
+  const result = await harness.service.execute("control.listActiveSessions");
+  assert.equal(result.observationScope, "workisland-visible-sessions");
+  assert.deepEqual(result.sessions.map(({ agent, phase, canFocus }) => ({ agent, phase, canFocus })), [
+    { agent: "claude", phase: "running", canFocus: false }
+  ]);
+});
+
 test("safe UI operations are allowlisted", async () => {
   const harness = createHarness();
 
