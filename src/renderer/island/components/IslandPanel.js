@@ -18,6 +18,54 @@ const approvalIcon = new URL("../assets/status/approval.svg", import.meta.url).h
 const completeIcon = new URL("../assets/status/complete.svg", import.meta.url).href;
 const errorIcon = new URL("../assets/status/error.svg", import.meta.url).href;
 const codexIcon = new URL("../assets/brands/codex.png", import.meta.url).href;
+// ── 模板状态资产（PRD-018 §7.4） ────────────────────────────────────────────
+// 构建期 URL 只是首帧兜底；app.js 在活动模板变化时用主进程校验过的
+// data URL 覆盖这五个图标。waitingForApproval 与 waitingForAnswer 固定
+// 共用 approval，error 优先于 phase。
+const DEFAULT_STATUS_ICONS = Object.freeze({
+  idle: defaultIcon,
+  running: runningIcon,
+  approval: approvalIcon,
+  complete: completeIcon,
+  error: errorIcon
+});
+let statusAssetsOverride = null;
+const statusAssetsListeners = /* @__PURE__ */ new Set();
+function currentStatusIcons() {
+  if (!statusAssetsOverride) return DEFAULT_STATUS_ICONS;
+  return { ...DEFAULT_STATUS_ICONS, ...statusAssetsOverride };
+}
+function setIslandStatusAssets(assets) {
+  if (assets && typeof assets === "object") {
+    const override = {};
+    for (const key of Object.keys(DEFAULT_STATUS_ICONS)) {
+      if (typeof assets[key] === "string" && assets[key]) override[key] = assets[key];
+    }
+    statusAssetsOverride = Object.keys(override).length > 0 ? override : null;
+  } else {
+    statusAssetsOverride = null;
+  }
+  for (const listener of statusAssetsListeners) listener();
+}
+function useIslandStatusIcons() {
+  const [icons, setIcons] = reactExports.useState(currentStatusIcons);
+  reactExports.useEffect(() => {
+    const listener = () => setIcons(currentStatusIcons());
+    statusAssetsListeners.add(listener);
+    return () => {
+      statusAssetsListeners.delete(listener);
+    };
+  }, []);
+  return icons;
+}
+function resolveSessionIcon(session, icons) {
+  if (session?.error) return icons.error;
+  const phase = session?.phase;
+  if (phase === "running") return icons.running;
+  if (phase === "waitingForApproval" || phase === "waitingForAnswer") return icons.approval;
+  if (phase === "completed") return icons.complete;
+  return icons.idle;
+}
 function useActionable(sessions, surface, options) {
   const actionableId = surface?.type === "sessionList" || surface?.type === "completion" ? surface.actionableSessionId : void 0;
   const actionableRef = reactExports.useRef(null);
@@ -410,7 +458,8 @@ function SessionRow({
   onClick,
   onFollowUpClick
 }) {
-  const icon = session.error ? errorIcon : PHASE_ICON[session.phase] ?? defaultIcon;
+  const statusIcons = useIslandStatusIcons();
+  const icon = resolveSessionIcon(session, statusIcons);
   const terminalApp = session.jumpTarget?.app;
   const cwd = session.jumpTarget?.workingDirectory;
   const elapsed = useElapsed(session);
@@ -1394,6 +1443,7 @@ function IslandPanel({
 }) {
   const [followUpSessionId, setFollowUpSessionId] = React.useState(null);
   const [activeModule, setActiveModule] = React.useState("agent");
+  const statusIcons = useIslandStatusIcons();
   const [moduleOrder, setModuleOrder] = React.useState([]);
   React.useEffect(() => {
     let disposed = false;
@@ -1496,7 +1546,7 @@ function IslandPanel({
     "img",
     {
       className: "session-list-empty-icon",
-      src: defaultIcon,
+      src: statusIcons.idle,
       alt: "",
       draggable: false
     }
@@ -1557,3 +1607,4 @@ export {
   stripCwd as s,
   useActionable as u
 };
+export { DEFAULT_STATUS_ICONS, resolveSessionIcon, setIslandStatusAssets, useIslandStatusIcons };

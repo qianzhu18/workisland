@@ -7,6 +7,7 @@ const preloadSourceRoot = join(root, "src", "preload");
 const rendererEntries = [
   "renderer/island/app.js",
   "renderer/island/session-model.mjs",
+  "renderer/island/theme.mjs",
   "renderer/island/components/IslandPanel.js",
   "renderer/island/components/IslandPill.js",
   "renderer/pet/app.js",

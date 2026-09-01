@@ -1,12 +1,46 @@
 # WorkIsland AI 自定义接口手册
 
-> 面向对象:运行在用户 Mac 上的 AI Agent(Claude Code、Codex、Cursor、ZCode 等)以及脚本作者。
-> 目标:仅凭本文档即可完成 WorkIsland 灵动岛背景与桌宠角色的自动化自定义,无需其他上下文。
-> 版本:v1(随 WorkIsland 3.2.0 引入)。协议与字段以本文档为准。
+> 面向对象:运行在用户 Mac 上的 AI Agent(Claude Code、Codex、Cursor、ZCode 等)以及脚本/模板作者。
+> **普通用户的入口是模板(Skill)**:安装 `workisland-template` Skill 后按"检查 → 预览 → 确认 → 应用"换装整个外观;本文其余部分(`appearance` / `pet` 原始命令)是**作者与兼容接口**,用于单改背景或安装精灵图。
+> 版本:v2(模板系统随 WorkIsland 3.2.0 引入)。协议与字段以本文档为准。
 
 ---
 
-## 1. 你能做什么
+## 0. 模板系统(推荐入口)
+
+模板 = 一个经过校验的外观包:小宇五状态 SVG + 可选背景 + 可选桌宠。所有模板命令都是 `workisland-cli template …`,输出结构化 JSON。
+
+```bash
+workisland-cli template list [--source builtin|local]      # 列出内置/已安装模板(含 active)
+workisland-cli template inspect <id[@version]|目录>         # 清单/模块/许可/版本
+workisland-cli template preview <id[@version]|目录>         # 五状态 SVG data URL + 背景主题 + 桌宠(只读)
+workisland-cli template apply <id[@version]|目录> \
+    [--modules island,background,pet] [--sync-codex]       # 应用(默认 island;路径目标会先安装)
+workisland-cli template reset [--module island|background|pet|all]  # 恢复官方默认(不删用户资产)
+workisland-cli template validate <目录>                    # 作者:校验模板包
+workisland-cli template export <目录> --out <zip>          # 作者:导出 store-only zip(附 sha256)
+workisland-cli template skill install [--client codex]     # 安装 workisland-template Skill 到本机 Agent
+workisland-cli template download <id[@version]> --catalog <url>   # 从 GitHub 静态目录下载并安装
+workisland-cli template publish <zip> --repo <owner/repo> --confirm  # 作者:发布到 GitHub Release(需 gh)
+```
+
+**Agent 使用准则**:换装必须走"检查(inspect)→ 预览(preview)→ 用户确认 → apply",模块选择与 `--sync-codex` 都要逐一确认;安装/发布 Skill 见 `resources/skills/workisland-template/SKILL.md`(可用 `template skill install` 装入 Codex)。
+
+**模板包格式(v1)**:
+
+```text
+template-root/
+├── template.json        # schemaVersion/id/version/author/license/compatibility/assets(sha256)
+├── island-status/       # 可选;出现则五个 SVG 必须齐全且过安检(无 script/事件/外部引用)
+├── background/          # 可选;appearance.json(同 §4 主题 JSON)+ 可选图片
+├── codex-pet/           # 可选;pet.json(spriteVersionNumber=2)+ spritesheet.webp(1536×2288)
+├── preview/             # 可选预览图
+└── LICENSE              # 必须为已批准许可证(Apache-2.0/MIT/CC0-1.0/CC-BY-4.0/CC-BY-SA-4.0/BSD-3-Clause/Unlicense)
+```
+
+安全模型:清单严格白名单(未知字段即拒)、全部资产 sha256 校验、SVG 静态安检、staging 原子安装、下载只允许 GitHub 官方域名且 hash 双验(catalog + 包内)、发布必须 `--confirm` 且经 `gh`(`gh` 独占管理凭据)。安装目录:`<userData>/appearance-templates/<id>/<version>/`;活动选择存于设置 `appearanceTemplate`。
+
+## 1. 你能做什么(原始资产 API)
 
 WorkIsland 是一款本地优先的 macOS Agent 任务监控器(灵动岛 + 桌宠)。本接口允许你:
 
@@ -246,7 +280,10 @@ workisland-cli pet set codex:qianxue              # 回到内置千雪
 {"type":"command","command":{"type":"setAppearance","appearance":{"kind":"solid","color":"#0B1E3A"}}}
 ```
 
-命令 `type` 一览:`getAppearance` / `setAppearance`(可带 `imageSource:{sourcePath}`)/ `resetAppearance` / `listPets` / `setPet {sprite}` / `installPet {sourcePath,name?,select?}` / `validateSprite {sourcePath}`。
+命令 `type` 一览:
+
+- 原始资产:`getAppearance` / `setAppearance`(可带 `imageSource:{sourcePath}`)/ `resetAppearance` / `listPets` / `setPet {sprite}` / `installPet {sourcePath,name?,select?}` / `validateSprite {sourcePath}`
+- 模板:`listTemplates {source?}` / `inspectTemplate {target}` / `previewTemplate {target}` / `applyTemplate {target,modules?,syncCodex?}` / `resetTemplate {module?}` / `validateTemplate {target}` / `exportTemplate {dir,out}` / `installTemplateSkill {client?}` / `downloadTemplate {id,version?,catalog}` / `publishTemplate {zip,repo,confirm}`
 
 3. 服务端回响应帧:
 

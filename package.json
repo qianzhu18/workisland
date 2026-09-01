@@ -1,7 +1,7 @@
 {
   "name": "workisland",
   "productName": "WorkIsland",
-  "version": "1.0.0-alpha.5",
+  "version": "3.2.0-rc.1",
   "description": "macOS 与 Windows 本地 Work Agent 工作状态与注意力路由器",
   "private": true,
   "main": "./src/main/index.cjs",
@@ -88,8 +88,24 @@
         "to": "pet-sprites"
       },
       {
+        "from": "resources/templates",
+        "to": "templates"
+      },
+      {
+        "from": "resources/skills",
+        "to": "skills"
+      },
+      {
         "from": "resources/bin/flux-hooks",
         "to": "bin/flux-hooks"
+      },
+      {
+        "from": "resources/bin/workisland-cli",
+        "to": "bin/workisland-cli"
+      },
+      {
+        "from": "docs/AI-CUSTOMIZATION.md",
+        "to": "ai-manual/AI-CUSTOMIZATION.md"
       },
       {
         "from": "resources/mediaremote-adapter",

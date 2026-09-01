@@ -31,7 +31,7 @@ const AGENT_ICON_URLS = Object.freeze({
   "plugin:pi": "../assets/brands/pi.svg"
 });
 const VERIFY_ON_REAL_EVENT_AGENT_IDS = new Set(["dsh", "trae"]);
-const state = { settings: null, statuses: new Map(), displays: [], codexPets: [], shareProviders: [], activeTab: "general", busy: new Set(), expandedSettingDetails: new Set(), latestUpdate: null, updateState: null, onUpdateStateUi: null, telemetryStatus: null, commandDraft: { name: "", command: "" } };
+const state = { settings: null, statuses: new Map(), displays: [], codexPets: [], templates: { active: null, templates: [] }, shareProviders: [], activeTab: "general", busy: new Set(), expandedSettingDetails: new Set(), latestUpdate: null, updateState: null, onUpdateStateUi: null, telemetryStatus: null, commandDraft: { name: "", command: "" } };
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -152,6 +152,14 @@ async function loadCodexPets() {
     state.codexPets = (await api.getCodexPets?.()) || [];
   } catch {
     state.codexPets = [];
+  }
+}
+
+async function loadTemplates() {
+  try {
+    state.templates = (await api.listTemplates?.()) || { active: null, templates: [] };
+  } catch {
+    state.templates = { active: null, templates: [] };
   }
 }
 
@@ -544,6 +552,7 @@ function agentsPage() {
 
 function appearancePage() {
   const root = document.createDocumentFragment();
+  root.append(templateSection());
   const pet = section("桌宠", "桌宠与 Island 使用同一套会话状态，切换不会中断监控。");
   const configuredSprite = state.settings.petSprite || DEFAULT_PET_SPRITE;
   const spriteOptions = [
@@ -584,8 +593,99 @@ function appearancePage() {
   const panel = section("面板", "限制展开面板的高度，避免遮挡主要工作区。");
   const heights = [["420", "紧凑 · 420 px"], ["540", "标准 · 540 px"], ["680", "宽松 · 680 px"]];
   panel.append(row("最大高度", "修改后下一次展开生效。", select(String(state.settings.panelMaxHeightPx || 540), heights, v => save({ panelMaxHeightPx: Number(v) }), "面板最大高度")));
-  root.append(pet, panel);
+  root.append(islandBackgroundSection(), pet, panel);
   return root;
+}
+
+function templateSection() {
+  const tpl = section("外观模板", "以模板为单位更换 Island 的状态角色、背景与桌宠；本机 AI Agent 可通过 workisland-template Skill 完成同样的流程。");
+  const active = state.settings.appearanceTemplate || { id: "builtin:workisland-xiaoyu", version: "*" };
+  const validTemplates = (state.templates.templates || []).filter(entry => entry.valid);
+  const options = validTemplates.map(entry => [`${entry.id}@${entry.version}`, `${entry.name} · ${entry.id}${entry.modules.length ? `（${entry.modules.join("/")}）` : ""} · ${entry.license}`]);
+  const activeKey = `${active.id}@${active.version}`;
+  if (!options.some(([value]) => value === activeKey)) {
+    options.unshift([activeKey, `${active.id}@${active.version} · 当前设置`]);
+  }
+  const templateSelect = select(activeKey, options, value => {
+    const at = value.lastIndexOf("@");
+    save({
+      appearanceTemplate: { id: value.slice(0, at), version: value.slice(at + 1) }
+    }).then(() => showToast("模板已切换，Island 状态角色将实时刷新"));
+  }, "外观模板");
+  const reset = button("恢复官方默认", async () => {
+    await save({
+      appearanceTemplate: { id: "builtin:workisland-xiaoyu", version: "1.0.0" }
+    });
+    await loadTemplates();
+    renderPage();
+    showToast("已恢复官方小宇模板");
+  }, "secondary");
+  tpl.append(
+    row("当前模板", "模板决定会话状态图标（idle/运行/待审批/完成/错误）的角色形象；官方内置 WorkIsland 小宇（守岛人）。", templateSelect),
+    row("恢复默认", "切回官方小宇模板；不会删除已安装的模板和你的 Codex 宠物。", reset),
+    row("AI 换装", "对 Agent 说“帮我换个外观模板”，装有 workisland-template Skill 的 Agent 会先预览再经你确认后应用。", el("span", "range-value", "Skill 入口"))
+  );
+  return tpl;
+}
+
+const ISLAND_APPEARANCE_PRESETS = [
+  { id: "default", label: "默认 · 纯黑", value: { kind: "default" } },
+  { id: "deep-blue", label: "深海蓝", value: { kind: "solid", color: "#0B1E3A", opacity: 1 } },
+  { id: "forest", label: "墨绿", value: { kind: "solid", color: "#0A231A", opacity: 1 } },
+  { id: "night-purple", label: "夜紫渐变", value: { kind: "gradient", color: "#1F1330", color2: "#0B0716", angle: 135, opacity: 1 } },
+  { id: "frost", label: "半透石墨", value: { kind: "solid", color: "#0E0F13", opacity: 0.72 } }
+];
+
+function islandBackgroundSection() {
+  const island = section("岛屿背景", "自定义 Island 的背景颜色、透明度与背景图；本机 AI Agent 也可通过 workisland-cli 接口修改。");
+  const current = state.settings.islandAppearance || { kind: "default" };
+  const matchingPreset = ISLAND_APPEARANCE_PRESETS.find(
+    preset => JSON.stringify(preset.value) === JSON.stringify(current)
+  );
+  const presetOptions = ISLAND_APPEARANCE_PRESETS.map(preset => [preset.id, preset.label]);
+  if (!matchingPreset) {
+    const kindLabel = current.kind === "gradient" ? "渐变" : current.kind === "image" ? "背景图" : "纯色";
+    presetOptions.push(["__custom__", `当前自定义 · ${kindLabel}`]);
+  }
+  const presetSelect = select(
+    matchingPreset ? matchingPreset.id : "__custom__",
+    presetOptions,
+    value => {
+      const preset = ISLAND_APPEARANCE_PRESETS.find(entry => entry.id === value);
+      if (preset) save({ islandAppearance: preset.value });
+    },
+    "岛屿背景预设"
+  );
+  const color = document.createElement("input");
+  color.type = "color";
+  color.className = "color-input";
+  color.value = /^#[0-9a-fA-F]{6}$/.test(current.color || "") ? current.color : "#000000";
+  color.setAttribute("aria-label", "自定义背景颜色");
+  color.addEventListener("change", () => save({
+    islandAppearance: { kind: "solid", color: color.value, opacity: current.kind === "image" ? 1 : (current.opacity ?? 1) }
+  }));
+  const opacity = document.createElement("input");
+  opacity.type = "range"; opacity.min = "0.15"; opacity.max = "1"; opacity.step = "0.05";
+  opacity.value = String(current.kind === "image" ? 1 : (current.opacity ?? 1));
+  opacity.disabled = current.kind === "image" || current.kind === "default";
+  const opacityValue = el("span", "range-value", `${Math.round(Number(opacity.value) * 100)}%`);
+  opacity.addEventListener("input", () => opacityValue.textContent = `${Math.round(Number(opacity.value) * 100)}%`);
+  opacity.addEventListener("change", () => save({
+    islandAppearance: {
+      kind: current.kind === "gradient" ? "gradient" : "solid",
+      color: current.color || "#000000",
+      ...(current.kind === "gradient" ? { color2: current.color2 || "#000000", angle: current.angle ?? 135 } : {}),
+      opacity: Number(opacity.value)
+    }
+  }));
+  const opacityControl = el("div", "range-control"); opacityControl.append(opacity, opacityValue);
+  island.append(
+    row("背景预设", "选择常用深色主题；过亮的颜色会被自动压暗以保持文字可读。", presetSelect),
+    row("自定义颜色", "直接指定纯色背景。", color),
+    row("背景不透明度", "纯色与渐变背景的透明程度；背景图模式不可用。", opacityControl),
+    row("恢复默认", "清除 AI 或手动设置，回到经典纯黑 Island。", button("重置背景", () => save({ islandAppearance: { kind: "default" } }), "secondary"))
+  );
+  return island;
 }
 
 function soundPage() {
@@ -756,6 +856,7 @@ async function start() {
   await loadTelemetryStatus();
   await loadDisplays();
   await loadCodexPets();
+  await loadTemplates();
   document.querySelectorAll(".nav-item").forEach(item => item.addEventListener("click", () => {
     state.activeTab = item.dataset.tab;
     renderPage();
