@@ -559,6 +559,14 @@ function IslandApp() {
     WINDOW_H,
     panelMaxHeightPx + OPEN_WINDOW_SHADOW_MARGIN_PX
   );
+  reactExports.useLayoutEffect(() => {
+    window.islandBridge?.setInteractionBounds?.({
+      x: (WINDOW_W - panelWidth) / 2,
+      y: 0,
+      width: panelWidth,
+      height: actualPanelH
+    });
+  }, [actualPanelH, panelWidth]);
   reactExports.useEffect(() => {
     const bridge = window.islandBridge;
     if (!bridge?.resizeWindow) return;

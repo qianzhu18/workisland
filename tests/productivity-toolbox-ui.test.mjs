@@ -94,6 +94,8 @@ test("terminal uses xterm and offers quick commands plus full shell", () => {
   assert.match(source, /进入完整终端/);
   assert.match(source, /runSavedTerminalCommand/);
   assert.match(source, /sendTerminalInput/);
+  assert.match(source, /setTerminalInteractive\?\.\(true\)/);
+  assert.match(source, /setTerminalInteractive\?\.\(false\)/);
 });
 
 test("terminal quick commands come only from user settings", () => {
