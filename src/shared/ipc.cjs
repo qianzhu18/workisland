@@ -105,6 +105,11 @@ const IPC = Object.freeze({
   PET_OPEN_SPRITES_DIR: "pet:open-sprites-dir",
   PET_TOGGLE: "pet:toggle",
 
+  APPEARANCE_GET_BACKGROUND_IMAGE: "appearance:get-background-image",
+
+  TEMPLATE_GET_ACTIVE_STATUS_ASSETS: "template:get-active-status-assets",
+  TEMPLATE_LIST: "template:list",
+
   WELCOME_GET_STARTED: "welcome:get-started",
   WELCOME_GET_FIRST_LAUNCH_AT: "welcome:get-first-launch-at",
   ISLAND_ONBOARDING_EXPAND: "island:onboarding-expand",

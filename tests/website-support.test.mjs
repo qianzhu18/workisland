@@ -122,3 +122,10 @@ test("guide frames its product screenshot without exposing the empty lower captu
 test("release workflow marks prerelease tags as prereleases", () => {
   assert.match(releaseWorkflow, /prerelease:\s*\$\{\{\s*contains\(github\.ref_name, '-'/);
 });
+
+test("release workflow keeps macOS releases separate from Windows Alpha tags", () => {
+  // macOS 构建是 arm64/x64 矩阵（单 job `macos`），Alpha Tag 不构建 macOS 稳定包。
+  assert.match(releaseWorkflow, /macos:\s*\n\s+if:.*!contains\(github\.ref_name, '-alpha'\)/);
+  assert.match(releaseWorkflow, /arch:\s*\[arm64, x64\]/);
+  assert.match(releaseWorkflow, /windows-x64-alpha:\s*\n\s+if:.*contains\(github\.ref_name, '-alpha'\)/);
+});

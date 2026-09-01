@@ -78,6 +78,7 @@ Windows Alpha 可以激活来源应用并恢复已记录的真实窗口；审批
 | --- | --- |
 | [WorkIsland 官网](https://workisland.yanglaishe.cn/) | 产品概览、真实界面与最新下载入口 |
 | [产品手册](https://workisland.yanglaishe.cn/guide/) | 安装、首个 Agent 任务、隐私与反馈说明 |
+| [AI 自定义接口手册](docs/AI-CUSTOMIZATION.md) | 让本机 AI Agent 自定义灵动岛背景与桌宠角色 |
 | [更新日志](https://workisland.yanglaishe.cn/changelog/) | 查看每个版本的功能、修复和体验变化 |
 | [GitHub Releases](https://github.com/qianzhu18/workisland/releases) | Apple Silicon DMG 与版本说明 |
 | [GitHub Issues](https://github.com/qianzhu18/workisland/issues/new/choose) | Bug 报告与可公开讨论的建议 |
