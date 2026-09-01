@@ -109,7 +109,10 @@ test("readManual prefers WORKISLAND_MANUAL_PATH and falls back to embedded text"
 });
 
 test("sendBridgeCommand completes the hello → command → response round trip", async () => {
-  const socketPath = join(tmpdir(), `wi-cli-test-${process.pid}.sock`);
+  // Windows 无法在任意文件系统路径上监听 Unix socket，改用命名管道命名空间。
+  const socketPath = process.platform === "win32"
+    ? `\\\\.\\pipe\\wi-cli-test-${process.pid}`
+    : join(tmpdir(), `wi-cli-test-${process.pid}.sock`);
   const server = net.createServer((socket) => {
     socket.write(`${JSON.stringify({ type: "hello", hello: { protocolVersion: 1, serverLabel: "test" } })}\n`);
     socket.on("data", (chunk) => {
@@ -131,12 +134,14 @@ test("sendBridgeCommand completes the hello → command → response round trip"
     assert.deepEqual(response, { type: "result", data: { echo: "getAppearance" } });
   } finally {
     server.close();
-    rmSync(socketPath, { force: true });
+    if (process.platform !== "win32") rmSync(socketPath, { force: true });
   }
 });
 
 test("sendBridgeCommand times out when the bridge never answers", async () => {
-  const socketPath = join(tmpdir(), `wi-cli-silent-${process.pid}.sock`);
+  const socketPath = process.platform === "win32"
+    ? `\\\\.\\pipe\\wi-cli-silent-${process.pid}`
+    : join(tmpdir(), `wi-cli-silent-${process.pid}.sock`);
   // Greets but never answers commands.
   const server = net.createServer((socket) => {
     socket.write(`${JSON.stringify({ type: "hello", hello: { protocolVersion: 1 } })}\n`);
@@ -149,7 +154,7 @@ test("sendBridgeCommand times out when the bridge never answers", async () => {
     );
   } finally {
     server.close();
-    rmSync(socketPath, { force: true });
+    if (process.platform !== "win32") rmSync(socketPath, { force: true });
   }
 });
 
