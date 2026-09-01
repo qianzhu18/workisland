@@ -12,6 +12,15 @@ if (process.platform !== "darwin") {
   console.log("Native panel module is macOS-only; skipping build.");
   process.exit(0);
 }
+
+// 目标架构：默认跟随宿主机，允许通过 --arch x64 或 WORKISLAND_NATIVE_ARCH
+// 交叉编译出 Intel 版本（Apple Silicon 上的 Xcode 工具链自带 x86_64 slice）。
+const targetArch = (() => {
+  const flagIndex = process.argv.indexOf("--arch");
+  const flagValue = flagIndex !== -1 ? process.argv[flagIndex + 1] : undefined;
+  const value = flagValue || process.env.WORKISLAND_NATIVE_ARCH || process.env.npm_config_arch || process.arch;
+  return value === "x64" || value === "x86_64" ? "x86_64" : "arm64";
+})();
 const outDir = join(root, "resources/bin");
 mkdirSync(outDir, { recursive: true });
 const nodeInclude = join(process.execPath, "..", "..", "include", "node");
@@ -22,11 +31,12 @@ const include = existsSync(join(electronInclude, "include/node/node_api.h"))
 const buildDir = join(root, ".native-build");
 mkdirSync(buildDir, { recursive: true });
 const args = ["-std=c++17", "-fobjc-arc", "-dynamiclib", "-undefined", "dynamic_lookup",
+  "-arch", targetArch,
   "-I", include, "-framework", "AppKit", "-framework", "CoreGraphics", "-framework", "Foundation",
   join(root, "native/panel-fix/src/panel_fix.mm"), "-o", join(buildDir, "panel_fix.node")];
 execFileSync("clang++", args, { stdio: "inherit" });
 copyFileSync(join(buildDir, "panel_fix.node"), join(outDir, "panel_fix.node"));
-console.log(`Built ${join(outDir, "panel_fix.node")}`);
+console.log(`Built ${join(outDir, "panel_fix.node")} (${targetArch})`);
 
 const adapterVersion = "v0.7.6";
 const adapterSha256 = "0891554af8ee8fc1bb1d14ddf023f8e4ce3093387391122c865f7e02c2d1f3de";
@@ -51,7 +61,7 @@ mkdirSync(join(frameworkVersion, "Resources"), { recursive: true });
 const sourceDirs = ["src/adapter", "src/private", "src/utility"];
 const adapterSources = sourceDirs.flatMap((directory) => readdirSync(join(adapterSource, directory))
   .filter((name) => name.endsWith(".m")).map((name) => join(adapterSource, directory, name)));
-execFileSync("clang", ["-fobjc-arc", "-fvisibility=default", "-dynamiclib", "-arch", process.arch === "arm64" ? "arm64" : "x86_64",
+execFileSync("clang", ["-fobjc-arc", "-fvisibility=default", "-dynamiclib", "-arch", targetArch,
   "-I", join(adapterSource, "include"), "-I", join(adapterSource, "src"),
   "-framework", "Foundation", "-framework", "AppKit", "-framework", "UniformTypeIdentifiers",
   ...adapterSources, "-install_name", "@rpath/MediaRemoteAdapter.framework/Versions/A/MediaRemoteAdapter",
@@ -74,4 +84,4 @@ symlinkSync("Versions/Current/Resources", join(framework, "Resources"));
 execFileSync("codesign", ["--force", "--deep", "--sign", "-", framework], { stdio: "inherit" });
 copyFileSync(join(adapterSource, "bin/mediaremote-adapter.pl"), join(adapterOutput, "mediaremote-adapter.pl"));
 copyFileSync(join(adapterSource, "LICENSE"), join(adapterOutput, "LICENSE"));
-console.log(`Built ${framework} from MediaRemote Adapter ${adapterVersion}`);
+console.log(`Built ${framework} (${targetArch}) from MediaRemote Adapter ${adapterVersion}`);

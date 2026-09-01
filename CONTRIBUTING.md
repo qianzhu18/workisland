@@ -4,9 +4,10 @@ Thank you for helping improve WorkIsland.
 
 ## Local setup
 
-WorkIsland requires Apple Silicon macOS or Windows 11 x64 and Node.js 22 or newer. Use the isolated mode for
+WorkIsland requires macOS (Apple Silicon or Intel) or Windows 11 x64 and Node.js 22 or newer. Use the isolated mode for
 routine development so Agent configuration in your real home directory is not
-modified.
+modified. See [docs/COMPATIBILITY.md](./docs/COMPATIBILITY.md) for the platform
+truth table and the Intel build commands.
 
 ```bash
 npm ci
