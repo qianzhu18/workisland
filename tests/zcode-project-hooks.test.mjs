@@ -15,11 +15,13 @@ Module._load = function(request, parent, isMain) {
   return originalLoad.call(this, request, parent, isMain);
 };
 const {
+  ZCODE_EVENTS,
   ZCodeHookManager,
   findZCodeProjectRoot,
   getZCodeConfigPath,
   getZCodeWorkspaceConfigPath,
-  isWorkIslandHookGroup
+  isWorkIslandHookGroup,
+  mergeHookGroups
 } = require("../src/main/hooks-work-agents.cjs");
 Module._load = originalLoad;
 
@@ -51,6 +53,26 @@ test("findZCodeProjectRoot walks up to the nearest .git and returns null without
   const plain = makeTempDir("zcode-plain-");
   fs.mkdirSync(path.join(plain, "deep"), { recursive: true });
   assert.equal(findZCodeProjectRoot(path.join(plain, "deep")), null);
+});
+
+test("hook detection accepts Windows backslash paths and double-quoted --source", () => {
+  // win32 dev 命令（buildDevHooksCliCommand + win32 shellQuote）
+  const windowsDevCommand = 'set "ELECTRON_RUN_AS_NODE=1"&& "C:\\Program Files\\nodejs\\node.exe" "D:\\work\\island\\src\\island\\hooks-cli\\index.cjs" --source "zcode"';
+  // win32 打包态命令（wrapWithInstallCheck + flux-hooks 二进制）
+  const windowsPackagedCommand = 'if not exist "C:\\Apps\\WorkIsland.exe" exit /b 0 & set "ELECTRON_RUN_AS_NODE=1"&& "C:\\Apps\\WorkIsland.exe" "C:\\Apps\\resources\\bin\\flux-hooks" --source "zcode"';
+  assert.equal(isWorkIslandHookGroup({ hooks: [{ type: "command", command: windowsDevCommand }] }, "zcode"), true);
+  assert.equal(isWorkIslandHookGroup({ hooks: [{ type: "command", command: windowsPackagedCommand }] }, "zcode"), true);
+  assert.equal(isWorkIslandHookGroup({ hooks: [{ type: "command", command: "node hooks-cli/index.cjs --source 'zcode'" }] }, "zcode"), true);
+  assert.equal(isWorkIslandHookGroup({ hooks: [{ type: "command", command: 'node hooks-cli/index.cjs --source "other"' }] }, "zcode"), false);
+
+  // 若不识别 Windows 形状的既有组，merge 会重复堆积而不是替换 —— 在任何平台钉住幂等契约。
+  const merged = mergeHookGroups(
+    { Stop: [{ hooks: [{ type: "command", command: windowsDevCommand }] }] },
+    ZCODE_EVENTS.filter(({ event }) => event === "Stop"),
+    windowsDevCommand,
+    "zcode"
+  );
+  assert.equal(merged.Stop.length, 1);
 });
 
 test("install writes project-level hooks while preserving other project config", async () => {

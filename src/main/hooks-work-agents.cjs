@@ -80,8 +80,14 @@ async function writeJsonAtomic(filePath, value) {
 
 function isWorkIslandCommand(command, source) {
   if (typeof command !== "string") return false;
-  const hasWorkIslandBinary = command.includes("flux-hooks") || command.includes("hooks-cli/index.");
-  const hasSource = command.includes(`--source '${source}'`) || command.includes(`--source ${source}`);
+  // Windows 写入的命令是反斜杠路径 + 双引号参数（win32 shellQuote），POSIX 是正斜杠 +
+  // 单引号。统一成 / 再匹配，否则 merge/uninstall 在 Windows 上认不出自家 hook，
+  // 重连时重复堆积、卸载时残留。
+  const normalized = command.replaceAll("\\", "/");
+  const hasWorkIslandBinary = normalized.includes("flux-hooks") || normalized.includes("hooks-cli/index.");
+  const hasSource = normalized.includes(`--source '${source}'`)
+    || normalized.includes(`--source "${source}"`)
+    || normalized.includes(`--source ${source}`);
   return hasWorkIslandBinary && hasSource;
 }
 
