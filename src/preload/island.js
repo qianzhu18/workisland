@@ -45,6 +45,20 @@ electron.contextBridge.exposeInMainWorld("islandBridge", {
     electron.ipcRenderer.on(ipc.IPC.APP_UPDATE_AVAILABLE, handler);
     return () => electron.ipcRenderer.removeListener(ipc.IPC.APP_UPDATE_AVAILABLE, handler);
   },
+  getUpdateState() {
+    return electron.ipcRenderer.invoke(ipc.IPC.APP_UPDATE_STATE);
+  },
+  downloadUpdate() {
+    return electron.ipcRenderer.invoke(ipc.IPC.APP_UPDATE_DOWNLOAD);
+  },
+  installUpdate() {
+    return electron.ipcRenderer.invoke(ipc.IPC.APP_UPDATE_INSTALL);
+  },
+  onUpdateState(cb) {
+    const handler = (_event, state) => cb(state);
+    electron.ipcRenderer.on(ipc.IPC.APP_UPDATE_STATE, handler);
+    return () => electron.ipcRenderer.removeListener(ipc.IPC.APP_UPDATE_STATE, handler);
+  },
   // 渲染挂载时主动拉一次当前快照，兜底"启动期间事件已错过"的场景。
   getQuotaMap() {
     return electron.ipcRenderer.invoke(ipc.IPC.USAGE_GET_QUOTA_MAP);

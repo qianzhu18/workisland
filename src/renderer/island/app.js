@@ -16,6 +16,7 @@ const useSessionStore = create((set) => ({
   agentQuotas: {},
   onboardingExpand: false,
   hasUpdate: false,
+  updateState: null,
   toggleExpandTick: 0,
   collapseTick: 0,
   switchSessionTick: 0,
@@ -28,13 +29,14 @@ const useSessionStore = create((set) => ({
   setAgentQuotas: (agentQuotas) => set({ agentQuotas }),
   setOnboardingExpand: (onboardingExpand) => set({ onboardingExpand }),
   setHasUpdate: (hasUpdate) => set({ hasUpdate }),
+  setUpdateState: (updateState) => set({ updateState }),
   requestToggleExpand: () => set((state) => ({ toggleExpandTick: state.toggleExpandTick + 1 })),
   requestCollapse: () => set((state) => ({ collapseTick: state.collapseTick + 1 })),
   requestSwitchSession: (direction) => set((state) => ({ switchSessionTick: state.switchSessionTick + 1, switchSessionDirection: direction })),
   requestConfirmSession: () => set((state) => ({ confirmSessionTick: state.confirmSessionTick + 1 }))
 }));
 function useIslandState() {
-  const { setSessions, setNotchInfo, presentSurface, setAgentQuotas, setHasUpdate } = useSessionStore();
+  const { setSessions, setNotchInfo, presentSurface, setAgentQuotas, setHasUpdate, setUpdateState } = useSessionStore();
   reactExports.useEffect(() => {
     const bridge = window.islandBridge;
     if (!bridge) {
@@ -52,6 +54,10 @@ function useIslandState() {
     });
     bridge.onQuotaUpdate((quotas) => setAgentQuotas(quotas));
     const offUpdate = bridge.onUpdateAvailable?.(() => setHasUpdate(true));
+    const offUpdateState = bridge.onUpdateState?.((state) => setUpdateState(state));
+    void bridge.getUpdateState?.().then((state) => {
+      if (state && typeof state === "object") setUpdateState(state);
+    }).catch(() => {});
     void bridge.getQuotaMap().then((quotas) => {
       if (quotas && Object.keys(quotas).length > 0) setAgentQuotas(quotas);
     });
@@ -73,7 +79,10 @@ function useIslandState() {
     bridge.onConfirmSession?.(() => {
       useSessionStore.getState().requestConfirmSession();
     });
-    return () => offUpdate?.();
+    return () => {
+      offUpdate?.();
+      offUpdateState?.();
+    };
   }, []);
 }
 function useIslandAnimation() {
@@ -117,7 +126,8 @@ function IslandApp() {
     clearSurface,
     presentSurface,
     agentQuotas,
-    hasUpdate
+    hasUpdate,
+    updateState
   } = useSessionStore();
   const onboardingExpand = useSessionStore((s) => s.onboardingExpand);
   const setOnboardingExpand = useSessionStore((s) => s.setOnboardingExpand);
@@ -444,6 +454,16 @@ function IslandApp() {
       collapsePanelToPillTimerRef.current = null;
     }, 150);
   }, [collapsePanelToPill]);
+  const handleUpdateDownload = reactExports.useCallback(() => {
+    window.islandBridge?.downloadUpdate?.().catch(() => {});
+  }, []);
+  const handleUpdateInstall = reactExports.useCallback(() => {
+    window.islandBridge?.installUpdate?.().catch(() => {});
+  }, []);
+  const handleOpenReleaseNotes = reactExports.useCallback(() => {
+    const url = useSessionStore.getState().updateState?.releaseUrl;
+    if (url) window.islandBridge?.openExternal?.(url);
+  }, []);
   reactExports.useLayoutEffect(() => {
     const el = panelLayerRef.current;
     if (!el) return;
@@ -902,7 +922,11 @@ function IslandApp() {
             onOpenPet: handlePetButtonClick,
             onCollapse: collapsePanelToPill,
             onFollowUpChange: handleFollowUpChange,
-            onActiveModuleChange: reportActiveModule
+            onActiveModuleChange: reportActiveModule,
+            updateState,
+            onUpdateDownload: handleUpdateDownload,
+            onUpdateInstall: handleUpdateInstall,
+            onOpenRelease: handleOpenReleaseNotes
           }
         )
       )

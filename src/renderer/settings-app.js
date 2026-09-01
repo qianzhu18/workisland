@@ -31,7 +31,7 @@ const AGENT_ICON_URLS = Object.freeze({
   "plugin:pi": "../assets/brands/pi.svg"
 });
 const VERIFY_ON_REAL_EVENT_AGENT_IDS = new Set(["dsh", "trae"]);
-const state = { settings: null, statuses: new Map(), displays: [], codexPets: [], shareProviders: [], activeTab: "general", busy: new Set(), expandedSettingDetails: new Set(), latestUpdate: null, telemetryStatus: null, commandDraft: { name: "", command: "" } };
+const state = { settings: null, statuses: new Map(), displays: [], codexPets: [], shareProviders: [], activeTab: "general", busy: new Set(), expandedSettingDetails: new Set(), latestUpdate: null, updateState: null, onUpdateStateUi: null, telemetryStatus: null, commandDraft: { name: "", command: "" } };
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -624,7 +624,7 @@ function aboutPage() {
     row("提交反馈", "报告问题、提出建议或补充复现信息。", button("打开反馈入口", () => api.openExternal(FEEDBACK_URL), "primary")),
     row("加入社区", "查看最新 WorkIsland 微信社区二维码。", button("查看群码", () => api.openExternal(COMMUNITY_URL)))
   );
-  const updates = section("更新", "仅请求官方版本信息，不上传会话内容或使用数据。");
+  const updates = section("更新", "仅请求官方版本信息与官方安装包，不上传会话内容或使用数据。");
   const updateStatus = el("div", "update-status", state.latestUpdate ? `发现新版本 ${state.latestUpdate.latestVersion}` : "尚未检查");
   let latestUrl = state.latestUpdate?.releaseUrl || "";
   const openButton = button("打开下载页", () => {
@@ -654,11 +654,55 @@ function aboutPage() {
       checkButton.disabled = false;
     }
   });
+  const formatMb = bytes => `${(Math.max(0, Number(bytes) || 0) / 1048576).toFixed(1)} MB`;
+  const installButton = button("下载并安装", async () => {
+    const phase = state.updateState?.phase || "idle";
+    try {
+      installButton.disabled = true;
+      if (phase === "ready") await api.installUpdate();
+      else await api.downloadUpdate();
+    } catch (error) {
+      updateStatus.textContent = error?.message || "更新操作失败";
+    } finally {
+      syncUpdateStateControls();
+    }
+  });
+  const syncUpdateStateControls = () => {
+    const snapshot = state.updateState;
+    const phase = snapshot?.phase || "idle";
+    const hasUpdate = Boolean(state.latestUpdate);
+    installButton.hidden = !(hasUpdate || ["downloading", "ready", "installing", "manual", "error"].includes(phase));
+    if (phase === "downloading") {
+      const pct = snapshot?.progress?.pct ?? 0;
+      installButton.textContent = `正在下载 ${pct}%`;
+      updateStatus.textContent = `正在下载更新 ${pct}%（${formatMb(snapshot?.progress?.received)}${snapshot?.progress?.total ? ` / ${formatMb(snapshot.progress.total)}` : ""}），完成后会校验安装包。`;
+    } else if (phase === "ready") {
+      installButton.textContent = "重启并完成安装";
+      installButton.disabled = false;
+      updateStatus.textContent = "安装包已下载并通过 SHA-256 校验，点击按钮立即安装并重启。";
+    } else if (phase === "installing") {
+      installButton.textContent = "正在安装…";
+      updateStatus.textContent = "正在安装更新，应用将自动重启。";
+    } else if (phase === "manual") {
+      installButton.textContent = "需手动完成";
+      updateStatus.textContent = snapshot?.error || "自动安装未完成，已打开安装镜像，请拖拽安装。";
+    } else if (phase === "error") {
+      installButton.textContent = "重试下载";
+      installButton.disabled = false;
+      updateStatus.textContent = snapshot?.error || "更新失败，请稍后重试。";
+    } else {
+      installButton.textContent = "下载并安装";
+      installButton.disabled = false;
+      if (hasUpdate) updateStatus.textContent = `发现新版本 ${state.latestUpdate.latestVersion}`;
+    }
+  };
+  state.onUpdateStateUi = syncUpdateStateControls;
+  syncUpdateStateControls();
   const updateControls = el("div", "inline-controls");
-  updateControls.append(updateStatus, checkButton, openButton);
+  updateControls.append(updateStatus, checkButton, installButton, openButton);
   updates.append(
     row("自动检查更新", "安装版每天检查一次 GitHub Release；关闭后仍可手动检查。", toggle(state.settings.updateChecksEnabled, v => save({ updateChecksEnabled: v }), "自动检查更新")),
-    row("版本检查", "发现新版本后会提醒，并提供官方下载页。", updateControls)
+    row("版本检查", "发现新版本后会提醒，可直接下载官方安装包并在本机完成安装。", updateControls)
   );
   const diagnostics = section("诊断", "导出仅包含本机诊断信息的日志；退出操作位于默认的“通用”页面。");
   const actions = el("div", "section-actions");
@@ -725,6 +769,12 @@ async function start() {
   api.onUpdateAvailable?.(update => {
     state.latestUpdate = update;
     if (state.activeTab === "about") renderPage();
+  });
+  try { state.updateState = await api.getUpdateState?.() || null; } catch { state.updateState = null; }
+  api.onUpdateState?.(snapshot => {
+    state.updateState = snapshot;
+    // 下载进度回调频率较高，只刷新关于页的更新控件，不整页重绘。
+    state.onUpdateStateUi?.();
   });
   api.onSettingsChanged?.(settings => { state.settings = settings; renderPage(); });
   renderPage();

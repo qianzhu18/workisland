@@ -646,7 +646,10 @@ const { registerIpcHandlers, getCustomIconDataUrl, applyDockIcon, sharePathsViaQ
   getAirDropIconDataUrl,
   shareFilesViaAirDrop,
   isAllowedExternalUrl,
-  checkForUpdates: (options) => updateService?.check(options) ?? Promise.resolve({ status: "unavailable" })
+  checkForUpdates: (options) => updateService?.check(options) ?? Promise.resolve({ status: "unavailable" }),
+  downloadUpdate: () => updateService?.download() ?? Promise.resolve({ phase: "unavailable" }),
+  installUpdate: () => updateService?.install() ?? Promise.resolve({ phase: "unavailable" }),
+  getUpdateState: () => updateService?.getUpdateState() ?? { phase: "unavailable" }
 });
 const { createDisplayManagerClass, normalizeDisplayPreference } = require("./display-manager.cjs");
 const DisplayManager = createDisplayManagerClass({
@@ -782,6 +785,14 @@ async function runIslandApp() {
         if (!win.isDestroyed()) win.webContents.send(IPC.APP_UPDATE_AVAILABLE, update);
       }
     },
+    onUpdateState: (state) => {
+      for (const win of electron.BrowserWindow.getAllWindows()) {
+        if (!win.isDestroyed()) win.webContents.send(IPC.APP_UPDATE_STATE, state);
+      }
+    },
+    relaunch: () => electron.app.relaunch(),
+    quit: () => electron.app.quit(),
+    openPath: (value) => electron.shell.openPath(value),
     logger: log
   });
   // 匿名遥测（PRD-005，2026-08-22 改版）：默认开启、设置内披露；开关门控读取
