@@ -4,6 +4,8 @@ import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 const { requestLocalControl } = require("../local-control-client.cjs");
+const { PRODUCT_CAPABILITIES } = require("../../shared/product-capabilities.cjs");
+const { DIAGNOSIS_SUBJECTS } = require("../../main/mcp-diagnostics.cjs");
 
 const emptyInput = z.object({}).strict();
 const controlledKey = z.string().min(1).max(120);
@@ -12,14 +14,20 @@ const settingsChanges = z.record(controlledKey, settingValue).refine(
   (changes) => Object.keys(changes).length >= 1 && Object.keys(changes).length <= 20,
   "Provide between 1 and 20 setting changes."
 );
+const capabilityId = z.enum(PRODUCT_CAPABILITIES.map(({ id }) => id));
+const diagnosisSubject = z.enum(DIAGNOSIS_SUBJECTS);
 
 export const TOOL_NAMES = Object.freeze([
+  "list_capabilities",
+  "get_capability",
+  "list_integrations",
+  "list_active_sessions",
+  "diagnose",
   "describe_settings",
   "get_settings",
   "update_settings",
   "undo_settings_change",
   "get_product_state",
-  "list_visible_sessions",
   "focus_session",
   "open_settings",
   "set_display_surface"
@@ -82,9 +90,54 @@ export function createWorkIslandMcpServer(options = {}) {
 
   const definitions = [
     {
+      name: "list_capabilities",
+      title: "List WorkIsland capabilities",
+      description: "Use this first when the user asks what WorkIsland or the Island can do. Returns the complete product capability catalog with availability, enabled state, usage, privacy, requirements, and related settings.",
+      inputSchema: emptyInput,
+      command: "control.listCapabilities",
+      params: () => ({}),
+      annotations: { readOnlyHint: true, idempotentHint: true }
+    },
+    {
+      name: "get_capability",
+      title: "Explain one WorkIsland capability",
+      description: "Explain how one WorkIsland feature works, when it is available, what data it uses, and which settings affect it.",
+      inputSchema: z.object({ id: capabilityId }).strict(),
+      command: "control.getCapability",
+      params: ({ id }) => ({ id }),
+      annotations: { readOnlyHint: true, idempotentHint: true }
+    },
+    {
+      name: "list_integrations",
+      title: "List WorkIsland agent integrations",
+      description: "List supported local agents with redacted enabled, installed, real-event verification, and capability state. Configuration presence alone is not reported as verified.",
+      inputSchema: emptyInput,
+      command: "control.listIntegrations",
+      params: () => ({}),
+      annotations: { readOnlyHint: true, idempotentHint: true }
+    },
+    {
+      name: "list_active_sessions",
+      title: "List sessions observed by WorkIsland",
+      description: "List only sessions currently observed and visible in WorkIsland. This is not a system-wide process list and never returns prompts, answers, paths, terminal identifiers, or PIDs.",
+      inputSchema: emptyInput,
+      command: "control.listActiveSessions",
+      params: () => ({}),
+      annotations: { readOnlyHint: true, idempotentHint: true }
+    },
+    {
+      name: "diagnose",
+      title: "Diagnose a WorkIsland feature",
+      description: "Diagnose one allowlisted WorkIsland display or integration problem using observed state. This tool is read-only and does not change settings.",
+      inputSchema: z.object({ subject: diagnosisSubject }).strict(),
+      command: "control.diagnose",
+      params: ({ subject }) => ({ subject }),
+      annotations: { readOnlyHint: true, idempotentHint: true }
+    },
+    {
       name: "describe_settings",
       title: "Describe WorkIsland settings",
-      description: "List the WorkIsland settings that local agents may read or change, including constraints and current values.",
+      description: "Describe complex WorkIsland customization settings, including constraints and current values. Use product capability tools for feature discovery.",
       inputSchema: emptyInput,
       command: "control.describeSettings",
       params: () => ({}),
@@ -102,7 +155,7 @@ export function createWorkIslandMcpServer(options = {}) {
     {
       name: "update_settings",
       title: "Update WorkIsland settings",
-      description: "Atomically change a bounded set of allowlisted, reversible WorkIsland preferences.",
+      description: "Atomically change a bounded set of allowlisted, reversible WorkIsland preferences only when the user explicitly asks for a change.",
       inputSchema: z.object({ changes: settingsChanges }).strict(),
       command: "control.updateSettings",
       params: ({ changes }) => ({ changes }),
@@ -127,15 +180,6 @@ export function createWorkIslandMcpServer(options = {}) {
       annotations: { readOnlyHint: true, idempotentHint: true }
     },
     {
-      name: "list_visible_sessions",
-      title: "List visible WorkIsland sessions",
-      description: "List redacted sessions currently visible in WorkIsland using opaque public IDs.",
-      inputSchema: emptyInput,
-      command: "control.listVisibleSessions",
-      params: () => ({}),
-      annotations: { readOnlyHint: true, idempotentHint: true }
-    },
-    {
       name: "focus_session",
       title: "Focus a WorkIsland session",
       description: "Return to a visible session using an opaque ID from list_visible_sessions.",
@@ -149,7 +193,7 @@ export function createWorkIslandMcpServer(options = {}) {
       title: "Open WorkIsland Settings",
       description: "Open WorkIsland Settings at one allowlisted section.",
       inputSchema: z.object({
-        section: z.enum(["general", "agents", "workstation", "appearance", "sound", "about", "agent-control"]).default("agent-control")
+        section: z.enum(["general", "agents", "workstation", "appearance", "sound", "mcp", "about"]).default("mcp")
       }).strict(),
       command: "control.openSettings",
       params: ({ section }) => ({ section }),

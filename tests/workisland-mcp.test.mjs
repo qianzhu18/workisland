@@ -22,10 +22,14 @@ function uniqueEndpoint(prefix) {
 
 const EXPECTED_TOOLS = [
   "describe_settings",
+  "diagnose",
   "focus_session",
+  "get_capability",
   "get_product_state",
   "get_settings",
-  "list_visible_sessions",
+  "list_active_sessions",
+  "list_capabilities",
+  "list_integrations",
   "open_settings",
   "set_display_surface",
   "undo_settings_change",
@@ -83,14 +87,18 @@ test("MCP lists the exact safe tool surface and forwards every tool", async (t) 
   assert.deepEqual(listed.tools.map((tool) => tool.name).sort(), EXPECTED_TOOLS);
 
   const cases = [
+    ["list_capabilities", {}, "control.listCapabilities", {}],
+    ["get_capability", { id: "performance" }, "control.getCapability", { id: "performance" }],
+    ["list_integrations", {}, "control.listIntegrations", {}],
+    ["diagnose", { subject: "performance-details-not-visible" }, "control.diagnose", { subject: "performance-details-not-visible" }],
     ["describe_settings", {}, "control.describeSettings", {}],
     ["get_settings", { keys: ["mediaEnabled"] }, "control.getSettings", { keys: ["mediaEnabled"] }],
     ["update_settings", { changes: { mediaEnabled: false } }, "control.updateSettings", { changes: { mediaEnabled: false } }],
     ["undo_settings_change", { changeId: "change-public" }, "control.undoSettingsChange", { changeId: "change-public" }],
     ["get_product_state", {}, "control.getProductState", {}],
-    ["list_visible_sessions", {}, "control.listVisibleSessions", {}],
+    ["list_active_sessions", {}, "control.listActiveSessions", {}],
     ["focus_session", { id: "session-public" }, "control.focusSession", { id: "session-public" }],
-    ["open_settings", { section: "agent-control" }, "control.openSettings", { section: "agent-control" }],
+    ["open_settings", { section: "mcp" }, "control.openSettings", { section: "mcp" }],
     ["set_display_surface", { surface: "pet" }, "control.setDisplaySurface", { surface: "pet" }]
   ];
   for (const [name, args, command, params] of cases) {
@@ -116,6 +124,10 @@ test("MCP input schemas reject arbitrary sections and oversized changes", async 
 
   const badSection = await client.callTool({ name: "open_settings", arguments: { section: "https://example.com" } });
   assert.equal(badSection.isError, true);
+  const badCapability = await client.callTool({ name: "get_capability", arguments: { id: "../../secret" } });
+  assert.equal(badCapability.isError, true);
+  const badDiagnosis = await client.callTool({ name: "diagnose", arguments: { subject: "run-command" } });
+  assert.equal(badDiagnosis.isError, true);
   const tooMany = Object.fromEntries(Array.from({ length: 21 }, (_, index) => [`key-${index}`, true]));
   const badChanges = await client.callTool({ name: "update_settings", arguments: { changes: tooMany } });
   assert.equal(badChanges.isError, true);
