@@ -611,7 +611,7 @@ function mcpPage() {
     }, "启用 WorkIsland MCP")
   ));
 
-  const clientSection = section("连接本机智能体", "连接会备份 Codex 配置，添加 WorkIsland 条目，并开启当前 Codex 版本加载本机 MCP 所需的兼容开关。配置成功不等于已经调用成功。");
+  const clientSection = section("连接智能体", "连接会备份 Codex 配置，添加 WorkIsland 条目，并开启当前 Codex 版本加载本机 MCP 所需的兼容开关。配置成功不等于已经调用成功。");
   const client = control.client;
   if (client) {
     const card = el("div", "agent-control-client");
@@ -638,10 +638,31 @@ function mcpPage() {
     clientSection.append(el("div", "agent-control-empty", "正在检测 Codex…"));
   }
 
-  const manual = section("手动配置", "其他支持本机 stdio MCP 的客户端，可按其说明使用同一命令。WorkIsland 不会自动改动尚未验证的客户端配置。");
-  const configBlock = el("pre", "agent-control-code", state.agentControlManual?.toml || "正在生成配置…");
-  manual.append(configBlock, el("div", "section-actions"));
-  manual.lastElementChild.append(button("复制配置", copyAgentControlConfig));
+  const examples = section("你可以这样问", "连接后，智能体可以先理解 WorkIsland 的功能和当前观察到的状态，再回答你的问题。");
+  const exampleList = el("div", "mcp-example-list");
+  for (const question of [
+    "灵动岛有哪些扩展功能？",
+    "现在有哪些智能体正在运行？",
+    "有没有智能体在等我处理？",
+    "为什么性能监控没有显示进程详情？",
+    "WorkIsland 支持哪些智能体，哪些已经连接成功？",
+    "文件架和剪贴板历史有什么区别？"
+  ]) {
+    const example = button(question, async () => {
+      await navigator.clipboard.writeText(question);
+      showToast("问题已复制，可以发给你的智能体");
+    }, "mcp-example");
+    example.setAttribute("aria-label", `复制问题：${question}`);
+    exampleList.append(example);
+  }
+  examples.append(exampleList);
+
+  const privacy = section("权限与隐私", "MCP 只开放为 WorkIsland 专门设计的工具，不把本机进程或原始应用数据直接交给智能体。");
+  privacy.append(
+    row("可以读取", "产品功能说明、公开设置，以及 WorkIsland 当前观察到的智能体状态和集成状态。", el("span", "status installed", "只读")),
+    row("不会读取", "提示词、回答内容、文件路径、进程 ID、终端内容或系统中的完整进程列表。", el("span", "status installed", "受保护")),
+    row("修改设置", "只有你明确要求时才会执行；修改会留下最近活动，并提供撤销入口。", el("span", "status pending", "需确认意图"))
+  );
 
   const recent = section("最近活动", "只记录客户端、工具名、允许的设置键与结果；不保存提示词、会话内容、路径或终端信息。");
   const activity = el("div", "agent-control-activity");
@@ -660,13 +681,25 @@ function mcpPage() {
   }
   recent.append(activity);
 
+  const advanced = document.createElement("details");
+  advanced.className = "mcp-advanced";
+  advanced.open = false;
+  const advancedSummary = el("summary", "mcp-advanced-summary", "高级设置");
+  const advancedBody = el("div", "mcp-advanced-body");
+  const manual = section("手动配置", "其他支持本机 stdio MCP 的客户端，可按其说明使用同一命令。WorkIsland 不会自动改动尚未验证的客户端配置。");
+  const configBlock = el("pre", "agent-control-code", state.agentControlManual?.toml || "正在生成配置…");
+  manual.append(configBlock, el("div", "section-actions"));
+  manual.lastElementChild.append(button("复制配置", copyAgentControlConfig));
+  advancedBody.append(manual);
+  advanced.append(advancedSummary, advancedBody);
+
   const errorMessage = state.agentControl?.error || control.error;
   if (errorMessage) {
     const error = el("div", "agent-control-error", errorMessage);
     error.setAttribute("role", "alert");
     root.append(error);
   }
-  root.append(authorization, clientSection, manual, recent);
+  root.append(authorization, clientSection, examples, privacy, recent, advanced);
   return root;
 }
 
