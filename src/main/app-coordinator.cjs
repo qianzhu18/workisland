@@ -779,6 +779,7 @@ function createAppCoordinatorClass({
           } catch {
           }
           const options = { statusLineEnabled: this.resolveClaudeStatusLineEnabled(agentId) };
+          if (agentId === "zcode") options.workspacePaths = this.collectRecentSessionCwds();
           log.info(`[AppCoordinator] auto-reinstalling hook for ${agentId}`);
           await manager.install(options);
         } catch (err) {
@@ -1455,6 +1456,7 @@ function createAppCoordinatorClass({
       const manager = this.hookManagers.get(agentId);
       if (!manager) return { success: false, error: `${i18n.k2159120351({ placeholder1: agentId }, "未知的 agent: {placeholder1}")}`, errorCode: "NOT_FOUND" };
       const options = { statusLineEnabled: this.resolveClaudeStatusLineEnabled(agentId) };
+      if (agentId === "zcode") options.workspacePaths = this.collectRecentSessionCwds();
       try {
         await manager.install(options);
         log.info(`[AppCoordinator] installHook(${agentId}) success`);
@@ -1473,6 +1475,22 @@ function createAppCoordinatorClass({
     async uninstallHook(agentId) {
       const manager = this.hookManagers.get(agentId);
       if (manager) await manager.uninstall();
+    }
+    // ZCode ≥3.10 只执行项目级 hooks：取最近活跃会话的项目目录（cwd），去重后交给
+    // ZCodeHookManager 解析 git 根并写入 .zcode/config.json。
+    collectRecentSessionCwds() {
+      const sessions = [...this.state.sessions.values()]
+        .filter((session) => typeof session?.cwd === "string" && path.isAbsolute(session.cwd) && fs.existsSync(session.cwd))
+        .sort((left, right) => Number(right.updatedAt || 0) - Number(left.updatedAt || 0));
+      const seen = new Set();
+      const cwds = [];
+      for (const session of sessions) {
+        if (seen.has(session.cwd)) continue;
+        seen.add(session.cwd);
+        cwds.push(session.cwd);
+        if (cwds.length >= 20) break;
+      }
+      return cwds;
     }
     // 移除所有已安装的 hook 配置，并将 hookToggles 全部置为 false
     async uninstallAllHooks() {

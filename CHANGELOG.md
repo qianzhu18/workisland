@@ -2,6 +2,12 @@
 
 这里记录 WorkIsland 对用户有意义的版本变化。每个版本的安装包与完整说明以 [GitHub Releases](https://github.com/qianzhu18/workisland/releases) 为准；也可以查看[官网更新日志](https://workisland.yanglaishe.cn/changelog/)。
 
+## [Unreleased]
+
+### Fixed
+
+- 修复 ZCode（≥3.10）始终无法连接的问题：新版 ZCode 只执行项目级 Hook，不再读取用户级 `~/.zcode/cli/config.json`。Hook 现在会同步写入最近活跃会话所在项目（git 根目录）的 `.zcode/config.json`（与项目内 MCP 等既有配置合并、互不覆盖），卸载时一并清理；用户级配置仍保留以兼容旧版 ZCode。
+
 ## [3.2.0] - 2026-09-01
 
 ### Added
