@@ -156,6 +156,18 @@ test("active session command reports only sessions currently observed by WorkIsl
   ]);
 });
 
+test("diagnosis is read-only and explains observed WorkIsland state", async () => {
+  const harness = createHarness({
+    dependencies: {
+      getIntegrationStatus: async () => [{ agentId: "codex", label: "Codex", installed: true, capabilities: {} }]
+    }
+  });
+  const result = await harness.service.execute("control.diagnose", { subject: "agent-not-visible" });
+  assert.equal(result.diagnosis.status, "not-observed");
+  assert.match(result.diagnosis.evidence.join(" "), /WorkIsland 当前没有观察到可见会话/);
+  assert.equal(harness.updates.length, 0);
+});
+
 test("safe UI operations are allowlisted", async () => {
   const harness = createHarness();
 

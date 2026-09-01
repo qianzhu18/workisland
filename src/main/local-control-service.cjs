@@ -10,6 +10,7 @@ const {
   getProductCapability,
   listProductCapabilities
 } = require("../shared/product-capabilities.cjs");
+const { diagnoseMcpSubject } = require("./mcp-diagnostics.cjs");
 
 const SETTINGS_SECTIONS = new Set(["general", "agents", "workstation", "appearance", "sound", "about", "mcp", "agent-control"]);
 const DISPLAY_SURFACES = new Set(["island", "pet"]);
@@ -87,6 +88,18 @@ class LocalControlService {
         case "control.listIntegrations":
           result = { integrations: await this.#listIntegrations() };
           break;
+        case "control.diagnose": {
+          const capabilityContext = this.#getCapabilityContext();
+          result = {
+            diagnosis: diagnoseMcpSubject(params?.subject, {
+              settings: capabilityContext.settings,
+              modules: capabilityContext.modules,
+              sessions: this.#listVisibleSessions(),
+              integrations: await this.#listIntegrations()
+            })
+          };
+          break;
+        }
         case "control.focusSession":
           result = await this.#focusSession(params);
           break;
