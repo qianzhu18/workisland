@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, basename } from "node:path";
 
 const require = createRequire(import.meta.url);
 const { sha256Buffer } = require("../src/shared/template-manifest.cjs");
@@ -164,7 +164,7 @@ test("publishTemplate requires --confirm, gh auth, and refuses duplicates", asyn
     assert.equal(published.catalogEntry.id, "author.remote");
     assert.equal(
       published.catalogEntry.zipUrl,
-      `https://github.com/example/repo/releases/download/templates-author.remote-v1.0.0/${keepZip.split("/").at(-1)}`
+      `https://github.com/example/repo/releases/download/templates-author.remote-v1.0.0/${encodeURIComponent(basename(keepZip))}`
     );
     assert.match(published.catalogEntry.zipSha256, /^[0-9a-f]{64}$/);
     assert.ok(published.nextStep.includes("catalog.json"));
