@@ -48,6 +48,7 @@ class ShortcutService {
   approvalArmed = false;
   jumpArmed = false;
   panelExpanded = false;
+  terminalInteractive = false;
   confirmArmed = false;
   registered = /* @__PURE__ */ new Set();
   switchSessionKeys = /* @__PURE__ */ new Set();
@@ -133,8 +134,23 @@ class ShortcutService {
     } else {
       this.unregisterIds([...APPROVAL_ACTIONS, ...JUMP_ACTIONS, ...COLLAPSE_ACTIONS]);
       this.unregisterSwitchSession();
+      this.terminalInteractive = false;
       this.confirmArmed = false;
       this.probeEphemeral(EPHEMERAL_ACTIONS);
+    }
+    this.emitStatus();
+  }
+  /** Give unmodified terminal-control keys to xterm while the full terminal is open. */
+  setTerminalInteractive(interactive) {
+    const next = Boolean(interactive);
+    if (this.terminalInteractive === next) return;
+    this.terminalInteractive = next;
+    if (next) {
+      this.unregisterIds(COLLAPSE_ACTIONS);
+      this.unregisterSwitchSession();
+    } else if (this.panelExpanded) {
+      this.registerCollapse();
+      this.registerSwitchSession();
     }
     this.emitStatus();
   }
@@ -151,6 +167,7 @@ class ShortcutService {
     this.registerBinding("toggleIsland", this.handlers.toggleIsland);
   }
   registerCollapse() {
+    if (this.terminalInteractive) return;
     const accel = this.acceleratorFor("collapsePanel");
     if (!accel) {
       this.status.collapsePanel = "disabled";
@@ -184,6 +201,7 @@ class ShortcutService {
     this.registerBinding("jumpToTerminal", this.handlers.jumpToTerminal);
   }
   registerSwitchSession() {
+    if (this.terminalInteractive) return;
     if (!this.config) return;
     const binding = this.config.bindings.switchSession;
     if (!binding || !binding.enabled) {
@@ -222,6 +240,7 @@ class ShortcutService {
     }
   }
   registerConfirmKey() {
+    if (this.terminalInteractive) return;
     const key = "Return";
     if (this.switchSessionKeys.has(key)) return;
     if (this.registered.has(key)) return;

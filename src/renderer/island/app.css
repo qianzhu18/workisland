@@ -1014,6 +1014,7 @@ body {
 .performance-metric i::after { content: ""; display: block; width: var(--value); height: 100%; border-radius: inherit; background: linear-gradient(90deg,#65cfa0,#9ce5c2); }
 .performance-memory { margin: 9px 2px 3px; color: rgba(255,255,255,.4); font-size: 9px; font-variant-numeric: tabular-nums; }
 .performance-processes { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.08); }
+.performance-process-status { margin-top: 10px; padding: 10px; border-top: 1px solid rgba(255,255,255,.08); color: rgba(255,255,255,.46); font-size: 9px; text-align: center; }
 .performance-process-title { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 6px; color: rgba(255,255,255,.42); font-size: 9px; letter-spacing: .2px; }
 .performance-process-title span:last-child { color: rgba(255,255,255,.28); }
 .performance-process-list { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }

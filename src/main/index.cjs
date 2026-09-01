@@ -1223,6 +1223,9 @@ async function runIslandApp() {
       collapseUnregisterTimer = null;
     }, 150);
   });
+  electron.ipcMain.on(IPC.TERMINAL_INTERACTIVE_CHANGED, (_event, interactive) => {
+    shortcutService.setTerminalInteractive(Boolean(interactive));
+  });
 }
 for (const signal of ["SIGINT", "SIGTERM", "SIGUSR1"]) {
   process.on(signal, () => {

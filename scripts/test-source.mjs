@@ -49,10 +49,12 @@ const {
 // shelf references/paste/share, opt-in clipboard history, directory selection,
 // one managed PTY session, a renderer-to-main file-drag interaction lock, and
 // privacy-gated lyrics state/cache controls. PRD-015 adds usage summary/insights/
-// export/clear channels for the Usage dashboard.
-// Auto-update loop (PRD: 自动更新提示、下载与安装闭环) adds app:update-download,
-// app:update-install and app:update-state to the shared contract.
-assert.equal(Object.keys(IPC).length, 147, "IPC contract changed; review both main and preload consumers");
+// export/clear channels for the Usage dashboard. Full-terminal interaction and
+// visible-panel mouse bounds add two renderer-to-main signals for keyboard
+// priority and transparent click-through. Auto-update loop (PRD: 自动更新提示、
+// 下载与安装闭环) adds app:update-download, app:update-install and
+// app:update-state to the shared contract.
+assert.equal(Object.keys(IPC).length, 149, "IPC contract changed; review both main and preload consumers");
 assert.equal(IPC.APP_UPDATE_DOWNLOAD, "app:update-download");
 assert.equal(IPC.APP_UPDATE_INSTALL, "app:update-install");
 assert.equal(IPC.APP_UPDATE_STATE, "app:update-state");
@@ -64,6 +66,7 @@ assert.equal(IPC.PET_TOGGLE, "pet:toggle");
 assert.equal(IPC.SETTINGS_GET_CODEX_PETS, "settings:get-codex-pets");
 assert.equal(IPC.SETTINGS_GET_TELEMETRY_STATUS, "settings:get-telemetry-status");
 assert.equal(IPC.ISLAND_FILE_DRAG_STATE, "island:file-drag-state");
+assert.equal(IPC.ISLAND_INTERACTION_BOUNDS, "island:interaction-bounds");
 const coreAgentIds = listCoreAgentDescriptors().map(({ agentId }) => agentId);
 assert.ok(coreAgentIds.includes("zcode"));
 assert.ok(coreAgentIds.includes("workbuddy"));

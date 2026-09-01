@@ -143,13 +143,17 @@ class PerformanceService extends EventEmitter {
     this.killProcess = killProcess;
     this.enabled = true;
     this.detailsVisible = false;
+    this.detailsRequestId = 0;
     this.timer = null;
     this.previousCpus = osApi.cpus();
     this.previousWindowsProcesses = new Map();
     this.lastWindowsSampleAt = 0;
+    this.lastSuccessfulProcesses = [];
+    this.hasSuccessfulProcessSample = false;
     this.state = {
       cpuPct: 0, memoryUsedBytes: 0, memoryTotalBytes: osApi.totalmem(), memoryPct: 0,
-      memoryPressure: "unknown", processes: [], updatedAt: 0
+      memoryPressure: "unknown", processes: [], processesLoading: false,
+      processesLoaded: false, processesUnavailable: false, updatedAt: 0
     };
   }
 
@@ -172,7 +176,17 @@ class PerformanceService extends EventEmitter {
   }
 
   setDetailsVisible(visible) {
-    this.detailsVisible = Boolean(visible);
+    const nextVisible = Boolean(visible);
+    if (nextVisible !== this.detailsVisible) this.detailsRequestId += 1;
+    this.detailsVisible = nextVisible;
+    this.state = {
+      ...this.state,
+      processes: this.detailsVisible ? this.lastSuccessfulProcesses : [],
+      processesLoading: this.detailsVisible,
+      processesLoaded: this.hasSuccessfulProcessSample,
+      processesUnavailable: false
+    };
+    this.emit("update", this.state);
     if (this.detailsVisible) void this.sample();
   }
 
@@ -231,13 +245,16 @@ class PerformanceService extends EventEmitter {
   }
 
   async sample() {
+    const shouldSampleDetails = this.detailsVisible;
+    const detailsRequestId = this.detailsRequestId;
     const cpus = this.osApi.cpus();
     const cpuPct = calculateCpuUsage(this.previousCpus, cpus);
     this.previousCpus = cpus;
     const memoryTotalBytes = this.osApi.totalmem();
     let memoryUsedBytes = Math.max(0, memoryTotalBytes - this.osApi.freemem());
     let memoryPressure = this.state.memoryPressure;
-    let processes = this.detailsVisible ? this.state.processes : [];
+    let processes = shouldSampleDetails ? this.lastSuccessfulProcesses : [];
+    let processSampleFailed = false;
     if (this.platform !== "win32") try {
       const pressure = await this.execFile("/usr/bin/memory_pressure", []);
       memoryPressure = parseMemoryPressure(pressure.stdout);
@@ -246,7 +263,7 @@ class PerformanceService extends EventEmitter {
       const vm = await this.execFile("/usr/bin/vm_stat", []);
       memoryUsedBytes = parseVmStat(vm.stdout, memoryTotalBytes) ?? memoryUsedBytes;
     } catch {}
-    if (this.detailsVisible) {
+    if (shouldSampleDetails) {
       try {
         if (this.platform === "win32") {
           const now = Date.now();
@@ -269,15 +286,35 @@ class PerformanceService extends EventEmitter {
           const result = await this.execFile("/bin/ps", ["-axo", "pid=,uid=,%cpu=,%mem=,rss=,command="]);
           processes = parseProcessRows(result.stdout, { currentUid: this.currentUid });
         }
-      } catch {}
+        this.lastSuccessfulProcesses = processes;
+        this.hasSuccessfulProcessSample = true;
+      } catch {
+        processSampleFailed = true;
+        processes = this.lastSuccessfulProcesses;
+      }
     }
+    const detailsStillVisible = this.detailsVisible;
+    const canPublishProcessDetails = shouldSampleDetails
+      && detailsStillVisible
+      && detailsRequestId === this.detailsRequestId;
     this.state = {
       cpuPct,
       memoryUsedBytes,
       memoryTotalBytes,
       memoryPct: memoryTotalBytes ? Math.round(memoryUsedBytes / memoryTotalBytes * 1e3) / 10 : 0,
       memoryPressure,
-      processes,
+      processes: detailsStillVisible
+        ? canPublishProcessDetails ? processes : this.state.processes
+        : [],
+      processesLoading: detailsStillVisible && !canPublishProcessDetails
+        ? this.state.processesLoading
+        : false,
+      processesLoaded: detailsStillVisible && !canPublishProcessDetails
+        ? this.state.processesLoaded
+        : this.hasSuccessfulProcessSample,
+      processesUnavailable: canPublishProcessDetails
+        ? processSampleFailed && !this.hasSuccessfulProcessSample
+        : detailsStillVisible && this.state.processesUnavailable,
       updatedAt: Date.now()
     };
     this.emit("update", this.state);
