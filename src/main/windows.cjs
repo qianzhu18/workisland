@@ -2,6 +2,7 @@
 
 const {
   createFileDropInteraction,
+  normalizeIslandInteractionBounds,
   resolveDropProximityMouseMode
 } = require("./island-file-drop-interaction.cjs");
 const { isShelfShareDrop, normalizeShelfShareBounds } = require("./shelf-drop-routing.cjs");
@@ -30,6 +31,7 @@ function createWindowClasses(dependencies) {
     _isFocusHidden = false;
     isHoverRevealedWhileFullscreenHidden = false;
     isPanelExpanded = false;
+    interactionBounds = null;
     shouldConcealAfterCloseAnimation = false;
     requestedHeight = ISLAND_HEIGHT;
     dropProximityTimer = null;
@@ -133,6 +135,16 @@ function createWindowClasses(dependencies) {
       this.isPanelExpanded = false;
       this.syncDropProximityInteraction({ force: true });
     };
+    handleInteractionBounds = (event, bounds) => {
+      if (this.win.isDestroyed() || event.sender !== this.win.webContents) return;
+      const normalized = normalizeIslandInteractionBounds(bounds, {
+        maxWidth: ISLAND_WIDTH,
+        maxHeight: ISLAND_HEIGHT
+      });
+      if (!normalized) return;
+      this.interactionBounds = normalized;
+      if (this.isPanelExpanded) this.syncDropProximityInteraction({ force: true });
+    };
     constructor(target, options = {}) {
       this.onNativeFileDrop = options.onNativeFileDrop || null;
       this.onNativeFileShare = options.onNativeFileShare || null;
@@ -214,6 +226,7 @@ function createWindowClasses(dependencies) {
         electron.ipcMain.removeListener(IPC.ISLAND_RESIZE, this.handleIslandResize);
         electron.ipcMain.removeListener(IPC.ISLAND_PANEL_EXPANDED, this.handlePanelExpanded);
         electron.ipcMain.removeListener(IPC.ISLAND_PANEL_COLLAPSED, this.handlePanelCollapsed);
+        electron.ipcMain.removeListener(IPC.ISLAND_INTERACTION_BOUNDS, this.handleInteractionBounds);
         electron.ipcMain.removeListener(IPC.ISLAND_SYNC_CLOSED_WINDOW, this.handleSyncClosedWindow);
         log.warn("[IslandWindow] window closed");
       });
@@ -224,6 +237,7 @@ function createWindowClasses(dependencies) {
       electron.ipcMain.on(IPC.ISLAND_RESIZE, this.handleIslandResize);
       electron.ipcMain.on(IPC.ISLAND_PANEL_EXPANDED, this.handlePanelExpanded);
       electron.ipcMain.on(IPC.ISLAND_PANEL_COLLAPSED, this.handlePanelCollapsed);
+      electron.ipcMain.on(IPC.ISLAND_INTERACTION_BOUNDS, this.handleInteractionBounds);
       electron.ipcMain.on(IPC.ISLAND_SYNC_CLOSED_WINDOW, this.handleSyncClosedWindow);
       this.startDropProximityMonitor();
     }
@@ -261,16 +275,12 @@ function createWindowClasses(dependencies) {
     syncDropProximityInteraction({ force = false } = {}) {
       if (this.win.isDestroyed()) return;
       const point = electron.screen.getCursorScreenPoint();
-      // 工作台展开时，可交互区必须是“整个展开面板”的窗口矩形，而不仅是最上方
-      // ~80px 的 proximity 热区。否则光标在面板下半部时临近监控会判为“在面板外”，
-      // 把窗口切成交点穿透——这正是选中文件后整座灵动岛卡死、且再也无法点回的根因
-      // （窗口忽略鼠标事件后不会触发 mouseenter，只能靠临近监控找回，而旧的 proximity
-      // 热区覆盖不到面板下半部，于是彻底卡死）。
       let pointerInside;
       if (this.isPanelExpanded) {
         const b = this.win.getBounds();
-        pointerInside = point.x >= b.x && point.x <= b.x + b.width
-          && point.y >= b.y && point.y <= b.y + b.height;
+        const hit = this.interactionBounds || { x: 0, y: 0, width: b.width, height: b.height };
+        pointerInside = point.x >= b.x + hit.x && point.x <= b.x + hit.x + hit.width
+          && point.y >= b.y + hit.y && point.y <= b.y + hit.y + hit.height;
       } else {
         const pill = this.getPillRect();
         const center = pill.x + pill.width / 2;
@@ -281,7 +291,6 @@ function createWindowClasses(dependencies) {
       }
       const mode = resolveDropProximityMouseMode({
         fileDragActive: this.fileDropInteraction.isActive(),
-        panelExpanded: this.isPanelExpanded,
         concealed: this.shouldStayConcealed,
         pointerInside
       });

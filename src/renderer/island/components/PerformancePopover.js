@@ -27,7 +27,7 @@ export function PerformancePopover({ state }) {
   const open = () => { cancelClose(); setHovered(true); };
   const closeSoon = () => {
     cancelClose();
-    closeTimer.current = window.setTimeout(() => setHovered(false), 140);
+    closeTimer.current = window.setTimeout(() => setHovered(false), 350);
   };
   React.useLayoutEffect(() => {
     if (!visible || !triggerRef.current) return undefined;
@@ -49,6 +49,13 @@ export function PerformancePopover({ state }) {
   const metric = selectedMetric || preferredProcessMetric(state);
   const orderedProcesses = sortProcessesByMetric(state?.processes, metric);
   const visibleProcesses = showAllProcesses ? orderedProcesses : orderedProcesses.slice(0, 5);
+  const processStatus = state?.processesLoading
+    ? "正在读取进程…"
+    : state?.processesUnavailable
+      ? "暂时无法读取进程"
+      : state?.processesLoaded
+        ? "没有可显示的进程"
+        : "正在读取进程…";
   const level = cpu >= 85 || memory >= 90 ? "critical" : cpu >= 65 || memory >= 75 ? "warning" : "normal";
   const actOnProcess = async (action) => {
     if (!selectedProcess || pendingAction) return;
@@ -71,6 +78,7 @@ export function PerformancePopover({ state }) {
       React.createElement("button", { type: "button", className: `performance-metric${metric === "memory" ? " is-active" : ""}`, onClick: () => setSelectedMetric("memory"), "aria-pressed": metric === "memory", title: "按内存占用排序" }, React.createElement("span", null, "内存"), React.createElement("strong", null, `${memory}%`), React.createElement("i", { style: { "--value": `${memory}%` } }))
     ),
     React.createElement("div", { className: "performance-memory" }, `${bytes(state?.memoryUsedBytes)} / ${bytes(state?.memoryTotalBytes)}`),
+    orderedProcesses.length === 0 && React.createElement("div", { className: "performance-process-status", role: "status" }, processStatus),
     state?.processes?.length > 0 && React.createElement("div", { className: "performance-processes" },
       React.createElement("div", { className: "performance-process-title" }, React.createElement("span", null, metric === "memory" ? "按内存占用排序" : "按 CPU 占用排序"), React.createElement("span", null, `${orderedProcesses.length} 个可见进程`)),
       React.createElement("div", { className: `performance-process-list${showAllProcesses ? " is-expanded" : ""}` },

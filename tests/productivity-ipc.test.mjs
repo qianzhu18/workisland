@@ -8,6 +8,7 @@ const { IPC } = require("../src/shared/ipc.cjs");
 const preload = readFileSync(new URL("../src/preload/island.js", import.meta.url), "utf8");
 const coordinator = readFileSync(new URL("../src/main/app-coordinator.cjs", import.meta.url), "utf8");
 const handlers = readFileSync(new URL("../src/main/ipc-services.cjs", import.meta.url), "utf8");
+const mainIndex = readFileSync(new URL("../src/main/index.cjs", import.meta.url), "utf8");
 const ipcSource = readFileSync(new URL("../src/shared/ipc.cjs", import.meta.url), "utf8");
 const windowSource = readFileSync(new URL("../src/main/windows.cjs", import.meta.url), "utf8");
 const islandSource = readFileSync(new URL("../src/renderer/island/app.js", import.meta.url), "utf8");
@@ -18,13 +19,13 @@ test("productivity services expose narrow Island IPC contracts", () => {
   for (const key of [
     "SHELF_GET_STATE", "SHELF_STATE_UPDATE", "SHELF_GET_PREVIEW", "SHELF_ADD_PATHS", "SHELF_REMOVE", "SHELF_OPEN", "SHELF_REVEAL", "SHELF_PASTE_FROM_CLIPBOARD", "SHELF_COPY_ITEMS", "SHELF_SHARE_ITEMS", "SHELF_GET_SHARE_PROVIDERS", "SHELF_SET_QUICK_SHARE_PROVIDER", "SHELF_SHARE_VIA_DEFAULT", "SHELF_SHARE_AIRDROP", "SHELF_SHARE_DROP_BOUNDS",
     "CLIPBOARD_HISTORY_GET_STATE", "CLIPBOARD_HISTORY_UPDATE", "CLIPBOARD_HISTORY_REPLAY", "CLIPBOARD_HISTORY_CLEAR",
-    "TERMINAL_GET_STATE", "TERMINAL_STATUS_UPDATE", "TERMINAL_DATA", "TERMINAL_START", "TERMINAL_INPUT", "TERMINAL_RESIZE", "TERMINAL_STOP"
+    "TERMINAL_GET_STATE", "TERMINAL_STATUS_UPDATE", "TERMINAL_DATA", "TERMINAL_START", "TERMINAL_INPUT", "TERMINAL_RESIZE", "TERMINAL_STOP", "TERMINAL_INTERACTIVE_CHANGED"
   ]) assert.equal(typeof IPC[key], "string", `${key} must exist`);
 
   for (const method of [
     "getShelfState", "getShelfPreview", "addShelfFiles", "removeShelfItems", "openShelfItem", "revealShelfItem", "pasteShelfFromClipboard", "copyShelfItems", "shareShelfItems", "getShelfShareProviders", "setShelfQuickShareProvider", "shareShelfItemsViaDefault", "shareShelfItemViaAirDrop", "getAirDropIcon", "setShelfShareDropBounds",
     "getClipboardHistory", "replayClipboardEntry", "clearClipboardHistory",
-    "getTerminalState", "startTerminal", "sendTerminalInput", "resizeTerminal", "stopTerminal"
+    "getTerminalState", "startTerminal", "sendTerminalInput", "resizeTerminal", "stopTerminal", "setTerminalInteractive"
   ]) assert.match(preload, new RegExp(`${method}\\(`), `${method} must be exposed`);
   assert.match(preload, /addShelfDrop\(/);
   assert.match(preload, /parseFileUriList/);
@@ -40,6 +41,8 @@ test("productivity services expose narrow Island IPC contracts", () => {
   assert.match(handlers, /createThumbnailFromPath/);
   assert.match(handlers, /CLIPBOARD_HISTORY_REPLAY/);
   assert.match(handlers, /TERMINAL_INPUT/);
+  assert.match(mainIndex, /IPC\.TERMINAL_INTERACTIVE_CHANGED/);
+  assert.match(mainIndex, /shortcutService\.setTerminalInteractive\(Boolean\(interactive\)\)/);
 });
 
 test("macOS native bridge provides stable Finder artwork and selectable quick sharing", () => {

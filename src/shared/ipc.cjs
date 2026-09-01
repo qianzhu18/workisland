@@ -22,6 +22,7 @@ const IPC = Object.freeze({
   ISLAND_SURFACE_DISMISSED: "island:surface-dismissed",
   ISLAND_PANEL_EXPANDED: "island:panel-expanded",
   ISLAND_PANEL_COLLAPSED: "island:panel-collapsed",
+  ISLAND_INTERACTION_BOUNDS: "island:interaction-bounds",
   ISLAND_WINDOW_BLUR: "island:window-blur",
   ISLAND_FOCUS_LOSS_HIDE: "island:focus-loss-hide",
   ISLAND_SYNC_CLOSED_WINDOW: "island:sync-closed-window",
@@ -80,6 +81,7 @@ const IPC = Object.freeze({
   TERMINAL_RESTART: "terminal:restart",
   TERMINAL_STOP: "terminal:stop",
   TERMINAL_RUN_SAVED_COMMAND: "terminal:run-saved-command",
+  TERMINAL_INTERACTIVE_CHANGED: "terminal:interactive-changed",
 
   SETTINGS_SELECT_DIRECTORY: "settings:select-directory",
 

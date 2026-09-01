@@ -5,8 +5,21 @@ import test from "node:test";
 const require = createRequire(import.meta.url);
 const {
   createFileDropInteraction,
+  normalizeIslandInteractionBounds,
   resolveDropProximityMouseMode
 } = require("../src/main/island-file-drop-interaction.cjs");
+
+test("visible interaction bounds accept finite positive rectangles and reject unsafe input", () => {
+  assert.equal(typeof normalizeIslandInteractionBounds, "function");
+  assert.deepEqual(normalizeIslandInteractionBounds({ x: 20, y: 0, width: 700, height: 320 }), {
+    x: 20,
+    y: 0,
+    width: 700,
+    height: 320
+  });
+  assert.equal(normalizeIslandInteractionBounds({ x: 0, y: 0, width: -1, height: 20 }), null);
+  assert.equal(normalizeIslandInteractionBounds({ x: 0, y: 0, width: Infinity, height: 20 }), null);
+});
 
 test("ending a drag re-evaluates the real pointer position instead of keeping the drag mouse mode", () => {
   const samePointerPosition = { panelExpanded: false, concealed: false, pointerInside: false };
@@ -15,16 +28,22 @@ test("ending a drag re-evaluates the real pointer position instead of keeping th
   assert.equal(resolveDropProximityMouseMode({ ...samePointerPosition, fileDragActive: false }), "forward");
 });
 
-test("an expanded panel always remains interactive when the pointer leaves", () => {
+test("an expanded panel only captures the pointer inside its visible bounds", () => {
+  assert.equal(resolveDropProximityMouseMode({
+    fileDragActive: false,
+    panelExpanded: true,
+    concealed: false,
+    pointerInside: true
+  }), "interactive");
   assert.equal(resolveDropProximityMouseMode({
     fileDragActive: false,
     panelExpanded: true,
     concealed: false,
     pointerInside: false
-  }), "interactive");
+  }), "forward");
 
   const interaction = createFileDropInteraction();
-  assert.equal(interaction.shouldForwardMouseEventsOnLeave({ panelExpanded: true }), false);
+  assert.equal(interaction.shouldForwardMouseEventsOnLeave({ panelExpanded: true }), true);
 });
 
 test("an active Finder drag keeps the Island interactive until drop finishes", () => {

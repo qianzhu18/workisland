@@ -95,6 +95,109 @@ test("performance service only samples process details while visible", async () 
   assert.ok(detailCalls >= 1);
 });
 
+test("performance service republishes cached process details before refresh completes", async () => {
+  let processSample = 0;
+  let resolveRefresh;
+  const refreshPending = new Promise((resolve) => { resolveRefresh = resolve; });
+  const service = new PerformanceService({
+    platform: "darwin",
+    currentUid: 501,
+    osApi: {
+      cpus: () => [{ times: { user: 10, nice: 0, sys: 10, idle: 80, irq: 0 } }],
+      totalmem: () => 100,
+      freemem: () => 40
+    },
+    execFile: async (file) => {
+      if (file !== "/bin/ps") return { stdout: "" };
+      processSample += 1;
+      if (processSample === 1) {
+        return { stdout: "321 501 12.0 4.0 4096 /Applications/Safari.app/Contents/MacOS/Safari" };
+      }
+      await refreshPending;
+      return { stdout: "654 501 8.0 3.0 2048 /Applications/Mail.app/Contents/MacOS/Mail" };
+    }
+  });
+
+  service.detailsVisible = true;
+  await service.sample();
+  service.setDetailsVisible(false);
+  await service.sample();
+  assert.deepEqual(service.getSnapshot().processes, []);
+
+  service.setDetailsVisible(true);
+  assert.deepEqual(service.getSnapshot().processes.map((process) => process.pid), [321]);
+  assert.equal(service.getSnapshot().processesLoading, true);
+
+  resolveRefresh();
+  await new Promise((resolve) => setImmediate(resolve));
+});
+
+test("performance service preserves cached process details when refresh fails", async () => {
+  let failProcessRefresh = false;
+  const service = new PerformanceService({
+    platform: "darwin",
+    currentUid: 501,
+    osApi: {
+      cpus: () => [{ times: { user: 10, nice: 0, sys: 10, idle: 80, irq: 0 } }],
+      totalmem: () => 100,
+      freemem: () => 40
+    },
+    execFile: async (file) => {
+      if (file !== "/bin/ps") return { stdout: "" };
+      if (failProcessRefresh) throw new Error("ps failed");
+      return { stdout: "321 501 12.0 4.0 4096 /Applications/Safari.app/Contents/MacOS/Safari" };
+    }
+  });
+
+  service.detailsVisible = true;
+  await service.sample();
+  failProcessRefresh = true;
+  await service.sample();
+
+  assert.deepEqual(service.getSnapshot().processes.map((process) => process.pid), [321]);
+  assert.equal(service.getSnapshot().processesLoading, false);
+});
+
+test("a hidden sample finishing late does not cancel a newly opened detail load", async () => {
+  let pressureCall = 0;
+  let resolveHiddenPressure;
+  let resolveVisibleProcesses;
+  const hiddenPressurePending = new Promise((resolve) => { resolveHiddenPressure = resolve; });
+  const visibleProcessesPending = new Promise((resolve) => { resolveVisibleProcesses = resolve; });
+  const service = new PerformanceService({
+    platform: "darwin",
+    currentUid: 501,
+    osApi: {
+      cpus: () => [{ times: { user: 10, nice: 0, sys: 10, idle: 80, irq: 0 } }],
+      totalmem: () => 100,
+      freemem: () => 40
+    },
+    execFile: async (file) => {
+      if (file === "/usr/bin/memory_pressure") {
+        pressureCall += 1;
+        if (pressureCall === 1) await hiddenPressurePending;
+        return { stdout: "" };
+      }
+      if (file === "/bin/ps") {
+        await visibleProcessesPending;
+        return { stdout: "321 501 12.0 4.0 4096 /Applications/Safari.app/Contents/MacOS/Safari" };
+      }
+      return { stdout: "" };
+    }
+  });
+
+  const hiddenSample = service.sample();
+  service.setDetailsVisible(true);
+  assert.equal(service.getSnapshot().processesLoading, true);
+
+  resolveHiddenPressure();
+  await hiddenSample;
+  assert.equal(service.getSnapshot().processesLoading, true);
+
+  resolveVisibleProcesses();
+  await new Promise((resolve) => setImmediate(resolve));
+});
+
 test("Windows process rows calculate CPU deltas and protect WorkIsland", () => {
   const firstJson = JSON.stringify([
     { pid: 321, name: "Player", cpuSeconds: 10, memoryBytes: 1_000, path: "C:\\Player.exe", startedAt: "2026-01-01T00:00:00.000Z" },

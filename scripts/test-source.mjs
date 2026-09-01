@@ -49,8 +49,10 @@ const {
 // shelf references/paste/share, opt-in clipboard history, directory selection,
 // one managed PTY session, a renderer-to-main file-drag interaction lock, and
 // privacy-gated lyrics state/cache controls. PRD-015 adds usage summary/insights/
-// export/clear channels for the Usage dashboard.
-assert.equal(Object.keys(IPC).length, 144, "IPC contract changed; review both main and preload consumers");
+// export/clear channels for the Usage dashboard. Full-terminal interaction and
+// visible-panel mouse bounds add two renderer-to-main signals for keyboard
+// priority and transparent click-through.
+assert.equal(Object.keys(IPC).length, 146, "IPC contract changed; review both main and preload consumers");
 assert.equal(new Set(Object.values(IPC)).size, Object.keys(IPC).length, "IPC channels must be unique");
 assert.ok(Object.isFrozen(IPC), "IPC contract must be immutable");
 assert.equal(IPC.PET_DRAG_TO_ISLAND, "pet:drag-to-island");
@@ -59,6 +61,7 @@ assert.equal(IPC.PET_TOGGLE, "pet:toggle");
 assert.equal(IPC.SETTINGS_GET_CODEX_PETS, "settings:get-codex-pets");
 assert.equal(IPC.SETTINGS_GET_TELEMETRY_STATUS, "settings:get-telemetry-status");
 assert.equal(IPC.ISLAND_FILE_DRAG_STATE, "island:file-drag-state");
+assert.equal(IPC.ISLAND_INTERACTION_BOUNDS, "island:interaction-bounds");
 const coreAgentIds = listCoreAgentDescriptors().map(({ agentId }) => agentId);
 assert.ok(coreAgentIds.includes("zcode"));
 assert.ok(coreAgentIds.includes("workbuddy"));
