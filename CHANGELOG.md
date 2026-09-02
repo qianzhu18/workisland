@@ -2,11 +2,33 @@
 
 这里记录 WorkIsland 对用户有意义的版本变化。每个版本的安装包与完整说明以 [GitHub Releases](https://github.com/qianzhu18/workisland/releases) 为准；也可以查看[官网更新日志](https://workisland.yanglaishe.cn/changelog/)。
 
-## [Unreleased]
+> **版本体系重置（2026-09-02）**：公开版本号统一归位为 1.x 稳定线——`v3.0.0 / v3.1.0 / v3.2.0` 分别平移为 `v1.0.0 / v1.1.0 / v1.2.0`；`v3.2.0-rc.1` 与整条 `v1.0.0-alpha`（Windows 试验线）已删除，Windows 支持暂停维护、欢迎社区贡献者主导适配。0.2.x 为内测期存档。
+
+## [1.2.0] - 2026-09-02
+
+原 `v3.2.0` 的稳定化版本：合并其后累积的修复，并重新构建使应用内版本号与 1.x 对齐（原 3.x 安装包无需强制更新，建议重装以对齐版本体系）。
+
+### Added（继承自 3.2.0 后合入）
+
+- MCP 产品助手：设置 → MCP 开启本地 MCP 服务并一键连接 Codex，可询问灵动岛功能、查询当前任务状态、诊断模块问题；只开放脱敏工具，开关关闭后立即失效。
+- 3.2.0 全部功能（应用内更新闭环、外观模板系统、岛屿背景等）见 [v1.2.0 Release 说明](https://github.com/qianzhu18/workisland/releases/tag/v1.2.0)。
 
 ### Fixed
 
 - 修复 ZCode（≥3.10）始终无法连接的问题：新版 ZCode 只执行项目级 Hook，不再读取用户级 `~/.zcode/cli/config.json`。Hook 现在会同步写入最近活跃会话所在项目（git 根目录）的 `.zcode/config.json`（与项目内 MCP 等既有配置合并、互不覆盖），卸载时一并清理；用户级配置仍保留以兼容旧版 ZCode。
+- 修复 Windows CI 上 3 个既有单测失败（为后续社区 Windows 适配保留绿色基线）。
+
+## [1.1.0] - 2026-09-01
+
+原 `v3.1.0` 平移（同一构建）。更新说明以 [Release 页](https://github.com/qianzhu18/workisland/releases/tag/v1.1.0)为准。
+
+## [1.0.0] - 2026-08-23
+
+原 `v3.0.0` 平移（同一构建）。更新说明以 [Release 页](https://github.com/qianzhu18/workisland/releases/tag/v1.0.0)为准。
+
+## [Unreleased]
+
+（Agent Doctor 一键检测与修复将进入 v1.3.0，见需求池 B-1。）
 
 ## [3.2.0] - 2026-09-01
 

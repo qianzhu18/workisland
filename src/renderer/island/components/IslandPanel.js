@@ -11,6 +11,7 @@ import { ShelfPanel } from "./ShelfPanel.js";
 import { ClipboardPanel } from "./ClipboardPanel.js";
 import { TerminalPanel } from "./TerminalPanel.js";
 import { UsagePanel } from "./UsagePanel.js";
+import { SettingsChangeCard } from "./SettingsChangeCard.js";
 import { enabledToolboxModules, orderToolboxModules, reorderToolboxModules, selectToolboxModule } from "./productivity-toolbox-model.mjs";
 const defaultIcon = new URL("../assets/status/idle.svg", import.meta.url).href;
 const runningIcon = new URL("../assets/status/running.svg", import.meta.url).href;
@@ -1518,6 +1519,13 @@ function IslandPanel({
     });
     return () => cancelAnimationFrame(frame);
   }, [followUpSessionId]);
+  if (surface?.type === "settingsChange") {
+    return /* @__PURE__ */ React.createElement("div", { className: "panel settings-change-panel", style: panelStyle }, /* @__PURE__ */ React.createElement(SettingsChangeCard, {
+      surface,
+      onOpenSettings,
+      onCollapse
+    }));
+  }
   return /* @__PURE__ */ React.createElement("div", { className: "panel", style: panelStyle }, /* @__PURE__ */ React.createElement(
     AgentUsageRow,
     {

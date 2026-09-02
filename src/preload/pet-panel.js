@@ -28,6 +28,12 @@ const sessionApi = {
   },
   openExternal(url) {
     electron.ipcRenderer.send(ipc.IPC.APP_OPEN_EXTERNAL, url);
+  },
+  openSettingsTab(tab) {
+    electron.ipcRenderer.send(ipc.IPC.ISLAND_OPEN_SETTINGS_TAB, tab);
+  },
+  undoSettingsChanges(changeIds) {
+    return electron.ipcRenderer.invoke(ipc.IPC.ISLAND_UNDO_SETTINGS_CHANGES, { changeIds });
   }
 };
 electron.contextBridge.exposeInMainWorld("petPanelBridge", {
@@ -42,6 +48,9 @@ electron.contextBridge.exposeInMainWorld("petPanelBridge", {
   },
   resize(height) {
     electron.ipcRenderer.send(ipc.IPC.PET_PANEL_RESIZE, height);
+  },
+  collapse() {
+    electron.ipcRenderer.send(ipc.IPC.PET_PANEL_COLLAPSE);
   },
   onSurface(cb) {
     electron.ipcRenderer.on(ipc.IPC.PET_PANEL_SURFACE, (_event, surface) => cb(surface));

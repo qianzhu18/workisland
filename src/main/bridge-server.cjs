@@ -35,6 +35,7 @@ function createBridgeServerClass({
     recorder = null;
     sessionTitleProvider = null;
     shouldAcceptHook;
+    controlService = null;
     // AI customization surface (appearance + pet ops, and template ops).
     // Injected by AppCoordinator after construction; commands are rejected
     // with a structured error until then.
@@ -56,6 +57,7 @@ function createBridgeServerClass({
       super();
       this.socketPath = getSocketPath();
       this.shouldAcceptHook = opts.shouldAcceptHook ?? null;
+      this.controlService = opts.controlService ?? null;
       this.recorder = createHookPayloadRecorder();
       this.claudeTranscriptWatcher = new ClaudeTranscriptWatcher({
         onInterruptDetected: (sessionId) => {
@@ -133,6 +135,13 @@ function createBridgeServerClass({
         }
       });
       this.server.listen(this.socketPath, () => {
+        if (!String(this.socketPath).startsWith("\\\\.\\pipe\\")) {
+          try {
+            fs.chmodSync(this.socketPath, 0o600);
+          } catch (error) {
+            log.warn("[BridgeServer] Failed to restrict socket permissions:", error.message);
+          }
+        }
         log.info("[BridgeServer]", "Listening on", this.socketPath);
       });
     }
@@ -178,7 +187,9 @@ function createBridgeServerClass({
         const { messages, remainder } = decodeLines(client.buffer);
         client.buffer = remainder;
         for (const msg of messages) {
-          if (msg.type === "command") {
+          if (msg.type === "control") {
+            void this.handleControlRequest(clientId, msg);
+          } else if (msg.type === "command") {
             this.handleCommand(clientId, msg.command);
           }
         }
@@ -193,6 +204,54 @@ function createBridgeServerClass({
         this.clients.delete(clientId);
         this.resolvePendingByClientId(clientId);
       });
+    }
+    async handleControlRequest(clientId, request) {
+      const id = typeof request?.id === "string" && /^[A-Za-z0-9._:-]{1,128}$/.test(request.id)
+        ? request.id
+        : null;
+      if (!id) return;
+      if (typeof request.command !== "string" || !request.command.startsWith("control.") || !this.controlService) {
+        this.sendControlResponse(clientId, {
+          id,
+          ok: false,
+          error: { code: "UNKNOWN_COMMAND", message: "Unknown local control command." }
+        });
+        return;
+      }
+      try {
+        const result = await this.controlService.execute(
+          request.command,
+          request.params && typeof request.params === "object" && !Array.isArray(request.params) ? request.params : {},
+          request.client && typeof request.client === "object" && !Array.isArray(request.client) ? request.client : {}
+        );
+        this.sendControlResponse(clientId, { id, ok: true, result });
+      } catch (error) {
+        const hasPublicCode = typeof error?.code === "string" && /^[A-Z][A-Z0-9_]{2,63}$/.test(error.code);
+        const responseError = {
+          code: hasPublicCode ? error.code : "INTERNAL_ERROR",
+          message: hasPublicCode && typeof error.message === "string"
+            ? error.message.slice(0, 500)
+            : "Local control request failed."
+        };
+        if (hasPublicCode && error.details && typeof error.details === "object") {
+          try {
+            const serialized = JSON.stringify(error.details);
+            if (serialized.length <= 4096) responseError.details = JSON.parse(serialized);
+          } catch {
+            // Error details are optional and must remain JSON-safe.
+          }
+        }
+        this.sendControlResponse(clientId, { id, ok: false, error: responseError });
+      }
+    }
+    sendControlResponse(clientId, response) {
+      const client = this.clients.get(clientId);
+      if (!client) return;
+      try {
+        client.socket.write(encodeLine(response));
+      } catch (error) {
+        log.warn("[BridgeServer] failed to write local control response", clientId, error.message);
+      }
     }
     // client 断开后的收尾：
     // 普通情况直接清掉；Coco terminal-native 先保留，等后续 hook 再清。
