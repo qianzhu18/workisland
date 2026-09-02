@@ -196,6 +196,23 @@ function IslandApp() {
   const highLoadSinceRef = reactExports.useRef(0);
   const performanceAlertTimerRef = reactExports.useRef(null);
   const [tokenBurnTotal, setTokenBurnTotal] = reactExports.useState(0);
+  const [agentSetupReports, setAgentSetupReports] = reactExports.useState(null);
+  reactExports.useEffect(() => {
+    let disposed = false;
+    const refreshAgentSetup = () => {
+      window.islandBridge?.getAgentSetupStatus?.().then((reports) => {
+        if (!disposed) setAgentSetupReports(Array.isArray(reports) ? reports : []);
+      }).catch(() => { /* 状态拉取失败时保持未知,不误显引导 */ });
+    };
+    refreshAgentSetup();
+    const setupTimer = setInterval(refreshAgentSetup, 30000);
+    window.addEventListener("focus", refreshAgentSetup);
+    return () => {
+      disposed = true;
+      clearInterval(setupTimer);
+      window.removeEventListener("focus", refreshAgentSetup);
+    };
+  }, []);
   const [autoCollapseDurationMs, setAutoCollapseDurationMs] = reactExports.useState(
     DEFAULT_SETTINGS.completionPopupDurationSec * 1e3
   );
@@ -932,6 +949,7 @@ function IslandApp() {
           IslandPanel,
           {
             sessions,
+            hasConnectedAgent: agentSetupReports ? agentSetupReports.some((report) => report?.diagnosis?.status === "ok") : null,
             surface,
             notchHeight: notchH,
             panelMaxHeightPx,

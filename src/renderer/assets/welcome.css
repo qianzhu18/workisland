@@ -149,3 +149,6 @@ h1 {
   font-size: 11px;
   text-align: center;
 }
+
+.welcome-steps { display: flex; gap: 14px; margin-top: 18px; }
+.welcome-steps span { font-size: 12px; color: rgba(255, 255, 255, 0.78); }

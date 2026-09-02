@@ -1410,8 +1410,21 @@ function renderActionableCard(props) {
     );
   return null;
 }
+function SessionEmptyOnboarding({ onOpenSettings }) {
+  return /* @__PURE__ */ React.createElement("div", { className: "session-empty-onboarding" },
+    /* @__PURE__ */ React.createElement("div", { className: "session-empty-onboarding-title" }, "还没有接入任何 Agent"),
+    /* @__PURE__ */ React.createElement("div", { className: "session-empty-onboarding-steps" },
+      React.createElement("p", null, "① 安装一个支持的 AI 编码 Agent（Claude Code、Codex CLI 等）"),
+      React.createElement("p", null, "② 打开设置 → Agents，一键接入（自动写入 Hook）"),
+      React.createElement("p", null, "③ 跑一条命令，这里就会亮起它的状态")
+    ),
+    React.createElement("button", { className: "session-empty-onboarding-button", type: "button", onClick: () => onOpenSettings?.("agents") }, "打开设置接入"),
+    React.createElement("p", { className: "session-empty-onboarding-hint" }, "首次接入约 30 秒，全程本地完成")
+  );
+}
 function IslandPanel({
   sessions,
+  hasConnectedAgent = null,
   surface,
   notchHeight,
   panelMaxHeightPx,
@@ -1550,7 +1563,7 @@ function IslandPanel({
       onUpdateInstall,
       onOpenRelease
     }
-  ), /* @__PURE__ */ React.createElement("div", { className: "panel-divider" }), activeModule === "shelf" && /* @__PURE__ */ React.createElement(ShelfPanel), activeModule === "clipboard" && /* @__PURE__ */ React.createElement(ClipboardPanel), activeModule === "terminal" && /* @__PURE__ */ React.createElement(TerminalPanel, { savedCommands: terminalSavedCommands, onOpenSettings: () => onOpenSettings("general") }), activeModule === "usage" && /* @__PURE__ */ React.createElement(UsagePanel), /* @__PURE__ */ React.createElement("div", { className: `workspace-content${mediaEnabled && mediaState?.active && mediaState?.title ? " has-media" : ""}${activeModule === "agent" ? "" : " is-hidden"}` }, mediaEnabled && mediaState?.active && mediaState?.title && /* @__PURE__ */ React.createElement(MediaCard, { media: mediaState, lyrics: lyricsState }), /* @__PURE__ */ React.createElement("div", { className: "workspace-agent-pane" }, /* @__PURE__ */ React.createElement("div", { className: "session-list", ref: sessionListRef }, visibleSessions.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "session-list-empty" }, /* @__PURE__ */ React.createElement(
+  ), /* @__PURE__ */ React.createElement("div", { className: "panel-divider" }), activeModule === "shelf" && /* @__PURE__ */ React.createElement(ShelfPanel), activeModule === "clipboard" && /* @__PURE__ */ React.createElement(ClipboardPanel), activeModule === "terminal" && /* @__PURE__ */ React.createElement(TerminalPanel, { savedCommands: terminalSavedCommands, onOpenSettings: () => onOpenSettings("general") }), activeModule === "usage" && /* @__PURE__ */ React.createElement(UsagePanel), /* @__PURE__ */ React.createElement("div", { className: `workspace-content${mediaEnabled && mediaState?.active && mediaState?.title ? " has-media" : ""}${activeModule === "agent" ? "" : " is-hidden"}` }, mediaEnabled && mediaState?.active && mediaState?.title && /* @__PURE__ */ React.createElement(MediaCard, { media: mediaState, lyrics: lyricsState }), /* @__PURE__ */ React.createElement("div", { className: "workspace-agent-pane" }, /* @__PURE__ */ React.createElement("div", { className: "session-list", ref: sessionListRef }, visibleSessions.length === 0 ? (hasConnectedAgent === false ? /* @__PURE__ */ React.createElement(SessionEmptyOnboarding, { onOpenSettings }) : /* @__PURE__ */ React.createElement("div", { className: "session-list-empty" }, /* @__PURE__ */ React.createElement(
     "img",
     {
       className: "session-list-empty-icon",
@@ -1558,7 +1571,7 @@ function IslandPanel({
       alt: "",
       draggable: false
     }
-  ), /* @__PURE__ */ React.createElement("span", { className: "session-list-empty-text" }, i18n.k1005597952({}, "暂无会话"))) : visibleSessions.map((session) => {
+  ), /* @__PURE__ */ React.createElement("span", { className: "session-list-empty-text" }, i18n.k1005597952({}, "暂无会话")))) : visibleSessions.map((session) => {
     const canFollowUp = session.phase === "completed" && canContinueSessionViaTerminalPrompt(session);
     const isFollowUpOpen = followUpSessionId === session.id && canFollowUp;
     const openFollowUp = canFollowUp ? () => setFollowUpSessionId(session.id) : void 0;

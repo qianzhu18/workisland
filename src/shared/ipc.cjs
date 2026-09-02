@@ -32,6 +32,7 @@ const IPC = Object.freeze({
   ISLAND_SWITCH_SESSION: "island:switch-session",
   ISLAND_CONFIRM_SESSION: "island:confirm-session",
   ISLAND_UNDO_SETTINGS_CHANGES: "island:undo-settings-changes",
+  ISLAND_GET_AGENT_SETUP_STATUS: "island:get-agent-setup-status",
 
   MEDIA_GET_STATE: "media:get-state",
   MEDIA_STATE_UPDATE: "media:state-update",

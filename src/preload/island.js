@@ -234,6 +234,9 @@ electron.contextBridge.exposeInMainWorld("islandBridge", {
   getSettings() {
     return electron.ipcRenderer.invoke(ipc.IPC.SETTINGS_GET);
   },
+  getAgentSetupStatus() {
+    return electron.ipcRenderer.invoke(ipc.IPC.ISLAND_GET_AGENT_SETUP_STATUS);
+  },
   setSettings(partial) {
     return electron.ipcRenderer.invoke(ipc.IPC.SETTINGS_SET, partial);
   },
