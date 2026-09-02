@@ -8,6 +8,7 @@ electron.contextBridge.exposeInMainWorld("settingsApi", {
   getLocale: () => electron.ipcRenderer.invoke(ipc.IPC.GET_LOCALE),
   setLocale: (locale) => electron.ipcRenderer.invoke(ipc.IPC.SET_LOCALE, { locale }),
   setSettings: (partial) => electron.ipcRenderer.invoke(ipc.IPC.SETTINGS_SET, partial),
+  listTemplates: () => electron.ipcRenderer.invoke(ipc.IPC.TEMPLATE_LIST),
   clearLyricsCache: () => electron.ipcRenderer.invoke(ipc.IPC.LYRICS_CLEAR_CACHE),
   getShelfShareProviders: () => electron.ipcRenderer.invoke(ipc.IPC.SHELF_GET_SHARE_PROVIDERS),
   selectDirectory: () => electron.ipcRenderer.invoke(ipc.IPC.SETTINGS_SELECT_DIRECTORY),
@@ -49,6 +50,14 @@ electron.contextBridge.exposeInMainWorld("settingsApi", {
     const handler = (_event, update) => cb(update);
     electron.ipcRenderer.on(ipc.IPC.APP_UPDATE_AVAILABLE, handler);
     return () => electron.ipcRenderer.removeListener(ipc.IPC.APP_UPDATE_AVAILABLE, handler);
+  },
+  getUpdateState: () => electron.ipcRenderer.invoke(ipc.IPC.APP_UPDATE_STATE),
+  downloadUpdate: () => electron.ipcRenderer.invoke(ipc.IPC.APP_UPDATE_DOWNLOAD),
+  installUpdate: () => electron.ipcRenderer.invoke(ipc.IPC.APP_UPDATE_INSTALL),
+  onUpdateState: (cb) => {
+    const handler = (_event, state) => cb(state);
+    electron.ipcRenderer.on(ipc.IPC.APP_UPDATE_STATE, handler);
+    return () => electron.ipcRenderer.removeListener(ipc.IPC.APP_UPDATE_STATE, handler);
   },
   getAppVersion: () => electron.ipcRenderer.invoke(ipc.IPC.GET_APP_VERSION),
   onNavigateToTab: (cb) => {

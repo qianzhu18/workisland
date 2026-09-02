@@ -41,6 +41,14 @@ const { LocalControlAudit } = require("./local-control-audit.cjs");
 const { LocalControlService } = require("./local-control-service.cjs");
 const { CodexMcpConfigManager } = require("./mcp-client-config.cjs");
 const { SettingsChangePresenter } = require("./settings-change-presenter.cjs");
+const { createAppearanceService } = require("./appearance-service.cjs");
+const { createAppearanceController } = require("./appearance-controller.cjs");
+const { normalizeIslandAppearance } = require("../shared/appearance.cjs");
+const { createTemplateService } = require("./template-service.cjs");
+const { createTemplateController } = require("./template-controller.cjs");
+const { createTemplateGithubTransport } = require("./template-github.cjs");
+const { getCodexPetsDir, getCodexHome } = require("./codex-pet.cjs");
+const petLibrary = require("./pet-library.cjs");
 
 function createElectronClipboardAdapter() {
   return {
@@ -275,10 +283,48 @@ function createAppCoordinatorClass({
         audit: this.localControlAudit
       });
       initSoundDirs();
+      this.appearanceService = createAppearanceService({
+        getUserDataPath: () => electron.app.getPath("userData")
+      });
       this.bridge = new BridgeServer({
         shouldAcceptHook: (source) => this.shouldAcceptHookSource(source),
         controlService: this.localControlService
       });
+      // AI customization commands (workisland-cli) share the settings
+      // pipeline: updateSettings persists once and broadcasts to the island,
+      // settings, and pet windows.
+      this.bridge.setAppearanceController(createAppearanceController({
+        appearanceService: this.appearanceService,
+        getSettings: () => this.getSettings(),
+        updateSettings: (partial) => this.updateSettings(partial, "bridge")
+      }));
+      // Template runtime (PRD-018): the official builtin package ships with
+      // the app (resources/templates); user packages install under
+      // <userData>/appearance-templates. Applies ride the same settings
+      // pipeline as raw appearance edits.
+      this.templateService = createTemplateService({
+        getBuiltinTemplatesDir: () => path.join(
+          electron.app.isPackaged ? process.resourcesPath : path.join(electron.app.getAppPath(), "resources"),
+          "templates",
+          "builtin"
+        ),
+        getUserDataPath: () => electron.app.getPath("userData"),
+        appVersion: electron.app.getVersion()
+      });
+      this.bridge.setTemplateController(createTemplateController({
+        templateService: this.templateService,
+        appearanceService: this.appearanceService,
+        petLibrary,
+        getCodexPetsDir,
+        getSettings: () => this.getSettings(),
+        updateSettings: (partial) => this.updateSettings(partial, "bridge"),
+        getBundledSkillsDir: () => path.join(
+          electron.app.isPackaged ? process.resourcesPath : path.join(electron.app.getAppPath(), "resources"),
+          "skills"
+        ),
+        getCodexHome: () => getCodexHome(),
+        github: createTemplateGithubTransport()
+      }));
       this.hookManagers = /* @__PURE__ */ new Map([
         ["claude", new ClaudeHookManager()],
         ["codex", new CodexHookManager()],
@@ -767,6 +813,7 @@ function createAppCoordinatorClass({
           } catch {
           }
           const options = { statusLineEnabled: this.resolveClaudeStatusLineEnabled(agentId) };
+          if (agentId === "zcode") options.workspacePaths = this.collectRecentSessionCwds();
           log.info(`[AppCoordinator] auto-reinstalling hook for ${agentId}`);
           await manager.install(options);
         } catch (err) {
@@ -1075,12 +1122,40 @@ function createAppCoordinatorClass({
     shouldAcceptHookSource(source) {
       return this.isHookToolEnabled(source);
     }
+    /**
+     * 活动模板的五状态 SVG（data URL）。主进程兜底：模板损坏/缺失时
+     * 返回官方小宇包；连官方包都不可用时返回 null，渲染端保留构建期
+     * 资产——岛屿永远不显示空白状态图标。
+     */
+    getActiveTemplateStatusAssets() {
+      const template = this.settings.appearanceTemplate
+        ?? { id: "builtin:workisland-xiaoyu", version: "*" };
+      try {
+        return this.templateService.resolveStatusAssets(template.id, template.version);
+      } catch (err) {
+        log.warn("[AppCoordinator] resolveStatusAssets failed:", err.message);
+        return { assets: null };
+      }
+    }
     getSnapTotalTokens(snapshot) {
       return snapshot.totalInputTokens + snapshot.totalOutputTokens + snapshot.totalCacheReadTokens + snapshot.totalCacheCreationTokens;
     }
     updateSettings(partial, source) {
       const prevSoundEnabled = this.settings.sound?.enabled ?? false;
       const prevClaudeSubscriptionEnabled = this.settings.pillFirstRow.claudeSubscription;
+      if (partial && Object.prototype.hasOwnProperty.call(partial, "islandAppearance")) {
+        // Every writer (settings UI, bridge/AI, migrations) funnels through
+        // here — normalize the theme once so persisted state is always the
+        // readable, whitelisted shape. Invalid input keeps the current theme.
+        try {
+          const { appearance } = normalizeIslandAppearance(partial.islandAppearance);
+          partial = { ...partial, islandAppearance: appearance };
+        } catch (err) {
+          log.warn("[AppCoordinator] rejected invalid islandAppearance:", err.message);
+          const { islandAppearance, ...rest } = partial;
+          partial = rest;
+        }
+      }
       this.settings = { ...this.settings, ...partial };
       this.settingsRepository.scheduleSave(this.settings);
       // 匿名遥测：开关变化必须立即同步给服务（关闭即清空未上报队列）；
@@ -1487,6 +1562,7 @@ function createAppCoordinatorClass({
       const manager = this.hookManagers.get(agentId);
       if (!manager) return { success: false, error: `${i18n.k2159120351({ placeholder1: agentId }, "未知的 agent: {placeholder1}")}`, errorCode: "NOT_FOUND" };
       const options = { statusLineEnabled: this.resolveClaudeStatusLineEnabled(agentId) };
+      if (agentId === "zcode") options.workspacePaths = this.collectRecentSessionCwds();
       try {
         await manager.install(options);
         log.info(`[AppCoordinator] installHook(${agentId}) success`);
@@ -1505,6 +1581,22 @@ function createAppCoordinatorClass({
     async uninstallHook(agentId) {
       const manager = this.hookManagers.get(agentId);
       if (manager) await manager.uninstall();
+    }
+    // ZCode ≥3.10 只执行项目级 hooks：取最近活跃会话的项目目录（cwd），去重后交给
+    // ZCodeHookManager 解析 git 根并写入 .zcode/config.json。
+    collectRecentSessionCwds() {
+      const sessions = [...this.state.sessions.values()]
+        .filter((session) => typeof session?.cwd === "string" && path.isAbsolute(session.cwd) && fs.existsSync(session.cwd))
+        .sort((left, right) => Number(right.updatedAt || 0) - Number(left.updatedAt || 0));
+      const seen = new Set();
+      const cwds = [];
+      for (const session of sessions) {
+        if (seen.has(session.cwd)) continue;
+        seen.add(session.cwd);
+        cwds.push(session.cwd);
+        if (cwds.length >= 20) break;
+      }
+      return cwds;
     }
     // 移除所有已安装的 hook 配置，并将 hookToggles 全部置为 false
     async uninstallAllHooks() {

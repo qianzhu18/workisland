@@ -1,116 +1,165 @@
+import { test } from "node:test";
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
-import net from "node:net";
-import os from "node:os";
-import path from "node:path";
-import test from "node:test";
-import { promisify } from "node:util";
 import { createRequire } from "node:module";
-import { fileURLToPath } from "node:url";
+import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import net from "node:net";
 
-const execFileAsync = promisify(execFile);
 const require = createRequire(import.meta.url);
-const { decodeLines, encodeLine } = require("../src/main/bridge-protocol.cjs");
-const packageJson = require("../package.json");
-const cliPath = fileURLToPath(new URL("../src/island/workisland-cli/index.cjs", import.meta.url));
+const {
+  EXIT_OK,
+  EXIT_USAGE,
+  EXIT_BRIDGE_ERROR,
+  EXIT_VALIDATION,
+  parseArgs,
+  buildBridgeCommand,
+  resolveSocketPath,
+  readManual,
+  sendBridgeCommand
+} = require("../src/island/workisland-cli/index.cjs");
 
-function uniqueEndpoint(prefix) {
-  const unique = `${prefix}-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  return process.platform === "win32"
-    ? `\\\\.\\pipe\\${unique}`
-    : path.join(os.tmpdir(), `${unique}.sock`);
-}
+// ── 参数解析 ─────────────────────────────────────────────────────────────────
 
-async function withFakeWorkIsland(run) {
-  const requests = [];
-  const socketPath = uniqueEndpoint("workisland-cli");
+test("parseArgs maps every documented subcommand", () => {
+  assert.equal(parseArgs(["node", "cli"]).action, "usage");
+  assert.deepEqual(parseArgs(["node", "cli", "appearance", "get"]), { action: "appearance-get", socketPath: undefined });
+  assert.deepEqual(parseArgs(["node", "cli", "appearance", "reset"]), { action: "appearance-reset", socketPath: undefined });
+  assert.deepEqual(parseArgs(["node", "cli", "pet", "list"]), { action: "pet-list", socketPath: undefined });
+  assert.deepEqual(parseArgs(["node", "cli", "pet", "set", "my-pet.webp"]), {
+    action: "pet-set", sprite: "my-pet.webp", socketPath: undefined
+  });
+  assert.deepEqual(parseArgs(["node", "cli", "pet", "install", "/tmp/a.webp", "--name", "a", "--no-select"]), {
+    action: "pet-install", sourcePath: "/tmp/a.webp", name: "a", select: false, socketPath: undefined
+  });
+  assert.deepEqual(parseArgs(["node", "cli", "validate", "/tmp/a.webp"]), {
+    action: "validate", sourcePath: "/tmp/a.webp", socketPath: undefined
+  });
+  assert.equal(parseArgs(["node", "cli", "manual"]).action, "manual");
+  const withSocket = parseArgs(["node", "cli", "appearance", "get", "--socket", "/tmp/x.sock"]);
+  assert.equal(withSocket.socketPath, "/tmp/x.sock");
+});
+
+test("parseArgs rejects missing required operands as usage errors", () => {
+  assert.equal(parseArgs(["node", "cli", "pet", "set"]).action, "usage");
+  assert.equal(parseArgs(["node", "cli", "pet", "install"]).action, "usage");
+  assert.equal(parseArgs(["node", "cli", "validate"]).action, "usage");
+});
+
+// ── 命令构造 ─────────────────────────────────────────────────────────────────
+
+test("buildBridgeCommand turns flags into protocol frames", async () => {
+  assert.deepEqual(await buildBridgeCommand({ action: "appearance-get" }), { type: "getAppearance" });
+  assert.deepEqual(await buildBridgeCommand({ action: "appearance-reset" }), { type: "resetAppearance" });
+  const set = await buildBridgeCommand({
+    action: "appearance-set",
+    jsonArg: '{"kind":"solid","color":"#0B1E3A"}',
+    imageArg: "/tmp/bg.png"
+  });
+  assert.deepEqual(set, {
+    type: "setAppearance",
+    appearance: { kind: "solid", color: "#0B1E3A" },
+    imageSource: { sourcePath: "/tmp/bg.png" }
+  });
+  const pet = await buildBridgeCommand({ action: "pet-install", sourcePath: "/tmp/a.webp", name: "a", select: true });
+  assert.deepEqual(pet, { type: "installPet", sourcePath: "/tmp/a.webp", name: "a", select: true });
+  await assert.rejects(
+    () => buildBridgeCommand({ action: "appearance-set", jsonArg: "{oops" }),
+    /JSON 解析失败/
+  );
+});
+
+test("buildBridgeCommand reads theme JSON from a file", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "wi-cli-"));
+  try {
+    const themePath = join(dir, "theme.json");
+    writeFileSync(themePath, JSON.stringify({ kind: "gradient", color: "#1F1330", color2: "#0B0716" }));
+    const command = await buildBridgeCommand({ action: "appearance-set", fileArg: themePath });
+    assert.equal(command.appearance.kind, "gradient");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// ── socket 与手册 ────────────────────────────────────────────────────────────
+
+test("resolveSocketPath honors override, env, then default", () => {
+  assert.equal(resolveSocketPath("/tmp/one.sock"), "/tmp/one.sock");
+  process.env.FLUX_SOCKET_PATH = "/tmp/env.sock";
+  assert.equal(resolveSocketPath(undefined), "/tmp/env.sock");
+  delete process.env.FLUX_SOCKET_PATH;
+  assert.equal(resolveSocketPath(undefined).endsWith(join(".flux", "run", "bridge.sock")), true);
+});
+
+test("readManual prefers WORKISLAND_MANUAL_PATH and falls back to embedded text", () => {
+  const dir = mkdtempSync(join(tmpdir(), "wi-manual-"));
+  try {
+    const manualPath = join(dir, "manual.md");
+    writeFileSync(manualPath, "# Custom Manual");
+    process.env.WORKISLAND_MANUAL_PATH = manualPath;
+    assert.equal(readManual(), "# Custom Manual");
+    process.env.WORKISLAND_MANUAL_PATH = join(dir, "missing.md");
+    const fallback = readManual();
+    assert.ok(fallback.includes("appearance set"));
+    assert.ok(fallback.includes("1536x2288") || fallback.includes("1536×2288"));
+  } finally {
+    delete process.env.WORKISLAND_MANUAL_PATH;
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("sendBridgeCommand completes the hello → command → response round trip", async () => {
+  // Windows 无法在任意文件系统路径上监听 Unix socket，改用命名管道命名空间。
+  const socketPath = process.platform === "win32"
+    ? `\\\\.\\pipe\\wi-cli-test-${process.pid}`
+    : join(tmpdir(), `wi-cli-test-${process.pid}.sock`);
   const server = net.createServer((socket) => {
-    socket.write(encodeLine({ type: "hello", hello: { protocolVersion: 1 } }));
-    let buffer = Buffer.alloc(0);
+    socket.write(`${JSON.stringify({ type: "hello", hello: { protocolVersion: 1, serverLabel: "test" } })}\n`);
     socket.on("data", (chunk) => {
-      buffer = Buffer.concat([buffer, chunk]);
-      const decoded = decodeLines(buffer);
-      buffer = decoded.remainder;
-      for (const request of decoded.messages) {
-        requests.push(request);
-        socket.write(encodeLine({ id: request.id, ok: true, result: { command: request.command, params: request.params } }));
+      for (const line of chunk.toString("utf8").split("\n")) {
+        if (!line.trim()) continue;
+        const message = JSON.parse(line);
+        if (message.type === "command") {
+          socket.write(`${JSON.stringify({
+            type: "response",
+            response: { type: "result", data: { echo: message.command.type } }
+          })}\n`);
+        }
       }
     });
   });
   await new Promise((resolve) => server.listen(socketPath, resolve));
   try {
-    return await run({ socketPath, requests });
+    const response = await sendBridgeCommand(socketPath, { type: "getAppearance" });
+    assert.deepEqual(response, { type: "result", data: { echo: "getAppearance" } });
   } finally {
-    await new Promise((resolve) => server.close(resolve));
+    server.close();
+    if (process.platform !== "win32") rmSync(socketPath, { force: true });
   }
-}
+});
 
-async function invoke(args, socketPath) {
-  return execFileAsync(process.execPath, [cliPath, ...args], {
-    env: { ...process.env, FLUX_SOCKET_PATH: socketPath }
+test("sendBridgeCommand times out when the bridge never answers", async () => {
+  const socketPath = process.platform === "win32"
+    ? `\\\\.\\pipe\\wi-cli-silent-${process.pid}`
+    : join(tmpdir(), `wi-cli-silent-${process.pid}.sock`);
+  // Greets but never answers commands.
+  const server = net.createServer((socket) => {
+    socket.write(`${JSON.stringify({ type: "hello", hello: { protocolVersion: 1 } })}\n`);
   });
-}
-
-test("package exposes the WorkIsland automation CLI", () => {
-  assert.equal(packageJson.bin?.workisland, "src/island/workisland-cli/index.cjs");
+  await new Promise((resolve) => server.listen(socketPath, resolve));
+  try {
+    await assert.rejects(
+      () => sendBridgeCommand(socketPath, { type: "getAppearance" }, 300),
+      /超时/
+    );
+  } finally {
+    server.close();
+    if (process.platform !== "win32") rmSync(socketPath, { force: true });
+  }
 });
 
-test("settings commands map to structured local control requests", async () => {
-  await withFakeWorkIsland(async ({ socketPath, requests }) => {
-    const cases = [
-      { args: ["settings", "list"], command: "control.describeSettings", params: {} },
-      { args: ["settings", "get", "sound.volume"], command: "control.getSettings", params: { keys: ["sound.volume"] } },
-      { args: ["settings", "set", "sound.volume", "42"], command: "control.updateSettings", params: { changes: { "sound.volume": 42 } } },
-      { args: ["settings", "set", "islandDisplayMode", "minimal"], command: "control.updateSettings", params: { changes: { islandDisplayMode: "minimal" } } },
-      { args: ["settings", "undo", "change-123"], command: "control.undoSettingsChange", params: { changeId: "change-123" } },
-      { args: ["settings", "open", "agent-control"], command: "control.openSettings", params: { section: "agent-control" } }
-    ];
-    for (const expected of cases) {
-      const { stdout, stderr } = await invoke(expected.args, socketPath);
-      assert.equal(stderr, "");
-      assert.deepEqual(JSON.parse(stdout), { command: expected.command, params: expected.params });
-    }
-    assert.deepEqual(requests.map(({ command, params }) => ({ command, params })), cases.map(({ command, params }) => ({ command, params })));
-  });
-});
-
-test("session surface and state commands are allowlisted", async () => {
-  await withFakeWorkIsland(async ({ socketPath }) => {
-    const cases = [
-      [["sessions", "list"], "control.listVisibleSessions", {}],
-      [["session", "focus", "session-public"], "control.focusSession", { id: "session-public" }],
-      [["surface", "set", "pet"], "control.setDisplaySurface", { surface: "pet" }],
-      [["state"], "control.getProductState", {}],
-      [["activity"], "control.getRecentActivity", {}]
-    ];
-    for (const [args, command, params] of cases) {
-      const { stdout } = await invoke(args, socketPath);
-      assert.deepEqual(JSON.parse(stdout), { command, params });
-    }
-  });
-});
-
-test("usage errors exit 2 and never contact WorkIsland", async () => {
-  await assert.rejects(
-    execFileAsync(process.execPath, [cliPath, "session", "delete", "secret"], { env: process.env }),
-    (error) => {
-      assert.equal(error.code, 2);
-      assert.match(error.stderr, /Usage:/);
-      assert.equal(error.stdout, "");
-      return true;
-    }
-  );
-});
-
-test("WorkIsland errors exit 1 as JSON with a stable code", async () => {
-  const missing = uniqueEndpoint("workisland-cli-missing");
-  await assert.rejects(
-    invoke(["state"], missing),
-    (error) => {
-      assert.equal(error.code, 1);
-      assert.equal(JSON.parse(error.stderr).error.code, "WORKISLAND_UNAVAILABLE");
-      assert.equal(error.stdout, "");
-      return true;
-    }
-  );
+test("exit codes are distinct and documented", () => {
+  assert.notEqual(EXIT_OK, EXIT_USAGE);
+  assert.notEqual(EXIT_USAGE, EXIT_BRIDGE_ERROR);
+  assert.notEqual(EXIT_BRIDGE_ERROR, EXIT_VALIDATION);
 });

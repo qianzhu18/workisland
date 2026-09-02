@@ -10,9 +10,14 @@ permissions:
   contents: write
 
 jobs:
-  macos-arm64:
+  macos:
+    if: ${{ github.event_name == 'workflow_dispatch' || (startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-alpha')) }}
     runs-on: macos-14
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [arm64, x64]
     env:
       CSC_LINK: ${{ secrets.CSC_LINK }}
       CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
@@ -49,20 +54,24 @@ jobs:
           printf '%s' "$APPLE_API_KEY_CONTENT" > "$notary_key_path"
           chmod 600 "$notary_key_path"
           echo "NOTARY_KEY_PATH=$notary_key_path" >> "$GITHUB_ENV"
-      - name: Package macOS DMG
+      - name: Package macOS DMG (${{ matrix.arch }})
         # An unset CSC_LINK must stay unset. electron-builder treats an empty
         # CSC_LINK as the project directory and then reports "not a file".
         run: |
+          package_script="package:mac"
+          if [ "${{ matrix.arch }}" = "x64" ]; then
+            package_script="package:mac:intel"
+          fi
           if [ -n "${CSC_LINK:-}" ]; then
-            npm run package:mac
+            npm run "$package_script"
           else
-            env -u CSC_LINK npm run package:mac
+            env -u CSC_LINK npm run "$package_script"
           fi
       - name: Verify packaged payload
         run: |
           node <<'NODE'
           const asar = require('@electron/asar');
-          const archive = 'release/mac-arm64/WorkIsland.app/Contents/Resources/app.asar';
+          const archive = `release/mac-${{ matrix.arch }}/WorkIsland.app/Contents/Resources/app.asar`;
           const files = new Set(asar.listPackage(archive));
           const required = [
             '/src/main/telemetry-service.cjs',
@@ -119,20 +128,27 @@ jobs:
           hdiutil detach "$verify_mount"
           rmdir "$verify_mount"
       - name: Generate checksums
-        run: shasum -a 256 release/*.dmg > release/SHA256SUMS.txt
+        # x64 产物使用带架构后缀的校验文件，避免与 arm64 的 SHA256SUMS.txt 冲突；
+        # 更新检测会优先匹配 SHA256SUMS-<arch>.txt，再回退 SHA256SUMS.txt。
+        run: |
+          if [ "${{ matrix.arch }}" = "x64" ]; then
+            shasum -a 256 release/*.dmg > release/SHA256SUMS-x64.txt
+          else
+            shasum -a 256 release/*.dmg > release/SHA256SUMS.txt
+          fi
       - uses: actions/upload-artifact@v4
         with:
-          name: WorkIsland-macOS-arm64
+          name: WorkIsland-macOS-${{ matrix.arch }}
           path: |
             release/*.dmg
-            release/SHA256SUMS.txt
+            release/SHA256SUMS*.txt
           if-no-files-found: error
       - uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/v')
         with:
           files: |
             release/*.dmg
-            release/SHA256SUMS.txt
+            release/SHA256SUMS*.txt
           prerelease: ${{ contains(github.ref_name, '-') }}
           generate_release_notes: true
 

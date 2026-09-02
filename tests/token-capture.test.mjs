@@ -47,7 +47,6 @@ test("claude token parser sums assistant usage across the transcript", async () 
     isEstimated: false
   });
 });
-
 test("claude token parser de-duplicates repeated request ids", async () => {
   const usage = { input_tokens: 10, output_tokens: 5 };
   const file = write("claude-dupe.jsonl", [
@@ -122,4 +121,3 @@ test("cache-only deltas are recorded, not silently dropped", async (t) => {
   assert.equal(totals.input, 100, "unchanged input must not be re-counted");
   assert.equal(totals.output, 40, "unchanged output must not be re-counted");
 });
-

@@ -16,7 +16,7 @@ const CORE_AGENT_DESCRIPTORS = Object.freeze([
   descriptor("trae", "TraeCode", "#5967E9", "支持 TraeCode v3.5.66+。连接后还需在 TraeCode 设置 → Hooks 中启用“已配置的 Hooks”，并将运行方式设为“本地自动运行”；收到真实任务事件后才显示已验证。", {
     completion: "native", approval: "observe", question: "observe", jump: "workspace"
   }),
-  descriptor("zcode", "ZCode", "#635BFF", "ZCode 原生配置 Hook，支持实时状态、完成提醒和 Island 审批。", {
+  descriptor("zcode", "ZCode", "#635BFF", "ZCode 原生配置 Hook，支持实时状态、完成提醒和 Island 审批。ZCode 3.10+ 仅加载项目级 Hook（写入使用过的项目的 .zcode/config.json），新项目请先在 ZCode 中打开会话后重新连接。", {
     completion: "native", approval: "bridge", question: "nativeOnly", jump: "app"
   }),
   descriptor("workbuddy", "WorkBuddy", "#2F80ED", "WorkBuddy Claude-compatible Hook，支持完整会话生命周期、Island 审批和应用跳转。", {

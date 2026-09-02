@@ -1,7 +1,7 @@
 {
   "name": "workisland",
   "productName": "WorkIsland",
-  "version": "1.0.0-alpha.5",
+  "version": "3.2.0",
   "description": "macOS 与 Windows 本地 Work Agent 工作状态与注意力路由器",
   "private": true,
   "main": "./src/main/index.cjs",
@@ -30,6 +30,7 @@
     "setup:electron": "npm install --prefix ./.tools/electron-shell --no-save electron@43.3.0 --cache ./.npm-cache",
     "build:native": "node ./scripts/build-native.mjs",
     "package:mac": "npm run build:assets && npm run build:native && npm run check && electron-builder --mac --arm64 --publish never",
+    "package:mac:intel": "npm run build:assets && WORKISLAND_NATIVE_ARCH=x86_64 npm run build:native && npm run check && electron-builder --mac --x64 --publish never",
     "package:win": "npm run build:assets && npm run check && electron-builder --win nsis portable --x64 --publish never",
     "release:check": "node ./scripts/release-check.mjs",
     "check": "npm run build:renderer && node ./scripts/check.mjs && node ./scripts/test-source.mjs && npm run test:unit",
@@ -94,8 +95,24 @@
         "to": "pet-sprites"
       },
       {
+        "from": "resources/templates",
+        "to": "templates"
+      },
+      {
+        "from": "resources/skills",
+        "to": "skills"
+      },
+      {
         "from": "resources/bin/flux-hooks",
         "to": "bin/flux-hooks"
+      },
+      {
+        "from": "resources/bin/workisland-cli",
+        "to": "bin/workisland-cli"
+      },
+      {
+        "from": "docs/AI-CUSTOMIZATION.md",
+        "to": "ai-manual/AI-CUSTOMIZATION.md"
       },
       {
         "from": "resources/mediaremote-adapter",

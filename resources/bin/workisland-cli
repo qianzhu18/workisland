@@ -1,0 +1,20 @@
+#!/usr/bin/env node
+"use strict";
+
+// This file is launched by local agents as:
+//   ELECTRON_RUN_AS_NODE=1 WorkIsland .../Resources/bin/workisland-cli
+// Keep it JavaScript: Electron's Node mode parses the target file directly;
+// a shell wrapper here would fail with a SyntaxError before the bridge starts.
+const path = require("node:path");
+
+const cli = path.resolve(
+  __dirname,
+  "..",
+  "app.asar",
+  "src",
+  "island",
+  "workisland-cli",
+  "index.cjs"
+);
+
+require(cli).run();

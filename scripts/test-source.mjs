@@ -52,14 +52,22 @@ const {
 // one managed PTY session, a renderer-to-main file-drag interaction lock, and
 // privacy-gated lyrics state/cache controls. PRD-015 adds usage summary/insights/
 // export/clear channels for the Usage dashboard. Agent Control adds its settings
-// configuration and reversible Island notice channels. Full-terminal interaction
-// and visible-panel mouse bounds add two renderer-to-main signals for keyboard
-// priority and transparent click-through.
-assert.equal(Object.keys(IPC).length, 152, "IPC contract changed; review both main and preload consumers");
+// configuration and reversible Island notice channels. Full-terminal interaction and
+// visible-panel mouse bounds add two renderer-to-main signals; the auto-update
+// loop (自动更新提示、下载与安装闭环) adds app:update-download/install/state;
+// usage insights and the appearance/template APIs expand the rest of the
+// public bridge contract.
+assert.equal(Object.keys(IPC).length, 158, "IPC contract changed; review both main and preload consumers");
 assert.equal(listProductCapabilities({ platform: "darwin" }).length, 15, "MCP product catalog must stay explicit");
 assert.equal(diagnoseMcpSubject("performance-details-not-visible", { settings: {} }).subject, "performance-details-not-visible");
+assert.equal(IPC.APP_UPDATE_DOWNLOAD, "app:update-download");
+assert.equal(IPC.APP_UPDATE_INSTALL, "app:update-install");
+assert.equal(IPC.APP_UPDATE_STATE, "app:update-state");
 assert.equal(new Set(Object.values(IPC)).size, Object.keys(IPC).length, "IPC channels must be unique");
 assert.ok(Object.isFrozen(IPC), "IPC contract must be immutable");
+assert.equal(IPC.APPEARANCE_GET_BACKGROUND_IMAGE, "appearance:get-background-image");
+assert.equal(IPC.TEMPLATE_GET_ACTIVE_STATUS_ASSETS, "template:get-active-status-assets");
+assert.equal(IPC.TEMPLATE_LIST, "template:list");
 assert.equal(IPC.PET_DRAG_TO_ISLAND, "pet:drag-to-island");
 assert.equal(IPC.SETTINGS_GET_CUSTOM_ICON, "settings:get-custom-icon");
 assert.equal(IPC.PET_TOGGLE, "pet:toggle");
@@ -106,7 +114,9 @@ assert.match(islandAppCssSource, /pet-button-icon/, "pet logo needs dedicated st
 assert.match(petAppSource, /onSettingsChanged/, "pet renderer must react to live sprite setting changes");
 assert.match(petAppSource, /CODEX_V2_CELL_WIDTH/, "pet renderer must use the Codex V2 cell geometry");
 assert.match(petIpcSource, /SETTINGS_GET_CODEX_PETS/, "settings IPC must expose Codex pet discovery");
-assert.match(petIpcSource, /codex-buddy/, "Skyler must be registered as a bundled Codex V2 pet");
+const petLibrarySource = readFileSync(new URL("../src/main/pet-library.cjs", import.meta.url), "utf8");
+assert.match(petLibrarySource, /codex-buddy/, "Skyler must be registered as a bundled Codex V2 pet");
+assert.match(petIpcSource, /resolveSpriteSelection/, "settings IPC must resolve sprites through the shared pet library");
 assert.ok(existsSync(new URL("../resources/pet-sprites/codex-buddy.webp", import.meta.url)), "Skyler bundled spritesheet must ship with the app");
 
 assert.equal(derivePetStatus([{ phase: "running" }]), "running");

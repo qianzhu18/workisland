@@ -47,6 +47,7 @@ select { min-width:142px; height:30px; padding:0 28px 0 9px; color:inherit; back
 .update-status { color:var(--muted); font-size:12px; white-space:nowrap; }
 .inline-controls select { min-width:220px; }
 .text-input { width:230px; height:30px; padding:0 9px; color:inherit; background:rgba(255,255,255,.68); border:1px solid var(--line); border-radius:7px; }
+.color-input { width:52px; height:30px; padding:2px; border:1px solid var(--line); border-radius:7px; background:rgba(255,255,255,.68); cursor:pointer; }
 .compact-select { min-width:130px; height:27px; margin-top:7px; font-size:12px; }
 .button { min-height:30px; padding:4px 12px; border:1px solid var(--line); border-radius:7px; color:inherit; background:rgba(255,255,255,.65); box-shadow:0 1px 1px rgba(0,0,0,.04); }
 .button:active { transform:translateY(1px); }

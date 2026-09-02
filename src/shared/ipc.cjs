@@ -107,6 +107,11 @@ const IPC = Object.freeze({
   PET_OPEN_SPRITES_DIR: "pet:open-sprites-dir",
   PET_TOGGLE: "pet:toggle",
 
+  APPEARANCE_GET_BACKGROUND_IMAGE: "appearance:get-background-image",
+
+  TEMPLATE_GET_ACTIVE_STATUS_ASSETS: "template:get-active-status-assets",
+  TEMPLATE_LIST: "template:list",
+
   WELCOME_GET_STARTED: "welcome:get-started",
   WELCOME_GET_FIRST_LAUNCH_AT: "welcome:get-first-launch-at",
   ISLAND_ONBOARDING_EXPAND: "island:onboarding-expand",
@@ -153,6 +158,9 @@ const IPC = Object.freeze({
   APP_OPEN_EXTERNAL: "app:open-external",
   APP_CHECK_FOR_UPDATES: "app:check-for-updates",
   APP_UPDATE_AVAILABLE: "app:update-available",
+  APP_UPDATE_DOWNLOAD: "app:update-download",
+  APP_UPDATE_INSTALL: "app:update-install",
+  APP_UPDATE_STATE: "app:update-state",
   USAGE_GET_QUOTA: "usage:get-quota",
   USAGE_GET_QUOTA_MAP: "usage:get-quota-map",
   USAGE_GET_SUMMARY: "usage:get-summary",

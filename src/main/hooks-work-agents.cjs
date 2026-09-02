@@ -80,8 +80,14 @@ async function writeJsonAtomic(filePath, value) {
 
 function isWorkIslandCommand(command, source) {
   if (typeof command !== "string") return false;
-  const hasWorkIslandBinary = command.includes("flux-hooks") || command.includes("hooks-cli/index.");
-  const hasSource = command.includes(`--source '${source}'`) || command.includes(`--source ${source}`);
+  // Windows 写入的命令是反斜杠路径 + 双引号参数（win32 shellQuote），POSIX 是正斜杠 +
+  // 单引号。统一成 / 再匹配，否则 merge/uninstall 在 Windows 上认不出自家 hook，
+  // 重连时重复堆积、卸载时残留。
+  const normalized = command.replaceAll("\\", "/");
+  const hasWorkIslandBinary = normalized.includes("flux-hooks") || normalized.includes("hooks-cli/index.");
+  const hasSource = normalized.includes(`--source '${source}'`)
+    || normalized.includes(`--source "${source}"`)
+    || normalized.includes(`--source ${source}`);
   return hasWorkIslandBinary && hasSource;
 }
 
@@ -147,6 +153,22 @@ function getZCodeConfigPath(homeDir = os.homedir()) {
   return path.join(homeDir, ".zcode", "cli", "config.json");
 }
 
+function getZCodeWorkspaceConfigPath(workspacePath) {
+  return path.join(workspacePath, ".zcode", "config.json");
+}
+
+// ZCode ≥3.10 只执行项目级 hooks：从会话目录向上找到最近的 .git（worktree 为 .git 文件），
+// 读取其中 zcode.json / .zcode/config.json；用户级 ~/.zcode/cli/config.json 中的 hooks 不再被执行。
+function findZCodeProjectRoot(startPath, pathExists = (candidate) => fs.existsSync(candidate)) {
+  let current = path.resolve(startPath);
+  for (;;) {
+    if (pathExists(path.join(current, ".git"))) return current;
+    const parent = path.dirname(current);
+    if (parent === current) return null;
+    current = parent;
+  }
+}
+
 function getManifestPath(agentId, homeDir = os.homedir()) {
   return path.join(homeDir, ".flux", "hooks", `${agentId}-manifest.json`);
 }
@@ -180,9 +202,9 @@ function isCodeBuddyInstalled(homeDir = os.homedir()) {
 class ZCodeHookManager {
   agentId = "zcode";
 
-  async install() {
-    const configPath = getZCodeConfigPath();
-    const manifestPath = getManifestPath(this.agentId);
+  async install({ homeDir = os.homedir(), workspacePaths = [] } = {}) {
+    const configPath = getZCodeConfigPath(homeDir);
+    const manifestPath = getManifestPath(this.agentId, homeDir);
     const current = await readJson(configPath, { strict: true }) ?? {};
     const previousManifest = await readJson(manifestPath);
     const hadHooksSection = previousManifest?.hadHooksSection ?? Object.hasOwn(current, "hooks");
@@ -193,21 +215,61 @@ class ZCodeHookManager {
     hookConfig.events = mergeHookGroups(hookConfig.events, ZCODE_EVENTS, command, this.agentId);
     current.hooks = hookConfig;
     await writeJsonAtomic(configPath, current);
+    const workspaceConfigs = await this.installWorkspaceHooks(workspacePaths, previousManifest);
     await writeJsonAtomic(manifestPath, {
       configPath,
       events: ZCODE_EVENTS.map(({ event }) => event),
       hadHooksSection,
       previousEnabled,
+      workspaceConfigs,
       installedAt: previousManifest?.installedAt ?? new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });
-    log.info("[ZCodeHookManager] installed hooks to %s", configPath);
+    log.info(
+      "[ZCodeHookManager] installed hooks to %s (%d project configs)",
+      configPath,
+      workspaceConfigs.length
+    );
   }
 
-  async uninstall() {
-    const manifestPath = getManifestPath(this.agentId);
+  // 用户级配置仅为旧版 ZCode 保留；ZCode ≥3.10 需要 `.zcode/config.json` 写在每个项目的 git 根目录。
+  // `.zcode/config.json` 同时承载 ZCode 工作区级 MCP 等配置，因此只合并 hooks 字段、不动其余内容。
+  async installWorkspaceHooks(workspacePaths, previousManifest) {
+    const command = buildHookCommand(this.agentId);
+    const tracked = new Map(
+      (previousManifest?.workspaceConfigs ?? []).map((entry) => [entry.configPath, entry])
+    );
+    const seen = new Set();
+    for (const workspacePath of workspacePaths) {
+      if (typeof workspacePath !== "string" || !path.isAbsolute(workspacePath)) continue;
+      const root = findZCodeProjectRoot(workspacePath) ?? path.resolve(workspacePath);
+      const configPath = getZCodeWorkspaceConfigPath(root);
+      if (seen.has(configPath)) continue;
+      seen.add(configPath);
+      try {
+        const current = await readJson(configPath, { strict: true }) ?? {};
+        const hadHooksSection = tracked.get(configPath)?.hadHooksSection ?? Object.hasOwn(current, "hooks");
+        const hooks = current.hooks && typeof current.hooks === "object" ? { ...current.hooks } : {};
+        hooks.enabled = true;
+        hooks.events = mergeHookGroups(hooks.events, ZCODE_EVENTS, command, this.agentId);
+        current.hooks = hooks;
+        await writeJsonAtomic(configPath, current);
+        tracked.set(configPath, { configPath, hadHooksSection });
+      } catch (error) {
+        log.warn(
+          "[ZCodeHookManager] failed to install project hooks to %s: %s",
+          configPath,
+          error?.message ?? error
+        );
+      }
+    }
+    return [...tracked.values()];
+  }
+
+  async uninstall({ homeDir = os.homedir() } = {}) {
+    const manifestPath = getManifestPath(this.agentId, homeDir);
     const manifest = await readJson(manifestPath);
-    const configPath = manifest?.configPath ?? getZCodeConfigPath();
+    const configPath = manifest?.configPath ?? getZCodeConfigPath(homeDir);
     const current = await readJson(configPath, { strict: true });
     if (current?.hooks && typeof current.hooks === "object") {
       const events = removeHookGroups(current.hooks.events, this.agentId);
@@ -220,26 +282,54 @@ class ZCodeHookManager {
       }
       await writeJsonAtomic(configPath, current);
     }
+    for (const entry of manifest?.workspaceConfigs ?? []) {
+      const projectConfig = await readJson(entry.configPath, { strict: true });
+      if (!projectConfig?.hooks || typeof projectConfig.hooks !== "object") continue;
+      const events = removeHookGroups(projectConfig.hooks.events, this.agentId);
+      if (Object.keys(events).length) projectConfig.hooks.events = events;
+      else delete projectConfig.hooks.events;
+      if (entry.hadHooksSection === false && Object.keys(projectConfig.hooks).length === 0) {
+        delete projectConfig.hooks;
+      }
+      await writeJsonAtomic(entry.configPath, projectConfig);
+    }
     await promises.rm(manifestPath, { force: true });
   }
 
-  async checkHealth() {
+  async checkHealth({ homeDir = os.homedir() } = {}) {
     const issues = [];
-    const configPath = getZCodeConfigPath();
-    const available = isZCodeInstalled();
+    const configPath = getZCodeConfigPath(homeDir);
+    const manifestPath = getManifestPath(this.agentId, homeDir);
+    const available = isZCodeInstalled(homeDir);
     const current = await readJson(configPath);
     if (!current) issues.push("ZCode Hook 尚未连接");
     else {
       if (current.hooks?.enabled !== true) issues.push("ZCode hooks.enabled 未启用");
       issues.push(...verifyHookGroups(current.hooks?.events, ZCODE_EVENTS, buildHookCommand(this.agentId), this.agentId));
     }
+    const manifest = await readJson(manifestPath);
+    const workspaceConfigs = manifest?.workspaceConfigs ?? [];
+    for (const { configPath: projectConfigPath } of workspaceConfigs) {
+      const projectConfig = await readJson(projectConfigPath);
+      if (!projectConfig) {
+        issues.push(`ZCode 项目 Hook 尚未连接：${projectConfigPath}`);
+        continue;
+      }
+      const projectIssues = verifyHookGroups(
+        projectConfig.hooks?.events,
+        ZCODE_EVENTS,
+        buildHookCommand(this.agentId),
+        this.agentId
+      );
+      issues.push(...projectIssues.map((issue) => `${issue}（${projectConfigPath}）`));
+    }
     return {
       agentId: this.agentId,
       available,
       installed: issues.length === 0,
       issues,
-      manifestPath: getManifestPath(this.agentId),
-      configPaths: [configPath]
+      manifestPath,
+      configPaths: [configPath, ...workspaceConfigs.map(({ configPath }) => configPath)]
     };
   }
 }
@@ -346,6 +436,8 @@ module.exports = {
   WorkBuddyHookManager,
   CodeBuddyHookManager,
   getZCodeConfigPath,
+  getZCodeWorkspaceConfigPath,
+  findZCodeProjectRoot,
   getWorkBuddyConfigPath,
   getCodeBuddyConfigPath,
   mergeHookGroups,

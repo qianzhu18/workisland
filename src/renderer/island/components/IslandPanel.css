@@ -1625,3 +1625,175 @@
 .settings-change-actions button { min-height: 28px; padding: 0 12px; border: 0; border-radius: 9px; background: rgba(103, 210, 159, 0.92); color: #10261b; font: 600 11px 'PingFang SC', sans-serif; cursor: pointer; }
 .settings-change-actions button.is-secondary { background: rgba(255, 255, 255, 0.08); color: rgba(242, 244, 249, 0.82); }
 .settings-change-actions button:disabled { opacity: 0.5; cursor: default; }
+
+/* ── 系统更新入口（额度格子右侧）与更新弹层 ─────────────────── */
+
+.update-cell {
+  gap: 0;
+}
+
+.update-tag {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 2px;
+  border-radius: 6px;
+}
+
+.update-tag img {
+  width: 16px;
+  height: 16px;
+  -webkit-user-drag: none;
+}
+
+.update-tag:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.update-tag-dot {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #4A90D9;
+  box-shadow: 0 0 0 2px rgba(15, 17, 22, 0.9);
+}
+
+.update-tag.is-available .update-tag-dot,
+.update-tag.is-error .update-tag-dot {
+  animation: update-tag-pulse 1.6s ease-in-out infinite;
+}
+
+.update-tag.is-ready .update-tag-dot {
+  background: #00F873;
+}
+
+.update-tag.is-error .update-tag-dot {
+  background: #FF304B;
+}
+
+@keyframes update-tag-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.update-popover {
+  position: fixed;
+  z-index: 9999;
+  width: 248px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(28, 30, 37, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 12px;
+}
+
+.update-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.update-popover-header strong {
+  font-size: 13px;
+  color: #fff;
+}
+
+.update-popover-header span {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.update-popover-desc {
+  margin: 6px 0 0;
+  font-size: 11px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.update-progress {
+  margin-top: 10px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+
+.update-progress i {
+  display: block;
+  height: 100%;
+  width: var(--pct, 0%);
+  border-radius: 2px;
+  background: linear-gradient(90deg, #4A90D9, #7EC2FF);
+  transition: width 0.25s ease;
+}
+
+.update-progress-meta {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.45);
+  font-variant-numeric: tabular-nums;
+}
+
+.update-popover-status {
+  margin-top: 8px;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.update-popover-status.is-error {
+  color: #FF6B81;
+}
+
+.update-popover-status.is-manual {
+  color: #FFC224;
+}
+
+.update-popover-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.update-popover-primary {
+  border: none;
+  border-radius: 7px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #0E1116;
+  background: linear-gradient(135deg, #7EC2FF, #4A90D9);
+  cursor: pointer;
+}
+
+.update-popover-primary:hover {
+  filter: brightness(1.08);
+}
+
+.update-popover-link {
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.update-popover-link:hover {
+  color: rgba(255, 255, 255, 0.9);
+}

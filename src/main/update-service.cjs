@@ -1,13 +1,21 @@
 "use strict";
 
 const fs = require("node:fs");
+const os = require("node:os");
 const path = require("node:path");
+const { execFile } = require("node:child_process");
+const { createHash } = require("node:crypto");
 
 const DEFAULT_RELEASE_URL = "https://api.github.com/repos/qianzhu18/workisland/releases/latest";
 const DEFAULT_DOWNLOAD_URL = "https://github.com/qianzhu18/workisland/releases/latest";
 const UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1e3;
 const UPDATE_REQUEST_TIMEOUT_MS = 8e3;
 const UPDATE_STATE_FILE = "update-check.json";
+const UPDATE_DOWNLOAD_DIR = "update";
+const APP_BUNDLE_NAME = "WorkIsland.app";
+const CHECKSUM_ASSET_NAME = "SHA256SUMS.txt";
+const INSTALL_COMMAND_TIMEOUT_MS = 120e3;
+const DOWNLOAD_PROGRESS_MIN_INTERVAL_MS = 200;
 
 function parseVersion(value) {
   const raw = String(value ?? "").trim();
@@ -50,6 +58,15 @@ function compareVersions(left, right) {
   return 0;
 }
 
+function normalizeAsset(asset) {
+  if (!asset || typeof asset.name !== "string") return null;
+  const url = typeof asset.browser_download_url === "string" && asset.browser_download_url.startsWith("https://")
+    ? asset.browser_download_url
+    : "";
+  if (!url) return null;
+  return { name: asset.name, url, size: Number(asset.size) || 0 };
+}
+
 function normalizeRelease(payload) {
   if (!payload || payload.draft || payload.prerelease) return null;
   const version = parseVersion(payload.tag_name || payload.name);
@@ -60,8 +77,53 @@ function normalizeRelease(payload) {
     url: typeof payload.html_url === "string" && payload.html_url.startsWith("https://")
       ? payload.html_url
       : DEFAULT_DOWNLOAD_URL,
-    publishedAt: payload.published_at || payload.created_at || null
+    publishedAt: payload.published_at || payload.created_at || null,
+    assets: Array.isArray(payload.assets) ? payload.assets.map(normalizeAsset).filter(Boolean) : []
   };
+}
+
+const ARCH_ALIASES = {
+  arm64: ["arm64", "aarch64", "apple-silicon"],
+  x64: ["x64", "x86_64", "intel"]
+};
+
+// 在 Release 资产里挑出当前架构的 DMG：先匹配本架构标记，再退回
+// universal 包，最后才接受没有任何架构标记的包；永远不选明确属于
+// 其他架构的包。
+function pickDmgAsset(assets, arch = process.arch) {
+  if (!Array.isArray(assets) || assets.length === 0) return null;
+  const dmgs = assets.filter((asset) => asset.name.toLowerCase().endsWith(".dmg"));
+  if (dmgs.length === 0) return null;
+  const lower = (asset) => asset.name.toLowerCase();
+  const own = ARCH_ALIASES[arch] ?? [arch];
+  const other = arch === "x64" ? ARCH_ALIASES.arm64 : ARCH_ALIASES.x64;
+  const matchesOwn = dmgs.filter((asset) => own.some((token) => lower(asset).includes(token)) && !other.some((token) => lower(asset).includes(token)));
+  if (matchesOwn.length > 0) return matchesOwn[0];
+  const universal = dmgs.find((asset) => lower(asset).includes("universal"));
+  if (universal) return universal;
+  const untagged = dmgs.find((asset) => ![...ARCH_ALIASES.arm64, ...ARCH_ALIASES.x64].some((token) => lower(asset).includes(token)));
+  if (untagged) return untagged;
+  return null;
+}
+
+function pickChecksumAsset(assets, arch = process.arch) {
+  if (!Array.isArray(assets)) return null;
+  // 发布流水线可能按架构拆分校验文件（SHA256SUMS-arm64.txt /
+  // SHA256SUMS-x64.txt）；优先精确匹配，回退到单一的 SHA256SUMS.txt。
+  const token = arch === "x64" ? "x64" : "arm64";
+  const perArch = assets.find((asset) => asset.name.toLowerCase() === `sha256sums-${token}.txt`);
+  if (perArch) return perArch;
+  return assets.find((asset) => asset.name.toLowerCase() === CHECKSUM_ASSET_NAME.toLowerCase()) ?? null;
+}
+
+// SHA256SUMS.txt 每行格式为 `<sha256>  <filename>`（sha256sum 默认输出）。
+function extractChecksum(text, fileName) {
+  const lines = String(text ?? "").split(/\r?\n/);
+  for (const line of lines) {
+    const match = line.trim().match(/^([0-9a-fA-F]{64})\s+\*?(.+)$/);
+    if (match && match[2].trim() === fileName) return match[1].toLowerCase();
+  }
+  return null;
 }
 
 function readState(filePath) {
@@ -109,6 +171,105 @@ async function fetchLatestRelease(fetchImpl, releaseUrl) {
   }
 }
 
+function responseText(response) {
+  if (typeof response?.text === "function") return response.text();
+  return Promise.resolve(response?.body ?? "");
+}
+
+function bodyToAsyncIterable(body) {
+  if (body && typeof body[Symbol.asyncIterator] === "function") return body;
+  if (body && typeof body.getReader === "function") {
+    return (async function* () {
+      const reader = body.getReader();
+      try {
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) return;
+          yield value;
+        }
+      } finally {
+        reader.releaseLock?.();
+      }
+    })();
+  }
+  throw new Error("下载响应缺少可读的数据流");
+}
+
+async function downloadToFile(fetchImpl, url, destinationPath, { onProgress = () => {}, logger = console } = {}) {
+  const controller = typeof AbortController === "function" ? new AbortController() : null;
+  const response = await fetchImpl(url, {
+    headers: { Accept: "application/octet-stream", "User-Agent": "WorkIsland-update-check" },
+    signal: controller?.signal
+  });
+  if (!response?.ok) throw new Error(`下载失败（HTTP ${response?.status ?? "unknown"}）`);
+  const total = Number(response.headers?.get?.("content-length")) || 0;
+  const hash = createHash("sha256");
+  const handle = await fs.promises.open(destinationPath, "w");
+  let received = 0;
+  let lastReportedAt = 0;
+  try {
+    for await (const chunk of bodyToAsyncIterable(response.body)) {
+      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      hash.update(buffer);
+      await handle.write(buffer, 0, buffer.length);
+      received += buffer.length;
+      const at = Date.now();
+      if (at - lastReportedAt >= DOWNLOAD_PROGRESS_MIN_INTERVAL_MS) {
+        lastReportedAt = at;
+        onProgress({ received, total, pct: total > 0 ? Math.min(100, Math.round((received / total) * 100)) : 0 });
+      }
+    }
+  } catch (error) {
+    controller?.abort();
+    throw error;
+  } finally {
+    await handle.close();
+  }
+  onProgress({ received, total, pct: total > 0 ? Math.min(100, Math.round((received / total) * 100)) : 100 });
+  logger.debug?.(`[UpdateService] downloaded ${received} bytes from ${url}`);
+  return { received, sha256: hash.digest("hex") };
+}
+
+async function runInstallCommand(runner, file, args, { optional = false } = {}) {
+  try {
+    await runner(file, args);
+    return true;
+  } catch (error) {
+    if (optional) return false;
+    throw error instanceof Error ? error : new Error(String(error));
+  }
+}
+
+async function installFromDmg({ dmgPath, installDir, runner, fsModule = fs }) {
+  const mountPoint = fsModule.mkdtempSync(path.join(os.tmpdir(), "workisland-update-"));
+  try {
+    await runInstallCommand(runner, "hdiutil", ["attach", dmgPath, "-readonly", "-nobrowse", "-mountpoint", mountPoint]);
+    const sourceApp = path.join(mountPoint, APP_BUNDLE_NAME);
+    if (!fsModule.existsSync(sourceApp)) {
+      throw new Error("安装镜像中没有找到 WorkIsland.app");
+    }
+    const targetApp = path.join(installDir, APP_BUNDLE_NAME);
+    await runInstallCommand(runner, "/bin/rm", ["-rf", targetApp]);
+    await runInstallCommand(runner, "/usr/bin/ditto", [sourceApp, targetApp]);
+    return targetApp;
+  } finally {
+    await runInstallCommand(runner, "hdiutil", ["detach", mountPoint, "-force"], { optional: true });
+    await fsModule.promises.rmdir(mountPoint).catch(() => {});
+  }
+}
+
+function defaultRunner() {
+  return (file, args) => new Promise((resolve, reject) => {
+    execFile(file, args, { timeout: INSTALL_COMMAND_TIMEOUT_MS }, (error, stdout, stderr) => {
+      if (error) {
+        reject(new Error(String(stderr || error.message || "安装命令执行失败")));
+        return;
+      }
+      resolve(String(stdout ?? ""));
+    });
+  });
+}
+
 function createUpdateService({
   app,
   shell,
@@ -116,13 +277,20 @@ function createUpdateService({
   userDataPath,
   getSettings = () => ({}),
   onUpdateAvailable = () => {},
+  onUpdateState = () => {},
   fetchImpl = globalThis.fetch,
   releaseUrl = DEFAULT_RELEASE_URL,
   now = () => Date.now(),
   minIntervalMs = UPDATE_CHECK_INTERVAL_MS,
   initialDelayMs = 10e3,
   intervalMs = UPDATE_CHECK_INTERVAL_MS,
-  logger = console
+  logger = console,
+  runner = defaultRunner(),
+  relaunch = () => app.relaunch?.(),
+  quit = () => app.quit?.(),
+  openPath = (value) => shell?.openPath?.(value),
+  arch = process.arch,
+  getInstallDir
 } = {}) {
   if (!app || typeof app.getVersion !== "function") throw new TypeError("app.getVersion is required");
   const statePath = path.join(userDataPath || ".", UPDATE_STATE_FILE);
@@ -130,6 +298,7 @@ function createUpdateService({
   let inFlight = null;
   let initialTimer = null;
   let intervalTimer = null;
+  let updateState = { phase: "idle", progress: null, release: null, error: null, downloadedPath: null };
 
   function currentVersion() {
     return String(app.getVersion());
@@ -137,6 +306,33 @@ function createUpdateService({
 
   function isDevelopment() {
     return app.isPackaged === false;
+  }
+
+  function resolveInstallDir() {
+    if (typeof getInstallDir === "function") return getInstallDir();
+    const exePath = app.getPath?.("exe") ?? "";
+    const bundleMarker = `${path.sep}${APP_BUNDLE_NAME}${path.sep}Contents`;
+    const markerIndex = exePath.lastIndexOf(bundleMarker);
+    if (markerIndex > 0) return path.dirname(exePath.slice(0, markerIndex + APP_BUNDLE_NAME.length));
+    return "/Applications";
+  }
+
+  function publishState(patch) {
+    updateState = { ...updateState, ...patch };
+    try {
+      onUpdateState(getUpdateState());
+    } catch (error) {
+      logger.warn?.("[UpdateService] onUpdateState listener failed:", error);
+    }
+  }
+
+  function getUpdateState() {
+    return {
+      ...updateState,
+      currentVersion: currentVersion(),
+      latestVersion: updateState.release?.version ?? state.latestRelease?.version ?? null,
+      releaseUrl: updateState.release?.url ?? state.latestRelease?.url ?? DEFAULT_DOWNLOAD_URL
+    };
   }
 
   function resultForRelease(release) {
@@ -174,6 +370,23 @@ function createUpdateService({
     }
   }
 
+  function showReadyNotification() {
+    if (!notificationClass) return;
+    try {
+      if (typeof notificationClass.isSupported === "function" && !notificationClass.isSupported()) return;
+      const notification = new notificationClass({
+        title: "WorkIsland 更新已就绪",
+        body: `新版本 ${updateState.release?.version ?? ""} 下载完成，点击立即安装并重启。`
+      });
+      notification.on("click", () => {
+        void install();
+      });
+      notification.show();
+    } catch (error) {
+      logger.warn?.("[UpdateService] failed to show ready notification:", error);
+    }
+  }
+
   async function runCheck({ notify = true } = {}) {
     state.lastCheckedAt = now();
     writeState(statePath, state);
@@ -189,6 +402,9 @@ function createUpdateService({
             state.lastNotifiedVersion = result.latestVersion;
             writeState(statePath, state);
           }
+        }
+        if (updateState.phase === "idle") {
+          publishState({ release });
         }
       }
       return result;
@@ -221,6 +437,91 @@ function createUpdateService({
     return inFlight;
   }
 
+  // 把更新下载到本地并做 SHA-256 校验，完成后进入 ready 阶段等待安装。
+  async function download() {
+    if (isDevelopment()) return { ...getUpdateState(), error: "开发模式下不执行更新下载" };
+    if (updateState.phase === "downloading" || updateState.phase === "ready" || updateState.phase === "installing") {
+      return getUpdateState();
+    }
+    let release = updateState.release ?? state.latestRelease ?? null;
+    let result = null;
+    if (!release || !release.assets) {
+      result = await check({ force: true, notify: false });
+      release = state.latestRelease;
+      if (result?.status !== "update-available" || !release) {
+        publishState({ phase: "idle", error: result?.message ?? "当前已是最新版本" });
+        return getUpdateState();
+      }
+    }
+    const asset = pickDmgAsset(release.assets, arch);
+    if (!asset) {
+      publishState({ phase: "error", error: "未找到与当前芯片匹配的安装包，请前往发布页手动下载。" });
+      return getUpdateState();
+    }
+    const downloadDir = path.join(userDataPath || ".", UPDATE_DOWNLOAD_DIR);
+    const destinationPath = path.join(downloadDir, asset.name);
+    publishState({ phase: "downloading", progress: { received: 0, total: asset.size, pct: 0 }, release, error: null, downloadedPath: null });
+    try {
+      fs.mkdirSync(downloadDir, { recursive: true });
+      const { sha256 } = await downloadToFile(fetchImpl, asset.url, destinationPath, {
+        onProgress: (progress) => publishState({ progress }),
+        logger
+      });
+      const checksumAsset = pickChecksumAsset(release.assets, arch);
+      if (checksumAsset) {
+        const checksumResponse = await fetchImpl(checksumAsset.url, {
+          headers: { Accept: "text/plain", "User-Agent": "WorkIsland-update-check" }
+        });
+        if (checksumResponse?.ok) {
+          const expected = extractChecksum(await responseText(checksumResponse), asset.name);
+          if (expected && expected !== sha256) {
+            await fs.promises.rm(destinationPath, { force: true }).catch(() => {});
+            throw new Error("安装包校验失败，已停止安装。请稍后重试或前往发布页手动下载。");
+          }
+        }
+      }
+      publishState({ phase: "ready", progress: { received: asset.size, total: asset.size, pct: 100 }, downloadedPath: destinationPath, error: null });
+      showReadyNotification();
+      return getUpdateState();
+    } catch (error) {
+      logger.warn?.("[UpdateService] download failed:", error);
+      publishState({ phase: "error", error: error?.message || "更新下载失败，请稍后重试。" });
+      return getUpdateState();
+    }
+  }
+
+  // 安装已下载的更新：挂载 DMG、替换当前安装目录内的应用并重启。
+  // 任何一步失败都会回退为打开 DMG，让用户手动拖拽安装。
+  async function install() {
+    if (isDevelopment()) return { ...getUpdateState(), error: "开发模式下不执行更新安装" };
+    if (updateState.phase !== "ready" || !updateState.downloadedPath) {
+      return getUpdateState();
+    }
+    const dmgPath = updateState.downloadedPath;
+    publishState({ phase: "installing", error: null });
+    try {
+      const installDir = resolveInstallDir();
+      await installFromDmg({ dmgPath, installDir, runner });
+      publishState({ phase: "idle", progress: null, downloadedPath: null, error: null });
+      relaunch();
+      quit();
+      return { ...getUpdateState(), installed: true };
+    } catch (error) {
+      logger.warn?.("[UpdateService] automatic install failed, falling back to manual:", error);
+      const opened = await Promise.resolve()
+        .then(() => openPath?.(dmgPath))
+        .then(() => true)
+        .catch(() => false);
+      publishState({
+        phase: opened ? "manual" : "error",
+        error: opened
+          ? "自动安装未完成，已打开安装镜像，请将 WorkIsland 拖入「应用程序」后重新打开。"
+          : error?.message || "自动安装失败，请前往发布页手动下载。"
+      });
+      return getUpdateState();
+    }
+  }
+
   function start() {
     if (isDevelopment() || initialTimer || intervalTimer) return;
     initialTimer = setTimeout(() => {
@@ -241,17 +542,26 @@ function createUpdateService({
     check,
     start,
     stop,
+    download,
+    install,
     getState: () => ({ ...state }),
+    getUpdateState,
     getStatePath: () => statePath
   };
 }
 
 module.exports = {
+  APP_BUNDLE_NAME,
+  CHECKSUM_ASSET_NAME,
   DEFAULT_DOWNLOAD_URL,
   DEFAULT_RELEASE_URL,
   UPDATE_CHECK_INTERVAL_MS,
   compareVersions,
   createUpdateService,
+  extractChecksum,
+  installFromDmg,
   normalizeRelease,
-  parseVersion
+  parseVersion,
+  pickChecksumAsset,
+  pickDmgAsset
 };

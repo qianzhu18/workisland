@@ -6,6 +6,7 @@ import { M as Markdown, r as remarkGfm } from "../../vendor/markdown.js";
 import { canContinueSessionViaTerminalPrompt, filterSurfaceSessions, sortVisibleSessions } from "../session-model.mjs";
 import { MediaCard } from "./MediaCard.js";
 import { PerformancePopover } from "./PerformancePopover.js";
+import { UpdateStatusButton, hasActiveUpdateFlow } from "./UpdatePopover.js";
 import { ShelfPanel } from "./ShelfPanel.js";
 import { ClipboardPanel } from "./ClipboardPanel.js";
 import { TerminalPanel } from "./TerminalPanel.js";
@@ -18,6 +19,54 @@ const approvalIcon = new URL("../assets/status/approval.svg", import.meta.url).h
 const completeIcon = new URL("../assets/status/complete.svg", import.meta.url).href;
 const errorIcon = new URL("../assets/status/error.svg", import.meta.url).href;
 const codexIcon = new URL("../assets/brands/codex.png", import.meta.url).href;
+// ── 模板状态资产（PRD-018 §7.4） ────────────────────────────────────────────
+// 构建期 URL 只是首帧兜底；app.js 在活动模板变化时用主进程校验过的
+// data URL 覆盖这五个图标。waitingForApproval 与 waitingForAnswer 固定
+// 共用 approval，error 优先于 phase。
+const DEFAULT_STATUS_ICONS = Object.freeze({
+  idle: defaultIcon,
+  running: runningIcon,
+  approval: approvalIcon,
+  complete: completeIcon,
+  error: errorIcon
+});
+let statusAssetsOverride = null;
+const statusAssetsListeners = /* @__PURE__ */ new Set();
+function currentStatusIcons() {
+  if (!statusAssetsOverride) return DEFAULT_STATUS_ICONS;
+  return { ...DEFAULT_STATUS_ICONS, ...statusAssetsOverride };
+}
+function setIslandStatusAssets(assets) {
+  if (assets && typeof assets === "object") {
+    const override = {};
+    for (const key of Object.keys(DEFAULT_STATUS_ICONS)) {
+      if (typeof assets[key] === "string" && assets[key]) override[key] = assets[key];
+    }
+    statusAssetsOverride = Object.keys(override).length > 0 ? override : null;
+  } else {
+    statusAssetsOverride = null;
+  }
+  for (const listener of statusAssetsListeners) listener();
+}
+function useIslandStatusIcons() {
+  const [icons, setIcons] = reactExports.useState(currentStatusIcons);
+  reactExports.useEffect(() => {
+    const listener = () => setIcons(currentStatusIcons());
+    statusAssetsListeners.add(listener);
+    return () => {
+      statusAssetsListeners.delete(listener);
+    };
+  }, []);
+  return icons;
+}
+function resolveSessionIcon(session, icons) {
+  if (session?.error) return icons.error;
+  const phase = session?.phase;
+  if (phase === "running") return icons.running;
+  if (phase === "waitingForApproval" || phase === "waitingForAnswer") return icons.approval;
+  if (phase === "completed") return icons.complete;
+  return icons.idle;
+}
 function useActionable(sessions, surface, options) {
   const actionableId = surface?.type === "sessionList" || surface?.type === "completion" ? surface.actionableSessionId : void 0;
   const actionableRef = reactExports.useRef(null);
@@ -150,7 +199,6 @@ const settingIcon = "data:image/svg+xml,%3csvg%20width='14'%20height='14'%20view
 const voiceIcon = "data:image/svg+xml,%3csvg%20width='14'%20height='14'%20viewBox='0%200%2014%2014'%20fill='none'%20xmlns='http://www.w3.org/2000/svg'%3e%3cpath%20d='M6.41699%202.74281C6.41687%202.66156%206.39269%202.58216%206.34749%202.51464C6.3023%202.44712%206.23811%202.3945%206.16304%202.36342C6.08797%202.33235%206.00537%202.3242%205.92567%202.34002C5.84598%202.35584%205.77275%202.39491%205.71524%202.45231L3.74124%204.42573C3.66506%204.50236%203.57443%204.56312%203.4746%204.60447C3.37476%204.64583%203.26772%204.66696%203.15966%204.66664H1.75033C1.59562%204.66664%201.44724%204.7281%201.33785%204.8375C1.22845%204.94689%201.16699%205.09527%201.16699%205.24998V8.74998C1.16699%208.90469%201.22845%209.05306%201.33785%209.16245C1.44724%209.27185%201.59562%209.33331%201.75033%209.33331H3.15966C3.26772%209.33299%203.37476%209.35412%203.4746%209.39548C3.57443%209.43683%203.66506%209.49759%203.74124%209.57423L5.71466%2011.5482C5.77217%2011.6059%205.8455%2011.6451%205.92535%2011.661C6.0052%2011.6769%206.08798%2011.6688%206.1632%2011.6376C6.23842%2011.6065%206.30269%2011.5537%206.34787%2011.4859C6.39305%2011.4182%206.41711%2011.3386%206.41699%2011.2571V2.74281Z'%20stroke='%23D1D3DB'%20style='stroke:%23D1D3DB;stroke:color(display-p3%200.8196%200.8275%200.8588);stroke-opacity:1;'%20stroke-width='1.16667'%20stroke-linecap='round'%20stroke-linejoin='round'/%3e%3cpath%20d='M9.33301%205.25C9.71166%205.75486%209.91634%206.36892%209.91634%207C9.91634%207.63108%209.71166%208.24514%209.33301%208.75'%20stroke='%23D1D3DB'%20style='stroke:%23D1D3DB;stroke:color(display-p3%200.8196%200.8275%200.8588);stroke-opacity:1;'%20stroke-width='1.16667'%20stroke-linecap='round'%20stroke-linejoin='round'/%3e%3cpath%20d='M11.2949%2010.7123C11.7824%2010.2248%2012.1692%209.646%2012.433%209.00903C12.6968%208.37207%2012.8326%207.68938%2012.8326%206.99993C12.8326%206.31049%2012.6968%205.62779%2012.433%204.99083C12.1692%204.35386%2011.7824%203.77511%2011.2949%203.2876'%20stroke='%23D1D3DB'%20style='stroke:%23D1D3DB;stroke:color(display-p3%200.8196%200.8275%200.8588);stroke-opacity:1;'%20stroke-width='1.16667'%20stroke-linecap='round'%20stroke-linejoin='round'/%3e%3c/svg%3e";
 const voiceMuteIcon = "data:image/svg+xml,%3csvg%20width='14'%20height='14'%20viewBox='0%200%2014%2014'%20fill='none'%20xmlns='http://www.w3.org/2000/svg'%3e%3cpath%20d='M6.41699%202.74293C6.41687%202.66168%206.39269%202.58228%206.34749%202.51476C6.3023%202.44724%206.23811%202.39462%206.16304%202.36355C6.08797%202.33247%206.00537%202.32433%205.92567%202.34015C5.84598%202.35596%205.77275%202.39504%205.71524%202.45243L3.74124%204.42585C3.66506%204.50248%203.57443%204.56324%203.4746%204.60459C3.37476%204.64595%203.26772%204.66708%203.15966%204.66676H1.75033C1.59562%204.66676%201.44724%204.72822%201.33785%204.83762C1.22845%204.94702%201.16699%205.09539%201.16699%205.2501V8.7501C1.16699%208.90481%201.22845%209.05318%201.33785%209.16258C1.44724%209.27197%201.59562%209.33343%201.75033%209.33343H3.15966C3.26772%209.33311%203.37476%209.35425%203.4746%209.3956C3.57443%209.43696%203.66506%209.49771%203.74124%209.57435L5.71466%2011.5483C5.77217%2011.606%205.8455%2011.6452%205.92535%2011.6612C6.0052%2011.6771%206.08798%2011.6689%206.1632%2011.6377C6.23842%2011.6066%206.30269%2011.5538%206.34787%2011.486C6.39305%2011.4183%206.41711%2011.3387%206.41699%2011.2573V2.74293Z'%20stroke='%23D1D3DB'%20style='stroke:%23D1D3DB;stroke:color(display-p3%200.8196%200.8275%200.8588);stroke-opacity:1;'%20stroke-width='1.16667'%20stroke-linecap='round'%20stroke-linejoin='round'/%3e%3cpath%20d='M12.833%205.25L9.33301%208.75'%20stroke='%23D1D3DB'%20style='stroke:%23D1D3DB;stroke:color(display-p3%200.8196%200.8275%200.8588);stroke-opacity:1;'%20stroke-width='1.16667'%20stroke-linecap='round'%20stroke-linejoin='round'/%3e%3cpath%20d='M9.33301%205.25L12.833%208.75'%20stroke='%23D1D3DB'%20style='stroke:%23D1D3DB;stroke:color(display-p3%200.8196%200.8275%200.8588);stroke-opacity:1;'%20stroke-width='1.16667'%20stroke-linecap='round'%20stroke-linejoin='round'/%3e%3c/svg%3e";
 const cleanIcon = "data:image/svg+xml,%3csvg%20width='16'%20height='16'%20viewBox='0%200%2016%2016'%20fill='none'%20xmlns='http://www.w3.org/2000/svg'%3e%3cpath%20d='M10.6002%2014.4994L9.9502%2011.8994'%20stroke='%23DADCE1'%20style='stroke:%23DADCE1;stroke:color(display-p3%200.8568%200.8617%200.8817);stroke-opacity:1;'%20stroke-width='1.29997'%20stroke-linecap='round'%20stroke-linejoin='round'/%3e%3cpath%20d='M12.5505%209.29981C12.7229%209.29981%2012.8883%209.23133%2013.0102%209.10943C13.132%208.98754%2013.2005%208.82221%2013.2005%208.64983V7.99984C13.2005%207.65507%2013.0636%207.32442%2012.8198%207.08063C12.576%206.83683%2012.2453%206.69987%2011.9006%206.69987H9.95061C9.77822%206.69987%209.61289%206.63139%209.491%206.5095C9.3691%206.3876%209.30062%206.22228%209.30062%206.04989V2.79997C9.30062%202.4552%209.16366%202.12454%208.91987%201.88075C8.67608%201.63696%208.34543%201.5%208.00065%201.5C7.65588%201.5%207.32523%201.63696%207.08144%201.88075C6.83765%202.12454%206.70069%202.4552%206.70069%202.79997V6.04989C6.70069%206.22228%206.63221%206.3876%206.51031%206.5095C6.38841%206.63139%206.22309%206.69987%206.0507%206.69987H4.10075C3.75598%206.69987%203.42532%206.83683%203.18153%207.08063C2.93774%207.32442%202.80078%207.65507%202.80078%207.99984V8.64983C2.80078%208.82221%202.86926%208.98754%202.99116%209.10943C3.11305%209.23133%203.27838%209.29981%203.45077%209.29981'%20stroke='%23DADCE1'%20style='stroke:%23DADCE1;stroke:color(display-p3%200.8568%200.8617%200.8817);stroke-opacity:1;'%20stroke-width='1.29997'%20stroke-linecap='round'%20stroke-linejoin='round'/%3e%3cpath%20d='M12.5495%209.2998H3.44972L2.1673%2013.6982C2.14441%2013.7938%202.14348%2013.8933%202.16458%2013.9893C2.18569%2014.0853%202.22828%2014.1752%202.28915%2014.2523C2.35003%2014.3295%202.4276%2014.3918%202.51604%2014.4347C2.60447%2014.4775%202.70147%2014.4997%202.79974%2014.4997H13.1995C13.2978%2014.4997%2013.3947%2014.4775%2013.4832%2014.4347C13.5716%2014.3918%2013.6492%2014.3295%2013.7101%2014.2523C13.7709%2014.1752%2013.8135%2014.0853%2013.8346%2013.9893C13.8557%2013.8933%2013.8548%2013.7938%2013.8319%2013.6982L12.5495%209.2998Z'%20stroke='%23DADCE1'%20style='stroke:%23DADCE1;stroke:color(display-p3%200.8568%200.8617%200.8817);stroke-opacity:1;'%20stroke-width='1.29997'%20stroke-linecap='round'%20stroke-linejoin='round'/%3e%3cpath%20d='M5.39941%2014.4994L6.0494%2011.8994'%20stroke='%23DADCE1'%20style='stroke:%23DADCE1;stroke:color(display-p3%200.8568%200.8617%200.8817);stroke-opacity:1;'%20stroke-width='1.29997'%20stroke-linecap='round'%20stroke-linejoin='round'/%3e%3c/svg%3e";
-const updateIcon = "data:image/svg+xml,%3csvg%20width='16'%20height='16'%20viewBox='0%200%2016%2016'%20fill='none'%20xmlns='http://www.w3.org/2000/svg'%3e%3cpath%20d='M8.00065%208.66699V14.0003L5.33398%2011.3337'%20stroke='%23DADCE1'%20style='stroke:%23DADCE1;stroke:color(display-p3%200.8568%200.8617%200.8817);stroke-opacity:1;'%20stroke-width='1.33333'%20stroke-linecap='round'%20stroke-linejoin='round'/%3e%3cpath%20d='M8%2013.9997L10.6667%2011.333'%20stroke='%23DADCE1'%20style='stroke:%23DADCE1;stroke:color(display-p3%200.8568%200.8617%200.8817);stroke-opacity:1;'%20stroke-width='1.33333'%20stroke-linecap='round'%20stroke-linejoin='round'/%3e%3cpath%20d='M2.92901%2010.179C2.38452%209.70273%201.95823%209.10634%201.68379%208.43699C1.40935%207.76764%201.29429%207.04365%201.34769%206.32219C1.40109%205.60074%201.62149%204.90158%201.99149%204.27993C2.36148%203.65827%202.87093%203.13115%203.47962%202.74019C4.0883%202.34922%204.77955%202.10513%205.49876%202.02717C6.21798%201.94922%206.94547%202.03954%207.62379%202.29101C8.3021%202.54248%208.91267%202.9482%209.40726%203.47614C9.90186%204.00409%2010.2669%204.63979%2010.4737%205.33305H11.667C12.3151%205.33297%2012.9457%205.54273%2013.4646%205.93095C13.9835%206.31917%2014.3627%206.86498%2014.5455%207.4867C14.7284%208.10842%2014.7049%208.77262%2014.4788%209.37993C14.2527%209.98724%2013.8359%2010.505%2013.291%2010.8557'%20stroke='%23DADCE1'%20style='stroke:%23DADCE1;stroke:color(display-p3%200.8568%200.8617%200.8817);stroke-opacity:1;'%20stroke-width='1.33333'%20stroke-linecap='round'%20stroke-linejoin='round'/%3e%3c/svg%3e";
 const ALL_AGENTS = ["claude", "codex", "cursor", "opencode", "kimi"];
 const AGENT_BADGE_COLORS = { claude: "#F08A5D", codex: "#63D5A0", cursor: "#A7B0C0", opencode: "#D6A85A", kimi: "#7EA7FF" };
 function isValidPeriod(period) {
@@ -201,14 +249,6 @@ function AgentQuotaCell({ tool, quota }) {
     activePeriod && /* @__PURE__ */ React.createElement("span", { className: "usage-cell-text" }, /* @__PURE__ */ React.createElement("span", { className: "usage-period" }, activePeriod.total, " ", /* @__PURE__ */ React.createElement("span", { style: { color: usagePctColor(activePeriod.usedPct) } }, formatPct(activePeriod.usedPct), "%"), " ", activePeriod.remaining)),
     tooltipLines.length > 0 && showTooltip && /* @__PURE__ */ React.createElement("span", { className: "usage-cell-tooltip is-visible", role: "tooltip" }, tooltipLines.join("\n"))
   );
-}
-function StatusIcon({ icon, badgeColor, title, onClick }) {
-  const handleClick = (e) => {
-    e.stopPropagation();
-    e.preventDefault();
-    onClick?.();
-  };
-  return /* @__PURE__ */ React.createElement("span", { className: "status-icon-wrapper", onClick: handleClick, title, style: { cursor: "pointer" } }, /* @__PURE__ */ React.createElement("img", { src: icon, width: 16, height: 16 }), /* @__PURE__ */ React.createElement("span", { className: "status-icon-badge", style: { background: badgeColor } }));
 }
 function PetButtonIcon() {
   const [sprite, setSprite] = reactExports.useState(null);
@@ -271,7 +311,11 @@ function AgentUsageRow({
   onToolboxModuleReorder,
   onOpenSettings,
   onOpenAbout,
-  onOpenPet
+  onOpenPet,
+  updateState,
+  onUpdateDownload,
+  onUpdateInstall,
+  onOpenRelease
 }) {
   const agentsWithQuota = ALL_AGENTS.filter(
     (tool) => agentQuotas[tool] && (tool !== "codex" || isValidQuota(agentQuotas[tool]))
@@ -332,7 +376,7 @@ function AgentUsageRow({
     if (tool === "codex" && !pillFirstRow.codexSubscription) return false;
     return true;
   }).map((tool, idx, arr) => /* @__PURE__ */ React.createElement(React.Fragment, { key: tool }, /* @__PURE__ */ React.createElement(AgentQuotaCell, { tool, quota: agentQuotas[tool] }), idx < arr.length - 1 && /* @__PURE__ */ React.createElement("span", { className: "usage-cell-divider" }, "|")));
-  return /* @__PURE__ */ React.createElement("div", { className: "usage-row", style: { minHeight: notchHeight } }, showUsageQuota && /* @__PURE__ */ React.createElement("div", { className: "usage-row-agents" }, quotaCells), /* @__PURE__ */ React.createElement("div", { className: "usage-row-actions" }, visibleSessionIds.length > 0 && /* @__PURE__ */ React.createElement("button", { className: "panel-btn", onClick: handleClearSessions, title: i18n.k1005723937({}, "清理会话") }, /* @__PURE__ */ React.createElement("img", { src: cleanIcon, alt: "clean sessions", width: 16, height: 16 })), pillFirstRow.upgradeButton && hasUpdate && /* @__PURE__ */ React.createElement(StatusIcon, { icon: updateIcon, badgeColor: "#4A90D9", title: i18n.k3734051999({}, "有新版本可用"), onClick: onOpenAbout }), pillFirstRow.soundIcon && /* @__PURE__ */ React.createElement("button", { className: "panel-btn", onClick: handleToggleSound, title: muted ? "Unmute" : "Mute" }, /* @__PURE__ */ React.createElement("img", { src: muted ? voiceMuteIcon : voiceIcon, alt: muted ? "muted" : "sound" })), agentHomeButton, utilityButtons, performanceEnabled && /* @__PURE__ */ React.createElement(PerformancePopover, { state: performanceState }), /* @__PURE__ */ React.createElement("button", { className: "panel-btn panel-pet-button", type: "button", onClick: onOpenPet, title: "打开或关闭桌宠", "aria-label": "打开或关闭桌宠" }, /* @__PURE__ */ React.createElement(PetButtonIcon)), /* @__PURE__ */ React.createElement("button", { className: "panel-btn", onClick: () => onOpenSettings("display"), title: "Settings" }, /* @__PURE__ */ React.createElement("img", { src: settingIcon, alt: "settings" }))));
+  return /* @__PURE__ */ React.createElement("div", { className: "usage-row", style: { minHeight: notchHeight } }, /* @__PURE__ */ React.createElement("div", { className: "usage-row-agents" }, showUsageQuota ? quotaCells : null, pillFirstRow.upgradeButton && (hasUpdate || hasActiveUpdateFlow(updateState)) && /* @__PURE__ */ React.createElement(UpdateStatusButton, { updateState, hasUpdate, onDownload: onUpdateDownload, onInstall: onUpdateInstall, onOpenRelease: onOpenRelease })), /* @__PURE__ */ React.createElement("div", { className: "usage-row-actions" }, visibleSessionIds.length > 0 && /* @__PURE__ */ React.createElement("button", { className: "panel-btn", onClick: handleClearSessions, title: i18n.k1005723937({}, "清理会话") }, /* @__PURE__ */ React.createElement("img", { src: cleanIcon, alt: "clean sessions", width: 16, height: 16 })), pillFirstRow.soundIcon && /* @__PURE__ */ React.createElement("button", { className: "panel-btn", onClick: handleToggleSound, title: muted ? "Unmute" : "Mute" }, /* @__PURE__ */ React.createElement("img", { src: muted ? voiceMuteIcon : voiceIcon, alt: muted ? "muted" : "sound" })), agentHomeButton, utilityButtons, performanceEnabled && /* @__PURE__ */ React.createElement(PerformancePopover, { state: performanceState }), /* @__PURE__ */ React.createElement("button", { className: "panel-btn panel-pet-button", type: "button", onClick: onOpenPet, title: "打开或关闭桌宠", "aria-label": "打开或关闭桌宠" }, /* @__PURE__ */ React.createElement(PetButtonIcon)), /* @__PURE__ */ React.createElement("button", { className: "panel-btn", onClick: () => onOpenSettings("display"), title: "Settings" }, /* @__PURE__ */ React.createElement("img", { src: settingIcon, alt: "settings" }))));
 }
 const TOOL_BADGE_COLORS = {
   claude: "#DA7250",
@@ -415,7 +459,8 @@ function SessionRow({
   onClick,
   onFollowUpClick
 }) {
-  const icon = session.error ? errorIcon : PHASE_ICON[session.phase] ?? defaultIcon;
+  const statusIcons = useIslandStatusIcons();
+  const icon = resolveSessionIcon(session, statusIcons);
   const terminalApp = session.jumpTarget?.app;
   const cwd = session.jumpTarget?.workingDirectory;
   const elapsed = useElapsed(session);
@@ -1391,10 +1436,15 @@ function IslandPanel({
   onOpenPet,
   onCollapse,
   onFollowUpChange,
-  onActiveModuleChange
+  onActiveModuleChange,
+  updateState,
+  onUpdateDownload,
+  onUpdateInstall,
+  onOpenRelease
 }) {
   const [followUpSessionId, setFollowUpSessionId] = React.useState(null);
   const [activeModule, setActiveModule] = React.useState("agent");
+  const statusIcons = useIslandStatusIcons();
   const [moduleOrder, setModuleOrder] = React.useState([]);
   React.useEffect(() => {
     let disposed = false;
@@ -1494,13 +1544,17 @@ function IslandPanel({
       onToolboxModuleReorder: handleToolboxModuleReorder,
       onOpenSettings,
       onOpenAbout,
-      onOpenPet
+      onOpenPet,
+      updateState,
+      onUpdateDownload,
+      onUpdateInstall,
+      onOpenRelease
     }
   ), /* @__PURE__ */ React.createElement("div", { className: "panel-divider" }), activeModule === "shelf" && /* @__PURE__ */ React.createElement(ShelfPanel), activeModule === "clipboard" && /* @__PURE__ */ React.createElement(ClipboardPanel), activeModule === "terminal" && /* @__PURE__ */ React.createElement(TerminalPanel, { savedCommands: terminalSavedCommands, onOpenSettings: () => onOpenSettings("general") }), activeModule === "usage" && /* @__PURE__ */ React.createElement(UsagePanel), /* @__PURE__ */ React.createElement("div", { className: `workspace-content${mediaEnabled && mediaState?.active && mediaState?.title ? " has-media" : ""}${activeModule === "agent" ? "" : " is-hidden"}` }, mediaEnabled && mediaState?.active && mediaState?.title && /* @__PURE__ */ React.createElement(MediaCard, { media: mediaState, lyrics: lyricsState }), /* @__PURE__ */ React.createElement("div", { className: "workspace-agent-pane" }, /* @__PURE__ */ React.createElement("div", { className: "session-list", ref: sessionListRef }, visibleSessions.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "session-list-empty" }, /* @__PURE__ */ React.createElement(
     "img",
     {
       className: "session-list-empty-icon",
-      src: defaultIcon,
+      src: statusIcons.idle,
       alt: "",
       draggable: false
     }
@@ -1561,3 +1615,4 @@ export {
   stripCwd as s,
   useActionable as u
 };
+export { DEFAULT_STATUS_ICONS, resolveSessionIcon, setIslandStatusAssets, useIslandStatusIcons };

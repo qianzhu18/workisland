@@ -7,6 +7,7 @@ This directory is the GitHub-reviewable source for active product, engineering, 
 - [Product Operating System](./PRODUCT_OPERATING_SYSTEM.md): the path from product decision to release, repository roles, and GitHub settings.
 - [Product Documentation](./product/README.md): vision, roadmap, active PRDs, Epics, and reusable templates.
 - [Release Process](./RELEASE_PROCESS.md): package, signing, tag, GitHub Release, and update-channel rules.
+- [Compatibility](./COMPATIBILITY.md): the support truth table for chips, macOS/Windows versions, and per-feature availability.
 - [Telemetry](./TELEMETRY.md): anonymous telemetry data contract and PostHog operational guide.
 
 ## Documentation Rules
