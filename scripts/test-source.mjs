@@ -52,8 +52,9 @@ const {
 // visible-panel mouse bounds add two renderer-to-main signals; the auto-update
 // loop (自动更新提示、下载与安装闭环) adds app:update-download/install/state;
 // usage insights and the appearance/template APIs expand the rest of the
-// public bridge contract.
-assert.equal(Object.keys(IPC).length, 152, "IPC contract changed; review both main and preload consumers");
+// public bridge contract. Agent Doctor (B-1 PR2) adds settings:repair-hook /
+// repair-all-hooks / get-doctor-audit.
+assert.equal(Object.keys(IPC).length, 155, "IPC contract changed; review both main and preload consumers");
 assert.equal(IPC.APP_UPDATE_DOWNLOAD, "app:update-download");
 assert.equal(IPC.APP_UPDATE_INSTALL, "app:update-install");
 assert.equal(IPC.APP_UPDATE_STATE, "app:update-state");

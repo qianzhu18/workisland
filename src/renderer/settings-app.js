@@ -502,6 +502,46 @@ async function setAgentInstalled(agentId, install, actionButton) {
   }
 }
 
+async function repairAgentHook(agentId, actionButton) {
+  if (state.busy.has(agentId)) return;
+  state.busy.add(agentId);
+  actionButton.disabled = true;
+  actionButton.textContent = "修复中…";
+  try {
+    const result = await api.repairHook(agentId);
+    if (result?.success === false) throw new Error(result.error || "修复失败");
+    if (result?.resolved === false) showToast(`${agentId} 修复后仍有异常，请查看卡片原因`, true);
+    await refreshAgents();
+  } catch (error) {
+    showToast(error.message || String(error), true);
+  } finally {
+    state.busy.delete(agentId);
+  }
+}
+
+async function repairAllAgentHooks(actionButton) {
+  if (state.busy.has("doctor-repair-all")) return;
+  state.busy.add("doctor-repair-all");
+  actionButton.disabled = true;
+  const originalText = actionButton.textContent;
+  actionButton.textContent = "修复中…";
+  try {
+    const results = await api.repairAllHooks();
+    const ok = (results || []).filter(r => r?.success).length;
+    const failed = (results || []).length - ok;
+    if (!(results || []).length) showToast("没有需要修复的 Agent");
+    else if (failed) showToast(`已修复 ${ok} 个，${failed} 个失败（见卡片原因）`, true);
+    else showToast(`已修复 ${ok} 个 Agent 的 Hook`);
+    await refreshAgents();
+  } catch (error) {
+    showToast(error.message || String(error), true);
+  } finally {
+    state.busy.delete("doctor-repair-all");
+    actionButton.disabled = false;
+    actionButton.textContent = originalText;
+  }
+}
+
 function capabilitySummary(capabilities = {}) {
   const items = [];
   if (capabilities.liveStatus) items.push("实时状态");
@@ -558,7 +598,12 @@ function agentCard(report) {
     action.disabled = true;
     action.textContent = "未安装";
   }
-  card.append(iconFrame, content, action);
+  if (repairNeeded) {
+    const repair = button("修复", () => repairAgentHook(agentId, repair), "primary");
+    card.append(iconFrame, content, repair, action);
+  } else {
+    card.append(iconFrame, content, action);
+  }
   return card;
 }
 
@@ -569,6 +614,10 @@ function agentsPage() {
   if (summaryText) {
     const summary = el("div", "doctor-summary", summaryText);
     summary.setAttribute("role", "status");
+    if (state.doctorSummary?.repairable > 0) {
+      const repairAll = button("一键修复全部", () => repairAllAgentHooks(repairAll), "primary");
+      summary.append(repairAll);
+    }
     hooks.append(summary);
   }
   const grid = el("div", "agent-list");
@@ -577,7 +626,11 @@ function agentsPage() {
   const tools = el("div", "section-actions");
   tools.append(
     button("一键检测", () => refreshAgents().catch(error => showToast(error.message, true))),
-    button("移除全部 Hook", async () => { await api.uninstallAllHooks(); await refreshAgents(); }, "danger")
+    button("移除全部 Hook", async () => {
+      if (!window.confirm("确定移除全部 Agent 的 Hook 配置吗？\n移除后所有 Agent 将停止向 WorkIsland 上报状态，需要逐个重新连接。")) return;
+      await api.uninstallAllHooks();
+      await refreshAgents();
+    }, "danger")
   );
   hooks.append(tools);
   root.append(hooks);
