@@ -1031,7 +1031,19 @@ function soundPage() {
     row("音量", "统一调整所有提示音。", volumeControl),
     row("自定义声音", "在本地目录中添加或替换提示音文件。", button("打开目录", () => api.openSoundsDir()))
   );
-  root.append(main);
+  const bark = state.settings.barkPush || { enabled: false, url: "", events: {} };
+  const barkSection = section("手机推送（Bark）", "Agent 等待审批、提问或完成、失败时推送到 iPhone。默认关闭；只推送事件类型与 Agent 名，不含会话内容。");
+  const barkUrl = document.createElement("input");
+  barkUrl.className = "text-input";
+  barkUrl.placeholder = "https://api.day.app/你的设备Key";
+  barkUrl.value = bark.url || "";
+  barkUrl.setAttribute("aria-label", "Bark 推送地址");
+  barkUrl.addEventListener("change", () => save({ barkPush: { ...bark, url: barkUrl.value.trim() } }));
+  barkSection.append(
+    row("启用推送", "仅向你配置的 Bark 端点发请求，自托管同样支持。", toggle(bark.enabled, v => save({ barkPush: { ...bark, enabled: v } }), "启用 Bark 推送")),
+    row("推送地址", "iOS 安装 Bark App 后复制推送 URL 粘贴到这里。", barkUrl)
+  );
+  root.append(main, barkSection);
   return root;
 }
 

@@ -24,6 +24,7 @@ const { PluginHookManager, DeepSeekHarnessHookManager } = require("./hooks-custo
 const { ZCodeHookManager, WorkBuddyHookManager, CodeBuddyHookManager } = require("./hooks-work-agents.cjs");
 const { initSoundDirs, playSoundEvent } = require("./sound-service.cjs");
 const { createAgentSoundDeduplicator, resolveCodexTranscriptSoundEvent } = require("./agent-sound-policy.cjs");
+const { pushBarkNotification } = require("./bark-push.cjs");
 const { reportTokenUsage, getHermesCumulativeTokens, diffHermesCumulativeTokens, collectAndReportTokens } = require("./adapters-extended.cjs");
 const { getAgentDescriptor, validateAgentWiring } = require("../shared/agent-catalog.cjs");
 const { diagnoseReport } = require("../shared/agent-doctor.cjs");
@@ -551,6 +552,10 @@ function createAppCoordinatorClass({
     }
     playAgentSound(eventId, sessionId, timestamp) {
       if (!this.agentSoundDedup.shouldPlay(eventId, sessionId, timestamp)) return false;
+      // B-8 Bark 推送与本地声音共享同一去重闸门；推送失败不影响声音播放。
+      const session = sessionId ? this.getSessions().find((item) => item.id === sessionId) : null;
+      const agentName = session?.tool || session?.agent || "";
+      void pushBarkNotification(this.settings, eventId, agentName);
       return playSoundEvent(eventId, this.settings);
     }
     /**

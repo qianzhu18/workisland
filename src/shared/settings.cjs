@@ -109,6 +109,14 @@ const DEFAULT_SETTINGS = {
   // hideWhenNoActiveSessions) are one-time migration sources only — see
   // migrateIslandDisplayMode().
   islandDisplayMode: "persistent",
+  // B-8 Bark push (2026-09): user-owned endpoint, off by default. The payload
+  // carries only the event type and agent display name — never prompts,
+  // transcripts or paths. See src/main/bark-push.cjs.
+  barkPush: {
+    enabled: false,
+    url: "",
+    events: { approval: true, question: true, completed: true, failed: true }
+  },
   // Bumps when the display-mode default must migrate existing installations.
   islandDisplayModeVersion: 1,
   autoCollapseOnMouseLeave: true,
