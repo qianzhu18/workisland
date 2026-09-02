@@ -1603,6 +1603,29 @@
   color: rgba(238, 238, 238, 0.5);
 }
 
+.settings-change-panel { min-height: 0; }
+.settings-change-card {
+  margin: 12px;
+  padding: 14px;
+  border: 1px solid rgba(117, 213, 170, 0.18);
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(59, 112, 88, 0.2), rgba(22, 24, 30, 0.72));
+  color: rgba(246, 248, 252, 0.96);
+}
+.settings-change-heading { display: flex; align-items: flex-start; gap: 10px; }
+.settings-change-heading strong { display: block; font-size: 13px; line-height: 1.45; }
+.settings-change-heading span:not(.settings-change-mark) { display: block; margin-top: 2px; color: rgba(222, 225, 234, 0.62); font-size: 11px; }
+.settings-change-mark { display: grid; place-items: center; width: 22px; height: 22px; flex: 0 0 22px; border-radius: 50%; background: rgba(92, 211, 151, 0.18); color: #79e3ad; font-size: 12px; }
+.settings-change-list { display: grid; gap: 5px; margin: 12px 0; }
+.settings-change-row { display: flex; justify-content: space-between; gap: 12px; font-size: 11px; color: rgba(230, 233, 241, 0.78); }
+.settings-change-row span:last-child { color: rgba(230, 233, 241, 0.55); text-align: right; }
+.settings-change-more, .settings-change-error { font-size: 11px; color: rgba(230, 233, 241, 0.55); }
+.settings-change-error { margin-bottom: 9px; color: #ffb4ab; }
+.settings-change-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.settings-change-actions button { min-height: 28px; padding: 0 12px; border: 0; border-radius: 9px; background: rgba(103, 210, 159, 0.92); color: #10261b; font: 600 11px 'PingFang SC', sans-serif; cursor: pointer; }
+.settings-change-actions button.is-secondary { background: rgba(255, 255, 255, 0.08); color: rgba(242, 244, 249, 0.82); }
+.settings-change-actions button:disabled { opacity: 0.5; cursor: default; }
+
 /* ── 系统更新入口（额度格子右侧）与更新弹层 ─────────────────── */
 
 .update-cell {

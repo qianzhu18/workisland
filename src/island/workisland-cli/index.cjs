@@ -14,6 +14,7 @@ const net = require("node:net");
 const fs = require("node:fs");
 const path = require("node:path");
 const os = require("node:os");
+const { CONTROL_USAGE, isControlCommand, runControl } = require("./control-commands.cjs");
 
 const EXIT_OK = 0;
 const EXIT_USAGE = 1;
@@ -51,6 +52,9 @@ const USAGE = `workisland-cli — WorkIsland AI 自定义接口
                                                                发布模板 zip 到 GitHub Release(作者流程,需 gh)
 
   workisland-cli manual                                        输出完整 AI 接口手册
+
+MCP 产品助手:
+${CONTROL_USAGE}
 
 选项:
   --socket <path>   指定 bridge socket 路径(默认 $FLUX_SOCKET_PATH 或 ~/.flux/run/bridge.sock)
@@ -427,11 +431,34 @@ async function main() {
   return EXIT_BRIDGE_ERROR;
 }
 
-async function run() {
+async function runCustomization() {
   try {
     process.exitCode = await main();
   } catch (err) {
     process.stderr.write(`${JSON.stringify({ ok: false, code: "CLI", error: err.message }, null, 2)}\n`);
+    process.exitCode = EXIT_USAGE;
+  }
+}
+
+async function run() {
+  const argv = process.argv.slice(2);
+  if (!isControlCommand(argv)) return runCustomization();
+  try {
+    await runControl(argv);
+    process.exitCode = EXIT_OK;
+  } catch (error) {
+    if (error?.code === "USAGE_ERROR") {
+      process.stderr.write(`${error.message}\n${CONTROL_USAGE}\n`);
+      process.exitCode = EXIT_BRIDGE_ERROR;
+      return;
+    }
+    process.stderr.write(`${JSON.stringify({
+      error: {
+        code: typeof error?.code === "string" ? error.code : "INTERNAL_ERROR",
+        message: typeof error?.message === "string" ? error.message : "WorkIsland CLI failed.",
+        ...(error?.details === undefined ? {} : { details: error.details })
+      }
+    })}\n`);
     process.exitCode = EXIT_USAGE;
   }
 }
@@ -451,5 +478,6 @@ module.exports = {
   resolveManualPath,
   readManual,
   sendBridgeCommand,
+  runCustomization,
   run
 };

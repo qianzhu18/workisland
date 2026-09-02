@@ -1,6 +1,7 @@
 import "../shared/i18n.js";
 import { R as React, i as i18n, r as reactExports, a as ReactDOM } from "../vendor/react-runtime.js";
 import { P as PHASE_ICON, d as defaultIcon, s as stripCwd, A as AgentToolBadge, u as useActionable, S as SubagentList, e as renderActionableCard } from "../island/components/IslandPanel.js";
+import { SettingsChangeCard } from "../island/components/SettingsChangeCard.js";
 function PetSessionRow({ session, onClick }) {
   const icon = PHASE_ICON[session.phase] ?? defaultIcon;
   const cwd = session.jumpTarget?.workingDirectory;
@@ -18,7 +19,8 @@ function PetSessionRow({ session, onClick }) {
 }
 function PetPanel({ sessions, surface, direction, onSessionRowClick }) {
   const { actionableId, actionableRef, visibleSessions } = useActionable(sessions, surface);
-  return /* @__PURE__ */ React.createElement("div", { className: `pet-panel is-${direction}` }, /* @__PURE__ */ React.createElement("div", { className: "pet-panel-inner" }, visibleSessions.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "pet-panel-empty" }, i18n.k1005597952({}, "暂无会话")) : /* @__PURE__ */ React.createElement("div", { className: "pet-session-list" }, visibleSessions.map((session) => /* @__PURE__ */ React.createElement(
+  const settingsChange = surface?.type === "settingsChange";
+  return /* @__PURE__ */ React.createElement("div", { className: `pet-panel is-${direction}` }, /* @__PURE__ */ React.createElement("div", { className: "pet-panel-inner" }, settingsChange ? /* @__PURE__ */ React.createElement(SettingsChangeCard, { surface, onOpenSettings: (tab) => window.islandBridge?.openSettingsTab?.(tab), onCollapse: () => window.petPanelBridge?.collapse?.() }) : visibleSessions.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "pet-panel-empty" }, i18n.k1005597952({}, "暂无会话")) : /* @__PURE__ */ React.createElement("div", { className: "pet-session-list" }, visibleSessions.map((session) => /* @__PURE__ */ React.createElement(
     "div",
     {
       key: session.id,
