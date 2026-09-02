@@ -88,6 +88,9 @@ const DEFAULT_SETTINGS = {
   // 2 = default-on policy (2026-08-22). Stored once migrated so later manual
   // toggles in Settings persist without being re-migrated on next launch.
   telemetryPolicyVersion: 2,
+  // Local agent control is an explicit trust boundary. Merely configuring an
+  // MCP client never enables it.
+  localAgentControlEnabled: false,
   displayPreference: "primary",
   sound: {
     enabled: true,
