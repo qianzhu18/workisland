@@ -57,11 +57,15 @@ class StatsService {
     this.dirty = true;
     this.scheduleSave();
   }
-  recordToken(tool, sessionId, inputTokens, outputTokens, cacheReadTokens, cacheCreationTokens, remote, model) {
+  /**
+   * timestamp 可选：用量发现通道（usage-discovery）回填历史用量时传记录的
+   * 真实时间，让旧会话落到对应日期；缺省仍按当前时间入账。
+   */
+  recordToken(tool, sessionId, inputTokens, outputTokens, cacheReadTokens, cacheCreationTokens, remote, model, timestamp) {
     const record = {
       tool,
       sessionId,
-      timestamp: Date.now(),
+      timestamp: Number.isFinite(timestamp) && timestamp > 0 ? timestamp : Date.now(),
       inputTokens,
       outputTokens,
       cacheReadTokens,
