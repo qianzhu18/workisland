@@ -333,6 +333,28 @@ function AgentUsageRow({
     window.islandBridge?.deleteSessions(visibleSessionIds);
   };
   const dragSourceIdRef = reactExports.useRef(null);
+  // 工具图标默认 draggable=false：常开 HTML5 拖拽会把轻微抖动误判为拖拽启动，
+  // 吞掉点击并残留拖拽态（issue #69 的「点不动 / 误触发」）。按下后位移超过
+  // 阈值才启用 draggable，下一次 pointermove 由浏览器接管拖拽。
+  const [dragEnabledId, setDragEnabledId] = reactExports.useState(null);
+  const handleUtilityPointerDown = (id, event) => {
+    if (event.button !== 0) return;
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const cleanup = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+    const onMove = (moveEvent) => {
+      if (Math.hypot(moveEvent.clientX - startX, moveEvent.clientY - startY) > 6) {
+        setDragEnabledId(id);
+        cleanup();
+      }
+    };
+    const onUp = () => cleanup();
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  };
   const utilityModuleDefs = [
     ["shelf", "文件架", ShelfToolIcon],
     ["clipboard", "剪贴板", ClipboardToolIcon],
@@ -357,8 +379,20 @@ function AgentUsageRow({
     title: label,
     "aria-label": label,
     "aria-pressed": activeToolboxModule === id,
-    draggable: true,
-    onDragStart: () => handleUtilityDragStart(id),
+    draggable: dragEnabledId === id,
+    onPointerDown: (event) => handleUtilityPointerDown(id, event),
+    onDragStart: (event) => {
+      // Chromium：dragstart 未写入 dataTransfer 时拖拽可能在部分平台立即取消（issue #69「拖不动」）
+      try {
+        event.dataTransfer.setData("text/plain", id);
+        event.dataTransfer.effectAllowed = "move";
+      } catch { /* dataTransfer 不可用时放弃本次拖拽 */ }
+      handleUtilityDragStart(id);
+    },
+    onDragEnd: () => {
+      setDragEnabledId(null);
+      dragSourceIdRef.current = null;
+    },
     onDragOver: (event) => event.preventDefault(),
     onDrop: (event) => { event.preventDefault(); handleUtilityDrop(id); },
     onClick: () => onToolboxModuleChange?.(activeToolboxModule === id ? "agent" : id)
