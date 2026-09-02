@@ -208,6 +208,9 @@ function createAppCoordinatorClass({
      * 经由可选链发出，服务缺席或用户关闭统计时为 no-op。
      */
     telemetry = null;
+    // Agent Doctor 审计留痕上限：只保留最近 N 条修复记录（内存态）。
+    static DOCTOR_AUDIT_LIMIT = 50;
+    doctorAudit = [];
     constructor() {
       this.settingsRepository = new SettingsRepository(
         path.join(electron.app.getPath("userData"), "settings.json"),
@@ -525,6 +528,9 @@ function createAppCoordinatorClass({
       });
       this.terminalService.setEnabled(this.settings.terminalEnabled !== false);
       this.startCodexTranscriptWatcher();
+      // Agent Doctor（B-1）：启动时后台自动检测并修复可修复的 hook 状态，
+      // fire-and-forget，失败不影响启动路径。
+      void this.runStartupDoctor();
       // 启动发现：WorkIsland 只靠 hook 被动感知会话，它启动之前就在跑的对话
       // 要等下一个 hook 事件才会现身。主动扫一次正在运行的 claude CLI 进程
       // 与 Cowork 本地会话，合成 sessionStarted 注入现有管线。
@@ -1619,6 +1625,74 @@ function createAppCoordinatorClass({
       }
       this.updateSettings({ hookToggles });
       return { uninstalledAgents };
+    }
+    // Agent Doctor 审计留痕：仅内存 + settings 持久化摘要，不含任何会话内容。
+    recordDoctorAudit(entry) {
+      this.doctorAudit = this.doctorAudit || [];
+      this.doctorAudit.push(entry);
+      if (this.doctorAudit.length > this.constructor.DOCTOR_AUDIT_LIMIT) {
+        this.doctorAudit.splice(0, this.doctorAudit.length - this.constructor.DOCTOR_AUDIT_LIMIT);
+      }
+    }
+    getDoctorAudit() {
+      return [...(this.doctorAudit || [])];
+    }
+    // 修复 = 走既有 install 路径重写 hook（install 内部先备份原文件），
+    // 成功后立即复扫并留痕。只处理诊断为可修复的状态。
+    async repairHook(agentId) {
+      const manager = this.hookManagers.get(agentId);
+      if (!manager) return { success: false, error: `未知的 agent: ${agentId}`, errorCode: "NOT_FOUND" };
+      const before = await manager.checkHealth().catch(() => null);
+      const options = { statusLineEnabled: this.resolveClaudeStatusLineEnabled(agentId) };
+      if (agentId === "zcode") options.workspacePaths = this.collectRecentSessionCwds();
+      try {
+        await manager.install(options);
+      } catch (err) {
+        const e = err;
+        log.error(`[AppCoordinator] repairHook(${agentId}) install failed: ${e.message}`, err);
+        return { success: false, errorCode: e.code ?? "UNKNOWN", error: formatInstallError(agentId, e) };
+      }
+      const after = await manager.checkHealth().catch(() => null);
+      const remainingIssues = (after?.issues || []).filter(Boolean);
+      const entry = {
+        agentId,
+        action: "repair",
+        repairedAt: new Date().toISOString(),
+        issuesBefore: (before?.issues || []).filter(Boolean),
+        issuesAfter: remainingIssues,
+        resolved: remainingIssues.length === 0
+      };
+      this.recordDoctorAudit(entry);
+      log.info(`[AppCoordinator] repairHook(${agentId}) ${entry.resolved ? "resolved" : "partial"}: ${entry.issuesBefore.length} -> ${remainingIssues.length} issues`);
+      return { success: true, resolved: entry.resolved, report: after ? { ...after, agentId, diagnosis: diagnoseReport({ ...after, agentId }) } : null };
+    }
+    async repairAllHooks() {
+      const results = [];
+      for (const agentId of this.hookManagers.keys()) {
+        const manager = this.hookManagers.get(agentId);
+        const health = await manager.checkHealth().catch(() => null);
+        const diagnosis = diagnoseReport({ ...health, agentId });
+        if (!diagnosis.repairable) continue;
+        results.push({ agentId, ...(await this.repairHook(agentId)) });
+      }
+      return results;
+    }
+    // 启动自动检测：默认开。只对可修复状态自动修复（install 重写会先备份），
+    // NOT_INSTALLED / NOT_RUNNING / ERROR 永不自动动，留给用户手动处理。
+    async runStartupDoctor() {
+      if (this.settings.agentDoctorStartup === false) return;
+      try {
+        const results = await this.repairAllHooks();
+        const repaired = results.filter((r) => r.success);
+        if (repaired.length) {
+          log.info(`[AppCoordinator] startup doctor repaired ${repaired.length} agent(s): ${repaired.map((r) => r.agentId).join(", ")}`);
+          this.updateSettings({
+            doctorLastAutoRepair: { at: new Date().toISOString(), agents: repaired.map((r) => r.agentId) }
+          });
+        }
+      } catch (err) {
+        log.warn(`[AppCoordinator] startup doctor skipped: ${err instanceof Error ? err.message : String(err)}`);
+      }
     }
     /** Claude 订阅信息展示开关同时控制 statusLine 采集；其他 Agent 不使用该选项。 */
     resolveClaudeStatusLineEnabled(agentId) {

@@ -284,6 +284,16 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
     electron.ipcMain.handle(IPC.SETTINGS_UNINSTALL_ALL_HOOKS, () => {
       return coordinator.uninstallAllHooks();
     });
+    electron.ipcMain.handle(IPC.SETTINGS_REPAIR_HOOK, (_event, { agentId }) => {
+      if (typeof agentId !== "string" || !agentId) throw new Error("agentId is required");
+      return coordinator.repairHook(agentId);
+    });
+    electron.ipcMain.handle(IPC.SETTINGS_REPAIR_ALL_HOOKS, () => {
+      return coordinator.repairAllHooks();
+    });
+    electron.ipcMain.handle(IPC.SETTINGS_GET_DOCTOR_AUDIT, () => {
+      return coordinator.getDoctorAudit();
+    });
     electron.ipcMain.handle(IPC.USAGE_GET_QUOTA, () => {
       return coordinator.getClaudeQuota();
     });
