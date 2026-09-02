@@ -6,6 +6,9 @@ const DEFAULT_PET_SPRITE = "codex:qianxue";
 const FEEDBACK_URL = "https://workisland.yanglaishe.cn/#feedback";
 const COMMUNITY_URL = "https://workisland.yanglaishe.cn/#community";
 const USER_GUIDE_URL = "https://workisland.yanglaishe.cn/guide/";
+const GITHUB_ISSUE_NEW_URL = "https://github.com/qianzhu18/workisland/issues/new";
+const GITHUB_ISSUE_TEMPLATE = "bug_report.yml";
+const COMPLAINT_BODY_LIMIT = 1500;
 const WORKISLAND_ICON_URL = "../assets/workisland-icon.png";
 const DEFAULT_AGENT_ICON_URL = "../assets/brands/agent.svg";
 const AGENT_STATUS_REFRESH_INTERVAL_MS = 3000;
@@ -499,6 +502,83 @@ function doctorSummaryLine(summary) {
   return parts.join(" · ");
 }
 
+function buildComplaintDiagnostics(appVersion) {
+  const platform = navigator.userAgentData?.platform || navigator.platform || "unknown";
+  const lines = [
+    "---",
+    "由 WorkIsland 设置页「一键吐槽」自动生成",
+    `WorkIsland: ${appVersion || "unknown"} (${platform})`
+  ];
+  try {
+    const agents = [...state.statuses.values()].map(report => `${report.agentId}:${report?.diagnosis?.status || "unknown"}`);
+    if (agents.length) lines.push(`Agents: ${agents.join(", ")}`);
+    const doctor = doctorSummaryLine(state.doctorSummary);
+    if (doctor) lines.push(`Doctor: ${doctor}`);
+  } catch { /* 诊断摘要失败不阻塞提交 */ }
+  return lines.join("\n");
+}
+
+function openComplaintBox() {
+  if (document.querySelector(".complaint-overlay")) return;
+  const overlay = el("div", "complaint-overlay");
+  const card = el("div", "complaint-card");
+  card.append(
+    el("h2", "complaint-title", "一键吐槽"),
+    el("p", "complaint-hint", "像跟朋友吐槽一样写就行：哪里不对、想要什么，一句话也可以。截图在打开的 GitHub 页面直接粘贴即可；版本与 Agent 状态会自动附带，不用你填。"),
+    el("p", "complaint-hint", "内容只用于反馈，不会自动上传任何会话数据。")
+  );
+  const textarea = document.createElement("textarea");
+  textarea.className = "complaint-input";
+  textarea.rows = 6;
+  textarea.placeholder = "例如：点了右上角的终端图标没反应，还弹出了别的东西。";
+  const statusLine = el("p", "complaint-status", "");
+  const sendButton = button("送去 GitHub", async () => {
+    const text = textarea.value.trim();
+    if (!text) {
+      statusLine.textContent = "先写一句吐槽再发送。";
+      return;
+    }
+    sendButton.disabled = true;
+    try {
+      const appVersion = await api.getAppVersion().catch(() => "");
+      const fullBody = `${text}\n${buildComplaintDiagnostics(appVersion)}`;
+      try { await navigator.clipboard.writeText(fullBody); } catch { /* 剪贴板失败不影响打开 */ }
+      const params = new URLSearchParams({
+        template: GITHUB_ISSUE_TEMPLATE,
+        title: text.split("\n")[0].slice(0, 60) || "用户反馈",
+        version: `${appVersion || "unknown"} (${navigator.userAgentData?.platform || navigator.platform || "unknown"})`,
+        area: "Other",
+        reproduction: text.slice(0, COMPLAINT_BODY_LIMIT),
+        expected: "按用户描述正常工作。",
+        actual: fullBody.slice(0, COMPLAINT_BODY_LIMIT + 600),
+        frequency: "未填写（应用内一键吐槽提交）"
+      });
+      api.openExternal(`${GITHUB_ISSUE_NEW_URL}?${params}`);
+      statusLine.textContent = "已在浏览器打开预填好的 issue，点一次 Submit 即可；内容较长时请把剪贴板里的原文粘贴进正文。";
+      setTimeout(() => overlay.remove(), 8000);
+    } finally {
+      sendButton.disabled = false;
+    }
+  }, "primary");
+  const copyButton = button("复制诊断信息", async () => {
+    const appVersion = await api.getAppVersion().catch(() => "");
+    try {
+      await navigator.clipboard.writeText(buildComplaintDiagnostics(appVersion));
+      statusLine.textContent = "诊断信息已复制，可直接粘贴给开发者。";
+    } catch {
+      statusLine.textContent = "复制失败，请手动截图本页 Agent 状态。";
+    }
+  });
+  const cancelButton = button("取消", () => overlay.remove());
+  const actions = el("div", "complaint-actions");
+  actions.append(copyButton, cancelButton, sendButton);
+  card.append(textarea, statusLine, actions);
+  overlay.append(card);
+  overlay.addEventListener("keydown", event => { if (event.key === "Escape") overlay.remove(); });
+  document.body.append(overlay);
+  textarea.focus();
+}
+
 async function refreshAgents() {
   const reports = await api.getHookStatus();
   state.statuses = new Map((reports || []).map(report => [report.agentId, report]));
@@ -969,7 +1049,7 @@ function aboutPage() {
   const support = section("帮助与社区", "操作手册、反馈渠道与社区信息由 WorkIsland 官网统一维护，无需重新安装即可更新。");
   support.append(
     row("产品手册", "查看安装、首次任务、状态理解、隐私与反馈说明。", button("打开手册", () => api.openExternal(USER_GUIDE_URL), "primary")),
-    row("提交反馈", "报告问题、提出建议或补充复现信息。", button("打开反馈入口", () => api.openExternal(FEEDBACK_URL), "primary")),
+    row("提交反馈", "像日常吐槽一样一句话反馈，会自动附带版本与 Agent 状态。", (() => { const group = el("div", "setting-actions-group"); group.append(button("一键吐槽", () => openComplaintBox(), "primary"), button("打开反馈入口", () => api.openExternal(FEEDBACK_URL))); return group; })()),
     row("加入社区", "查看最新 WorkIsland 微信社区二维码。", button("查看群码", () => api.openExternal(COMMUNITY_URL)))
   );
   const updates = section("更新", "仅请求官方版本信息与官方安装包，不上传会话内容或使用数据。");

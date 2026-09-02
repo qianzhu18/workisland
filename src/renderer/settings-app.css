@@ -112,3 +112,12 @@ input[type=range] { flex:1; accent-color:var(--accent); }
 .toast.error { background:rgba(190,35,35,.94); }
 @media (max-width:680px) { .window { grid-template-columns:170px 1fr; } .content { padding:30px 20px 48px; } .setting-row { align-items:flex-start; flex-direction:column; gap:10px; } .feature-settings-card > .setting-row { flex-direction:row; align-items:center; } .feature-settings-actions { gap:7px; } .feature-settings-disclosure.button { min-width:70px; padding-inline:9px; } .feature-settings-detail .setting-row { flex-direction:column; align-items:flex-start; } .inline-controls { width:100%; } .inline-controls select { flex:1; min-width:0; } .text-input { width:100%; } .saved-command-control { width:100%; } .saved-command-list { justify-content:flex-start; } .terminal-command-editor { width:100%; grid-template-columns:1fr; } .terminal-directory-control { width:100%; justify-content:flex-start; } .mcp-example-list { grid-template-columns:1fr; } }
 @media (prefers-color-scheme:dark) { :root { --text:#f5f5f7; --muted:#a1a1a6; --line:rgba(255,255,255,.12); --sidebar:rgba(31,31,34,.88); --content:rgba(38,38,41,.94); --card:rgba(255,255,255,.055); } select,.button,.text-input { background:rgba(255,255,255,.075); } }
+
+.complaint-overlay { position: fixed; inset: 0; z-index: 400; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.42); }
+.complaint-card { width: min(520px, calc(100vw - 48px)); display: grid; gap: 12px; padding: 20px; background: var(--content); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 18px 56px rgba(0,0,0,.45); }
+.complaint-title { margin: 0; font-size: 16px; color: var(--text); }
+.complaint-hint { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.6; }
+.complaint-input { width: 100%; box-sizing: border-box; resize: vertical; min-height: 120px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); color: var(--text); font: inherit; }
+.complaint-status { margin: 0; min-height: 1em; font-size: 12px; color: var(--muted); }
+.complaint-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.setting-actions-group { display: flex; gap: 8px; }
