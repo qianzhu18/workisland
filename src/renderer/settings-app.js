@@ -1169,7 +1169,19 @@ function aboutPage() {
     ),
     row("本机发送状态", "仅显示本机队列与 PostHog 批量接口最近一次 HTTP 2xx 确认，不展示或上传任何额外内容。", el("div", "setting-description", statusText))
   );
-  root.append(about, support, privacy, updates, diagnostics);
+  const devApi = state.settings.developerApi || { enabled: false, port: 9938, token: "" };
+  const devSection = section("开发者 API", "在本机回环地址提供只读的会话状态 JSON 端点，供脚本与工具集成。默认关闭；响应不含会话内容。");
+  const devToken = document.createElement("input");
+  devToken.className = "text-input";
+  devToken.placeholder = "可选访问令牌（留空不鉴权）";
+  devToken.value = devApi.token || "";
+  devToken.setAttribute("aria-label", "开发者 API 访问令牌");
+  devToken.addEventListener("change", () => save({ developerApi: { ...devApi, token: devToken.value.trim() } }));
+  devSection.append(
+    row("启用本地状态端点", `开启后 GET http://127.0.0.1:${devApi.port || 9938}/api/status 返回会话状态与版本信息。`, toggle(devApi.enabled, v => save({ developerApi: { ...devApi, enabled: v } }), "启用开发者 API")),
+    row("访问令牌", "填写后请求需携带 Bearer 令牌（或 ?token= 查询参数）；仅本机可访问。", devToken)
+  );
+  root.append(about, support, privacy, updates, devSection, diagnostics);
   return root;
 }
 
