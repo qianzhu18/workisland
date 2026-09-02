@@ -26,6 +26,7 @@ const { initSoundDirs, playSoundEvent } = require("./sound-service.cjs");
 const { createAgentSoundDeduplicator, resolveCodexTranscriptSoundEvent } = require("./agent-sound-policy.cjs");
 const { reportTokenUsage, getHermesCumulativeTokens, diffHermesCumulativeTokens, collectAndReportTokens } = require("./adapters-extended.cjs");
 const { getAgentDescriptor, validateAgentWiring } = require("../shared/agent-catalog.cjs");
+const { diagnoseReport } = require("../shared/agent-doctor.cjs");
 const { createPresentationRequest } = require("./presentation-policy.cjs");
 const { EVENTS } = require("../shared/telemetry.cjs");
 const { MediaService } = require("./media-service.cjs");
@@ -1526,7 +1527,7 @@ function createAppCoordinatorClass({
           const plugin = isPluginAgentTool(agentId)
             ? AGENT_PLUGINS.find((entry) => `plugin:${entry.id}` === agentId)
             : null;
-          reports.push({
+          const report = {
             label: descriptor?.label ?? plugin?.label ?? agentId,
             badgeColor: descriptor?.badgeColor ?? plugin?.badgeColor,
             description: descriptor?.description ?? `通过本地插件捕获 ${plugin?.label ?? agentId} 的会话和工具活动。`,
@@ -1540,10 +1541,11 @@ function createAppCoordinatorClass({
             },
             ...health,
             agentId
-          });
+          };
+          reports.push({ ...report, diagnosis: diagnoseReport(report) });
         } catch (err) {
           const descriptor = getAgentDescriptor(agentId);
-          reports.push({
+          const report = {
             agentId,
             label: descriptor?.label ?? agentId,
             badgeColor: descriptor?.badgeColor,
@@ -1552,7 +1554,8 @@ function createAppCoordinatorClass({
             installed: false,
             issues: [`Health check error: ${err instanceof Error ? err.message : String(err)}`],
             manifestPath: ""
-          });
+          };
+          reports.push({ ...report, diagnosis: diagnoseReport(report) });
         }
       }
       return reports;

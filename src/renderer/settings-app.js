@@ -31,7 +31,7 @@ const AGENT_ICON_URLS = Object.freeze({
   "plugin:pi": "../assets/brands/pi.svg"
 });
 const VERIFY_ON_REAL_EVENT_AGENT_IDS = new Set(["dsh", "trae"]);
-const state = { settings: null, statuses: new Map(), displays: [], codexPets: [], templates: { active: null, templates: [] }, shareProviders: [], activeTab: "general", busy: new Set(), expandedSettingDetails: new Set(), latestUpdate: null, updateState: null, onUpdateStateUi: null, telemetryStatus: null, agentControl: null, agentControlManual: null, commandDraft: { name: "", command: "" } };
+const state = { settings: null, statuses: new Map(), doctorSummary: null, displays: [], codexPets: [], templates: { active: null, templates: [] }, shareProviders: [], activeTab: "general", busy: new Set(), expandedSettingDetails: new Set(), latestUpdate: null, updateState: null, onUpdateStateUi: null, telemetryStatus: null, agentControl: null, agentControlManual: null, commandDraft: { name: "", command: "" } };
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -475,18 +475,42 @@ function statusBadge(report) {
   const unavailable = report?.available === false;
   const verifyOnRealEvent = VERIFY_ON_REAL_EVENT_AGENT_IDS.has(report?.agentId);
   const verified = report?.connectionState === "verified";
-  const text = verifyOnRealEvent && installed
+  const diagnosis = report?.diagnosis;
+  const repairNeeded = diagnosis?.status === "hook_missing" || diagnosis?.status === "hook_stale" || diagnosis?.status === "hook_invalid";
+  const text = repairNeeded
+    ? "待修复"
+    : verifyOnRealEvent && installed
     ? (verified ? "已连接" : "配置已写入")
     : installed ? "已连接" : unavailable ? "未检测" : "未连接";
-  const statusClass = verifyOnRealEvent && installed && !verified
+  const statusClass = repairNeeded
+    ? "repair"
+    : verifyOnRealEvent && installed && !verified
     ? "pending"
     : installed ? "installed" : "missing";
   return el("span", `status ${statusClass}`, text);
 }
 
+function doctorSummaryLine(summary) {
+  if (!summary || !summary.total) return "";
+  const parts = [`${summary.total} 个 Agent`, `${summary.ok} 正常`];
+  if (summary.repairable) parts.push(`${summary.repairable} 待修复`);
+  if (summary.notInstalled) parts.push(`${summary.notInstalled} 未安装`);
+  if (summary.blocked) parts.push(`${summary.blocked} 需关注`);
+  return parts.join(" · ");
+}
+
 async function refreshAgents() {
   const reports = await api.getHookStatus();
   state.statuses = new Map((reports || []).map(report => [report.agentId, report]));
+  const summary = { total: reports?.length || 0, ok: 0, repairable: 0, notInstalled: 0, blocked: 0 };
+  for (const report of reports || []) {
+    const status = report?.diagnosis?.status;
+    if (status === "ok") summary.ok += 1;
+    else if (status === "not_installed") summary.notInstalled += 1;
+    else if (status === "hook_missing" || status === "hook_stale" || status === "hook_invalid") summary.repairable += 1;
+    else if (status) summary.blocked += 1;
+  }
+  state.doctorSummary = summary;
   if (state.activeTab === "agents") renderPage();
 }
 
@@ -535,8 +559,12 @@ function agentCard(report) {
   heading.append(el("strong", "", label), statusBadge(report));
   content.append(heading);
   const issues = report?.issues?.filter(Boolean) || [];
+  const diagnosis = report?.diagnosis;
+  const repairNeeded = diagnosis?.status === "hook_missing" || diagnosis?.status === "hook_stale" || diagnosis?.status === "hook_invalid";
   const verifyOnRealEvent = VERIFY_ON_REAL_EVENT_AGENT_IDS.has(agentId);
-  const detail = verifyOnRealEvent && report.installed && report.connectionState !== "verified"
+  const detail = repairNeeded && diagnosis.reasons?.length
+    ? diagnosis.reasons[0]
+    : verifyOnRealEvent && report.installed && report.connectionState !== "verified"
     ? (issues[0] || "连接配置已写入；请运行一次实际任务。收到事件后才会显示“已连接”。")
     : report.available === false && !report.installed
     ? `未检测到 ${label}，安装后即可连接。`
@@ -566,13 +594,19 @@ function agentCard(report) {
 
 function agentsPage() {
   const root = document.createDocumentFragment();
-  const hooks = section("本地 Agent", "连接只会修改对应 Agent 的本地 Hook 配置，不依赖云端服务。");
+  const hooks = section("本地 Agent", "连接只会修改对应 Agent 的本地 Hook 配置，不依赖云端服务。一键检测会扫描全部 Agent 的 Hook 配置并给出修复建议。");
+  const summaryText = doctorSummaryLine(state.doctorSummary);
+  if (summaryText) {
+    const summary = el("div", "doctor-summary", summaryText);
+    summary.setAttribute("role", "status");
+    hooks.append(summary);
+  }
   const grid = el("div", "agent-list");
   for (const report of state.statuses.values()) grid.append(agentCard(report));
   hooks.append(grid);
   const tools = el("div", "section-actions");
   tools.append(
-    button("刷新状态", () => refreshAgents().catch(error => showToast(error.message, true))),
+    button("一键检测", () => refreshAgents().catch(error => showToast(error.message, true))),
     button("移除全部 Hook", async () => { await api.uninstallAllHooks(); await refreshAgents(); }, "danger")
   );
   hooks.append(tools);

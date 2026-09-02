@@ -81,7 +81,9 @@ select { min-width:142px; height:30px; padding:0 28px 0 9px; color:inherit; back
 .status { padding:1px 6px; border-radius:5px; font-size:10px; font-weight:600; }
 .status.installed { color:#248a3d; background:rgba(52,199,89,.14); }
 .status.pending { color:#9a6700; background:rgba(255,159,10,.16); }
+.status.repair { color:#b25000; background:rgba(255,138,0,.18); }
 .status.missing { color:var(--muted); background:rgba(120,120,128,.12); }
+.doctor-summary { display:flex; align-items:center; gap:8px; margin-bottom:10px; padding:8px 12px; border:1px solid var(--line); border-radius:9px; background:rgba(120,120,128,.08); color:var(--muted); font-size:12px; }
 .custom-agent-guide { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px; border-radius:10px; background:rgba(120,120,128,.08); }
 .custom-agent-form { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:10px; }
 .custom-agent-form .text-input:nth-child(3) { grid-column:1 / -1; }
