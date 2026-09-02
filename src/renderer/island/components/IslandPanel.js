@@ -1170,6 +1170,7 @@ function PlanConfirmationCard({
   session
 }) {
   const [selectedChoice, setSelectedChoice] = reactExports.useState(null);
+  const [planExpanded, setPlanExpanded] = reactExports.useState(false);
   const planConfirmation = session.planConfirmation;
   if (!planConfirmation) return null;
   function handleSubmit() {
@@ -1180,7 +1181,10 @@ function PlanConfirmationCard({
   function jumpToTerminal() {
     window.islandBridge?.jumpToSession(session.id);
   }
-  return /* @__PURE__ */ React.createElement("div", { className: "plan-confirmation-card" }, /* @__PURE__ */ React.createElement("div", { className: "plan-confirmation-container" }, /* @__PURE__ */ React.createElement("div", { className: "plan-confirmation-header" }, /* @__PURE__ */ React.createElement("span", { className: "plan-confirmation-header-title" }, i18n.k3476981328({}, "等待确认计划"))), /* @__PURE__ */ React.createElement("div", { className: "plan-confirmation-content" }, /* @__PURE__ */ React.createElement("div", { className: "plan-confirmation-plan" }, planConfirmation.plan), /* @__PURE__ */ React.createElement("div", { className: "plan-confirmation-choices" }, /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement("div", { className: "plan-confirmation-card" }, /* @__PURE__ */ React.createElement("div", { className: "plan-confirmation-container" }, /* @__PURE__ */ React.createElement("div", { className: "plan-confirmation-header" }, /* @__PURE__ */ React.createElement("span", { className: "plan-confirmation-header-title" }, i18n.k3476981328({}, "等待确认计划"))), /* @__PURE__ */ React.createElement("div", { className: "plan-confirmation-content" }, /* @__PURE__ */ React.createElement("div", { className: `plan-confirmation-plan island-markdown${planExpanded ? "" : " is-collapsed"}` }, /* @__PURE__ */ React.createElement(Markdown, { remarkPlugins: [remarkGfm], components: { a: ({ href, children }) => /* @__PURE__ */ React.createElement("a", { href, onClick: (e) => {
+    e.preventDefault();
+    if (href) window.islandBridge?.openExternal?.(href);
+  } }, children) } }, planConfirmation.plan || ""), !planExpanded && /* @__PURE__ */ React.createElement("button", { className: "plan-confirmation-expand", type: "button", onClick: () => setPlanExpanded(true) }, i18n.k3476981328({}, "展开完整计划"))), /* @__PURE__ */ React.createElement("div", { className: "plan-confirmation-choices" }, /* @__PURE__ */ React.createElement(
     "label",
     {
       className: `plan-confirmation-choice ${selectedChoice === "AGENT" ? "is-selected" : ""}`
