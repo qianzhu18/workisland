@@ -197,6 +197,40 @@ function IslandApp() {
   const performanceAlertTimerRef = reactExports.useRef(null);
   const [tokenBurnTotal, setTokenBurnTotal] = reactExports.useState(0);
   const [agentSetupReports, setAgentSetupReports] = reactExports.useState(null);
+  // B-6 Session Recaps：岛收起期间按会话累计 phase 迁移，展开时冻结展示。
+  const sessionRecapsRef = reactExports.useRef(new Map());
+  const prevPhasesRef = reactExports.useRef(new Map());
+  const [sessionRecaps, setSessionRecaps] = reactExports.useState(() => new Map());
+  reactExports.useEffect(() => {
+    if (notchStatus === "opened") {
+      setSessionRecaps(new Map(sessionRecapsRef.current));
+    } else {
+      // 开始新的离开周期：清零后重新累计；存量 phase 基线避免启动误计。
+      sessionRecapsRef.current = new Map();
+      prevPhasesRef.current = new Map(useSessionStore.getState().sessions.map((s) => [s.id, s.phase]));
+      setSessionRecaps(new Map());
+    }
+  }, [notchStatus]);
+  reactExports.useEffect(() => {
+    if (notchStatus === "opened") {
+      prevPhasesRef.current = new Map(sessions.map((s) => [s.id, s.phase]));
+      return;
+    }
+    const prev = prevPhasesRef.current;
+    for (const session of sessions) {
+      const before = prev.get(session.id);
+      if (before === undefined || before === session.phase) continue;
+      let recap = sessionRecapsRef.current.get(session.id);
+      if (!recap) {
+        recap = { approval: 0, completed: 0, failed: 0 };
+        sessionRecapsRef.current.set(session.id, recap);
+      }
+      if (session.phase === "waitingForApproval" || session.phase === "waitingForAnswer") recap.approval += 1;
+      else if (session.phase === "completed") recap.completed += 1;
+      else if (session.phase === "failed") recap.failed += 1;
+      prev.set(session.id, session.phase);
+    }
+  }, [sessions, notchStatus]);
   reactExports.useEffect(() => {
     let disposed = false;
     const refreshAgentSetup = () => {
@@ -950,6 +984,7 @@ function IslandApp() {
           {
             sessions,
             hasConnectedAgent: agentSetupReports ? agentSetupReports.some((report) => report?.diagnosis?.status === "ok") : null,
+            sessionRecaps,
             surface,
             notchHeight: notchH,
             panelMaxHeightPx,

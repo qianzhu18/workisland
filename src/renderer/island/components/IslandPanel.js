@@ -1459,6 +1459,7 @@ function SessionEmptyOnboarding({ onOpenSettings }) {
 function IslandPanel({
   sessions,
   hasConnectedAgent = null,
+  sessionRecaps = null,
   surface,
   notchHeight,
   panelMaxHeightPx,
