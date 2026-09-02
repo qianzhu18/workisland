@@ -1043,7 +1043,25 @@ function soundPage() {
     row("启用推送", "仅向你配置的 Bark 端点发请求，自托管同样支持。", toggle(bark.enabled, v => save({ barkPush: { ...bark, enabled: v } }), "启用 Bark 推送")),
     row("推送地址", "iOS 安装 Bark App 后复制推送 URL 粘贴到这里。", barkUrl)
   );
-  root.append(main, barkSection);
+  const quiet = state.settings.quietHours || { enabled: false, start: "22:00", end: "08:00", suppressOnLockScreen: true };
+  const quietSection = section("安静时段", "勿扰时间段与锁屏期间静音本地提示音；手机推送不受影响，岛行为保持正常。");
+  const quietTimeInput = (key, label) => {
+    const input = document.createElement("input");
+    input.type = "time";
+    input.className = "text-input";
+    input.value = quiet[key] || "";
+    input.setAttribute("aria-label", label);
+    input.addEventListener("change", () => save({ quietHours: { ...quiet, [key]: input.value } }));
+    return input;
+  };
+  const quietRange = el("div", "inline-controls");
+  quietRange.append(quietTimeInput("start", "勿扰开始时间"), quietTimeInput("end", "勿扰结束时间"));
+  quietSection.append(
+    row("启用勿扰时段", "时间段内不播放任务提示音（支持跨午夜，如 22:00 → 08:00）。", toggle(quiet.enabled, v => save({ quietHours: { ...quiet, enabled: v } }), "启用勿扰时段")),
+    row("勿扰时间", "开始与结束时间；结束早于开始时按跨午夜处理。", quietRange),
+    row("锁屏时静音", "macOS 锁屏期间不播放任务提示音。", toggle(quiet.suppressOnLockScreen, v => save({ quietHours: { ...quiet, suppressOnLockScreen: v } }), "锁屏时静音"))
+  );
+  root.append(main, barkSection, quietSection);
   return root;
 }
 
