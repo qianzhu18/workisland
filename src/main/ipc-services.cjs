@@ -229,6 +229,9 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
     electron.ipcMain.handle(IPC.SETTINGS_GET_HOOK_STATUS, () => {
       return coordinator.getHookStatus();
     });
+    electron.ipcMain.handle(IPC.ISLAND_GET_AGENT_SETUP_STATUS, () => {
+      return coordinator.getHookStatus();
+    });
     electron.ipcMain.handle(IPC.PLUGIN_AGENT_META, () => {
       return listPluginAgentMeta();
     });

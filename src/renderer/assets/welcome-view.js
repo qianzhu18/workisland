@@ -38,6 +38,13 @@ function WelcomeApp() {
         isWindows
           ? "在 Windows 桌面顶部查看 Work Agent 工作状态、处理需要确认的事项，并在任务完成时获得系统声音提醒。"
           : "在 Mac 顶部查看 Work Agent 工作状态、处理需要确认的事项，并在任务完成时获得声音与触觉提醒。"
+      ),
+      React.createElement(
+        "div",
+        { className: "welcome-steps" },
+        React.createElement("span", null, "① 安装一个 AI 编码 Agent"),
+        React.createElement("span", null, "② 设置 → Agents 一键接入"),
+        React.createElement("span", null, "③ 跑一条命令，岛亮起来")
       )
     ),
     React.createElement(

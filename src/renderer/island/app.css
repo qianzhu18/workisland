@@ -1052,3 +1052,46 @@ body {
   .media-artwork-stage:hover .media-artwork { transform: none; }
   .media-artwork-stage:hover .media-artwork-sheen { opacity: 0; }
 }
+
+.session-empty-onboarding {
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.session-empty-onboarding-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.session-empty-onboarding-steps p {
+  margin: 2px 0;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.68);
+  line-height: 1.6;
+}
+
+.session-empty-onboarding-button {
+  margin-top: 4px;
+  padding: 5px 14px;
+  font-size: 11px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.session-empty-onboarding-button:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.session-empty-onboarding-hint {
+  margin: 0;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.45);
+}
