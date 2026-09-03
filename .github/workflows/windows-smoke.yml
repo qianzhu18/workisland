@@ -7,6 +7,16 @@ on:
   push:
     branches:
       - "windows/**"
+  # 之前只监听 windows/** 分支（该分支已停用），workflow 因此长期静默；
+  # 改为凡是触碰 Windows 运行面（主进程/打包脚本/依赖/workflow 本身）的 PR
+  # 都在真机 runner 上打包并启动便携版自测。
+  pull_request:
+    paths:
+      - "src/**"
+      - "scripts/smoke-win-packaged.mjs"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/windows-smoke.yml"
 
 permissions:
   contents: read
