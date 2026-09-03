@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { test } from "node:test";
 
 const require = createRequire(import.meta.url);
@@ -9,6 +12,7 @@ const { wrapWithInstallCheck } = require("../src/main/hook-shared.cjs");
 const { enrichTerminalContext } = require("../src/island/hooks-cli/index.cjs");
 const { createWindowsNavigation, resolveWindowsApp } = require("../src/main/windows-navigation.cjs");
 const { parseWindowsTasklist } = require("../src/main/process-monitor.cjs");
+const { createUpdateService } = require("../src/main/update-service.cjs");
 
 test("Windows bridge uses a stable per-user named pipe", () => {
   const first = getSocketPath({}, "C:\\Users\\Ada", "win32");
@@ -91,4 +95,38 @@ test("Windows navigation activates existing windows and never spawns a bare term
 test("Windows process discovery reads tasklist CSV without localized columns", () => {
   const names = parseWindowsTasklist('"Cursor.exe","1200","Console","1","80,000 K"\r\n"WindowsTerminal.exe","1400","Console","1","90,000 K"');
   assert.deepEqual([...names], ["cursor.exe", "windowsterminal.exe"]);
+});
+
+test("Windows update service never offers the macOS DMG as an update (issue #96)", async () => {
+  const fetchCalls = [];
+  const service = createUpdateService({
+    app: { isPackaged: true, getVersion: () => "1.0.0-alpha.1" },
+    platform: "win32",
+    userDataPath: mkdtempSync(join(tmpdir(), "workisland-win-update-")),
+    fetchImpl: async (url) => {
+      fetchCalls.push(url);
+      return {
+        ok: true,
+        json: async () => ({
+          tag_name: "v1.2.0",
+          name: "WorkIsland 1.2.0",
+          html_url: "https://github.com/qianzhu18/workisland/releases/tag/v1.2.0",
+          prerelease: false,
+          assets: [{ name: "WorkIsland-1.2.0-arm64.dmg", browser_download_url: "https://example.com/WorkIsland-1.2.0-arm64.dmg", size: 1024 }]
+        })
+      };
+    },
+    logger: { warn() {} }
+  });
+
+  const result = await service.check({ force: true });
+  assert.equal(result.status, "unavailable");
+  assert.equal(result.reason, "unsupported-platform");
+  assert.equal(fetchCalls.length, 0, "must not poll GitHub releases on Windows");
+
+  service.start();
+  assert.equal(service.getUpdateState().phase, "idle");
+
+  assert.match((await service.download()).error, /暂不支持应用内更新/);
+  assert.match((await service.install()).error, /暂不支持应用内更新/);
 });

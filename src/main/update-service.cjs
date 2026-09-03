@@ -290,6 +290,7 @@ function createUpdateService({
   quit = () => app.quit?.(),
   openPath = (value) => shell?.openPath?.(value),
   arch = process.arch,
+  platform = process.platform,
   getInstallDir
 } = {}) {
   if (!app || typeof app.getVersion !== "function") throw new TypeError("app.getVersion is required");
@@ -299,6 +300,10 @@ function createUpdateService({
   let initialTimer = null;
   let intervalTimer = null;
   let updateState = { phase: "idle", progress: null, release: null, error: null, downloadedPath: null };
+
+  // 更新链路只覆盖 macOS（DMG 下载 + hdiutil 安装）；其他平台必须保持
+  // unavailable，否则 Windows 会把 releases/latest 的 DMG 当成可用更新（issue #96）。
+  const isSupportedPlatform = platform === "darwin";
 
   function currentVersion() {
     return String(app.getVersion());
@@ -419,6 +424,9 @@ function createUpdateService({
   }
 
   function check({ force = false, notify = true } = {}) {
+    if (!isSupportedPlatform) {
+      return Promise.resolve({ status: "unavailable", reason: "unsupported-platform", currentVersion: currentVersion() });
+    }
     if (isDevelopment()) {
       return Promise.resolve({ status: "disabled", reason: "development", currentVersion: currentVersion() });
     }
@@ -439,6 +447,7 @@ function createUpdateService({
 
   // 把更新下载到本地并做 SHA-256 校验，完成后进入 ready 阶段等待安装。
   async function download() {
+    if (!isSupportedPlatform) return { ...getUpdateState(), error: "当前平台暂不支持应用内更新，请前往发布页手动下载。" };
     if (isDevelopment()) return { ...getUpdateState(), error: "开发模式下不执行更新下载" };
     if (updateState.phase === "downloading" || updateState.phase === "ready" || updateState.phase === "installing") {
       return getUpdateState();
@@ -493,6 +502,7 @@ function createUpdateService({
   // 安装已下载的更新：挂载 DMG、替换当前安装目录内的应用并重启。
   // 任何一步失败都会回退为打开 DMG，让用户手动拖拽安装。
   async function install() {
+    if (!isSupportedPlatform) return { ...getUpdateState(), error: "当前平台暂不支持应用内更新，请前往发布页手动下载。" };
     if (isDevelopment()) return { ...getUpdateState(), error: "开发模式下不执行更新安装" };
     if (updateState.phase !== "ready" || !updateState.downloadedPath) {
       return getUpdateState();
@@ -523,7 +533,7 @@ function createUpdateService({
   }
 
   function start() {
-    if (isDevelopment() || initialTimer || intervalTimer) return;
+    if (!isSupportedPlatform || isDevelopment() || initialTimer || intervalTimer) return;
     initialTimer = setTimeout(() => {
       initialTimer = null;
       void check().catch(() => {});
