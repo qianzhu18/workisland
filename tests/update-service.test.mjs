@@ -37,6 +37,7 @@ test("update service reports and notifies about a newer stable release once", as
     show() { shown.push(this); }
   }
   const service = createUpdateService({
+    platform: "darwin",
     app: makeApp("0.2.0"),
     shell: { openExternal: (url) => opened.push(url) },
     notificationClass: FakeNotification,
@@ -69,6 +70,7 @@ test("update service reports and notifies about a newer stable release once", as
 test("development builds never contact the release endpoint", async () => {
   let fetchCount = 0;
   const service = createUpdateService({
+    platform: "darwin",
     app: makeApp("0.2.0", false),
     userDataPath: mkdtempSync(join(tmpdir(), "workisland-update-dev-")),
     fetchImpl: async () => {
@@ -162,6 +164,7 @@ async function prepareDownloadedService({ userDataPath, runner, getInstallDir, r
   const dmgBytes = Buffer.from("12345678", "utf8");
   const dmgSha256 = createHash("sha256").update(dmgBytes).digest("hex");
   const service = createUpdateService({
+    platform: "darwin",
     app: makeApp("0.9.0"),
     userDataPath,
     arch: "arm64",
@@ -200,6 +203,7 @@ test("checksum mismatch aborts the download with an error state", async () => {
   const dmgBytes = Buffer.from("12345678", "utf8");
   const payload = releasePayload();
   const service = createUpdateService({
+    platform: "darwin",
     app: makeApp("0.9.0"),
     userDataPath,
     arch: "arm64",
@@ -222,6 +226,7 @@ test("download failure surfaces an error state with the message", async () => {
   const userDataPath = mkdtempSync(join(tmpdir(), "workisland-update-dl-err-"));
   const payload = releasePayload();
   const service = createUpdateService({
+    platform: "darwin",
     app: makeApp("0.9.0"),
     userDataPath,
     arch: "arm64",
