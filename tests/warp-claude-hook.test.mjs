@@ -34,6 +34,16 @@ test("explicit hook metadata wins over inherited terminal environment", () => {
   assert.equal(payload.terminal_session_id, "explicit");
 });
 
+test("an Agent fallback is replaced by the actual VS Code host", () => {
+  const payload = enrichTerminalContext({ terminal_app: "Codex" }, {
+    TERM_PROGRAM: "vscode",
+    TMUX_PANE: "project:3.1"
+  });
+  assert.equal(payload.terminal_app, "VS Code");
+  assert.equal(payload.tmux_target, "project:3.1");
+  assert.equal(payload.tmux_outer_host, "VS Code");
+});
+
 test("desktop hook process trees distinguish CodeBuddy from WorkBuddy", () => {
   const processList = [
     "600 1 /Applications/CodeBuddy CN.app/Contents/MacOS/Electron",
@@ -92,6 +102,39 @@ test("Claude Code and Codex resolve Warp and Terminal bundle IDs for source jump
     tool: "workbuddy",
     jumpTarget: { app: "CodeBuddy CN" }
   }).includes("com.tencent.codebuddycn"));
+  const vscodeCodexBundles = navigation.getSessionBundleIds({
+    tool: "codex",
+    jumpTarget: { app: "VS Code" }
+  });
+  assert.deepEqual(vscodeCodexBundles, ["com.microsoft.VSCode"]);
+});
+
+test("tmux pane targeting takes precedence over its VS Code host", async () => {
+  const calls = [];
+  const navigation = createTerminalNavigation({
+    isPluginAgentTool: () => false,
+    PLUGIN_BY_TOOL: new Map(),
+    platform: "darwin",
+    resolveTmuxBinary: () => "/tmp/tmux",
+    execFile(file, args, _options, callback) {
+      calls.push({ file, args });
+      if (args[0] === "list-clients") {
+        callback(null, { stdout: "/dev/ttys001 project\n" });
+        return;
+      }
+      callback(null, { stdout: "" });
+    }
+  });
+
+  await navigation.jumpToTarget({
+    app: "VS Code",
+    workingDirectory: "/tmp/workisland",
+    tmuxTarget: "project:3.1",
+    tmuxOuterHost: "VS Code"
+  });
+
+  assert.ok(calls.some(({ file, args }) => file === "/tmp/tmux" && args[0] === "select-window" && args[2] === "project:3.1"));
+  assert.ok(calls.some(({ file, args }) => file === "/tmp/tmux" && args[0] === "select-pane" && args[2] === "project:3.1"));
 });
 
 test("packaged launcher remains a JavaScript entrypoint for Electron Node mode", () => {

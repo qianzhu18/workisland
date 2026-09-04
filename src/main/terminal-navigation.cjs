@@ -11,7 +11,14 @@ const fs__namespace = fs;
 const path__namespace = path;
 const os__namespace = os;
 
-function createTerminalNavigation({ isPluginAgentTool, PLUGIN_BY_TOOL, platform = process.platform, windowsNavigation = createWindowsNavigation({ logger: log }) }) {
+function createTerminalNavigation({
+  isPluginAgentTool,
+  PLUGIN_BY_TOOL,
+  platform = process.platform,
+  windowsNavigation = createWindowsNavigation({ logger: log }),
+  execFile = child_process.execFile,
+  resolveTmuxBinary: resolveTmuxBinaryOverride
+}) {
   const COMMON_TMUX_PATHS = ["/opt/homebrew/bin/tmux", "/usr/local/bin/tmux"];
   function firstAbsoluteLine(stdout) {
     const text = String(stdout ?? "");
@@ -29,6 +36,7 @@ function createTerminalNavigation({ isPluginAgentTool, PLUGIN_BY_TOOL, platform 
     return result.status === 0 ? firstAbsoluteLine(result.stdout) : null;
   }
   function resolveTmuxBinary() {
+    if (typeof resolveTmuxBinaryOverride === "function") return resolveTmuxBinaryOverride();
     const override = process.env.FLUX_TMUX_BIN?.trim();
     if (override && path.isAbsolute(override)) return override;
     const fromBash = lookupTmuxWithShell("/bin/bash");
@@ -49,7 +57,7 @@ function createTerminalNavigation({ isPluginAgentTool, PLUGIN_BY_TOOL, platform 
     }
     return `${tmuxBin} attach -t "${escapeDoubleQuotedArg(session)}"`;
   }
-  const execFileAsync$6 = util.promisify(child_process.execFile);
+  const execFileAsync$6 = util.promisify(execFile);
   const CURSOR_BUNDLE_ID = "com.todesktop.230313mzl4w4u92";
   const CODEX_APP_BUNDLE_ID = "com.openai.codex";
   const CLAUDE_DESKTOP_BUNDLE_ID = "com.anthropic.claudefordesktop";
@@ -206,6 +214,8 @@ function createTerminalNavigation({ isPluginAgentTool, PLUGIN_BY_TOOL, platform 
     // VS Code (TERM_PROGRAM=vscode → detectTerminalApp returns 'VS Code' → toLowerCase = 'vs code')
     "vs code": VSCODE_BUNDLE_ID,
     vscode: VSCODE_BUNDLE_ID,
+    "visual studio code": VSCODE_BUNDLE_ID,
+    code: VSCODE_BUNDLE_ID,
     // Antigravity（Google 的 VS Code fork）—— hooks-cli detectVscodeForkApp 命中
     // bundleId=com.google.antigravity 后返回 'Antigravity'，toLowerCase = 'antigravity'。
     antigravity: ANTIGRAVITY_BUNDLE_ID,
@@ -239,7 +249,7 @@ function createTerminalNavigation({ isPluginAgentTool, PLUGIN_BY_TOOL, platform 
         ids.push("com.opencode.app", "com.opencode.desktop", "ai.opencode.desktop");
       }
     }
-    if (session.jumpTarget && session.jumpTarget.app.toLowerCase() === "tmux" && !session.isRemote && session.jumpTarget.tmuxOuterHost) {
+    if (session.jumpTarget?.tmuxTarget && !session.isRemote && session.jumpTarget.tmuxOuterHost) {
       const outer = session.jumpTarget.tmuxOuterHost.toLowerCase();
       const id = TERMINAL_APP_TO_BUNDLE_ID[outer];
       if (id) ids.push(id);
@@ -247,34 +257,38 @@ function createTerminalNavigation({ isPluginAgentTool, PLUGIN_BY_TOOL, platform 
       if (jb) ids.push(...jb);
       if (outer.includes("trae")) ids.push(...TRAE_BUNDLE_IDS);
     }
+    // 回源与提醒抑制都必须服从已捕获的宿主窗口。Agent 身份只在完全没有
+    // jump target 时才作为兜底；否则 Codex 在 VS Code 内运行会错误地把
+    // "正在看 VS Code" 当成 "正在看 Codex"，反过来也会漏掉真正的提醒。
+    const hasHostTarget = Boolean(session.jumpTarget?.app?.trim());
     switch (session.tool) {
       case "cursor":
-        ids.push(CURSOR_BUNDLE_ID);
+        if (!hasHostTarget) ids.push(CURSOR_BUNDLE_ID);
         break;
       case "codex":
-        ids.push(CODEX_APP_BUNDLE_ID);
+        if (!hasHostTarget) ids.push(CODEX_APP_BUNDLE_ID);
         break;
       case "coco":
       case "trae":
-        ids.push(...TRAE_BUNDLE_IDS);
+        if (!hasHostTarget) ids.push(...TRAE_BUNDLE_IDS);
         break;
       case "claude":
-        ids.push(CLAUDE_DESKTOP_BUNDLE_ID);
+        if (!hasHostTarget) ids.push(CLAUDE_DESKTOP_BUNDLE_ID);
         break;
       case "opencode":
-        ids.push("com.opencode.app", "com.opencode.desktop", "ai.opencode.desktop");
+        if (!hasHostTarget) ids.push("com.opencode.app", "com.opencode.desktop", "ai.opencode.desktop");
         break;
       case "zcode":
-        ids.push("dev.zcode.app");
+        if (!hasHostTarget) ids.push("dev.zcode.app");
         break;
       case "workbuddy":
-        ids.push("com.workbuddy.workbuddy");
+        if (!hasHostTarget) ids.push("com.workbuddy.workbuddy");
         break;
       case "codebuddy":
-        ids.push("com.tencent.codebuddycn");
+        if (!hasHostTarget) ids.push("com.tencent.codebuddycn");
         break;
       default:
-        if (isPluginAgentTool(session.tool)) {
+        if (!hasHostTarget && isPluginAgentTool(session.tool)) {
           const plugin = PLUGIN_BY_TOOL.get(session.tool);
           if (plugin) ids.push(...plugin.suppressionBundleIds);
         }
@@ -1507,7 +1521,9 @@ function createTerminalNavigation({ isPluginAgentTool, PLUGIN_BY_TOOL, platform 
     return false;
   }
   async function jumpTmuxWithOuter(target) {
-    const outer = target.tmuxOuterHost?.trim();
+    // 新 payload 会显式带 tmuxOuterHost；旧版本只记录 app 时，仍把 app
+    // 视作可聚焦宿主，保持既有会话的回源能力。
+    const outer = target.tmuxOuterHost?.trim() || (target.app?.trim().toLowerCase() === "tmux" ? "" : target.app?.trim());
     const session = parseTmuxSessionName(target.tmuxTarget);
     const tmuxBin = resolveTmuxBinaryForJump("jumpTmuxWithOuter");
     if (!tmuxBin) {
@@ -1637,7 +1653,13 @@ function createTerminalNavigation({ isPluginAgentTool, PLUGIN_BY_TOOL, platform 
     }
     const app = target.app.toLowerCase();
     try {
-      if (app === "ghostty") {
+      // pane 是比 IDE/终端窗口更具体的位置；必须先选 tmux pane，再把对应
+      // 宿主窗口前置。此前 VS Code / Terminal 分支先返回，tmux_target 因而
+      // 从未参与定位。
+      if (target.tmuxTarget) {
+        log.debug("[TerminalJumpService] dispatch tmux branch, target:", JSON.stringify(target));
+        await jumpTmuxWithOuter(target);
+      } else if (app === "ghostty") {
         await jumpGhostty(target);
       } else if (app === "iterm2" || app === "iterm" || app === "iterm.app") {
         await jumpITerm2(target);
@@ -1665,7 +1687,7 @@ function createTerminalNavigation({ isPluginAgentTool, PLUGIN_BY_TOOL, platform 
         await jumpVSCodeFamily(target, "antigravity");
       } else if (app === "intellij idea" || app === "webstorm" || app === "pycharm" || app === "goland" || app === "clion" || app === "rubymine" || app === "phpstorm" || app === "rider" || app === "rustrover") {
         await jumpJetBrains(target, app);
-      } else if (app === "tmux" || target.tmuxTarget) {
+      } else if (app === "tmux") {
         log.debug("[TerminalJumpService] dispatch tmux branch, target:", JSON.stringify(target));
         await jumpTmuxWithOuter(target);
       } else {

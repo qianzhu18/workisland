@@ -1771,8 +1771,11 @@ class CodexAdapter {
     const metaTerminalApp = resolveCodexTerminalAppFromSessionMeta(
       payload._session_meta
     );
+    // `Codex` 是 Agent 身份而不是可靠的窗口位置。VS Code 插件会话带有
+    // transcript source 时，优先使用该宿主信息；真实终端/IDE 元数据仍优先。
+    const isAgentFallback = terminalApp.toLowerCase() === "codex";
     ctx.updateJumpTarget(sessionId, tool, {
-      terminal_app: terminalApp || metaTerminalApp || "Codex"
+      terminal_app: isAgentFallback ? metaTerminalApp || terminalApp : terminalApp || metaTerminalApp || "Codex"
     });
   }
 }

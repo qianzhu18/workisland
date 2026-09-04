@@ -34,6 +34,19 @@ test("Codex prompt and stop hooks produce visible lifecycle events", () => {
   assert.ok(events.some((event) => event.type === "sessionCompleted" && event.sessionId === "codex-regression-session"));
 });
 
+test("Codex session metadata overrides its generic app fallback for IDE sessions", () => {
+  const targets = [];
+  const adapter = new CodexAdapter();
+  adapter.updateJumpTarget("codex-vscode", "codex", {
+    terminal_app: "Codex",
+    _session_meta: { source: "vscode" }
+  }, {
+    updateJumpTarget: (_sessionId, _tool, target) => targets.push(target)
+  });
+
+  assert.deepEqual(targets, [{ terminal_app: "VS Code" }]);
+});
+
 test("Claude attention notifications trigger one reminder sound per turn", () => {
   const sounds = [];
   const adapter = new ClaudeAdapter();
