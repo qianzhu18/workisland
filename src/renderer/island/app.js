@@ -55,10 +55,15 @@ function useIslandState() {
     });
     bridge.onQuotaUpdate((quotas) => setAgentQuotas(quotas));
     const offUpdate = bridge.onUpdateAvailable?.(() => setHasUpdate(true));
-    const offUpdateState = bridge.onUpdateState?.((state) => setUpdateState(state));
-    void bridge.getUpdateState?.().then((state) => {
-      if (state && typeof state === "object") setUpdateState(state);
-    }).catch(() => {});
+    // hasUpdate 由主进程从缓存 release 推导；启动拉取与状态推送都能恢复升级
+    // 箭头，不再依赖一次可能被 24h 去重跳过的真检测（issue #98）。
+    const applyUpdateState = (state) => {
+      if (!state || typeof state !== "object") return;
+      setUpdateState(state);
+      if (state.hasUpdate) setHasUpdate(true);
+    };
+    const offUpdateState = bridge.onUpdateState?.(applyUpdateState);
+    void bridge.getUpdateState?.().then(applyUpdateState).catch(() => {});
     void bridge.getQuotaMap().then((quotas) => {
       if (quotas && Object.keys(quotas).length > 0) setAgentQuotas(quotas);
     });

@@ -332,10 +332,15 @@ function createUpdateService({
   }
 
   function getUpdateState() {
+    const latestVersion = updateState.release?.version ?? state.latestRelease?.version ?? null;
+    const current = currentVersion();
     return {
       ...updateState,
-      currentVersion: currentVersion(),
-      latestVersion: updateState.release?.version ?? state.latestRelease?.version ?? null,
+      currentVersion: current,
+      latestVersion,
+      // 岛端升级箭头只在 onUpdateAvailable 推送时点亮；hasUpdate 让缓存里的
+      // 新版本信息在重启后也能自行恢复入口（issue #98）。
+      hasUpdate: latestVersion !== null && compareVersions(latestVersion, current) === 1,
       releaseUrl: updateState.release?.url ?? state.latestRelease?.url ?? DEFAULT_DOWNLOAD_URL
     };
   }
@@ -434,7 +439,15 @@ function createUpdateService({
       return Promise.resolve({ status: "disabled", reason: "user-disabled", currentVersion: currentVersion() });
     }
     if (!force && state.lastCheckedAt && now() - state.lastCheckedAt < minIntervalMs) {
-      if (state.latestRelease) return Promise.resolve(resultForRelease(state.latestRelease));
+      if (state.latestRelease) {
+        const cachedResult = resultForRelease(state.latestRelease);
+        // 缓存捷径不经过 runCheck 的推送链路；缓存里已有新版时补一次状态推送，
+        // 否则 24h 内重启的岛端收不到任何消息，升级箭头不出现（issue #98）。
+        if (cachedResult.status === "update-available" && updateState.phase === "idle") {
+          publishState({ release: state.latestRelease });
+        }
+        return Promise.resolve(cachedResult);
+      }
       return Promise.resolve({ status: "skipped", reason: "recently-checked", currentVersion: currentVersion() });
     }
     if (!inFlight) {

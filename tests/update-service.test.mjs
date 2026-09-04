@@ -299,3 +299,72 @@ test("failed install falls back to opening the dmg for manual drag install", asy
   assert.equal(opened.length, 1);
   assert.match(state.error, /拖入「应用程序」/);
 });
+
+test("relaunch inside the check interval restores the update arrow from cache without network", async () => {
+  const userDataPath = mkdtempSync(join(tmpdir(), "workisland-update-relaunch-"));
+  const first = createUpdateService({
+    platform: "darwin",
+    app: makeApp("1.2.0"),
+    userDataPath,
+    fetchImpl: async () => ({
+      ok: true,
+      json: async () => ({
+        tag_name: "v1.3.0",
+        name: "WorkIsland 1.3.0",
+        html_url: "https://github.com/qianzhu18/workisland/releases/tag/v1.3.0",
+        prerelease: false
+      })
+    }),
+    logger: { warn() {} }
+  });
+  assert.equal((await first.check({ force: true })).status, "update-available");
+
+  // 模拟 24h 内重启：新实例读到同一份 update-check.json，命中缓存捷径。
+  const statePushes = [];
+  const relaunched = createUpdateService({
+    platform: "darwin",
+    app: makeApp("1.2.0"),
+    userDataPath,
+    onUpdateState: (pushed) => statePushes.push(pushed),
+    fetchImpl: async () => {
+      throw new Error("cache shortcut must not hit the network");
+    },
+    logger: { warn() {} }
+  });
+  const result = await relaunched.check();
+  assert.equal(result.status, "update-available");
+  assert.equal(result.latestVersion, "1.3.0");
+
+  const state = relaunched.getUpdateState();
+  assert.equal(state.hasUpdate, true);
+  assert.equal(state.latestVersion, "1.3.0");
+  assert.ok(
+    statePushes.some((pushed) => pushed.hasUpdate === true && pushed.latestVersion === "1.3.0"),
+    "cache shortcut should push state so the island can relight the upgrade arrow"
+  );
+});
+
+test("hasUpdate stays false when the cache is empty or already up to date", async () => {
+  const empty = createUpdateService({
+    platform: "darwin",
+    app: makeApp("1.2.0"),
+    userDataPath: mkdtempSync(join(tmpdir(), "workisland-update-empty-")),
+    fetchImpl: async () => { throw new Error("no network expected"); },
+    logger: { warn() {} }
+  });
+  assert.equal(empty.getUpdateState().hasUpdate, false);
+
+  const userDataPath = mkdtempSync(join(tmpdir(), "workisland-update-uptodate-"));
+  const upToDate = createUpdateService({
+    platform: "darwin",
+    app: makeApp("1.3.0"),
+    userDataPath,
+    fetchImpl: async () => ({
+      ok: true,
+      json: async () => ({ tag_name: "v1.3.0", name: "WorkIsland 1.3.0", prerelease: false })
+    }),
+    logger: { warn() {} }
+  });
+  assert.equal((await upToDate.check({ force: true })).status, "up-to-date");
+  assert.equal(upToDate.getUpdateState().hasUpdate, false);
+});
