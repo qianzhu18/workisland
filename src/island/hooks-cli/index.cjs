@@ -9,12 +9,15 @@ const { getSocketPath } = require("../../main/bridge-protocol.cjs");
 
 const TERMINAL_APP_ALIASES = Object.freeze({
   apple_terminal: "Terminal",
+  terminal: "Terminal",
   "iterm.app": "iTerm",
   iterm: "iTerm",
   warp: "Warp",
   warpterminal: "Warp",
   vscode: "VS Code",
   "vs code": "VS Code",
+  code: "VS Code",
+  "visual studio code": "VS Code",
   ghostty: "Ghostty",
   wezterm: "WezTerm",
   alacritty: "Alacritty",
@@ -27,10 +30,19 @@ const TERMINAL_APP_ALIASES = Object.freeze({
   pwsh: "PowerShell"
 });
 
+// `terminal_app` 有时来自 Agent 自己的兜底值（例如 Codex），它描述的是谁在
+// 执行任务，而不是用户眼前真正承载会话的窗口。Agent 身份已经由 hook source
+// 保存；这里把这类值降级为回源的最后兜底，让 IDE / 终端宿主优先。
+const AGENT_RUNTIME_APPS = new Set(["codex", "claude", "opencode"]);
+
 function canonicalTerminalApp(value) {
   if (typeof value !== "string" || !value.trim()) return undefined;
   const normalized = value.trim().toLowerCase();
   return TERMINAL_APP_ALIASES[normalized] || value.trim();
+}
+
+function isAgentRuntimeApp(value) {
+  return typeof value === "string" && AGENT_RUNTIME_APPS.has(value.trim().toLowerCase());
 }
 
 // 顺序有意义：更具体的放前面，先匹配到的先返回。
@@ -111,12 +123,20 @@ function detectDesktopHostApp() {
  */
 function enrichTerminalContext(payload, env = process.env) {
   const next = payload;
-  const terminalApp = canonicalTerminalApp(next.terminal_app)
-    || canonicalTerminalApp(env.TERM_PROGRAM)
+  const explicitApp = canonicalTerminalApp(next.terminal_app);
+  const inheritedApp = canonicalTerminalApp(env.TERM_PROGRAM)
     || (env.WT_SESSION ? "Windows Terminal" : undefined)
-    || (env.WARP_CLI_AGENT_PROTOCOL_VERSION ? "Warp" : undefined)
-    || detectDesktopHostApp();
-  if (terminalApp && !next.terminal_app) next.terminal_app = terminalApp;
+    || (env.WARP_CLI_AGENT_PROTOCOL_VERSION ? "Warp" : undefined);
+  // 只有没有明确宿主，或上游给的是 Agent 名称时才检查父进程树。这样既避免
+  // 每个 hook 都跑 ps，也能让 VS Code 插件中的 Codex 回到 VS Code，而非 Codex。
+  const terminalApp = explicitApp && !isAgentRuntimeApp(explicitApp)
+    ? explicitApp
+    : inheritedApp || detectDesktopHostApp() || explicitApp;
+  // 显式宿主元数据保留上游原样（例如 iTerm.app）；仅在缺失或它实际是
+  // Agent 兜底名称时才以检测到的宿主覆盖。
+  if (terminalApp && (!next.terminal_app || isAgentRuntimeApp(next.terminal_app))) {
+    next.terminal_app = terminalApp;
+  }
 
   const sessionId = env.WT_SESSION
     || env.WARP_SESSION_ID
@@ -131,6 +151,11 @@ function enrichTerminalContext(payload, env = process.env) {
   const paneId = env.WARP_PANE_UUID || env.WARP_PANE_ID;
   if (paneId && !next.warp_pane_uuid) next.warp_pane_uuid = paneId;
   if (env.TMUX_PANE && !next.tmux_target) next.tmux_target = env.TMUX_PANE;
+  // tmux pane 只负责内部位置；仍需记录它显示在哪个 IDE / 终端宿主中，才能把
+  // 对应窗口带到前台。不要把 Codex 这类 Agent 名称误写成宿主。
+  if (next.tmux_target && !next.tmux_outer_host && terminalApp && !isAgentRuntimeApp(terminalApp)) {
+    next.tmux_outer_host = terminalApp;
+  }
   return next;
 }
 
@@ -249,6 +274,7 @@ module.exports = {
   detectDesktopHostFromProcessList,
   enrichTerminalContext,
   enrichPayload,
+  isAgentRuntimeApp,
   resolveHookSource,
   run
 };
