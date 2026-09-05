@@ -2,11 +2,26 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://workisland.yanglaishe.cn/</loc>
+    <lastmod>2026-09-05</lastmod>
+  </url>
+  <url>
+    <loc>https://workisland.yanglaishe.cn/en/</loc>
+    <lastmod>2026-09-05</lastmod>
   </url>
   <url>
     <loc>https://workisland.yanglaishe.cn/guide/</loc>
+    <lastmod>2026-09-05</lastmod>
   </url>
   <url>
     <loc>https://workisland.yanglaishe.cn/changelog/</loc>
+    <lastmod>2026-09-05</lastmod>
+  </url>
+  <url>
+    <loc>https://workisland.yanglaishe.cn/guides/claude-code-notifications/</loc>
+    <lastmod>2026-09-05</lastmod>
+  </url>
+  <url>
+    <loc>https://workisland.yanglaishe.cn/en/claude-code-notifications/</loc>
+    <lastmod>2026-09-05</lastmod>
   </url>
 </urlset>

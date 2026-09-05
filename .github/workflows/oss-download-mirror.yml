@@ -1,0 +1,107 @@
+name: mirror-release-to-aliyun-oss
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing stable GitHub Release tag to mirror, for example v1.3.0
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  mirror:
+    if: github.event_name == 'workflow_dispatch' || github.event.release.prerelease == false
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      OSS_ACCESS_KEY_ID: ${{ secrets.ALIYUN_OSS_ACCESS_KEY_ID }}
+      OSS_ACCESS_KEY_SECRET: ${{ secrets.ALIYUN_OSS_ACCESS_KEY_SECRET }}
+      OSS_BUCKET: ${{ secrets.ALIYUN_OSS_BUCKET }}
+      OSS_REGION: ${{ secrets.ALIYUN_OSS_REGION }}
+      DOWNLOAD_PUBLIC_BASE: ${{ secrets.ALIYUN_DOWNLOAD_PUBLIC_BASE }}
+    steps:
+      - name: Check optional mirror configuration
+        id: configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          required=(OSS_ACCESS_KEY_ID OSS_ACCESS_KEY_SECRET OSS_BUCKET OSS_REGION DOWNLOAD_PUBLIC_BASE)
+          missing=()
+          for name in "${required[@]}"; do
+            if [ -z "${!name:-}" ]; then missing+=("$name"); fi
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::OSS mirror is not configured; no files will be uploaded. Missing: ${missing[*]}"
+            exit 0
+          fi
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        if: steps.configuration.outputs.ready == 'true'
+      - name: Resolve stable release tag
+        id: release
+        if: steps.configuration.outputs.ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${{ inputs.release_tag || github.event.release.tag_name }}"
+          case "$tag" in v[0-9]*) ;; *) echo "Expected a stable v* release tag, got: $tag" >&2; exit 1 ;; esac
+          if [[ "$tag" == *-* ]]; then
+            echo "Pre-release tags are not mirrored to the public stable-download endpoint." >&2
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+      - name: Download the exact GitHub Release assets
+        if: steps.configuration.outputs.ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir release
+          gh release download "${{ steps.release.outputs.tag }}" --repo "$GITHUB_REPOSITORY" --dir release --pattern '*.dmg' --pattern 'SHA256SUMS*.txt'
+          test -n "$(find release -maxdepth 1 -type f -name '*arm64*.dmg' -print -quit)"
+      - name: Install the checked OSS CLI
+        if: steps.configuration.outputs.ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive=ossutil-2.4.0-linux-amd64.zip
+          curl --fail --location --retry 3 --output "$archive" "https://gosspublic.alicdn.com/ossutil/v2/2.4.0/$archive"
+          echo "85edf66b2fb7238f5c7e25cab820cf29312319fe4935b7c86a6b8485eb434f3c  $archive" | sha256sum --check --status
+          unzip -q "$archive"
+          install -m 755 "${archive%.zip}/ossutil" "$RUNNER_TEMP/ossutil"
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+      - name: Generate checksum manifest from the downloaded assets
+        if: steps.configuration.outputs.ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/build-download-manifest.mjs \
+            --tag "${{ steps.release.outputs.tag }}" \
+            --source release \
+            --public-base "$DOWNLOAD_PUBLIC_BASE" \
+            --output mirror/latest.json
+      - name: Upload release directory, then atomically advance latest manifest
+        if: steps.configuration.outputs.ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          ossutil cp --recursive release/ "oss://$OSS_BUCKET/releases/${{ steps.release.outputs.tag }}/" --region "$OSS_REGION"
+          ossutil cp mirror/latest.json "oss://$OSS_BUCKET/latest.json" --region "$OSS_REGION"
+      - name: Verify the public manifest
+        if: steps.configuration.outputs.ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --show-error --silent --max-time 20 "$DOWNLOAD_PUBLIC_BASE/latest.json" > downloaded-latest.json
+          node --input-type=module <<'NODE'
+          import { readFile } from "node:fs/promises";
+          const manifest = JSON.parse(await readFile("downloaded-latest.json", "utf8"));
+          if (!manifest.assets?.some((asset) => asset.platform === "macos" && asset.arch === "arm64" && asset.sha256 && asset.url)) {
+            throw new Error("Public manifest is missing its arm64 macOS asset.");
+          }
+          NODE

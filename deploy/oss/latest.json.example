@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "version": "vX.Y.Z",
+  "publishedAt": "2026-09-05T00:00:00.000Z",
+  "source": "qianzhu18/workisland",
+  "fallbackUrl": "https://github.com/qianzhu18/workisland/releases/tag/vX.Y.Z",
+  "assets": [
+    {
+      "name": "WorkIsland-X.Y.Z-arm64.dmg",
+      "platform": "macos",
+      "arch": "arm64",
+      "sizeBytes": 0,
+      "sha256": "replace-with-the-sha256-of-the-uploaded-dmg",
+      "url": "https://download.example.com/releases/vX.Y.Z/WorkIsland-X.Y.Z-arm64.dmg"
+    }
+  ]
+}

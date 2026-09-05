@@ -4,10 +4,13 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#151518">
-    <meta name="description" content="WorkIsland 是 macOS 上本地优先的 AI 编程 Agent 任务监控与审批工具，支持 Claude Code、Codex、Cursor 等。任务运行、审批、提问和完成状态一眼可见，需要时一键回到原会话。">
+    <meta name="description" content="WorkIsland 是面向 AI 原生工作流的本地优先 macOS 工作界面。从 Claude Code、Codex、Cursor 等 Agent 开始，把审批、提问、完成与回源变成有上下文、可处理的原生交互。">
     <link rel="canonical" href="https://workisland.yanglaishe.cn/">
-    <meta property="og:title" content="WorkIsland：macOS AI 编程 Agent 任务监控与审批">
-    <meta property="og:description" content="本地优先的 macOS Agent 状态中枢。任务需要你时，一键回到原会话。">
+    <link rel="alternate" hreflang="zh-CN" href="https://workisland.yanglaishe.cn/">
+    <link rel="alternate" hreflang="en" href="https://workisland.yanglaishe.cn/en/">
+    <link rel="alternate" hreflang="x-default" href="https://workisland.yanglaishe.cn/">
+    <meta property="og:title" content="WorkIsland：AI 原生时代的 macOS 工作界面">
+    <meta property="og:description" content="从 AI 编程 Agent 开始：工作需要你时，不必四处寻找。">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://workisland.yanglaishe.cn/">
     <meta property="og:site_name" content="WorkIsland">
@@ -17,28 +20,53 @@
     <meta property="og:image:height" content="1144">
     <meta property="og:image:alt" content="WorkIsland 显示多个 AI 编程 Agent 任务状态的真实界面">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="WorkIsland：macOS AI 编程 Agent 任务监控与审批">
-    <meta name="twitter:description" content="本地优先的 macOS Agent 状态中枢。任务需要你时，一键回到原会话。">
+    <meta name="twitter:title" content="WorkIsland：AI 原生时代的 macOS 工作界面">
+    <meta name="twitter:description" content="从 AI 编程 Agent 开始：工作需要你时，不必四处寻找。">
     <meta name="twitter:image" content="https://workisland.yanglaishe.cn/assets/demo/overview.png">
     <meta name="twitter:image:alt" content="WorkIsland 显示多个 AI 编程 Agent 任务状态的真实界面">
-    <title>WorkIsland：macOS AI 编程 Agent 任务监控与审批</title>
+    <title>WorkIsland：AI 原生时代的 macOS 工作界面</title>
     <link rel="icon" href="icon.png" type="image/png">
     <link rel="preconnect" href="https://api.github.com" crossorigin>
     <link rel="stylesheet" href="tokens.css">
-    <link rel="stylesheet" href="styles.css?v=20260817-star-cta">
+    <link rel="stylesheet" href="styles.css?v=20260906-hero-shot">
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
-        "@type": "WebSite",
-        "@id": "https://workisland.yanglaishe.cn/#website",
-        "url": "https://workisland.yanglaishe.cn/",
-        "name": "WorkIsland",
-        "inLanguage": "zh-CN",
-        "description": "macOS 上本地优先的 AI 编程 Agent 任务监控与审批工具。"
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://workisland.yanglaishe.cn/#website",
+            "url": "https://workisland.yanglaishe.cn/",
+            "name": "WorkIsland",
+            "inLanguage": ["zh-CN", "en"],
+            "description": "面向 AI 原生工作流的本地优先 macOS 工作界面。"
+          },
+          {
+            "@type": "SoftwareApplication",
+            "@id": "https://workisland.yanglaishe.cn/#software",
+            "name": "WorkIsland",
+            "url": "https://workisland.yanglaishe.cn/",
+            "image": "https://workisland.yanglaishe.cn/assets/demo/overview.png",
+            "description": "面向 AI 原生工作流的本地优先 macOS 工作界面。从 Claude Code、Codex、Cursor 等 AI 编程 Agent 开始，把审批、提问、完成与回源变成有上下文、可处理的原生交互。",
+            "applicationCategory": "DeveloperApplication",
+            "operatingSystem": "macOS",
+            "isAccessibleForFree": true,
+            "downloadUrl": "https://github.com/qianzhu18/workisland/releases/latest",
+            "sameAs": "https://github.com/qianzhu18/workisland"
+          }
+        ]
       }
     </script>
     <!-- Umami 自托管匿名统计（无 cookie、数据不出自己服务器） -->
     <script async defer src="https://umami.yanglaishe.cn/script.js" data-website-id="77be7067-a168-465e-adb5-5e546e879e54"></script>
+    <!-- Microsoft Clarity：页面体验与交互分析；加载失败不会影响官网功能。 -->
+    <script type="text/javascript">
+      (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+      })(window, document, "clarity", "script", "yd6hexza0b");
+    </script>
   </head>
   <body>
     <a class="skip-link" href="#main">跳到主要内容</a>
@@ -56,6 +84,7 @@
         <a href="#tour">导览</a>
         <a href="guide/">手册</a>
         <a href="changelog/">更新日志</a>
+        <a href="en/" lang="en">English</a>
         <a href="#support">社区</a>
         <a href="#faq">FAQ</a>
         <a href="https://github.com/qianzhu18/workisland" target="_blank" rel="noreferrer">GitHub <span aria-hidden="true">↗</span></a>
@@ -73,15 +102,18 @@
         <div class="vi-signal-motes" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
         <div class="vi-hero-orbit vi-hero-orbit-a" aria-hidden="true"></div>
         <div class="vi-hero-orbit vi-hero-orbit-b" aria-hidden="true"></div>
-        <p class="vi-hero-badge"><span class="vi-dot vi-dot-idle"></span> WORK ISLAND · FOR YOUR AGENTS</p>
-        <h1 class="vi-headline"><span>让&nbsp;AI 编程</span><em>Agent 浮上来。</em></h1>
-        <p class="vi-sub">Claude Code、Codex、Cursor 等 Agent 在后台继续工作；只在需要确认、回答或跳回会话时，WorkIsland 才从刘海处轻轻把你叫回来。</p>
+        <p class="vi-hero-badge"><span class="vi-dot vi-dot-idle"></span> WORKISLAND · FOR AI-NATIVE WORK</p>
+        <h1 class="vi-headline"><span>AI 原生时代的</span><em>macOS 工作界面。</em></h1>
+        <p class="vi-sub"><strong>工作需要你时，不必四处寻找。</strong> WorkIsland 是一款 macOS 原生应用：把 Claude Code、Codex、Cursor 等 Agent 的任务状态、审批与提醒，收进屏幕顶部的一方小岛——一眼可见，一键回到原会话。今天，就从你的 Agent 开始。</p>
         <div class="vi-cta">
           <a class="vi-btn vi-btn-solid" href="https://github.com/qianzhu18/workisland/releases/latest" data-download-link>下载 macOS 版</a>
           <a class="vi-btn vi-btn-ghost" href="https://github.com/qianzhu18/workisland" target="_blank" rel="noreferrer">在 GitHub 点 Star <span aria-hidden="true">↗</span></a>
         </div>
+        <figure class="vi-hero-shot">
+          <img src="assets/demo/overview.png?v=20260906" fetchpriority="high" width="1480" height="1144" alt="WorkIsland 真实界面：音乐控制与 ZCode 会话同屏，任务状态与额度一目了然">
+          <figcaption>真实 WorkIsland 界面 · 演示数据已脱敏</figcaption>
+        </figure>
         <p class="vi-platform">APPLE SILICON · LOCAL FIRST · FREE &amp; OPEN SOURCE</p>
-        <p class="vi-star-note">觉得 WorkIsland 好用？欢迎在 GitHub 上给我们点个 Star，这对我们真的非常重要。</p>
         <a class="vi-scroll-cue" href="#features"><span></span> 看它怎么工作</a>
       </section>
 
@@ -89,7 +121,7 @@
       <section class="vi-demo-section" aria-label="WorkIsland 灵动岛交互演示">
         <div class="vi-demo-proof">
           <div class="vi-frame">
-            <img class="vi-real-demo-image" data-real-demo-image data-demo-scene="overview" fetchpriority="high" width="1480" height="1144" src="assets/demo/overview.png" alt="真实 WorkIsland 总览界面：三个 Claude Code 任务在后台运行">
+            <img class="vi-real-demo-image" data-real-demo-image data-demo-scene="overview" fetchpriority="high" width="1480" height="1144" src="assets/demo/overview.png?v=20260906" alt="真实 WorkIsland 界面：音乐播放控制与 ZCode 会话同屏显示">
             <div class="vi-real-demo-badge"><img src="icon.png" alt="">真实 WorkIsland 界面</div>
             <div class="vi-real-demo-scan" aria-hidden="true"></div>
           </div>
@@ -127,7 +159,7 @@
       <section class="vi-features" id="features">
         <p class="vi-section-eyebrow">WHY WORKISLAND</p>
         <h2 class="vi-section-title">关键时刻，一眼可见。</h2>
-        <p class="vi-section-sub">WorkIsland 不替代你已有的 Agent 或终端。它把本机正在发生的事件，变成清晰、可操作的注意力信号。</p>
+        <p class="vi-section-sub">WorkIsland 不替代你已有的 Agent、终端或其他工作应用。它从 Agent 工作流开始，把需要你参与的状态做成清晰、可操作的 Mac 原生交互。</p>
         <div class="vi-features-grid">
           <article class="vi-feature vi-reveal">
             <span class="vi-feature-ico vi-ico-idle">◉</span>
@@ -166,14 +198,14 @@
       <section class="vi-workflow" id="workflow" aria-labelledby="workflow-title">
         <div class="vi-workflow-intro">
           <p class="vi-section-eyebrow">STAY IN FLOW</p>
-          <h2 class="vi-section-title" id="workflow-title">不是另一个工作台。<br>只是更好的提醒。</h2>
-          <p class="vi-section-sub">从“正在跑”到“需要你”，WorkIsland 只做注意力的最后一公里。每个状态都带着原因和下一步。</p>
+          <h2 class="vi-section-title" id="workflow-title">工作留在原处。<br>需要时，带着上下文找你。</h2>
+          <p class="vi-section-sub">WorkIsland 不要求你迁移 Agent 或终端。它连接工作发生的地方，在需要你时给出原因、上下文和下一步。</p>
         </div>
         <div class="vi-state-stories">
           <article class="vi-state-story vi-state-running vi-reveal">
             <div class="vi-story-label"><span>01</span><i>RUNNING</i></div>
             <figure class="vi-story-proof">
-              <img src="assets/demo/overview.png" alt="真实 WorkIsland 总览：多个 Agent 会话正在运行" width="1480" height="1144" loading="lazy">
+              <img src="assets/demo/overview.png?v=20260906" alt="真实 WorkIsland 总览：多个 Agent 会话正在运行" width="1480" height="1144" loading="lazy">
               <figcaption><img src="assets/brands/codex.png" alt="Codex">真实运行总览</figcaption>
             </figure>
             <h3>继续做你手上的事</h3>
@@ -186,7 +218,7 @@
               <figcaption><img src="assets/brands/codex.png" alt="Codex">真实审批界面</figcaption>
             </figure>
             <h3>只有关键时刻才打断</h3>
-            <p>审批与提问出现时，上下文和操作入口一起浮上来。你不会错过一个需要决定的瞬间。</p>
+            <p>审批与提问出现时，原因、上下文和操作入口同时可见。你不会错过一个需要决定的瞬间。</p>
           </article>
           <article class="vi-state-story vi-state-done vi-reveal">
             <div class="vi-story-label"><span>03</span><i>COMPLETE</i></div>
@@ -209,7 +241,7 @@
         </div>
         <div class="vi-tour-stage vi-reveal" data-tour-stage="connect">
           <div class="vi-tour-simulation">
-            <img class="vi-tour-real-image" data-tour-image data-tour-scene="connect" src="assets/demo/overview.png" alt="真实 WorkIsland 总览界面">
+            <img class="vi-tour-real-image" data-tour-image data-tour-scene="connect" src="assets/demo/overview.png?v=20260906" alt="真实 WorkIsland 总览界面">
             <div class="vi-tour-real-overlay"><img src="icon.png" alt="">真实产品截图 <span>录屏上线后将在这里直接播放</span></div>
           </div>
         </div>
@@ -228,6 +260,8 @@
           <h2 class="vi-section-title" id="support-title">把下一版，和真实用户一起做。</h2>
           <p class="vi-section-sub">先看操作手册，再把真实工作流中的问题和建议告诉我们。</p>
           <a class="vi-support-guide" href="guide/">查看产品手册 <span aria-hidden="true">→</span></a>
+          <a class="vi-support-guide" href="guides/claude-code-notifications/">Claude Code 完成提醒指南 <span aria-hidden="true">→</span></a>
+          <p class="vi-star-note">觉得 WorkIsland 好用？欢迎在 GitHub 上给我们点个 Star，这对我们真的非常重要。</p>
         </div>
         <div class="vi-support-grid">
           <article class="vi-support-card" id="feedback">
@@ -266,12 +300,16 @@
         <h2>下载之前，先了解这些。</h2>
         <div class="vi-faq">
           <details class="vi-faq-item" open>
+            <summary>WorkIsland 是通知管理器或另一个任务看板吗？<span>+</span></summary>
+            <p>不是。WorkIsland 是面向 AI 原生工作流的 macOS 工作界面：它让工作在需要你参与时带着上下文和下一步出现。当前公开版本从 AI 编程 Agent 开始，不把邮件、日历或泛通知写成已交付能力。</p>
+          </details>
+          <details class="vi-faq-item">
             <summary>WorkIsland 支持哪些 Mac？<span>+</span></summary>
-            <p>当前安装包面向 Apple Silicon Mac（M 系列芯片）。下载入口会带你前往官方 GitHub Release。</p>
+            <p>当前安装包面向 Apple Silicon Mac（M 系列芯片）。官网会优先使用已配置的下载镜像，镜像不可用时回退到官方 GitHub Release。</p>
           </details>
           <details class="vi-faq-item">
             <summary>我的会话或项目内容会被上传吗？<span>+</span></summary>
-            <p>不会。WorkIsland 采用本地优先设计：默认不上传会话内容、项目内容或使用数据，也不要求云端账户。</p>
+            <p>不会。WorkIsland 采用本地优先设计：会话内容和项目内容留在本机，也不要求云端账户。匿名产品统计的范围与关闭方式见产品手册。</p>
           </details>
           <details class="vi-faq-item">
             <summary>可以直接在 Island 里处理审批吗？<span>+</span></summary>
@@ -302,7 +340,7 @@
           <p class="vi-price-amount">¥0 <span>/ 永久</span></p>
           <ul class="vi-price-list">
             <li>全部功能 · 无订阅 · 无内购</li>
-            <li>Apple Silicon DMG · GitHub Release 分发</li>
+            <li>Apple Silicon DMG · 镜像优先，GitHub Release 兜底</li>
             <li>15+ Agent 连接器 · 灵动岛审批</li>
             <li>Apache-2.0 开源 · 可自行构建</li>
           </ul>
@@ -315,11 +353,11 @@
 
     <!-- ============ FOOTER ============ -->
     <footer class="vi-footer">
-      <p class="vi-footer-statement">让 Agent 留在后台。<br>把决定留给你。</p>
+      <p class="vi-footer-statement">工作留在原处。<br>需要时，带着上下文找到你。</p>
       <div class="vi-footer-top">
         <div class="vi-footer-brand">
           <span class="vi-footer-wordmark">WorkIsland</span>
-          <p class="vi-footer-tagline">本地优先的 Agent 状态中枢。任务需要你时，才浮到眼前。</p>
+          <p class="vi-footer-tagline">面向 AI 原生工作流的本地优先 macOS 工作界面。从 AI 编程 Agent 开始。</p>
         </div>
         <div class="vi-footer-cols">
           <div class="vi-footer-col">
@@ -327,6 +365,7 @@
             <a href="#features">功能</a>
             <a href="#workflow">工作流</a>
             <a href="guide/">产品手册</a>
+            <a href="guides/claude-code-notifications/">Claude Code 提醒指南</a>
             <a href="changelog/">更新日志</a>
             <a href="#support">反馈与社区</a>
             <a href="#faq">FAQ</a>
@@ -337,6 +376,7 @@
               <a href="https://github.com/qianzhu18/workisland" target="_blank" rel="noreferrer">GitHub</a>
               <a href="https://github.com/qianzhu18/workisland/releases" target="_blank" rel="noreferrer">Releases</a>
               <a href="guide/">产品手册</a>
+              <a href="guides/claude-code-notifications/">Claude Code 提醒指南</a>
               <a href="changelog/">更新日志</a>
               <a href="mailto:its.qianzhu@gmail.com?subject=WorkIsland%20feedback">邮件反馈</a>
               <a href="#feedback">提交反馈</a>
@@ -351,10 +391,11 @@
       </div>
       <div class="vi-footer-copy">
         <span>© 2026 WorkIsland · Built for the notch.</span>
-        <span class="vi-footer-right"><span class="vi-footer-sig">为 Agent 而生</span> · <span class="vi-footer-legal">Apple Silicon · macOS</span></span>
+        <span class="vi-footer-right"><span class="vi-footer-sig">为 AI 原生工作而生</span> · <span class="vi-footer-legal">Apple Silicon · macOS</span></span>
       </div>
     </footer>
 
+    <script src="downloads.js" defer></script>
     <script src="script.js" defer></script>
   </body>
 </html>

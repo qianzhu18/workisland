@@ -9,10 +9,10 @@
 
 <h1 align="center">WorkIsland</h1>
 
-<p align="center"><strong>Keep your AI coding agents moving, without losing your own flow.</strong></p>
+<p align="center"><strong>When work needs you, you should not have to go looking for it.</strong></p>
 
 <p align="center">
-  A local-first macOS task monitor for Claude Code, Codex, Cursor, and other coding agents. See what needs attention, approve or answer it, then return to the exact source session in one step.
+  A local-first native Mac work interface for AI workflows. Starting with Claude Code, Codex, Cursor, and other coding agents, it turns approvals, questions, completed work, and return-to-source into contextual, actionable interactions.
 </p>
 
 <p align="center">
@@ -32,9 +32,11 @@
 
 ## Why WorkIsland
 
-When several AI coding tasks run in the background, the expensive part is not starting them. It is noticing the one that needs a decision, then finding the right terminal or IDE session again.
+WorkIsland is **a native Mac work interface for the AI era**. It does not replace your agent, terminal, or other work apps; it keeps work where it happens and makes the state, context, and next action available when you need to step in.
 
-WorkIsland keeps that loop in one local macOS surface. It watches task state, raises only the work that needs you, and brings you back to the originating conversation when you are ready to continue.
+The public release starts with AI coding agents. When several tasks run in the background, the expensive part is not starting them—it is noticing the one that needs a decision, then finding the right terminal or IDE session again. WorkIsland closes that loop in one local macOS interface.
+
+Email, calendar, and general-notification integrations are possible future signal sources, not shipped or promised features in the current public release.
 
 ## Install
 

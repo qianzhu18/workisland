@@ -459,6 +459,9 @@ body::before {
 .vi-headline { animation-delay: .08s; }.vi-sub { animation-delay: .17s; }.vi-cta { animation-delay: .26s; }.vi-platform { animation-delay: .34s; }
 @keyframes vi-enter-up { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
 .vi-scroll-cue { display: inline-flex; align-items: center; gap: 8px; margin-top: 27px; color: #767678; font-family: var(--font-mono); font-size: 10px; transition: color .2s; }
+.vi-hero-shot { margin: 30px auto 0; max-width: 860px; }
+.vi-hero-shot img { display: block; width: 100%; height: auto; border-radius: var(--radius-lg); border: var(--rule); box-shadow: 0 24px 80px rgba(0, 0, 0, .55); }
+.vi-hero-shot figcaption { margin-top: 10px; font-family: var(--font-mono); font-size: 10px; color: rgba(255, 255, 255, .4); }
 .vi-scroll-cue:hover { color: #d8d8d8; }.vi-scroll-cue span { display: block; width: 20px; height: 29px; border: 1px solid rgba(255,255,255,.22); border-radius: 12px; position: relative; }.vi-scroll-cue span::after { position: absolute; top: 5px; left: 50%; width: 3px; height: 6px; border-radius: 3px; content: ""; background: var(--v6-accent); transform: translateX(-50%); animation: vi-scroll-pip 1.8s ease infinite; }
 @keyframes vi-scroll-pip { 0%, 100% { opacity: .3; transform: translate(-50%, 0); } 50% { opacity: 1; transform: translate(-50%, 10px); } }
 

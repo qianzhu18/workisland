@@ -31,14 +31,24 @@ jobs:
           test -s website/index.html
           test -s website/styles.css
           test -s website/script.js
+          test -s website/downloads.js
+          test -s website/download-config.json
+          test -s website/12f1aa6eee29e53cee78c0417bcc142e.txt
           test -s website/icon.png
           test -s website/robots.txt
           test -s website/sitemap.xml
+          test -s website/en/index.html
+          test -s website/en/en.css
           test -s website/guide/index.html
           test -s website/guide/guide.css
+          test -s website/guides/article.css
+          test -s website/guides/claude-code-notifications/index.html
+          test -s website/en/claude-code-notifications/index.html
           test -s website/changelog/index.html
           test -s website/changelog/changelog.css
           node --check website/script.js
+          node --check website/downloads.js
+          node --check scripts/submit-indexnow.mjs
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
       - name: Upload website
