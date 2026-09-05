@@ -117,6 +117,11 @@ const DEFAULT_SETTINGS = {
     url: "",
     events: { approval: true, question: true, completed: true, failed: true }
   },
+  // B-9 Developer API (2026-09): read-only status JSON on loopback, off by
+  // default. Optional shared token enables bearer auth. Response carries only
+  // session status metadata. See src/main/developer-api.cjs and
+  // docs/DEVELOPER_API.md.
+  developerApi: { enabled: false, port: 9938, token: "" },
   // Bumps when the display-mode default must migrate existing installations.
   islandDisplayModeVersion: 1,
   autoCollapseOnMouseLeave: true,

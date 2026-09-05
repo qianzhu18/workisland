@@ -8,6 +8,7 @@ const promises = require("node:fs/promises");
 const { IPC } = require("../shared/ipc.cjs");
 const { listPluginAgentMeta } = require("./agent-registry.cjs");
 const { previewSound, getUserSoundsDir } = require("./sound-service.cjs");
+const { syncDeveloperApi } = require("./developer-api.cjs");
 const {
   DEFAULT_SPRITE,
   BUILT_IN_CODEX_PETS,
@@ -208,6 +209,8 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
         resolveSpriteSelection(partial.petSprite);
       }
       coordinator.updateSettings(partial, "settings");
+      // B-9：注册时与设置变化后各同步一次，覆盖「上次开着重启」与开关切换。
+      syncDeveloperApi(coordinator);
     });
     electron.ipcMain.handle(IPC.SETTINGS_SELECT_DIRECTORY, (event) => {
       return selectDirectory(electron.BrowserWindow.fromWebContents(event.sender) ?? void 0);
