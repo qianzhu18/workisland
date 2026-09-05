@@ -25,6 +25,7 @@ const { ZCodeHookManager, WorkBuddyHookManager, CodeBuddyHookManager } = require
 const { initSoundDirs, playSoundEvent } = require("./sound-service.cjs");
 const { createAgentSoundDeduplicator, resolveCodexTranscriptSoundEvent } = require("./agent-sound-policy.cjs");
 const { pushBarkNotification } = require("./bark-push.cjs");
+const { shouldSuppressLocalAlert } = require("./quiet-hours.cjs");
 const { reportTokenUsage, getHermesCumulativeTokens, diffHermesCumulativeTokens, collectAndReportTokens } = require("./adapters-extended.cjs");
 const { UsageDiscoveryService } = require("./usage-discovery.cjs");
 const { getAgentDescriptor, validateAgentWiring } = require("../shared/agent-catalog.cjs");
@@ -556,13 +557,22 @@ function createAppCoordinatorClass({
       this.startFullscreenCheck();
       this.autoReInstallHooks();
       playSoundEvent("appLaunch", this.settings);
+      // B-2：锁屏状态跟踪（app ready 后 powerMonitor 才可用）。
+      if (!this._lockStateHooksInstalled) {
+        electron.powerMonitor.on("lock-screen", () => { this.isLocked = true; });
+        electron.powerMonitor.on("unlock-screen", () => { this.isLocked = false; });
+        this._lockStateHooksInstalled = true;
+      }
     }
     playAgentSound(eventId, sessionId, timestamp) {
       if (!this.agentSoundDedup.shouldPlay(eventId, sessionId, timestamp)) return false;
       // B-8 Bark 推送与本地声音共享同一去重闸门；推送失败不影响声音播放。
       const session = sessionId ? this.getSessions().find((item) => item.id === sessionId) : null;
       const agentName = session?.tool || session?.agent || "";
+      // B-2 安静时段/锁屏只抑制本地提示音；Bark 推送照发（用户不在电脑前时的通知出口）。
+      const suppressLocalAlert = shouldSuppressLocalAlert(this.settings, { locked: this.isLocked === true });
       void pushBarkNotification(this.settings, eventId, agentName);
+      if (suppressLocalAlert) return false;
       return playSoundEvent(eventId, this.settings);
     }
     /**

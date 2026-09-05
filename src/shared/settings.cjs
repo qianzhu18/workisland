@@ -122,6 +122,11 @@ const DEFAULT_SETTINGS = {
   // session status metadata. See src/main/developer-api.cjs and
   // docs/DEVELOPER_API.md.
   developerApi: { enabled: false, port: 9938, token: "" },
+  // B-2 Quiet Hours (2026-09): suppress local alert sounds during the quiet
+  // window (supports overnight ranges) and while macOS is locked. Bark push
+  // is intentionally NOT suppressed — it is the notification path while the
+  // user is away from the machine. See src/main/quiet-hours.cjs.
+  quietHours: { enabled: false, start: "22:00", end: "08:00", suppressOnLockScreen: true },
   // Bumps when the display-mode default must migrate existing installations.
   islandDisplayModeVersion: 1,
   autoCollapseOnMouseLeave: true,
