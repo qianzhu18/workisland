@@ -2,9 +2,9 @@ const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)
 
 const scenes = {
   overview: {
-    caption: "真实使用界面：一边控着音乐，一边盯着 Agent 会话与额度。",
-    image: "assets/demo/overview.png?v=20260906",
-    alt: "真实 WorkIsland 界面：音乐播放控制与 ZCode 会话同屏显示",
+    caption: "真实运行界面：多个任务同时推进，状态一眼扫完。",
+    image: "assets/demo/overview.png",
+    alt: "真实 WorkIsland 总览界面：三个 Claude Code 任务在后台运行",
     duration: 4300
   },
   approval: {
@@ -84,7 +84,7 @@ const tourScenes = {
     index: "01 / 03",
     title: "连接你已经在用的 Agent",
     description: "打开 WorkIsland 后，它通过本地连接器读取真实的任务事件。没有连接成功，不会伪造一个“已完成”的状态给你看。",
-    image: "assets/demo/overview.png?v=20260906",
+    image: "assets/demo/overview.png",
     alt: "真实 WorkIsland 总览界面",
     windowTitle: "连接到 Codex",
     windowCopy: "识别本机的真实任务状态",
@@ -97,7 +97,7 @@ const tourScenes = {
     index: "02 / 03",
     title: "离开终端，任务仍然可见",
     description: "当多个任务并行推进，Island 只显示最相关的状态。你可以阅读、开会或继续下一件事，而不是轮流检查每一个终端。",
-    image: "assets/demo/overview.png?v=20260906",
+    image: "assets/demo/overview.png",
     alt: "真实 WorkIsland 多任务总览界面",
     windowTitle: "3 个任务正在运行",
     windowCopy: "release-check · launch-flow · settings-ui",
