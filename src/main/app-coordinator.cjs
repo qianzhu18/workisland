@@ -26,6 +26,7 @@ const { initSoundDirs, playSoundEvent } = require("./sound-service.cjs");
 const { createAgentSoundDeduplicator, resolveCodexTranscriptSoundEvent } = require("./agent-sound-policy.cjs");
 const { pushBarkNotification } = require("./bark-push.cjs");
 const { reportTokenUsage, getHermesCumulativeTokens, diffHermesCumulativeTokens, collectAndReportTokens } = require("./adapters-extended.cjs");
+const { UsageDiscoveryService } = require("./usage-discovery.cjs");
 const { getAgentDescriptor, validateAgentWiring } = require("../shared/agent-catalog.cjs");
 const { diagnoseReport } = require("../shared/agent-doctor.cjs");
 const { createPresentationRequest } = require("./presentation-policy.cjs");
@@ -179,6 +180,11 @@ function createAppCoordinatorClass({
      * 在 start() 里实例化并接入 bridge.emitEvent 管线。
      */
     codexTranscriptWatcher = null;
+    /**
+     * 用量发现通道（issue #90）—— 不依赖 hook，主动发现 zcode/opencode/claude
+     * 落盘的用量数据并入账 StatsService，补齐其余客户端的 token 覆盖。
+     */
+    usageDiscovery = null;
     /**
      * Agent 事件去重器。hook 通道与 transcript 通道会同时报告同一 session 的同一事件，
      * 用 5 秒窗口 dedup 让两条通道都跑但只放行第一个。
@@ -529,6 +535,7 @@ function createAppCoordinatorClass({
       });
       this.terminalService.setEnabled(this.settings.terminalEnabled !== false);
       this.startCodexTranscriptWatcher();
+      this.startUsageDiscovery();
       // Agent Doctor（B-1）：启动时后台自动检测并修复可修复的 hook 状态，
       // fire-and-forget，失败不影响启动路径。
       void this.runStartupDoctor();
@@ -596,6 +603,19 @@ function createAppCoordinatorClass({
         // watcher 启动失败不应阻断 app 启动；hook 通道仍可工作
         log.warn("[AppCoordinator] codex transcript watcher failed to start:", err.message);
         this.codexTranscriptWatcher = null;
+      }
+    }
+    /**
+     * 用量发现通道启动：延迟首扫（避开启动高峰），之后按固定周期扫描。
+     * 基线差分保证重复扫描/重启回填不重复计数，失败不阻断启动路径。
+     */
+    startUsageDiscovery() {
+      try {
+        this.usageDiscovery = new UsageDiscoveryService({ statsService: this.statsService });
+        this.usageDiscovery.start();
+      } catch (err) {
+        log.warn("[AppCoordinator] usage discovery failed to start:", err.message);
+        this.usageDiscovery = null;
       }
     }
     /**
@@ -850,6 +870,10 @@ function createAppCoordinatorClass({
       if (this.codexTranscriptWatcher) {
         this.codexTranscriptWatcher.stop();
         this.codexTranscriptWatcher = null;
+      }
+      if (this.usageDiscovery) {
+        this.usageDiscovery.stop();
+        this.usageDiscovery = null;
       }
       this.statsService.dispose();
       for (const cancel of this.pidWatchers.values()) cancel();

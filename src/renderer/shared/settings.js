@@ -34,7 +34,8 @@ const AGENT_TOOL_LABELS = {
   "copilot-cli": "GitHub Copilot CLI",
   aiden: "Aiden",
   sara: "Sara CLI",
-  "traex": "TRAE CLI 2.0"
+  "traex": "TRAE CLI 2.0",
+  zcode: "ZCode"
 };
 function isPluginAgentTool(tool) {
   return typeof tool === "string" && tool.startsWith("plugin:");

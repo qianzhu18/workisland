@@ -165,6 +165,8 @@ class UsageService {
       const idx = dayIndex.get(this.localDateKey(r.completedAt));
       if (idx === undefined) continue;
       byDay[idx].sessionCount += 1;
+      // 按 Agent 的会话数（此前恒为 0，看板「会话」列一直是空）
+      bucketFor(byAgent, r.tool).sessionCount += 1;
     }
 
     const totalBucketTokens = (b) => b.inputTokens + b.outputTokens + b.cacheReadTokens + b.cacheCreationTokens;
