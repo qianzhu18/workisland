@@ -9,10 +9,10 @@
 
 <h1 align="center">WorkIsland</h1>
 
-<p align="center"><strong>让 AI 编程 Agent 持续运转，同时不打断你自己的工作流。</strong></p>
+<p align="center"><strong>工作需要你时，不必四处寻找。</strong></p>
 
 <p align="center">
-  一款本地优先的 macOS 任务监控器，面向 Claude Code、Codex、Cursor 等编程 Agent。一眼看清哪些任务需要你处理，就地审批或回复，再一步回到对应的源会话。
+  一款面向 AI 原生工作流的本地优先 macOS 工作界面。从 Claude Code、Codex、Cursor 等编程 Agent 开始，把审批、提问、完成与回源变成有上下文、可处理的原生交互。
 </p>
 
 <p align="center">
@@ -33,9 +33,11 @@
 
 ## 为什么需要 WorkIsland
 
-当多个 AI 编程任务在后台运行时，真正耗成本的不是启动它们，而是及时发现那个需要你拍板的任务，再找回对应的终端或 IDE 会话。
+WorkIsland 的产品定义是：**AI 原生时代的 macOS 工作界面**。它不替代 Agent、终端或其他工作应用；它让工作发生在原来的地方，并在需要你参与时提供状态、上下文和下一步。
 
-WorkIsland 把这一闭环收拢到同一个本地 macOS 界面里：它盯着任务状态，只在需要你介入时才提醒，并在你准备继续时一键带回最初的对话。
+当前公开版本从 AI 编程 Agent 开始：当多个任务在后台运行时，真正耗成本的不是启动它们，而是及时发现需要你拍板的那一个，再找回对应的终端或 IDE 会话。WorkIsland 把这一闭环收拢到同一个本地 macOS 界面里。
+
+邮件、日历和通用通知是可探索的未来信号源，不是当前公开版本已交付或承诺的功能。
 
 ## 安装
 

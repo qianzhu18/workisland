@@ -1,13 +1,10 @@
-const REPOSITORY = "qianzhu18/workisland";
-const RELEASE_PAGE = `https://github.com/${REPOSITORY}/releases/latest`;
-const RELEASE_API = `https://api.github.com/repos/${REPOSITORY}/releases/latest`;
 const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 const scenes = {
   overview: {
-    caption: "真实运行界面：多个任务同时推进，状态一眼扫完。",
-    image: "assets/demo/overview.png",
-    alt: "真实 WorkIsland 总览界面：三个 Claude Code 任务在后台运行",
+    caption: "真实使用界面：一边控着音乐，一边盯着 Agent 会话与额度。",
+    image: "assets/demo/overview.png?v=20260906",
+    alt: "真实 WorkIsland 界面：音乐播放控制与 ZCode 会话同屏显示",
     duration: 4300
   },
   approval: {
@@ -87,7 +84,7 @@ const tourScenes = {
     index: "01 / 03",
     title: "连接你已经在用的 Agent",
     description: "打开 WorkIsland 后，它通过本地连接器读取真实的任务事件。没有连接成功，不会伪造一个“已完成”的状态给你看。",
-    image: "assets/demo/overview.png",
+    image: "assets/demo/overview.png?v=20260906",
     alt: "真实 WorkIsland 总览界面",
     windowTitle: "连接到 Codex",
     windowCopy: "识别本机的真实任务状态",
@@ -100,7 +97,7 @@ const tourScenes = {
     index: "02 / 03",
     title: "离开终端，任务仍然可见",
     description: "当多个任务并行推进，Island 只显示最相关的状态。你可以阅读、开会或继续下一件事，而不是轮流检查每一个终端。",
-    image: "assets/demo/overview.png",
+    image: "assets/demo/overview.png?v=20260906",
     alt: "真实 WorkIsland 多任务总览界面",
     windowTitle: "3 个任务正在运行",
     windowCopy: "release-check · launch-flow · settings-ui",
@@ -186,30 +183,6 @@ const updateNav = () => nav?.classList.toggle("scrolled", window.scrollY > 20);
 window.addEventListener("scroll", updateNav, { passive: true });
 updateNav();
 
-function updateReleaseLinks(release) {
-  const tag = typeof release?.tag_name === "string" ? release.tag_name : "";
-  const asset = release?.assets?.find((candidate) => /\.dmg$/i.test(candidate?.name || "") && /arm64/i.test(candidate?.name || ""));
-  const downloadUrl = asset?.browser_download_url || release?.html_url || RELEASE_PAGE;
-  document.querySelectorAll("[data-download-link]").forEach((link) => {
-    link.href = downloadUrl;
-    if (asset?.browser_download_url) link.setAttribute("download", "");
-  });
-  document.querySelectorAll("[data-version]").forEach((node) => {
-    node.textContent = tag || "最新稳定版";
-  });
-}
-
-async function loadLatestRelease() {
-  updateReleaseLinks({ html_url: RELEASE_PAGE });
-  try {
-    const response = await fetch(RELEASE_API, { headers: { Accept: "application/vnd.github+json" } });
-    if (!response.ok) throw new Error(`GitHub Releases returned ${response.status}`);
-    updateReleaseLinks(await response.json());
-  } catch {
-    document.querySelectorAll("[data-version]").forEach((node) => { node.textContent = "最新稳定版"; });
-  }
-}
-
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) window.clearTimeout(sceneTimer);
   else activateScene(activeScene);
@@ -217,7 +190,6 @@ document.addEventListener("visibilitychange", () => {
 
 activateScene("overview");
 setTourScene("connect");
-loadLatestRelease();
 
 // Umami 事件埋点：下载转化与 GitHub 外链点击。统计脚本未加载时静默跳过。
 function trackEvent(name, data) {

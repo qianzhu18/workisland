@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#151518">
+    <meta name="description" content="Use WorkIsland on your Mac to notice Claude Code tasks that need attention—questions, approvals, completions, and failures—then return to the originating session.">
+    <link rel="canonical" href="https://workisland.yanglaishe.cn/en/claude-code-notifications/">
+    <link rel="alternate" hreflang="zh-CN" href="https://workisland.yanglaishe.cn/guides/claude-code-notifications/">
+    <link rel="alternate" hreflang="en" href="https://workisland.yanglaishe.cn/en/claude-code-notifications/">
+    <link rel="alternate" hreflang="x-default" href="https://workisland.yanglaishe.cn/guides/claude-code-notifications/">
+    <meta property="og:title" content="Claude Code notifications on macOS: return when a task needs you | WorkIsland">
+    <meta property="og:description" content="Keep Claude Code tasks moving in the background and return to the exact session when attention is needed.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://workisland.yanglaishe.cn/en/claude-code-notifications/">
+    <meta property="og:site_name" content="WorkIsland">
+    <meta property="og:locale" content="en_US">
+    <meta property="og:image" content="https://workisland.yanglaishe.cn/assets/demo/overview.png">
+    <meta property="og:image:alt" content="WorkIsland showing coding-agent task states on macOS">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Claude Code notifications on macOS | WorkIsland">
+    <meta name="twitter:description" content="Notice the Claude Code task that needs you, then return to its originating session.">
+    <meta name="twitter:image" content="https://workisland.yanglaishe.cn/assets/demo/overview.png">
+    <title>Claude Code notifications on macOS: return when a task needs you | WorkIsland</title>
+    <link rel="icon" href="../../icon.png" type="image/png">
+    <link rel="stylesheet" href="../../tokens.css">
+    <link rel="stylesheet" href="../../guides/article.css?v=20260905">
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {"@type":"Question","name":"Does WorkIsland replace Claude Code or my terminal?","acceptedAnswer":{"@type":"Answer","text":"No. WorkIsland is a local macOS task-state companion. You keep working in Claude Code and your usual terminal; it surfaces relevant state and helps you return to the originating session."}},
+          {"@type":"Question","name":"What should I check if no task state appears?","acceptedAnswer":{"@type":"Answer","text":"First confirm that the local Claude Code connection is complete in WorkIsland's Agent settings, then validate it with a real task. WorkIsland does not invent a completed state when the connection is unavailable."}},
+          {"@type":"Question","name":"Does WorkIsland upload my code or session content?","acceptedAnswer":{"@type":"Answer","text":"No. WorkIsland is local-first: session content, code, paths, project names, host names, and user names stay on your Mac."}}
+        ]
+      }
+    </script>
+    <script async defer src="https://umami.yanglaishe.cn/script.js" data-website-id="77be7067-a168-465e-adb5-5e546e879e54"></script>
+    <script type="text/javascript">(function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);})(window,document,"clarity","script","yd6hexza0b");</script>
+  </head>
+  <body>
+    <a class="article-skip" href="#main">Skip to main content</a>
+    <header class="article-nav">
+      <a class="article-brand" href="../" aria-label="WorkIsland home"><img src="../../icon.png" alt="" width="28" height="28"><span>WorkIsland</span></a>
+      <nav class="article-nav-links" aria-label="Page navigation"><a href="../../guide/">User guide</a><a href="../">Home</a><a class="article-download" href="https://github.com/qianzhu18/workisland/releases/latest" data-download-link>Download for macOS</a></nav>
+    </header>
+    <main id="main">
+      <header class="article-hero">
+        <p class="article-kicker">CLAUDE CODE · MACOS</p>
+        <h1>Claude Code notifications on macOS: return when a task needs you</h1>
+        <p class="article-lead">When Claude Code is working in the background, the costly interruption is often missing the moment it needs an answer, approval, or a review of the result. WorkIsland surfaces that relevant state, then helps you return to the originating session.</p>
+        <p class="article-meta"><span>For individual developers already using Claude Code on a Mac</span><span>Updated: 2026-09-05</span></p>
+      </header>
+      <article class="article-body">
+        <section class="article-section">
+          <h2>You should not have to poll every terminal</h2>
+          <p>With several tasks in flight, switching back to each terminal just to ask whether it is done interrupts the work you are already doing. The useful signal is knowing which task needs you and which context to return to.</p>
+          <p>WorkIsland is a local macOS companion, not a replacement for Claude Code, your terminal, or your editor. It reads task signals from connected agents and presents clear states for running work, attention needed, completion, or failure. When there is something to do, you can return to the source session.</p>
+          <figure class="article-shot"><img src="../../assets/demo/overview.png" width="1480" height="1144" loading="lazy" alt="WorkIsland showing three Claude Code tasks running in the background"><figcaption>Real WorkIsland interface. Demo task data has been redacted.</figcaption></figure>
+        </section>
+        <section class="article-section">
+          <p class="article-kicker">FIRST RUN</p>
+          <h2>Validate it with one real task</h2>
+          <ol class="article-steps">
+            <li><span class="article-step-number">01</span><div><h3>Install and open WorkIsland</h3><p>Download the macOS installer, move the app to Applications, and open it. The download button prefers a configured mirror and falls back to the official GitHub Release if that mirror is unavailable.</p></div></li>
+            <li><span class="article-step-number">02</span><div><h3>Connect Claude Code in Agent settings</h3><p>Select the Claude Code workflow you already use and complete the local connection using the in-app guidance. When the connection is unavailable, WorkIsland does not fabricate a “completed” state.</p></div></li>
+            <li><span class="article-step-number">03</span><div><h3>Run a real task and watch its state</h3><p>Start a Claude Code task in your normal terminal. As it runs, needs action, or completes, check the Island; when a relevant signal appears, select the task to return to the matching terminal or app context.</p></div></li>
+          </ol>
+        </section>
+        <section class="article-section"><div class="article-callout"><h3>When is this useful?</h3><p>When you already run longer Claude Code tasks, keep multiple sessions open, or do not want terminal polling to become your status system. WorkIsland does not make approval decisions for you or automatically complete work that still requires your judgment.</p></div></section>
+        <section class="article-section">
+          <p class="article-kicker">FAQ</p><h2>Common questions</h2>
+          <div class="article-faq">
+            <details open><summary>Does WorkIsland replace Claude Code or my terminal?</summary><p>No. You keep working in Claude Code and your normal terminal. WorkIsland presents local task state and helps you return to the source session when attention is required.</p></details>
+            <details><summary>What should I check if no task state appears?</summary><p>Confirm the local Claude Code connection in WorkIsland's Agent settings, then verify it with a real task. When no connection exists, the app will not invent task state.</p></details>
+            <details><summary>Does WorkIsland upload my code or session content?</summary><p>No. Session content, code, paths, project names, host names, and user names remain on your Mac. The website analytics disclosure is in the <a href="../../guide/#privacy">privacy section of the user guide</a>.</p></details>
+          </div>
+        </section>
+        <section class="article-section article-cta"><p class="article-kicker">TRY IT WITH ONE REAL TASK</p><h2>Return only when attention is needed.</h2><p>Validate WorkIsland with the Claude Code workflow you already have. If a connection or return-to-source behavior is not what you expect, send your app version and redacted reproduction steps.</p><a class="article-download" href="https://github.com/qianzhu18/workisland/releases/latest" data-download-link>Download WorkIsland for macOS</a></section>
+      </article>
+    </main>
+    <footer class="article-footer"><a href="../">WorkIsland home</a><a href="../../guide/">User guide</a><a href="../../guides/claude-code-notifications/">中文指南</a><a href="https://github.com/qianzhu18/workisland/issues/new/choose" target="_blank" rel="noreferrer">Send feedback ↗</a></footer>
+    <script src="../../downloads.js" defer></script>
+  </body>
+</html>

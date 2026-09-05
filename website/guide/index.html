@@ -26,6 +26,14 @@
     <link rel="stylesheet" href="../tokens.css">
     <link rel="stylesheet" href="guide.css?v=20260817-image-frame">
     <script async defer src="https://umami.yanglaishe.cn/script.js" data-website-id="77be7067-a168-465e-adb5-5e546e879e54"></script>
+    <!-- Microsoft Clarity：页面体验与交互分析；加载失败不会影响官网功能。 -->
+    <script type="text/javascript">
+      (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+      })(window, document, "clarity", "script", "yd6hexza0b");
+    </script>
   </head>
   <body>
     <header class="guide-nav">
@@ -37,8 +45,9 @@
         <a href="#start">开始使用</a>
         <a href="#privacy">隐私</a>
         <a href="#support">反馈</a>
+        <a href="../guides/claude-code-notifications/">Claude Code 提醒</a>
         <a href="../changelog/">更新日志</a>
-        <a class="guide-download" href="https://github.com/qianzhu18/workisland/releases/latest">下载</a>
+        <a class="guide-download" href="https://github.com/qianzhu18/workisland/releases/latest" data-download-link>下载</a>
       </nav>
     </header>
 
@@ -51,7 +60,7 @@
           <a class="guide-primary" href="#start">开始使用 <span aria-hidden="true">↓</span></a>
         </div>
         <figure class="guide-shot">
-          <img src="../assets/demo/overview.png" fetchpriority="high" width="1480" height="1144" alt="WorkIsland 显示多个 Agent 任务状态的真实界面">
+          <img src="../assets/demo/overview.png?v=20260906" fetchpriority="high" width="1480" height="1144" alt="WorkIsland 显示多个 Agent 任务状态的真实界面">
           <figcaption>真实 WorkIsland 界面，演示数据已脱敏。</figcaption>
         </figure>
       </section>
@@ -89,6 +98,7 @@
         <p class="guide-kicker">LOCAL FIRST</p>
         <h2>你的会话留在 Mac 上</h2>
         <p>WorkIsland 不需要云端账户。会话内容、代码、路径、项目名、主机名和用户名不会被上传。</p>
+        <p>官网使用自托管 Umami 与 Microsoft Clarity 了解页面访问和交互；Clarity 由 Microsoft 提供，适用其<a href="https://privacy.microsoft.com/privacystatement" target="_blank" rel="noreferrer">隐私声明</a>。统计服务不可用时，不影响官网或应用使用。</p>
         <div class="guide-privacy-grid">
           <article><h3>匿名统计默认开启</h3><p>数据范围和关闭方式会在设置 → 关于中公开说明；不开启或关闭统计都不影响产品功能。</p></article>
           <article><h3>随时由你关闭</h3><p>可在设置 → 关于中随时关闭。关闭会立即清空尚未上报的数据；旧版本中已明确拒绝的选择会被保留。</p></article>
@@ -110,9 +120,11 @@
 
     <footer class="guide-footer">
       <a href="../">WorkIsland 首页</a>
+      <a href="../guides/claude-code-notifications/">Claude Code 完成提醒指南</a>
       <a href="../changelog/">更新日志</a>
       <a href="https://github.com/qianzhu18/workisland" target="_blank" rel="noreferrer">GitHub</a>
       <span>本地优先的 Agent 状态中枢。</span>
     </footer>
+    <script src="../downloads.js" defer></script>
   </body>
 </html>

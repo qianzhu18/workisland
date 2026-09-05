@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#151518">
+    <meta name="description" content="在 Mac 上使用 Claude Code 时，WorkIsland 让后台任务的运行、提问、审批和完成状态在需要时浮现，并帮助你回到对应会话。">
+    <link rel="canonical" href="https://workisland.yanglaishe.cn/guides/claude-code-notifications/">
+    <link rel="alternate" hreflang="zh-CN" href="https://workisland.yanglaishe.cn/guides/claude-code-notifications/">
+    <link rel="alternate" hreflang="en" href="https://workisland.yanglaishe.cn/en/claude-code-notifications/">
+    <link rel="alternate" hreflang="x-default" href="https://workisland.yanglaishe.cn/guides/claude-code-notifications/">
+    <meta property="og:title" content="Claude Code 完成提醒：在 Mac 上看见需要处理的任务 | WorkIsland">
+    <meta property="og:description" content="后台运行 Claude Code 时，在需要回答、审批或查看结果时回到对应会话。">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://workisland.yanglaishe.cn/guides/claude-code-notifications/">
+    <meta property="og:site_name" content="WorkIsland">
+    <meta property="og:locale" content="zh_CN">
+    <meta property="og:image" content="https://workisland.yanglaishe.cn/assets/demo/overview.png">
+    <meta property="og:image:alt" content="WorkIsland 在 macOS 上显示多个 AI 编程任务的状态">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Claude Code 完成提醒：在 Mac 上看见需要处理的任务">
+    <meta name="twitter:description" content="不用反复轮询终端；在需要处理时回到对应的 Claude Code 会话。">
+    <meta name="twitter:image" content="https://workisland.yanglaishe.cn/assets/demo/overview.png">
+    <title>Claude Code 完成提醒：在 Mac 上看见需要处理的任务 | WorkIsland</title>
+    <link rel="icon" href="../../icon.png" type="image/png">
+    <link rel="stylesheet" href="../../tokens.css">
+    <link rel="stylesheet" href="../article.css?v=20260905">
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {"@type":"Question","name":"WorkIsland 会替代 Claude Code 或终端吗？","acceptedAnswer":{"@type":"Answer","text":"不会。WorkIsland 是本地运行的 macOS 任务状态伴侣：你仍在原来的 Claude Code 与终端中工作，它只在任务需要注意时呈现状态并帮助回到来源会话。"}},
+          {"@type":"Question","name":"没有看到任务状态时该检查什么？","acceptedAnswer":{"@type":"Answer","text":"先在 WorkIsland 的 Agent 设置中检查 Claude Code 的本地连接是否完成，再使用一个真实任务验证。连接没有完成时，WorkIsland 不会伪造任务状态。"}},
+          {"@type":"Question","name":"WorkIsland 会上传代码或会话内容吗？","acceptedAnswer":{"@type":"Answer","text":"不会。产品采用本地优先设计；会话内容、代码、路径、项目名、主机名和用户名留在你的 Mac 上。"}}
+        ]
+      }
+    </script>
+    <script async defer src="https://umami.yanglaishe.cn/script.js" data-website-id="77be7067-a168-465e-adb5-5e546e879e54"></script>
+    <script type="text/javascript">(function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);})(window,document,"clarity","script","yd6hexza0b");</script>
+  </head>
+  <body>
+    <a class="article-skip" href="#main">跳到正文</a>
+    <header class="article-nav">
+      <a class="article-brand" href="../../" aria-label="返回 WorkIsland 首页"><img src="../../icon.png" alt="" width="28" height="28"><span>WorkIsland</span></a>
+      <nav class="article-nav-links" aria-label="页面导航"><a href="../../guide/">产品手册</a><a href="../../">首页</a><a class="article-download" href="https://github.com/qianzhu18/workisland/releases/latest" data-download-link>下载 macOS 版</a></nav>
+    </header>
+    <main id="main">
+      <header class="article-hero">
+        <p class="article-kicker">CLAUDE CODE · MACOS</p>
+        <h1>Claude Code 完成提醒：在 Mac 上看见需要处理的任务</h1>
+        <p class="article-lead">当 Claude Code 在后台运行时，真正打断工作流的通常不是任务本身，而是错过需要回答、审批或查看结果的时刻。WorkIsland 只把这些相关状态带到眼前，再让你回到对应会话继续处理。</p>
+        <p class="article-meta"><span>适用：已在 Mac 上使用 Claude Code 的个人开发者</span><span>更新：2026-09-05</span></p>
+      </header>
+      <article class="article-body">
+        <section class="article-section">
+          <h2>你不需要一直盯着终端</h2>
+          <p>并行跑几个任务时，反复切回每个终端去确认有没有完成，会打断正在进行的阅读、写作或会议。更有价值的是：任务状态变化后，能知道哪一个任务需要你，以及返回哪个上下文。</p>
+          <p>WorkIsland 是一个本地运行的 macOS 伴侣。它不替代 Claude Code、终端或编辑器；它读取已连接 Agent 的任务信号，在运行、等待处理、完成或失败时给出清晰状态。需要时，再从 Island 回到来源会话。</p>
+          <figure class="article-shot"><img src="../../assets/demo/overview.png" width="1480" height="1144" loading="lazy" alt="WorkIsland 显示三个在后台运行的 Claude Code 任务"><figcaption>真实 WorkIsland 界面；演示任务数据已脱敏。</figcaption></figure>
+        </section>
+        <section class="article-section">
+          <p class="article-kicker">FIRST RUN</p>
+          <h2>用一条真实任务完成验证</h2>
+          <ol class="article-steps">
+            <li><span class="article-step-number">01</span><div><h3>安装并打开 WorkIsland</h3><p>下载 macOS 安装包后，将应用放入“应用程序”并打开。下载入口会优先使用已配置的镜像；镜像不可用时仍会回退到官方 GitHub Release。</p></div></li>
+            <li><span class="article-step-number">02</span><div><h3>在 Agent 设置中连接 Claude Code</h3><p>选择你已经在使用的 Claude Code，并按应用内提示完成本地连接。连接未完成时，WorkIsland 不会显示伪造的“已完成”。</p></div></li>
+            <li><span class="article-step-number">03</span><div><h3>运行一个真实任务并观察状态</h3><p>在原有终端中启动 Claude Code 任务。任务运行、等待你的操作或完成时，观察 Island；出现相关信号后，点击任务回到原来的终端或应用上下文。</p></div></li>
+          </ol>
+        </section>
+        <section class="article-section">
+          <div class="article-callout"><h3>适合什么场景？</h3><p>你已经用 Claude Code 做长时间任务、会同时开多个会话，或不想通过轮询终端来确认每个任务的状态。它不会替你决定审批内容，也不会让 Agent 自动完成原本需要你处理的事项。</p></div>
+        </section>
+        <section class="article-section">
+          <p class="article-kicker">FAQ</p>
+          <h2>常见问题</h2>
+          <div class="article-faq">
+            <details open><summary>WorkIsland 会替代 Claude Code 或终端吗？</summary><p>不会。你仍在原来的 Claude Code 与终端中工作；WorkIsland 只呈现本地任务状态，并在需要时帮助回到来源会话。</p></details>
+            <details><summary>没有看到任务状态时该检查什么？</summary><p>先在 WorkIsland 的 Agent 设置中确认 Claude Code 的本地连接已完成，再运行一条真实任务验证。连接没有完成时，应用不会伪造状态。</p></details>
+            <details><summary>WorkIsland 会上传代码或会话内容吗？</summary><p>不会。会话内容、代码、路径、项目名、主机名和用户名会留在你的 Mac 上。官网的访问与交互分析说明见<a href="../../guide/#privacy">产品手册的隐私章节</a>。</p></details>
+          </div>
+        </section>
+        <section class="article-section article-cta">
+          <p class="article-kicker">TRY IT WITH ONE REAL TASK</p>
+          <h2>只在需要时回来处理。</h2>
+          <p>用你已有的 Claude Code 工作流完成第一次验证；如果连接或回源表现不符合预期，请带上版本和脱敏复现步骤反馈给我们。</p>
+          <a class="article-download" href="https://github.com/qianzhu18/workisland/releases/latest" data-download-link>下载 WorkIsland for macOS</a>
+        </section>
+      </article>
+    </main>
+    <footer class="article-footer"><a href="../../">WorkIsland 首页</a><a href="../../guide/">产品手册</a><a href="../../en/claude-code-notifications/">English guide</a><a href="https://github.com/qianzhu18/workisland/issues/new/choose" target="_blank" rel="noreferrer">提交反馈 ↗</a></footer>
+    <script src="../../downloads.js" defer></script>
+  </body>
+</html>
