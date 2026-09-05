@@ -27,10 +27,10 @@ function isWithinQuietHours(quietHours, now = new Date()) {
   return start < end ? current >= start && current < end : current >= start || current < end;
 }
 
-function shouldSuppressLocalAlert(settings, { locked = false } = {}) {
+function shouldSuppressLocalAlert(settings, { locked = false, now = new Date() } = {}) {
   const quietHours = settings?.quietHours;
   if (!quietHours) return false;
-  if (isWithinQuietHours(quietHours)) return true;
+  if (isWithinQuietHours(quietHours, now)) return true;
   if (quietHours.suppressOnLockScreen && locked) return true;
   return false;
 }

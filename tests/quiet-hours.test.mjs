@@ -26,10 +26,10 @@ test("same-day quiet window and edge cases", () => {
 
 test("shouldSuppressLocalAlert respects quiet window and lock screen independently", () => {
   const windowOn = { quietHours: { enabled: true, start: "22:00", end: "08:00", suppressOnLockScreen: false } };
-  // 直接用边界时刻断言：23:30 在窗口内、12:00 在窗口外（与时间无关）。
-  assert.equal(shouldSuppressLocalAlert(windowOn, { locked: false }), true);
+  // 注入固定时刻：23:30 在窗口内、13:00 在窗口外，不依赖真实时钟。
+  assert.equal(shouldSuppressLocalAlert(windowOn, { locked: false, now: at(23, 30) }), true);
   const outside = { quietHours: { enabled: true, start: "09:00", end: "12:00", suppressOnLockScreen: false } };
-  assert.equal(shouldSuppressLocalAlert(outside, { locked: false }), false);
+  assert.equal(shouldSuppressLocalAlert(outside, { locked: false, now: at(13, 0) }), false);
 
   const lockOnly = { quietHours: { enabled: false, start: "22:00", end: "08:00", suppressOnLockScreen: true } };
   assert.equal(shouldSuppressLocalAlert(lockOnly, { locked: true }), true);
