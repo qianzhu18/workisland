@@ -1107,3 +1107,34 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 7px;
 }
+
+.plan-confirmation-plan.is-collapsed {
+  max-height: 180px;
+  overflow: hidden;
+  position: relative;
+}
+
+.plan-confirmation-plan.is-collapsed::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 48px;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0), rgba(10, 10, 12, 0.85));
+  pointer-events: none;
+}
+
+.plan-confirmation-expand {
+  margin-top: 6px;
+  padding: 4px 12px;
+  font-size: 11px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.plan-confirmation-expand:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+}
