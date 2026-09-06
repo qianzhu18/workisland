@@ -532,7 +532,7 @@ function SessionRow({
         height: 32
       }
     ),
-    /* @__PURE__ */ React.createElement("div", { className: "session-body" }, /* @__PURE__ */ React.createElement("div", { className: "session-headline" }, /* @__PURE__ */ React.createElement("div", { className: "session-headline-left" }, /* @__PURE__ */ React.createElement(AgentToolBadge, { tool: session.tool }), /* @__PURE__ */ React.createElement("span", { className: "session-title" }, session.title)), /* @__PURE__ */ React.createElement("div", { className: "session-meta" }, terminalApp && /* @__PURE__ */ React.createElement("span", { className: "session-terminal" }, terminalApp.toLowerCase() === "claude" ? "APP" : cleanAppName(terminalApp)), /* @__PURE__ */ React.createElement("span", { className: "session-elapsed" }, elapsed), canContinueSession && /* @__PURE__ */ React.createElement(
+    /* @__PURE__ */ React.createElement("div", { className: "session-body" }, /* @__PURE__ */ React.createElement("div", { className: "session-headline" }, /* @__PURE__ */ React.createElement("div", { className: "session-headline-left" }, /* @__PURE__ */ React.createElement(AgentToolBadge, { tool: session.tool }), session.remoteHostName && /* @__PURE__ */ React.createElement("span", { className: "session-remote-host", title: "远程主机" }, session.remoteHostName), /* @__PURE__ */ React.createElement("span", { className: "session-title" }, session.title)), /* @__PURE__ */ React.createElement("div", { className: "session-meta" }, terminalApp && /* @__PURE__ */ React.createElement("span", { className: "session-terminal" }, terminalApp.toLowerCase() === "claude" ? "APP" : cleanAppName(terminalApp)), /* @__PURE__ */ React.createElement("span", { className: "session-elapsed" }, elapsed), canContinueSession && /* @__PURE__ */ React.createElement(
       "button",
       {
         type: "button",
@@ -1428,6 +1428,9 @@ function ContinuePromptInput({
 }
 function renderActionableCard(props) {
   const { session, actionableId, isFollowUpOpen, onCollapse, onFollowUpClick } = props;
+  // PRD-016 远程会话（observe-only）：审批/追问/跳转都作用不到远程机器，
+  // 不渲染可操作卡，仅保留常规状态卡与等待角标。
+  if (session.isRemote) return null;
   if (session.phase === "waitingForApproval")
     return /* @__PURE__ */ React.createElement(ApprovalCard, { session });
   if (session.phase === "waitingForAnswer") {

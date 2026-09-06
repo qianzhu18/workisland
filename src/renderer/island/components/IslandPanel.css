@@ -266,6 +266,21 @@
   flex-shrink: 0;
 }
 
+/* PRD-016 远程会话：主机名标注（按 host 分组识别来源机器）。 */
+.session-remote-host {
+  font-size: 11px;
+  line-height: 1.4em;
+  padding: 0 5px;
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.14);
+  white-space: nowrap;
+  max-width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+}
+
 .session-title {
   font-size: 13px;
   font-weight: 500;

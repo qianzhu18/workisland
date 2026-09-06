@@ -38,6 +38,8 @@ const { createAppIconResolver } = require("./app-icon-resolver.cjs");
 const { PerformanceService } = require("./performance-service.cjs");
 const { ShelfService } = require("./shelf-service.cjs");
 const { ClipboardHistoryService } = require("./clipboard-history-service.cjs");
+const { RemoteBridgeServer } = require("./remote-bridge-server.cjs");
+const { createRemoteHostStore } = require("./remote-host-store.cjs");
 const { TerminalService } = require("./terminal-service.cjs");
 const { resolveRecentProjectCwd, resolveTerminalCommand } = require("../shared/terminal-state.cjs");
 const { listCodexPets } = require("./codex-pet.cjs");
@@ -302,6 +304,16 @@ function createAppCoordinatorClass({
         shouldAcceptHook: (source) => this.shouldAcceptHookSource(source),
         controlService: this.localControlService
       });
+      // PRD-016 远程接入（observe-only）：远程状态事件复用 bridge 的
+      // agentEvent 总线，去重 / 工具开关 / 通知 / UI 推送与本地会话同一条
+      // 管道；远程侧不产生 hookDirective（无远程审批）。
+      this.remoteHostStore = createRemoteHostStore();
+      this.remoteBridge = new RemoteBridgeServer({
+        hostStore: this.remoteHostStore,
+      });
+      this.remoteBridge.on("agentEvent", (event) => {
+        this.bridge.emit("agentEvent", event);
+      });
       // AI customization commands (workisland-cli) share the settings
       // pipeline: updateSettings persists once and broadcasts to the island,
       // settings, and pet windows.
@@ -521,6 +533,7 @@ function createAppCoordinatorClass({
         this.playAgentSound(eventId, context?.sessionId, context?.timestamp);
       });
       this.bridge.start();
+      this.syncRemoteBridge();
       this.quotaService.start();
       this.processMonitor.start();
       this.mediaService.start();
@@ -869,6 +882,7 @@ function createAppCoordinatorClass({
     }
     stop() {
       log.info("[AppCoordinator] stopping local services...");
+      this.remoteBridge.stop();
       this.bridge.stop();
       this.quotaService.stop();
       this.processMonitor.stop();
@@ -1069,6 +1083,24 @@ function createAppCoordinatorClass({
       if (!this.fullscreenOverrideForNotification) return;
       this.fullscreenOverrideForNotification = false;
       this.evaluateFullscreenVisibility();
+    }
+    // PRD-016 远程接入（observe-only）：设置页状态、配对令牌与主机管理的
+    // 主进程入口；监听器启停跟随 remoteAccess 设置（对齐 developer-api 模式）。
+    syncRemoteBridge() {
+      return this.remoteBridge.sync(this.getSettings()?.remoteAccess ?? {});
+    }
+    getRemoteHostsState() {
+      return {
+        enabled: this.getSettings()?.remoteAccess?.enabled === true,
+        listener: this.remoteBridge.getStatus(),
+        hosts: this.remoteBridge.listHosts()
+      };
+    }
+    createRemotePairingToken() {
+      return this.remoteBridge.createPairingToken();
+    }
+    revokeRemoteHost(hostId) {
+      return this.remoteBridge.revokeHost(hostId);
     }
     getSessions() {
       return getVisibleSessions(this.state);
