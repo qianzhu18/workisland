@@ -12,6 +12,7 @@ import { ClipboardPanel } from "./ClipboardPanel.js";
 import { TerminalPanel } from "./TerminalPanel.js";
 import { UsagePanel } from "./UsagePanel.js";
 import { SettingsChangeCard } from "./SettingsChangeCard.js";
+import { ToolbarTools } from "./ToolbarTools.js";
 import { enabledToolboxModules, orderToolboxModules, reorderToolboxModules, selectToolboxModule } from "./productivity-toolbox-model.mjs";
 const defaultIcon = new URL("../assets/status/idle.svg", import.meta.url).href;
 const runningIcon = new URL("../assets/status/running.svg", import.meta.url).href;
@@ -297,6 +298,7 @@ function PetButtonIcon() {
 function AgentUsageRow({
   agentQuotas,
   notchHeight,
+  notchWidth = 0,
   hasUpdate,
   tokenBurnTotal,
   visibleSessionIds,
@@ -320,97 +322,34 @@ function AgentUsageRow({
   const agentsWithQuota = ALL_AGENTS.filter(
     (tool) => agentQuotas[tool] && (tool !== "codex" || isValidQuota(agentQuotas[tool]))
   );
-  const [muted, setMuted] = reactExports.useState(false);
-  reactExports.useEffect(() => {
-    window.islandBridge?.onSoundStateUpdate((enabled) => {
-      setMuted(!enabled);
-    });
-  }, []);
-  const handleToggleSound = () => {
-    window.islandBridge?.toggleSound();
-  };
-  const handleClearSessions = () => {
-    window.islandBridge?.deleteSessions(visibleSessionIds);
-  };
-  const dragSourceIdRef = reactExports.useRef(null);
-  // 工具图标默认 draggable=false：常开 HTML5 拖拽会把轻微抖动误判为拖拽启动，
-  // 吞掉点击并残留拖拽态（issue #69 的「点不动 / 误触发」）。按下后位移超过
-  // 阈值才启用 draggable，下一次 pointermove 由浏览器接管拖拽。
-  const [dragEnabledId, setDragEnabledId] = reactExports.useState(null);
-  const handleUtilityPointerDown = (id, event) => {
-    if (event.button !== 0) return;
-    const startX = event.clientX;
-    const startY = event.clientY;
-    const cleanup = () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-    };
-    const onMove = (moveEvent) => {
-      if (Math.hypot(moveEvent.clientX - startX, moveEvent.clientY - startY) > 6) {
-        setDragEnabledId(id);
-        cleanup();
-      }
-    };
-    const onUp = () => cleanup();
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-  };
   const utilityModuleDefs = [
-    ["shelf", "文件架", ShelfToolIcon],
-    ["clipboard", "剪贴板", ClipboardToolIcon],
-    ["terminal", "终端", TerminalToolIcon],
-    ["usage", "用量", UsageToolIcon]
+    ['shelf', '文件架', ShelfToolIcon], ['clipboard', '剪贴板', ClipboardToolIcon],
+    ['terminal', '终端', TerminalToolIcon], ["usage", "用量", UsageToolIcon]
   ];
   const utilityModules = orderToolboxModules(
-    utilityModuleDefs.filter(([id]) => enabledToolboxModules.includes(id)).map(([id]) => id),
-    toolboxModuleOrder
-  ).map((id) => utilityModuleDefs.find(([moduleId]) => moduleId === id));
-  const handleUtilityDragStart = (id) => { dragSourceIdRef.current = id; };
-  const handleUtilityDrop = (id) => {
-    const sourceId = dragSourceIdRef.current;
-    dragSourceIdRef.current = null;
-    if (!sourceId || sourceId === id) return;
-    onToolboxModuleReorder?.(sourceId, id);
-  };
-  const utilityButtons = utilityModules.map(([id, label, Icon]) => React.createElement("button", {
-    key: id,
-    type: "button",
-    className: `panel-btn toolbox-icon-button${activeToolboxModule === id ? " is-active" : ""}`,
-    title: label,
-    "aria-label": label,
-    "aria-pressed": activeToolboxModule === id,
-    draggable: dragEnabledId === id,
-    onPointerDown: (event) => handleUtilityPointerDown(id, event),
-    onDragStart: (event) => {
-      // Chromium：dragstart 未写入 dataTransfer 时拖拽可能在部分平台立即取消（issue #69「拖不动」）
-      try {
-        event.dataTransfer.setData("text/plain", id);
-        event.dataTransfer.effectAllowed = "move";
-      } catch { /* dataTransfer 不可用时放弃本次拖拽 */ }
-      handleUtilityDragStart(id);
-    },
-    onDragEnd: () => {
-      setDragEnabledId(null);
-      dragSourceIdRef.current = null;
-    },
-    onDragOver: (event) => event.preventDefault(),
-    onDrop: (event) => { event.preventDefault(); handleUtilityDrop(id); },
-    onClick: () => onToolboxModuleChange?.(activeToolboxModule === id ? "agent" : id)
-  }, React.createElement(Icon)));
-  const agentHomeButton = activeToolboxModule !== "agent" && React.createElement("button", {
-    key: "agent",
-    type: "button",
-    className: "panel-btn toolbox-icon-button",
-    title: "智能体主页",
-    "aria-label": "智能体主页",
-    onClick: () => onToolboxModuleChange?.("agent")
-  }, React.createElement(AgentHomeIcon));
+    utilityModuleDefs.filter(([id]) => enabledToolboxModules.includes(id)).map(([id]) => id), toolboxModuleOrder
+  ).map(id => {
+    const [, label, Icon] = utilityModuleDefs.find(([key]) => key === id);
+    return { id, label, icon: React.createElement(Icon) };
+  });
   const quotaCells = agentsWithQuota.filter((tool) => {
     if (tool === "claude" && !pillFirstRow.claudeSubscription) return false;
     if (tool === "codex" && !pillFirstRow.codexSubscription) return false;
     return true;
   }).map((tool, idx, arr) => /* @__PURE__ */ React.createElement(React.Fragment, { key: tool }, /* @__PURE__ */ React.createElement(AgentQuotaCell, { tool, quota: agentQuotas[tool] }), idx < arr.length - 1 && /* @__PURE__ */ React.createElement("span", { className: "usage-cell-divider" }, "|")));
-  return /* @__PURE__ */ React.createElement("div", { className: "usage-row", style: { minHeight: notchHeight } }, /* @__PURE__ */ React.createElement("div", { className: "usage-row-agents" }, showUsageQuota ? quotaCells : null, pillFirstRow.upgradeButton && (hasUpdate || hasActiveUpdateFlow(updateState)) && /* @__PURE__ */ React.createElement(UpdateStatusButton, { updateState, hasUpdate, onDownload: onUpdateDownload, onInstall: onUpdateInstall, onOpenRelease: onOpenRelease })), /* @__PURE__ */ React.createElement("div", { className: "usage-row-actions" }, visibleSessionIds.length > 0 && /* @__PURE__ */ React.createElement("button", { className: "panel-btn", onClick: handleClearSessions, title: i18n.k1005723937({}, "清理会话") }, /* @__PURE__ */ React.createElement("img", { src: cleanIcon, alt: "clean sessions", width: 16, height: 16 })), pillFirstRow.soundIcon && /* @__PURE__ */ React.createElement("button", { className: "panel-btn", onClick: handleToggleSound, title: muted ? "Unmute" : "Mute" }, /* @__PURE__ */ React.createElement("img", { src: muted ? voiceMuteIcon : voiceIcon, alt: muted ? "muted" : "sound" })), agentHomeButton, utilityButtons, performanceEnabled && /* @__PURE__ */ React.createElement(PerformancePopover, { state: performanceState }), /* @__PURE__ */ React.createElement("button", { className: "panel-btn panel-pet-button", type: "button", onClick: onOpenPet, title: "打开或关闭桌宠", "aria-label": "打开或关闭桌宠" }, /* @__PURE__ */ React.createElement(PetButtonIcon)), /* @__PURE__ */ React.createElement("button", { className: "panel-btn", onClick: () => onOpenSettings("display"), title: "Settings" }, /* @__PURE__ */ React.createElement("img", { src: settingIcon, alt: "settings" }))));
+  return React.createElement('div', { className: 'usage-row', style: { minHeight: notchHeight, '--toolbar-notch-width': `${notchWidth}px` } },
+    React.createElement('div', { className: 'usage-row-agents' }, showUsageQuota ? quotaCells : null,
+      pillFirstRow.upgradeButton && (hasUpdate || hasActiveUpdateFlow(updateState)) && React.createElement(UpdateStatusButton, { updateState, hasUpdate, onDownload: onUpdateDownload, onInstall: onUpdateInstall, onOpenRelease })),
+    React.createElement('div', { className: 'toolbar-camera-space', 'aria-hidden': true }),
+    React.createElement(ToolbarTools, { modules: utilityModules, active: activeToolboxModule,
+      onSelect: onToolboxModuleChange, onOrder: onToolboxModuleReorder,
+      homeIcon: React.createElement(AgentHomeIcon), settingsIcon: React.createElement('img', { src: settingIcon, alt: '' }),
+      onSettings: () => onOpenSettings('display'), extras: [
+        ...(performanceEnabled ? [{ id: 'performance', label: '性能监视器', fixed: true, render: () => React.createElement(PerformancePopover, { state: performanceState }) }] : []),
+        { id: 'pet', label: '打开或关闭桌宠', fixed: true, icon: React.createElement(PetButtonIcon), action: onOpenPet }
+      ]
+    })
+  );
 }
 const TOOL_BADGE_COLORS = {
   claude: "#DA7250",
@@ -1466,6 +1405,7 @@ function IslandPanel({
   sessionRecaps = null,
   surface,
   notchHeight,
+  notchWidth = 0,
   panelMaxHeightPx,
   agentQuotas,
   hasUpdate,
@@ -1512,8 +1452,10 @@ function IslandPanel({
     };
   }, []);
   const enabledModules = enabledToolboxModules({ fileShelfEnabled, clipboardHistoryEnabled, terminalEnabled, usageDashboardEnabled });
-  const handleToolboxModuleReorder = (sourceId, targetId) => {
-    const nextOrder = reorderToolboxModules(["shelf", "clipboard", "terminal", "usage"], sourceId, targetId);
+  const handleToolboxModuleReorder = (visibleOrder) => {
+    const fullOrder = orderToolboxModules(["shelf", "clipboard", "terminal", "usage"], moduleOrder);
+    let cursor = 0;
+    const nextOrder = fullOrder.map(id => visibleOrder.includes(id) ? visibleOrder[cursor++] : id);
     setModuleOrder(nextOrder);
     window.islandBridge?.setSettings?.({ toolboxModuleOrder: nextOrder });
   };
@@ -1583,6 +1525,7 @@ function IslandPanel({
     {
       agentQuotas,
       notchHeight,
+      notchWidth,
       hasUpdate,
       tokenBurnTotal,
       visibleSessionIds: visibleSessions.map((session) => session.id),
@@ -1602,7 +1545,7 @@ function IslandPanel({
       onUpdateInstall,
       onOpenRelease
     }
-  ), /* @__PURE__ */ React.createElement("div", { className: "panel-divider" }), activeModule === "shelf" && /* @__PURE__ */ React.createElement(ShelfPanel), activeModule === "clipboard" && /* @__PURE__ */ React.createElement(ClipboardPanel), activeModule === "terminal" && /* @__PURE__ */ React.createElement(TerminalPanel, { savedCommands: terminalSavedCommands, onOpenSettings: () => onOpenSettings("general") }), activeModule === "usage" && /* @__PURE__ */ React.createElement(UsagePanel), /* @__PURE__ */ React.createElement("div", { className: `workspace-content${mediaEnabled && mediaState?.active && mediaState?.title ? " has-media" : ""}${activeModule === "agent" ? "" : " is-hidden"}` }, mediaEnabled && mediaState?.active && mediaState?.title && /* @__PURE__ */ React.createElement(MediaCard, { media: mediaState, lyrics: lyricsState }), /* @__PURE__ */ React.createElement("div", { className: "workspace-agent-pane" }, /* @__PURE__ */ React.createElement("div", { className: "session-list", ref: sessionListRef }, visibleSessions.length === 0 ? (hasConnectedAgent === false ? /* @__PURE__ */ React.createElement(SessionEmptyOnboarding, { onOpenSettings }) : /* @__PURE__ */ React.createElement("div", { className: "session-list-empty" }, /* @__PURE__ */ React.createElement(
+  ), /* @__PURE__ */ React.createElement("div", { className: "panel-divider" }), activeModule === "shelf" && /* @__PURE__ */ React.createElement(ShelfPanel), activeModule === "clipboard" && /* @__PURE__ */ React.createElement(ClipboardPanel), activeModule === "terminal" && /* @__PURE__ */ React.createElement(TerminalPanel, { savedCommands: terminalSavedCommands, onOpenSettings: () => onOpenSettings("general") }), activeModule === "usage" && /* @__PURE__ */ React.createElement(UsagePanel), /* @__PURE__ */ React.createElement("div", { className: `workspace-content${mediaEnabled && mediaState?.active && mediaState?.title ? " has-media" : ""}${activeModule === "agent" ? "" : " is-hidden"}` }, mediaEnabled && mediaState?.active && mediaState?.title && /* @__PURE__ */ React.createElement(MediaCard, { media: mediaState, lyrics: lyricsState }), /* @__PURE__ */ React.createElement("div", { className: "workspace-agent-pane" }, /* @__PURE__ */ React.createElement("div", { className: "session-list", ref: sessionListRef }, visibleSessions.length > 0 && React.createElement('div', { className: 'session-list-actions' }, React.createElement('button', { type: 'button', className: 'panel-btn', onClick: () => window.islandBridge?.deleteSessions(visibleSessions.map(session => session.id)), title: '清理会话' }, '清理会话')), visibleSessions.length === 0 ? (hasConnectedAgent === false ? /* @__PURE__ */ React.createElement(SessionEmptyOnboarding, { onOpenSettings }) : /* @__PURE__ */ React.createElement("div", { className: "session-list-empty" }, /* @__PURE__ */ React.createElement(
     "img",
     {
       className: "session-list-empty-icon",

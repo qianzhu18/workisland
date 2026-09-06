@@ -5,9 +5,9 @@ import test from "node:test";
 const read = (name) => readFileSync(new URL(`../src/renderer/island/components/${name}`, import.meta.url), "utf8");
 
 test("productivity modules live in the compact top action row", () => {
-  const source = read("IslandPanel.js");
+  const source = read("IslandPanel.js") + read("ToolbarTools.js");
   for (const label of ["智能体主页", "文件架", "剪贴板", "终端"]) assert.match(source, new RegExp(label));
-  assert.match(source, /toolbox-icon-button/);
+  assert.match(source, /toolbar-tool/);
   assert.match(source, /aria-pressed/);
   assert.doesNotMatch(source, /ToolboxSwitcher/);
   assert.doesNotMatch(source, /pillFirstRow\.tokenCount[\s\S]*TokenUsage/);
