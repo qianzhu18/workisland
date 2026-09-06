@@ -21,6 +21,10 @@ electron.contextBridge.exposeInMainWorld("settingsApi", {
   repairHook: (agentId) => electron.ipcRenderer.invoke(ipc.IPC.SETTINGS_REPAIR_HOOK, { agentId }),
   repairAllHooks: () => electron.ipcRenderer.invoke(ipc.IPC.SETTINGS_REPAIR_ALL_HOOKS),
   getDoctorAudit: () => electron.ipcRenderer.invoke(ipc.IPC.SETTINGS_GET_DOCTOR_AUDIT),
+  // PRD-016 远程接入（observe-only）：远程主机管理。
+  getRemoteHostsState: () => electron.ipcRenderer.invoke(ipc.IPC.REMOTE_HOSTS_GET_STATE),
+  createRemotePairingToken: () => electron.ipcRenderer.invoke(ipc.IPC.REMOTE_HOSTS_CREATE_TOKEN),
+  revokeRemoteHost: (hostId) => electron.ipcRenderer.invoke(ipc.IPC.REMOTE_HOSTS_REVOKE, { hostId }),
   // 插件元信息：renderer 缓存供 AgentToolBadge 等做 label/badgeColor 兜底。
   getPluginAgentMeta: () => electron.ipcRenderer.invoke(ipc.IPC.PLUGIN_AGENT_META),
   onSettingsChanged: (cb) => {

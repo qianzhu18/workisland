@@ -361,6 +361,16 @@ function createSessionState({ isVisibleInIsland }) {
         return state;
       }
     }
+    // PRD-016 远程会话（observe-only）：isRemote / 主机标注随事件透传，
+    // 本地事件不含这些字段，行为与之前完全一致。
+    if (event.isRemote || prev.isRemote || prev.remoteHostId) {
+      session = {
+        ...session,
+        isRemote: event.isRemote ?? prev.isRemote ?? false,
+        remoteHostId: event.remoteHostId ?? prev.remoteHostId,
+        remoteHostName: event.remoteHostName ?? prev.remoteHostName
+      };
+    }
     sessions.set(event.sessionId, session);
     syncSubagentFields(sessions, session);
     return { sessions };

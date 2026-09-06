@@ -156,6 +156,10 @@ const IPC = Object.freeze({
   SETTINGS_DISCONNECT_AGENT_CONTROL_CLIENT: "settings:disconnect-agent-control-client",
   SETTINGS_GET_AGENT_CONTROL_MANUAL_CONFIG: "settings:get-agent-control-manual-config",
 
+  REMOTE_HOSTS_GET_STATE: "remote-hosts:get-state",
+  REMOTE_HOSTS_CREATE_TOKEN: "remote-hosts:create-token",
+  REMOTE_HOSTS_REVOKE: "remote-hosts:revoke",
+
   GET_LOCALE: "locale:get",
   SET_LOCALE: "locale:set",
   APP_QUIT: "app:quit",

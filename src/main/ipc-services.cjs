@@ -211,6 +211,8 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
       coordinator.updateSettings(partial, "settings");
       // B-9：注册时与设置变化后各同步一次，覆盖「上次开着重启」与开关切换。
       syncDeveloperApi(coordinator);
+      // PRD-016 远程接入：observe-only 监听器随设置开关启停。
+      coordinator.syncRemoteBridge();
     });
     electron.ipcMain.handle(IPC.SETTINGS_SELECT_DIRECTORY, (event) => {
       return selectDirectory(electron.BrowserWindow.fromWebContents(event.sender) ?? void 0);
@@ -231,6 +233,17 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
     });
     electron.ipcMain.handle(IPC.SETTINGS_GET_HOOK_STATUS, () => {
       return coordinator.getHookStatus();
+    });
+    // PRD-016 远程接入（observe-only）：设置页远程主机管理通道。
+    electron.ipcMain.handle(IPC.REMOTE_HOSTS_GET_STATE, () => {
+      return coordinator.getRemoteHostsState();
+    });
+    electron.ipcMain.handle(IPC.REMOTE_HOSTS_CREATE_TOKEN, () => {
+      return coordinator.createRemotePairingToken();
+    });
+    electron.ipcMain.handle(IPC.REMOTE_HOSTS_REVOKE, (_event, { hostId } = {}) => {
+      if (typeof hostId !== "string" || hostId.length === 0) return false;
+      return coordinator.revokeRemoteHost(hostId);
     });
     electron.ipcMain.handle(IPC.ISLAND_GET_AGENT_SETUP_STATUS, () => {
       return coordinator.getHookStatus();
