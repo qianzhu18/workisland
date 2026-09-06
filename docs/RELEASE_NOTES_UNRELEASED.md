@@ -1,57 +1,53 @@
-# WorkIsland v3.2.0 Release Notes（发布候选）
+# WorkIsland v1.4.0 Release Notes（发布候选）
 
-状态：`release-candidate — 本地打包验证中；Tag 推送后由 GitHub Actions 签名公证并创建正式 Release`
+状态：`release-candidate — 范围冻结；Tag 推送后由 GitHub Actions 签名公证并创建正式 Release`
 
-这是 macOS `v3.x` 正式版本线的 `v3.2.0`。它包含 rc.1 的外观模板系统、本次迭代的两个 P0（应用内更新闭环与 Intel 芯片兼容），以及终端/弹窗交互修复。Windows `v1.0.0-alpha.*` 为独立内测线，不包含在本版本中。
+本版主题「覆盖与留存 · 第一阶段收口」：把已合入 `main` 验证的四个留存/开放特性正式发出去，并首次公开性能实测数据。范围基线见 [`docs/03-roadmap/v1.4.0-版本规划-2026-09-06.md`](./03-roadmap/v1.4.0-版本规划-2026-09-06.md)；完整历史见仓库根目录的 [`CHANGELOG.md`](../CHANGELOG.md)。
 
-完整历史见仓库根目录的 [`CHANGELOG.md`](../CHANGELOG.md)，版本 PRD 见 [PRD-011](./product/prd/PRD-011-v3.2.0-macOS-Template-Appearance-Release.md)。
+自本版起，GitHub Release 说明采用 **中文全文在前 + `### English Summary` 在后** 的双语结构（英文为摘要，不逐条直译），检查项见 [`RELEASE_PROCESS.md`](./RELEASE_PROCESS.md)。
 
-## 本版本范围
+## 中文说明（tag 时粘贴到 Release 页前半）
 
-### 应用内更新闭环（P0）
+### 覆盖与留存：四个新特性
 
-- 灵动岛顶部的 Codex 额度格子右侧新增版本升级入口，点击展开更新弹层。
-- 完整闭环：下载与当前芯片匹配的官方安装包（含进度）→ SHA-256 校验 → 本机挂载安装 → 自动重启；任一步骤失败自动回退为打开 DMG 手动拖拽。
-- 下载完成后弹出「点击立即安装」系统通知。
-- 「设置 → 关于 → 更新」提供同一状态机（下载并安装 / 进度 / 重启并完成安装 / 重试）。
+- **安静时段与锁屏静音**（#95）：设置 → 声音可配置勿扰时段（如 22:00 → 08:00，支持跨午夜），时段内不播放任务提示音；macOS 锁屏期间同样静音；两项独立开关。手机推送（Bark）刻意不受抑制——安静时段用户不在电脑前，推送正是通知出口。
+- **Plan 确认卡 Markdown 渲染**（#92）：Plan 确认文本按 Markdown 渲染（标题、列表、代码块，复用岛上既有渲染样式），默认折叠、一键展开全文；链接点击走系统浏览器。
+- **本地开发者 API**（#93）：设置 → 关于可开启只读状态端点 `127.0.0.1:9938/api/status`，返回会话状态 JSON；默认关闭，可选 Bearer 令牌鉴权；响应不含 prompt、路径或会话内容。详见 [DEVELOPER_API.md](./DEVELOPER_API.md)。
+- **用量发现通道（首批）**（#94）：zcode / opencode / claude 三个客户端的 token 用量改为主动从本地会话数据发现并入账，不再依赖 Hook 携带 `transcript_path`；此前这些客户端会话能上岛但用量不入账。
 
-### Intel 芯片兼容与兼容性真值表（P0）
+### 性能
 
-- 首次提供 Intel（x64）macOS 安装包：`*-x64.dmg`；原生模块按目标架构编译，node-pty 使用 darwin-x64 预编译。
-- 发布流水线按 arm64 / x64 矩阵出包，Intel 校验文件为 `SHA256SUMS-x64.txt`。
-- 新增 [兼容性真值表](./COMPATIBILITY.md)：芯片、macOS 版本与功能级矩阵，Intel 机型以悬浮岛形态呈现灵动岛；媒体工作台在 Intel 上为「尽力支持」。
-- 应用内更新按芯片自动选择 arm64 / x64 安装包并校验对应校验文件。
+- **闲置性能实测数据公开**（#108）：Apple M4 · v1.3.0 实测闲置 CPU 中位 **2.9%**（< 3% 达标，贴线）、内存 top 口径 535 MB / RSS 341 MB；测试方法与原始采样见 [PERFORMANCE.md](./PERFORMANCE.md)，`scripts/perf-idle-benchmark.mjs` 可复现。
 
-### 外观模板与恢复（rc.1 内容）
+### 说明
 
-- 新增外观模板系统。官方小宇（守岛人）是可恢复默认模板；五个会话状态 SVG 在运行时从校验过的模板包加载，损坏时回退官方包。
-- 模板包包含清单、文件哈希、许可证与 SVG 安检；安装采用事务化写入，不完整或篡改内容不会替换现有配置。
-- 设置 → 外观新增「外观模板」区块，可选择、检查和恢复模板，无需使用终端。
+- 本 DMG 已 Developer ID 签名并通过 Apple 公证，下载后可直接打开（SHA256 见 `SHA256SUMS.txt`）。
+- Intel（x64）安装包：#103 已修复 Intel 构建路径，本版 tag 是第一个验证点——x64 DMG 产出并通过签名公证后，才在宣发中解锁「支持 Intel」；发布后回填实际结果。
+- 装过 3.x 旧包的同学：由于版本号重置，旧包认不出 1.x 是新版，请手动下载重装这一次；此后应用内自动升级即生效。
 
-### 本机 AI 外观自定义（rc.1 内容）
+### English Summary
 
-- 本机 Agent 可使用 `workisland-cli` 预览并在明确确认后修改 Island 背景、透明度、渐变、背景图和桌宠精灵图。
-- `workisland-cli template` 支持检查、预览、应用、重置、导出、下载与受限发布；GitHub 下载使用域名白名单与双重哈希校验。
-- 所有控制通过本机 Unix socket 完成，不开放网络端口；详细边界见 [AI Customization](./AI-CUSTOMIZATION.md)。
+Quiet Hours and lock-screen mute for local alert sounds, with Bark push deliberately unsuppressed (#95); Plan confirmations render as collapsible Markdown (#92); opt-in read-only local Developer API at `127.0.0.1:9938/api/status` with Bearer auth, off by default (#93); usage discovery covers zcode / opencode / claude without relying on `transcript_path` (#94); published idle-performance benchmarks — 2.9% median idle CPU, reproducible via `scripts/perf-idle-benchmark.mjs` (#108).
 
-### 稳定性
+## What's Changed
 
-- 修复灵动岛弹窗透明区域拦截点击、影响下方应用操作的问题。
-- 修复终端工作台交互场景下控制键被弹层抢占的问题。
+（tag 时由 GitHub「Generate release notes」自动生成后填充）
 
 ## 发布前验收
 
-- [ ] `package.json` 与 `package-lock.json` 均为 `3.2.0`。
+- [ ] `package.json` 与 `package-lock.json` 均为 `1.4.0`（prepare 提交时更新）。
 - [ ] `npm run check` 通过。
-- [ ] `npm run release:check -- --tag v3.2.0` 通过。
-- [ ] 本地完成 arm64（Apple Silicon）与 x64（Intel 交叉编译）打包验证。
-- [ ] GitHub Actions 完成双架构签名、公证、Staple、Gatekeeper 校验，并生成 `SHA256SUMS.txt` / `SHA256SUMS-x64.txt`。
-- [ ] GitHub Release `v3.2.0` 为正式版（非 Pre-release），成为 releases 页 Latest 置顶。
-- [ ] 官网首页、手册、更新日志和下载链接可访问。
+- [ ] `npm run release:check -- --tag v1.4.0` 通过。
+- [ ] `CHANGELOG.md` 的 `[Unreleased]` 段改名为 `[1.4.0]` + 发布日期，英文摘要保留。
+- [ ] Release 页说明 = 本文件中文段在前 + `### English Summary` 在后。
+- [ ] 官网 `website/changelog/index.html` 加入 v1.4.0 条目（口径与 Release 页一致），随 Tag 部署，不提前上线。
+- [ ] GitHub Actions 双架构签名、公证、Staple、Gatekeeper 校验通过，生成 `SHA256SUMS.txt` / `SHA256SUMS-x64.txt`。
+- [ ] **tag 后验证 x64 管线**：确认 x64 DMG 真实产出并通过签名公证（第一个验证点，见上「说明」）。
+- [ ] Release 成为 `releases/latest`，应用内更新可检测到 v1.4.0。
 
 ## 已知限制与回滚
 
-- Intel 机型媒体工作台依赖的 MediaRemote 私有框架行为与 Apple Silicon 存在差异，属尽力支持（见 [COMPATIBILITY.md](./COMPATIBILITY.md)）。
-- Windows Alpha 不在本版本范围，自动更新暂不覆盖 Windows 通道。
-- 模板远程下载仅支持受限 GitHub 静态目录；不会执行模板中携带的脚本。
-- 出现 P0 时发布新的 `v3.2.1`，绝不覆盖既有 Tag 或替换既有产物。
+- Intel 机型的媒体工作台依赖 MediaRemote 私有框架，行为与 Apple Silicon 存在差异，属尽力支持（见 [COMPATIBILITY.md](./COMPATIBILITY.md)）。
+- Windows Alpha 为独立版本线，不在本版本范围（见版本规划第五节）。
+- 会话/tab 级聚焦抑制（#111）、五大终端 tab 级跳转（#112）、无刘海悬浮条（#109）、应用内 i18n（#110）明确顺延 v1.5+，勿提前开工。
+- 出现 P0 时发布新的 `v1.4.1`，绝不覆盖既有 Tag 或替换既有产物。

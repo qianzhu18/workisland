@@ -50,11 +50,72 @@
         <article class="changelog-release changelog-release-latest">
           <div class="changelog-release-meta">
             <span class="changelog-release-label">LATEST STABLE</span>
-            <time datetime="2026-08-28">2026-08-28</time>
+            <time datetime="2026-09-05">2026-09-05</time>
           </div>
           <div class="changelog-release-body">
-            <h2>v3.1.0</h2>
-            <p class="changelog-summary">让 Media、工具箱、声音和桌宠都更贴近同一个 Agent 工作流。</p>
+            <h2>v1.3.0</h2>
+            <p class="changelog-summary">公测收口：Agent 自检自修、应用内反馈与新手引导就位，并修复更新提示与定位跳转两处关键体验问题。</p>
+            <div class="changelog-columns">
+              <section>
+                <h3>新增</h3>
+                <ul>
+                  <li>Agent Doctor 一键检测与一键修复：扫描全部 Agent 的 Hook 健康，自动备份修复并留痕，启动时自愈可修复状态。</li>
+                  <li>一键吐槽：设置内反馈入口，自动附带版本与 Agent 状态预填 GitHub issue。</li>
+                  <li>首启引导：尚未接入 Agent 时，灵动岛分步引导接入而非空白列表。</li>
+                  <li>Bark 手机推送：审批、提问、完成、失败四类事件可推送到 iPhone，默认关闭、不含会话内容。</li>
+                  <li>会话回顾：岛收起期间的事件折叠为摘要，展开即可回顾。</li>
+                </ul>
+              </section>
+              <section>
+                <h3>改进与修复</h3>
+                <ul>
+                  <li>修复升级箭头重启后消失：24 小时内重启也会从缓存恢复升级提示。</li>
+                  <li>修复会话定位跳转：tmux 先选中对应 pane 再带回宿主窗口，VS Code 宿主不再被误判。</li>
+                  <li>修复工具箱图标点击不稳定：轻点不再被误判为拖拽。</li>
+                  <li>Windows 版不再误报 macOS DMG 更新。</li>
+                </ul>
+              </section>
+            </div>
+            <a class="changelog-release-link" href="https://github.com/qianzhu18/workisland/releases/tag/v1.3.0" target="_blank" rel="noreferrer">查看 v1.3.0 Release 与下载 ↗</a>
+          </div>
+        </article>
+
+        <article class="changelog-release">
+          <div class="changelog-release-meta">
+            <span>STABLE</span>
+            <time datetime="2026-09-02">2026-09-02</time>
+          </div>
+          <div class="changelog-release-body">
+            <h2>v1.2.0</h2>
+            <p class="changelog-summary">应用内更新闭环与 MCP 产品助手落地；修复新版 ZCode 无法连接的问题。（原 v3.2.0 平移，同一构建）</p>
+            <div class="changelog-columns">
+              <section>
+                <h3>新增</h3>
+                <ul>
+                  <li>应用内更新闭环：岛顶升级入口与「设置 → 关于 → 更新」同构，下载、SHA-256 校验、安装、自动重启一体完成。</li>
+                  <li>MCP 产品助手：本地 MCP 服务可询问灵动岛功能、查询任务状态、诊断模块问题。</li>
+                  <li>外观模板系统与 <code>workisland-cli template</code>：模板可检查、预览、应用与恢复。</li>
+                </ul>
+              </section>
+              <section>
+                <h3>改进与修复</h3>
+                <ul>
+                  <li>修复 ZCode（≥3.10）始终无法连接：Hook 现在同步写入最近活跃项目的项目级配置。</li>
+                </ul>
+              </section>
+            </div>
+            <a class="changelog-release-link" href="https://github.com/qianzhu18/workisland/releases/tag/v1.2.0" target="_blank" rel="noreferrer">查看 v1.2.0 Release 与下载 ↗</a>
+          </div>
+        </article>
+
+        <article class="changelog-release">
+          <div class="changelog-release-meta">
+            <span>STABLE</span>
+            <time datetime="2026-09-01">2026-09-01</time>
+          </div>
+          <div class="changelog-release-body">
+            <h2>v1.1.0</h2>
+            <p class="changelog-summary">让 Media、工具箱、声音和桌宠都更贴近同一个 Agent 工作流。（原 v3.1.0 平移，同一构建）</p>
             <div class="changelog-columns">
               <section>
                 <h3>新增</h3>
@@ -74,24 +135,24 @@
                 </ul>
               </section>
             </div>
-            <a class="changelog-release-link" href="https://github.com/qianzhu18/workisland/releases/tag/v3.1.0" target="_blank" rel="noreferrer">查看 v3.1.0 Release 与下载 ↗</a>
+            <a class="changelog-release-link" href="https://github.com/qianzhu18/workisland/releases/tag/v1.1.0" target="_blank" rel="noreferrer">查看 v1.1.0 Release 与下载 ↗</a>
           </div>
         </article>
 
         <article class="changelog-release">
           <div class="changelog-release-meta">
             <span>STABLE</span>
-            <time datetime="2026-08-24">2026-08-24</time>
+            <time datetime="2026-08-23">2026-08-23</time>
           </div>
           <div class="changelog-release-body">
-            <h2>v3.0.0</h2>
-            <p class="changelog-summary">WorkIsland 首个公开稳定版。</p>
+            <h2>v1.0.0</h2>
+            <p class="changelog-summary">WorkIsland 首个公开稳定版。（原 v3.0.0 平移，同一构建）</p>
             <ul>
               <li>完善多 Agent 会话状态、审批、提问和回源体验。</li>
               <li>加入本地优先的隐私披露、匿名统计开关和版本更新检查。</li>
               <li>建立用户手册、反馈入口与公开 macOS DMG 分发链路。</li>
             </ul>
-            <a class="changelog-release-link" href="https://github.com/qianzhu18/workisland/releases/tag/v3.0.0" target="_blank" rel="noreferrer">查看 v3.0.0 Release ↗</a>
+            <a class="changelog-release-link" href="https://github.com/qianzhu18/workisland/releases/tag/v1.0.0" target="_blank" rel="noreferrer">查看 v1.0.0 Release ↗</a>
           </div>
         </article>
 

@@ -4,6 +4,18 @@
 
 > **版本体系重置（2026-09-02）**：公开版本号统一归位——内测期整理为 `v0.1.0 – v0.10.0`（原 `v0.2.x` 系列与初版 `v0.1.0` 重排，各版本说明注明原版本号）；`v3.0.0 / v3.1.0 / v3.2.0` 分别平移为 `v1.0.0 / v1.1.0 / v1.2.0`；`v3.2.0-rc.1` 与整条 `v1.0.0-alpha`（Windows 试验线）已删除，Windows 支持暂停维护、欢迎社区贡献者主导适配。
 
+## [Unreleased]
+
+### Added
+
+- **安静时段与锁屏静音**（#95）：设置 → 声音可配置勿扰时段（如 22:00 → 08:00，支持跨午夜），时段内不播放任务提示音；macOS 锁屏期间同样静音；两项独立开关。手机推送（Bark）刻意不受抑制——安静时段用户不在电脑前，推送正是通知出口。
+- **Plan 确认卡 Markdown 渲染**（#92）：Plan 确认文本按 Markdown 渲染（标题、列表、代码块，复用岛上既有渲染样式），默认折叠至固定高度、可一键展开全文；不新增依赖与 IPC 通道。
+- **本地开发者 API**（#93）：设置 → 关于可开启只读状态端点 `127.0.0.1:9938/api/status`，返回会话状态 JSON（id / Agent / phase / 时间戳 + 版本）；默认关闭，可选 Bearer 令牌鉴权；响应不含 prompt、路径或会话内容。详见 [DEVELOPER_API.md](docs/DEVELOPER_API.md)。
+- **用量发现通道（首批）**（#94）：zcode / opencode / claude 三个客户端的 token 用量改为主动从各客户端本地会话数据发现并入账，不再依赖 Hook 携带 `transcript_path`；此前这些客户端会话能上岛但用量不入账。剩余适配器在 issue #90 跟踪。
+- **性能实测数据公开**（#108）：Apple M4 · v1.3.0 实测闲置 CPU 中位 2.9%（达标 < 3%，贴线）、内存 top 口径 535 MB / RSS 341 MB；方法与原始采样见 [PERFORMANCE.md](docs/PERFORMANCE.md)，`scripts/perf-idle-benchmark.mjs` 可复现，README 增加展示位。
+
+> **English summary:** Quiet Hours and lock-screen mute for local alert sounds, with Bark push deliberately unsuppressed (#95); Plan confirmations now render as collapsible Markdown (#92); opt-in read-only local Developer API at `127.0.0.1:9938/api/status` with Bearer auth, off by default (#93); usage discovery covers zcode / opencode / claude without relying on `transcript_path` (#94); published idle-performance benchmarks — 2.9% median idle CPU, reproducible via `scripts/perf-idle-benchmark.mjs` (#108).
+
 ## [1.3.0] - 2026-09-05
 
 公测收口版本：Agent 自检自修、应用内反馈与新手引导就位，并修复更新提示与定位跳转两处关键体验问题。

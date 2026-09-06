@@ -52,7 +52,7 @@ npm run release:check -- --tag v3.0.0
 ## 正式发布
 
 1. 创建对应平台的 release 分支。macOS 使用 `release/macos-vX.Y.Z-rc.N`，Windows Alpha 使用 `windows/v1.0.0-alpha.N`；先确认该分支没有另一条平台的未发布版本号。
-2. 修改 `package.json` 和 `package-lock.json` 的版本号，并更新版本 PRD、官网手册、`CHANGELOG.md` 与 `docs/RELEASE_NOTES_UNRELEASED.md`。
+2. 修改 `package.json` 和 `package-lock.json` 的版本号，并更新版本 PRD、官网手册与官网 changelog 页、`CHANGELOG.md` 与 `docs/RELEASE_NOTES_UNRELEASED.md`。
 3. 在真实 macOS 设备完成未签名候选包安装、首个 Agent 事件、设置写入和卸载/回退验证；Windows Alpha 只在 Windows 11 真机验收。
 4. 运行完整检查并提交。macOS RC 验收后把同一范围升级为 `vX.Y.Z` 正式版；不得将 `-alpha` 版本直接改名为 macOS 正式版。
 5. 创建并推送与版本一致的 Tag：
@@ -72,6 +72,14 @@ npm run release:check -- --tag v3.0.0
 7. 在 GitHub Actions 和 Release 页面确认产物可下载、版本号匹配且平台产物没有串线。
 
 发布 workflow 必须保持以下门禁：macOS job 仅响应非 `-alpha` Tag；Windows job 仅响应 `-alpha` Tag。修改发布 workflow 时必须同步更新本表和版本 PRD，不能依靠人工记忆区分平台。
+
+## 双语与口径检查（v1.4.0 起固定检查项）
+
+Release 侧的中英双语与多渠道口径一致性自 v1.4.0 起为固定检查项，后续版本不回退：
+
+- [ ] GitHub Release 说明 = 中文全文在前 + `### English Summary` 在后；英文为摘要，不逐条直译。
+- [ ] `CHANGELOG.md` 每个新版本段落末尾配一段英文摘要（`> **English summary:** …`），并链接中文全文。
+- [ ] 官网 `website/changelog/index.html` 新增本版条目，与 Release 页保持同一摘要与同一日期；随 Tag 一起部署，不提前发布未 Tag 内容。
 
 ## GitHub Secrets
 
