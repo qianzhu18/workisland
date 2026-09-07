@@ -50,3 +50,14 @@ test("settings merge sanitizes toolboxModuleOrder", () => {
   assert.deepEqual(DEFAULT_SETTINGS.toolboxModuleOrder, []);
   assert.deepEqual(mergeSettings({}).toolboxModuleOrder, []);
 });
+
+test("system utilities retain order, bank and overflow preferences across reload", () => {
+  const merged = mergeSettings({ toolboxModuleOrder: ['performance','pet','terminal'],
+    toolbarHiddenModules: ['pet','pet','unknown'],
+    toolbarModuleSides: { performance: 'right', terminal: 'left', pet: 'center', unknown: 'left' }
+  });
+  assert.deepEqual(merged.toolboxModuleOrder, ['performance','pet','terminal']);
+  assert.deepEqual(merged.toolbarHiddenModules, ['pet']);
+  assert.deepEqual(merged.toolbarModuleSides, { performance: 'right', terminal: 'left' });
+  assert.deepEqual(mergeSettings(merged).toolbarModuleSides, merged.toolbarModuleSides);
+});

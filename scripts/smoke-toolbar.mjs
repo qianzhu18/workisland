@@ -29,69 +29,134 @@ async function evaluate(expression) {
   if (result.exceptionDetails) throw new Error(JSON.stringify(result.exceptionDetails));
   return result.result.value;
 }
-const pause = () => new Promise(resolve => setTimeout(resolve, 250));
-const readOrder = () => evaluate(`window.islandBridge.getSettings().then(s => s.toolboxModuleOrder)`);
-async function point(label) {
-  return evaluate(`(() => { const e = [...document.querySelectorAll('.toolbar-tools > .toolbar-slot button, .toolbar-tools > button')].find(e => e.getAttribute('aria-label') === ${JSON.stringify(label)}); const r = e.getBoundingClientRect(); return {x:r.x+r.width/2,y:r.y+r.height/2}; })()`);
+const pause = (ms = 280) => new Promise(resolve => setTimeout(resolve, ms));
+const settings = () => evaluate('window.islandBridge.getSettings()');
+const selector = id => '.toolbar-slot[data-tool-id="' + id + '"] button';
+async function point(css) {
+  return evaluate('(() => { const e=document.querySelector(' + JSON.stringify(css) + '); if(!e)throw Error("missing "+' + JSON.stringify(css) + '); const r=e.getBoundingClientRect(); return {x:r.x+r.width/2,y:r.y+r.height/2}; })()');
 }
-async function mouse(type, p, extra = {}) { await send('Input.dispatchMouseEvent', { type, ...p, ...extra }); }
-async function drag(source, destination, cancel = false) {
-  await evaluate(`window.islandBridge.enterIsland(); document.querySelector('.pill').click()`);
+const mouse = (type, p, extra = {}) => send('Input.dispatchMouseEvent', { type, ...p, ...extra });
+async function openPanel() {
+  await evaluate('window.islandBridge.enterIsland(); document.querySelector(".pill").click()');
   await pause();
-  await evaluate(`window.__toolbarEvents=[]; if(!window.__toolbarTrace){ window.__toolbarTrace=true; ['pointerdown','pointermove','pointerup','pointercancel','lostpointercapture'].forEach(name=>document.addEventListener(name,e=>window.__toolbarEvents.push([name,e.target.className,e.clientX,e.clientY,document.documentElement.hasAttribute('data-toolbar-dragging')]),true)); }`);
-  const from = await point(source), to = await point(destination);
+}
+async function click(css) {
+  const p = await point(css);
+  await mouse('mouseMoved', p);
+  await mouse('mousePressed', p, {button:'left',clickCount:1});
+  await mouse('mouseReleased', p, {button:'left',clickCount:1});
+  await pause();
+}
+async function drag(css, destination, cancel = '') {
+  await evaluate(`window.__toolbarEvents=[];if(!window.__toolbarTrace){window.__toolbarTrace=true;['pointerdown','pointermove','pointerup','pointercancel','lostpointercapture'].forEach(type=>document.addEventListener(type,e=>window.__toolbarEvents.push([type,e.buttons,e.target.className,document.documentElement.hasAttribute('data-toolbar-dragging')]),true));}`);
+  const from = await point(css);
   await mouse('mouseMoved', from);
-  await evaluate(`document.querySelector('.pill').click()`);
-  await mouse('mousePressed', from, { button: 'left', clickCount: 1 });
-  for (let i = 1; i <= 8; i++) await mouse('mouseMoved', { x: from.x+(to.x-from.x)*i/8, y: from.y }, { button: 'left', buttons: 1 });
+  await evaluate('document.querySelector(".pill").click()');
+  await mouse('mousePressed', from, {button:'left',clickCount:1});
+  for(let i=1;i<=12;i++) {
+    await mouse('mouseMoved', {x:from.x+(destination.x-from.x)*i/12,y:from.y+(destination.y-from.y)*i/12}, {button:'left',buttons:1});
+  }
   await pause();
-  if (!await evaluate(`!!document.querySelector('.toolbar-drag-ghost')`)) console.log(await evaluate(`window.__toolbarEvents`));
-  assert.equal(await evaluate(`!!document.querySelector('.toolbar-drag-ghost')`), true, 'drag must show a live preview');
-  if (cancel === true) await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
-  await mouse('mouseReleased', cancel === 'outside' ? {x:to.x,y:to.y+80} : to, { button: 'left', clickCount: 1 });
+  if (!await evaluate('!!document.querySelector(".toolbar-drag-ghost")')) console.log(await evaluate('window.__toolbarEvents'));
+  assert.equal(await evaluate('!!document.querySelector(".toolbar-drag-ghost")'), true, 'drag must visibly preview its destination');
+  if(cancel==='escape') await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+  await mouse('mouseReleased',cancel==='outside'?{x:destination.x,y:destination.y+90}:destination,{button:'left',clickCount:1});
   await pause();
+}
+async function menu() {
+  await openPanel();
+  if(!await evaluate('!!document.querySelector(".toolbar-overflow")')) await click('.toolbar-more');
+}
+async function snapshot() {
+  return evaluate('(() => { const root=document.querySelector(".toolbar-tools").getBoundingClientRect(); const c=document.querySelector(".toolbar-camera-space").getBoundingClientRect(); return {root:{x:root.x,y:root.y,width:root.width},camera:{left:c.left,right:c.right},slots:[...document.querySelectorAll(".toolbar-slot")].map(e=>{const r=e.getBoundingClientRect();return {id:e.dataset.toolId,bank:e.dataset.bank,x:r.x,y:r.y,width:r.width};})};})()');
 }
 let saved;
 try {
-  saved = await evaluate('window.islandBridge.getSettings()');
-  await evaluate(`window.islandBridge.setSettings({fileShelfEnabled:true, clipboardHistoryEnabled:true, terminalEnabled:true, usageDashboardEnabled:true, toolboxModuleOrder:[]})`);
-  await evaluate(`document.querySelector('.pill').click()`);
+  for (let attempt=0; attempt<25; attempt++) {
+    if (await evaluate('!!document.querySelector(".pill")')) break;
+    await pause(200);
+  }
+  saved = await settings();
+  await evaluate('window.islandBridge.setSettings({fileShelfEnabled:true, clipboardHistoryEnabled:true, terminalEnabled:true, usageDashboardEnabled:true, performanceEnabled:true, toolboxModuleOrder:[], toolbarHiddenModules:[], toolbarModuleSides:{}})');
+  await openPanel();
+  let geometry = await snapshot();
+  assert.ok(geometry.slots.some(s=>s.bank==='left'), 'left spare space must be usable');
+  for(const s of geometry.slots) assert.ok(s.x+s.width<=geometry.camera.left || s.x>=geometry.camera.right, 'no camera overlap: '+s.id);
+  await click(selector('shelf'));
+  assert.equal(await evaluate('document.querySelector(' + JSON.stringify(selector('shelf')) + ').getAttribute("aria-pressed")'),'true','light click opens shelf');
+  await openPanel();
+  await drag(selector('terminal'), await point(selector('shelf')));
+  assert.equal((await settings()).toolboxModuleOrder[0], 'terminal');
+  await openPanel();
+  const beforeCancel = (await settings()).toolboxModuleOrder;
+  await drag(selector('shelf'), await point(selector('terminal')), 'escape');
+  assert.deepEqual((await settings()).toolboxModuleOrder, beforeCancel);
+  await openPanel();
+  await drag(selector('shelf'), await point(selector('terminal')), 'outside');
+  assert.deepEqual((await settings()).toolboxModuleOrder, beforeCancel);
+
+  // Explicitly hide a formerly fixed system utility, then drag it out of the menu.
+  await menu();
+  await click('[aria-label="将性能监视器移入更多"]');
+  assert.ok((await settings()).toolbarHiddenModules.includes('performance'));
+  await menu();
+  await drag('[data-menu-tool="performance"] .performance-button', await point(selector('terminal')));
+  assert.equal((await settings()).toolbarHiddenModules.includes('performance'), false);
+  assert.equal((await settings()).toolboxModuleOrder[0], 'performance');
+
+  // A slot on the opposite bank remains a valid cross-camera destination.
+  await openPanel();
+  geometry = await snapshot();
+  const right = geometry.slots.find(s=>s.bank==='right');
+  const target = right ? {x:right.x+16,y:right.y+15} : {
+    x:geometry.camera.right+48,y:geometry.root.y+15
+  };
+  await drag(selector('performance'), target);
+  assert.equal(await evaluate('document.querySelector(".toolbar-slot[data-tool-id=performance]").dataset.bank'),'right');
+  await openPanel();
+  await drag(selector('performance'), await point('.toolbar-more'));
+  assert.ok((await settings()).toolbarHiddenModules.includes('performance'));
+
+  // Force a genuinely full toolbar; dragging the hidden item must replace the tail.
+  await evaluate('document.querySelector(".toolbar-header").style.width="420px"');
   await pause();
-  const geometry = await evaluate(`(() => { const a = document.querySelector('.toolbar-camera-space').getBoundingClientRect(); const b = document.querySelector('.toolbar-tools').getBoundingClientRect(); return {cameraRight:a.right, toolsLeft:b.left, width:b.width, buttons:[...document.querySelectorAll('.toolbar-tools > button')].map(b=>b.getAttribute('aria-label'))}; })()`);
-  assert.ok(geometry.toolsLeft >= geometry.cameraRight, 'toolbar must stay outside camera');
-  assert.ok(geometry.buttons.includes('智能体主页') && geometry.buttons.includes('设置'));
-  console.log('Toolbar geometry', geometry, await point('终端'), await point('文件架'));
-  const shelf = await point('文件架');
-  await mouse('mouseMoved', shelf);
-  await mouse('mousePressed', shelf, {button:'left',clickCount:1});
-  await mouse('mouseReleased', shelf, {button:'left',clickCount:1});
+  await menu();
+  await drag('[data-menu-tool="performance"] .performance-button', await point(selector((await snapshot()).slots[0].id)));
+  assert.equal((await settings()).toolboxModuleOrder[0],'performance');
+  assert.ok(await evaluate('document.querySelectorAll(".toolbar-slot").length < 6'));
+  await evaluate('document.querySelector(".toolbar-header").style.removeProperty("width")');
+  await openPanel();
+  await menu();
+  const shot=await send('Page.captureScreenshot');
+  writeFileSync('/tmp/workisland-toolbar-v2-preview.png',Buffer.from(shot.data,'base64'));
+
+  // Fixture process is never terminated. Exercise the real component's click
+  // selection and dismissal without depending on the machine's process list.
+  await evaluate(`(async()=>{
+    const base=new URL('../', location.href);
+    const {R:React,a:ReactDOM}=await import(new URL('../vendor/react-runtime.js',base));
+    const {PerformancePopover}=await import(new URL('components/PerformancePopover.js',base));
+    const host=document.createElement('div'); host.id='toolbar-perf-test'; host.style='position:fixed;left:60px;top:100px;z-index:20000';
+    document.body.appendChild(host); window.__perfTestRoot=ReactDOM.createRoot(host);
+    window.__perfTestRoot.render(React.createElement(PerformancePopover,{state:{cpuPct:12,memoryPct:20,processesLoaded:true,processes:[{pid:999999,name:'Toolbar Test Process',cpuPct:1,memoryBytes:4096}]}}));
+  })()`);
   await pause();
-  assert.equal(await evaluate(`document.querySelector('[aria-label="文件架"]').getAttribute('aria-pressed')`), 'true', 'a light click must open its module');
-  await drag('终端', '文件架');
-  assert.deepEqual((await readOrder()).slice(0, 3), ['terminal','shelf','clipboard']);
-  await drag('文件架', '终端', true);
-  assert.deepEqual((await readOrder()).slice(0, 3), ['terminal','shelf','clipboard']);
-  await drag('文件架', '终端');
-  assert.deepEqual((await readOrder()).slice(0, 3), ['shelf','terminal','clipboard']);
-  await drag('文件架', '终端', 'outside');
-  assert.deepEqual((await readOrder()).slice(0, 3), ['shelf','terminal','clipboard']);
-  await evaluate(`document.querySelector('.toolbar-tools').style.width='128px'`);
+  await evaluate('document.querySelector("#toolbar-perf-test button").click()');
   await pause();
-  await evaluate(`document.querySelector('[aria-label="更多功能"]').click()`);
+  await evaluate('document.querySelector(".performance-process").click()');
+  assert.equal(await evaluate('document.querySelector(".performance-popover").innerText.includes("已固定")'),false);
+  await evaluate('document.querySelector(".performance-popover").dispatchEvent(new MouseEvent("mouseout",{bubbles:true,relatedTarget:document.body}))');
+  await pause(500);
+  assert.equal(await evaluate('!!document.querySelector(".performance-popover")'),false,'selecting a process must not pin the panel');
+  await evaluate('document.querySelector("#toolbar-perf-test button").click()');
   await pause();
-  assert.ok(await evaluate(`document.querySelector('.toolbar-overflow').innerText.includes('用量')`));
-  await evaluate(`document.querySelector('[aria-label="将用量移到快捷栏首位"]').click()`);
+  await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
   await pause();
-  assert.equal((await readOrder())[0], 'usage');
-  await evaluate(`document.querySelector('.toolbar-tools').style.removeProperty('width'); document.querySelector('.pill').click()`);
-  await pause();
-  await evaluate(`document.querySelector('[aria-label="更多功能"]')?.click()`);
-  await pause();
-  const shot = await send('Page.captureScreenshot');
-  writeFileSync('/tmp/workisland-toolbar-preview.png', Buffer.from(shot.data, 'base64'));
-  console.log('Toolbar smoke passed: camera exclusion, fixed entries, real pointer reorder, Escape cancellation, repeated sorting, overflow and promotion.', geometry);
+  assert.equal(await evaluate('!!document.querySelector(".performance-popover")'),false);
+  console.log('PASS: both banks, camera exclusion, click, repeated sort, cancellation, menu drag-out, cross-camera move, drag into More, full capacity, performance auto-close and Escape.');
 } finally {
-  if (saved) await evaluate(`window.islandBridge.setSettings(${JSON.stringify({fileShelfEnabled:saved.fileShelfEnabled,clipboardHistoryEnabled:saved.clipboardHistoryEnabled,terminalEnabled:saved.terminalEnabled,usageDashboardEnabled:saved.usageDashboardEnabled,toolboxModuleOrder:saved.toolboxModuleOrder})})`);
-  await evaluate(`document.querySelector('.toolbar-tools').style.removeProperty('width')`);
+  await mouse('mouseReleased',{x:700,y:400},{button:'left',clickCount:1}).catch(()=>{});
+  if(saved) await evaluate('window.islandBridge.setSettings('+JSON.stringify({fileShelfEnabled:saved.fileShelfEnabled,clipboardHistoryEnabled:saved.clipboardHistoryEnabled,terminalEnabled:saved.terminalEnabled,usageDashboardEnabled:saved.usageDashboardEnabled,performanceEnabled:saved.performanceEnabled,toolboxModuleOrder:saved.toolboxModuleOrder,toolbarHiddenModules:saved.toolbarHiddenModules||[],toolbarModuleSides:saved.toolbarModuleSides||{}})+')');
+  await evaluate('window.__perfTestRoot?.unmount();document.querySelector("#toolbar-perf-test")?.remove(); document.querySelector(".toolbar-header").style.removeProperty("width");document.querySelector(".toolbar-more[aria-expanded=true]")?.click()');
   ws.close();
 }

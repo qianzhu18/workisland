@@ -310,6 +310,8 @@ function AgentUsageRow({
   activeToolboxModule = "agent",
   onToolboxModuleChange,
   toolboxModuleOrder = [],
+  toolbarHiddenModules = [],
+  toolbarModuleSides = {},
   onToolboxModuleReorder,
   onOpenSettings,
   onOpenAbout,
@@ -337,19 +339,17 @@ function AgentUsageRow({
     if (tool === "codex" && !pillFirstRow.codexSubscription) return false;
     return true;
   }).map((tool, idx, arr) => /* @__PURE__ */ React.createElement(React.Fragment, { key: tool }, /* @__PURE__ */ React.createElement(AgentQuotaCell, { tool, quota: agentQuotas[tool] }), idx < arr.length - 1 && /* @__PURE__ */ React.createElement("span", { className: "usage-cell-divider" }, "|")));
-  return React.createElement('div', { className: 'usage-row', style: { minHeight: notchHeight, '--toolbar-notch-width': `${notchWidth}px` } },
-    React.createElement('div', { className: 'usage-row-agents' }, showUsageQuota ? quotaCells : null,
-      pillFirstRow.upgradeButton && (hasUpdate || hasActiveUpdateFlow(updateState)) && React.createElement(UpdateStatusButton, { updateState, hasUpdate, onDownload: onUpdateDownload, onInstall: onUpdateInstall, onOpenRelease })),
-    React.createElement('div', { className: 'toolbar-camera-space', 'aria-hidden': true }),
-    React.createElement(ToolbarTools, { modules: utilityModules, active: activeToolboxModule,
+  return React.createElement(ToolbarTools, { modules: utilityModules, active: activeToolboxModule,
+      notchWidth, notchHeight, order: toolboxModuleOrder, hiddenModules: toolbarHiddenModules, moduleSides: toolbarModuleSides,
+      leading: React.createElement(React.Fragment, null, showUsageQuota ? quotaCells : null,
+        pillFirstRow.upgradeButton && (hasUpdate || hasActiveUpdateFlow(updateState)) && React.createElement(UpdateStatusButton, { updateState, hasUpdate, onDownload: onUpdateDownload, onInstall: onUpdateInstall, onOpenRelease })),
       onSelect: onToolboxModuleChange, onOrder: onToolboxModuleReorder,
       homeIcon: React.createElement(AgentHomeIcon), settingsIcon: React.createElement('img', { src: settingIcon, alt: '' }),
       onSettings: () => onOpenSettings('display'), extras: [
-        ...(performanceEnabled ? [{ id: 'performance', label: '性能监视器', fixed: true, render: () => React.createElement(PerformancePopover, { state: performanceState }) }] : []),
+        ...(performanceEnabled ? [{ id: 'performance', label: '性能监视器', icon: React.createElement('span', null, '◔'), render: (labelled) => React.createElement(PerformancePopover, { state: performanceState, labelled }) }] : []),
         { id: 'pet', label: '打开或关闭桌宠', fixed: true, icon: React.createElement(PetButtonIcon), action: onOpenPet }
       ]
-    })
-  );
+    });
 }
 const TOOL_BADGE_COLORS = {
   claude: "#DA7250",
@@ -1438,13 +1438,21 @@ function IslandPanel({
   const [activeModule, setActiveModule] = React.useState("agent");
   const statusIcons = useIslandStatusIcons();
   const [moduleOrder, setModuleOrder] = React.useState([]);
+  const [toolbarHidden, setToolbarHidden] = React.useState([]);
+  const [toolbarSides, setToolbarSides] = React.useState({});
   React.useEffect(() => {
     let disposed = false;
     window.islandBridge?.getSettings?.().then((settings) => {
-      if (!disposed) setModuleOrder(Array.isArray(settings?.toolboxModuleOrder) ? settings.toolboxModuleOrder : []);
+      if (!disposed) {
+        setModuleOrder(Array.isArray(settings?.toolboxModuleOrder) ? settings.toolboxModuleOrder : []);
+        setToolbarHidden(settings?.toolbarHiddenModules || []);
+        setToolbarSides(settings?.toolbarModuleSides || {});
+      }
     }).catch(() => {});
     const unsubscribe = window.islandBridge?.onSettingsChanged?.((settings) => {
       setModuleOrder(Array.isArray(settings?.toolboxModuleOrder) ? settings.toolboxModuleOrder : []);
+      setToolbarHidden(settings?.toolbarHiddenModules || []);
+      setToolbarSides(settings?.toolbarModuleSides || {});
     });
     return () => {
       disposed = true;
@@ -1452,12 +1460,18 @@ function IslandPanel({
     };
   }, []);
   const enabledModules = enabledToolboxModules({ fileShelfEnabled, clipboardHistoryEnabled, terminalEnabled, usageDashboardEnabled });
-  const handleToolboxModuleReorder = (visibleOrder) => {
-    const fullOrder = orderToolboxModules(["shelf", "clipboard", "terminal", "usage"], moduleOrder);
+  const handleToolboxModuleReorder = async (visibleOrder, hiddenOrder = toolbarHidden, sides = toolbarSides) => {
+    const fullOrder = orderToolboxModules(["shelf", "clipboard", "terminal", "usage", "performance", "pet"], moduleOrder);
     let cursor = 0;
     const nextOrder = fullOrder.map(id => visibleOrder.includes(id) ? visibleOrder[cursor++] : id);
     setModuleOrder(nextOrder);
-    window.islandBridge?.setSettings?.({ toolboxModuleOrder: nextOrder });
+    setToolbarHidden(hiddenOrder);
+    setToolbarSides(sides);
+    try {
+      await window.islandBridge?.setSettings?.({ toolboxModuleOrder: nextOrder, toolbarHiddenModules: hiddenOrder, toolbarModuleSides: sides });
+    } catch (error) {
+      setModuleOrder(moduleOrder); setToolbarHidden(toolbarHidden); setToolbarSides(toolbarSides); throw error;
+    }
   };
   const agentAttention = Boolean(surface?.actionableSessionId) || sessions.some((session) => ["waitingForApproval", "waitingForAnswer", "failed"].includes(session.phase));
   React.useEffect(() => {
@@ -1536,6 +1550,8 @@ function IslandPanel({
       activeToolboxModule: activeModule,
       onToolboxModuleChange: setActiveModule,
       toolboxModuleOrder: moduleOrder,
+      toolbarHiddenModules: toolbarHidden,
+      toolbarModuleSides: toolbarSides,
       onToolboxModuleReorder: handleToolboxModuleReorder,
       onOpenSettings,
       onOpenAbout,
