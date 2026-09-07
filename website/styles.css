@@ -546,3 +546,10 @@ button:disabled, [aria-disabled="true"] { cursor: not-allowed; opacity: .55; }
 @media (prefers-reduced-motion: reduce) {
   .vi-stage-light::before, .vi-stage-light::after, .vi-stage-light i, .vi-signal-motes i { animation: none !important; opacity: .55; }
 }
+
+/* Compact, human-visible entry points for the same product brief exposed to agents. */
+.vi-agent-tools { display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:8px 12px; max-width:540px; min-height:24px; margin:14px auto 0; color:rgba(255,255,255,.58); font:12px/1.5 var(--font-mono); }
+.vi-agent-tools a, .vi-agent-tools button { color:rgba(255,255,255,.74); text-decoration:underline; text-underline-offset:3px; }
+.vi-agent-tools button { padding:0; border:0; background:transparent; font:inherit; cursor:pointer; }
+.vi-agent-tools a:hover, .vi-agent-tools button:hover { color:var(--v6-accent); }
+.vi-agent-tools [data-copy-status] { color:var(--v6-accent); }

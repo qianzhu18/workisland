@@ -24,6 +24,14 @@ const ossMirrorWorkflow = readFileSync(new URL("../.github/workflows/oss-downloa
 const qrUrl = new URL("../website/assets/community/workisland-community-group.png", import.meta.url);
 const robotsUrl = new URL("../website/robots.txt", import.meta.url);
 const sitemapUrl = new URL("../website/sitemap.xml", import.meta.url);
+const llmsUrl = new URL("../website/llms.txt", import.meta.url);
+const skillUrl = new URL("../website/skill.md", import.meta.url);
+const chineseMarkdownUrl = new URL("../website/index.md", import.meta.url);
+const englishMarkdownUrl = new URL("../website/en/index.md", import.meta.url);
+const guideMarkdownUrl = new URL("../website/guide/index.md", import.meta.url);
+const chineseClaudeMarkdownUrl = new URL("../website/guides/claude-code-notifications/index.md", import.meta.url);
+const englishClaudeMarkdownUrl = new URL("../website/en/claude-code-notifications/index.md", import.meta.url);
+const agentCopyScriptUrl = new URL("../website/agent-copy.js", import.meta.url);
 const downloadConfigUrl = new URL("../website/download-config.json", import.meta.url);
 const downloadsScriptUrl = new URL("../website/downloads.js", import.meta.url);
 const downloadManifestScriptUrl = new URL("../scripts/build-download-manifest.mjs", import.meta.url);
@@ -89,6 +97,34 @@ test("website publishes crawler discovery files for its canonical pages", () => 
   assert.match(sitemap, /<loc>https:\/\/workisland\.yanglaishe\.cn\/changelog\/<\/loc>/);
   assert.match(sitemap, /<loc>https:\/\/workisland\.yanglaishe\.cn\/guides\/claude-code-notifications\/<\/loc>/);
   assert.match(sitemap, /<loc>https:\/\/workisland\.yanglaishe\.cn\/en\/claude-code-notifications\/<\/loc>/);
+});
+
+test("website offers concise, agent-readable product entry points", () => {
+  for (const source of [llmsUrl, skillUrl, chineseMarkdownUrl, englishMarkdownUrl, guideMarkdownUrl, chineseClaudeMarkdownUrl, englishClaudeMarkdownUrl, agentCopyScriptUrl]) {
+    assert.equal(existsSync(source), true);
+  }
+
+  const llms = readFileSync(llmsUrl, "utf8");
+  const skill = readFileSync(skillUrl, "utf8");
+  const agentCopyScript = readFileSync(agentCopyScriptUrl, "utf8");
+  const robots = readFileSync(robotsUrl, "utf8");
+
+  assert.match(llms, /^# WorkIsland$/m);
+  assert.match(llms, /https:\/\/workisland\.yanglaishe\.cn\/skill\.md/);
+  assert.match(llms, /https:\/\/workisland\.yanglaishe\.cn\/guide\/index\.md/);
+  assert.match(skill, /## Requirements and limits/);
+  assert.match(skill, /Email, calendar, and general-notification integrations are not shipped features\./);
+  assert.match(robots, /Agent-readable product and documentation index/);
+  assert.match(html, /rel="alternate" type="text\/markdown" href="https:\/\/workisland\.yanglaishe\.cn\/index\.md"/);
+  assert.match(english, /rel="alternate" type="text\/markdown" href="https:\/\/workisland\.yanglaishe\.cn\/en\/index\.md"/);
+  assert.match(guide, /rel="alternate" type="text\/markdown" href="https:\/\/workisland\.yanglaishe\.cn\/guide\/index\.md"/);
+  assert.match(chineseClaudeGuide, /rel="alternate" type="text\/markdown" href="https:\/\/workisland\.yanglaishe\.cn\/guides\/claude-code-notifications\/index\.md"/);
+  assert.match(englishClaudeGuide, /rel="alternate" type="text\/markdown" href="https:\/\/workisland\.yanglaishe\.cn\/en\/claude-code-notifications\/index\.md"/);
+  assert.match(html, /data-copy-for-ai/);
+  assert.match(english, /data-copy-for-ai/);
+  assert.match(agentCopyScript, /navigator\.clipboard\?\.writeText/);
+  assert.match(nginxConfig, /location = \/llms\.txt \{\s*default_type text\/plain;/);
+  assert.match(nginxConfig, /location ~\* \\.md\$ \{\s*default_type text\/markdown;/);
 });
 
 test("website declares a canonical URL for each indexable page", () => {
@@ -161,6 +197,12 @@ test("website metadata states the product intent and canonical share preview", (
 test("website deployment validates crawler discovery files", () => {
   assert.match(websiteWorkflow, /test -s website\/robots\.txt/);
   assert.match(websiteWorkflow, /test -s website\/sitemap\.xml/);
+  assert.match(websiteWorkflow, /test -s website\/llms\.txt/);
+  assert.match(websiteWorkflow, /test -s website\/skill\.md/);
+  assert.match(websiteWorkflow, /test -s website\/agent-copy\.js/);
+  assert.match(websiteWorkflow, /test -s website\/index\.md/);
+  assert.match(websiteWorkflow, /test -s website\/en\/index\.md/);
+  assert.match(websiteWorkflow, /test -s website\/guide\/index\.md/);
   assert.match(websiteWorkflow, /test -s website\/en\/index\.html/);
   assert.match(websiteWorkflow, /test -s website\/en\/en\.css/);
   assert.match(websiteWorkflow, /test -s website\/changelog\/index\.html/);

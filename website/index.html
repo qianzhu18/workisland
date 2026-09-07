@@ -6,6 +6,8 @@
     <meta name="theme-color" content="#151518">
     <meta name="description" content="WorkIsland 是面向 AI 原生工作流的本地优先 macOS 工作界面。从 Claude Code、Codex、Cursor 等 Agent 开始，把审批、提问、完成与回源变成有上下文、可处理的原生交互。">
     <link rel="canonical" href="https://workisland.yanglaishe.cn/">
+    <link rel="alternate" type="text/markdown" href="https://workisland.yanglaishe.cn/index.md">
+    <link rel="describedby" type="text/markdown" href="https://workisland.yanglaishe.cn/llms.txt">
     <link rel="alternate" hreflang="zh-CN" href="https://workisland.yanglaishe.cn/">
     <link rel="alternate" hreflang="en" href="https://workisland.yanglaishe.cn/en/">
     <link rel="alternate" hreflang="x-default" href="https://workisland.yanglaishe.cn/">
@@ -114,8 +116,27 @@
           <figcaption>真实 WorkIsland 界面 · 演示数据已脱敏</figcaption>
         </figure>
         <p class="vi-platform">APPLE SILICON · LOCAL FIRST · FREE &amp; OPEN SOURCE</p>
+        <div class="vi-agent-tools" aria-label="给 AI 的产品资料">
+          <a href="skill.md">给 Agent 的产品说明</a>
+          <button type="button" data-copy-for-ai data-copy-source="workisland-ai-brief" data-copy-label="复制产品说明给 AI" data-copy-done="已复制" data-copy-success="已复制无噪声产品说明。" data-copy-failure="复制失败，请打开产品说明后手动复制。">复制产品说明给 AI</button>
+          <span data-copy-status aria-live="polite"></span>
+        </div>
         <a class="vi-scroll-cue" href="#features"><span></span> 看它怎么工作</a>
       </section>
+
+      <template id="workisland-ai-brief">
+# WorkIsland
+
+WorkIsland is a free, local-first native macOS work interface for AI workflows.
+
+Use it when a person runs Claude Code, Codex, Cursor, or another supported coding agent on a Mac and needs to see which local task is running, waiting for approval or an answer, completed, or failed—then return to the originating terminal or app session.
+
+It does not replace the agent, terminal, or IDE; it does not execute arbitrary commands, automate approvals, or upload session content, code, paths, host names, or user names. The current public release starts with coding agents. Email, calendar, and general-notification integrations are not shipped features.
+
+Start: install WorkIsland from the official release, connect the agent already in use in Settings, then run one real task to verify the local signal and return path.
+
+Docs: https://workisland.yanglaishe.cn/llms.txt
+      </template>
 
       <!-- ============ DEMO / MACBOOK ============ -->
       <section class="vi-demo-section" aria-label="WorkIsland 灵动岛交互演示">
@@ -396,6 +417,7 @@
     </footer>
 
     <script src="downloads.js" defer></script>
+    <script src="agent-copy.js" defer></script>
     <script src="script.js" defer></script>
   </body>
 </html>

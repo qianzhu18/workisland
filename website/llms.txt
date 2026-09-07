@@ -1,0 +1,23 @@
+# WorkIsland
+
+> WorkIsland is a free, local-first native macOS work interface for AI workflows. It starts with Claude Code, Codex, Cursor, and other supported coding agents, helping a person see local task state, act on supported approvals or questions, and return to the originating session.
+
+WorkIsland does not replace an agent, terminal, or IDE. It does not execute arbitrary commands, automate approvals, or upload session content, code, paths, host names, or user names. Email, calendar, and general-notification integrations are not shipped features.
+
+## Product
+
+- [Agent product brief](https://workisland.yanglaishe.cn/skill.md): Capability, requirements, limits, and a minimal start path. Approx. 220 tokens.
+- [Chinese product overview](https://workisland.yanglaishe.cn/index.md): Product definition, supported workflow, current boundaries, and official links. Approx. 320 tokens.
+- [English product overview](https://workisland.yanglaishe.cn/en/index.md): English product definition, supported workflow, current boundaries, and official links. Approx. 280 tokens.
+
+## Guides
+
+- [Chinese quick start](https://workisland.yanglaishe.cn/guide/index.md): Install, connect one existing agent, run a real task, and verify the return path. Approx. 360 tokens.
+- [Claude Code notifications on macOS — Chinese](https://workisland.yanglaishe.cn/guides/claude-code-notifications/index.md): Fit, setup, verification, and limits for Claude Code users. Approx. 340 tokens.
+- [Claude Code notifications on macOS — English](https://workisland.yanglaishe.cn/en/claude-code-notifications/index.md): Fit, setup, verification, and limits for Claude Code users. Approx. 290 tokens.
+
+## Human-readable pages
+
+- [Website](https://workisland.yanglaishe.cn/): Product overview and official download.
+- [Product guide](https://workisland.yanglaishe.cn/guide/): Human-readable setup and privacy guide.
+- [GitHub repository](https://github.com/qianzhu18/workisland): Source code, releases, and issue tracker.

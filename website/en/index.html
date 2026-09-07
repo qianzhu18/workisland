@@ -6,6 +6,8 @@
     <meta name="theme-color" content="#151518">
     <meta name="description" content="WorkIsland is a local-first native Mac work interface for AI workflows. Starting with Claude Code, Codex, Cursor, and other coding agents, it turns approvals, questions, completed work, and return-to-source into contextual, actionable interactions.">
     <link rel="canonical" href="https://workisland.yanglaishe.cn/en/">
+    <link rel="alternate" type="text/markdown" href="https://workisland.yanglaishe.cn/en/index.md">
+    <link rel="describedby" type="text/markdown" href="https://workisland.yanglaishe.cn/llms.txt">
     <link rel="alternate" hreflang="zh-CN" href="https://workisland.yanglaishe.cn/">
     <link rel="alternate" hreflang="en" href="https://workisland.yanglaishe.cn/en/">
     <link rel="alternate" hreflang="x-default" href="https://workisland.yanglaishe.cn/">
@@ -85,12 +87,27 @@
           <p class="en-lead"><strong>When work needs you, you should not have to go looking for it.</strong> WorkIsland is a native macOS app that gathers coding-agent task states, approvals, and reminders on a small island at the top of your screen — visible at a glance, one click back to the session. Starting with Claude Code, Codex, and Cursor.</p>
           <div class="en-actions"><a class="en-button en-button-primary" href="https://github.com/qianzhu18/workisland/releases/latest" data-download-link>Download for macOS</a><a class="en-button en-button-secondary" href="#workflow">See how it works <span aria-hidden="true">↓</span></a></div>
           <p class="en-note">macOS · local-first · free and open source</p>
+          <div class="en-agent-tools" aria-label="Agent-readable product information"><a href="../skill.md">Agent brief</a><button type="button" data-copy-for-ai data-copy-source="workisland-ai-brief" data-copy-label="Copy product brief for AI" data-copy-done="Copied" data-copy-success="Copied a clean product brief." data-copy-failure="Copy failed. Open the brief and copy it manually.">Copy product brief for AI</button><span data-copy-status aria-live="polite"></span></div>
         </div>
         <figure class="en-product-shot">
           <img src="../assets/demo/overview.png" fetchpriority="high" width="1480" height="1144" alt="WorkIsland showing three coding-agent tasks running in a real macOS interface">
           <figcaption>Real WorkIsland interface. Demo data has been redacted.</figcaption>
         </figure>
       </section>
+
+      <template id="workisland-ai-brief">
+# WorkIsland
+
+WorkIsland is a free, local-first native macOS work interface for AI workflows.
+
+Use it when a person runs Claude Code, Codex, Cursor, or another supported coding agent on a Mac and needs to see which local task is running, waiting for approval or an answer, completed, or failed—then return to the originating terminal or app session.
+
+It does not replace the agent, terminal, or IDE; it does not execute arbitrary commands, automate approvals, or upload session content, code, paths, host names, or user names. The current public release starts with coding agents. Email, calendar, and general-notification integrations are not shipped features.
+
+Start: install WorkIsland from the official release, connect the agent already in use in Settings, then run one real task to verify the local signal and return path.
+
+Docs: https://workisland.yanglaishe.cn/llms.txt
+      </template>
 
       <section class="en-proof" aria-label="Supported coding agents">
         <p>WORKS WITH THE AGENTS YOU ALREADY RUN</p>
@@ -141,5 +158,6 @@
 
     <footer class="en-footer"><a href="../">中文官网</a><a href="../guide/">User guide</a><a href="claude-code-notifications/">Claude Code guide</a><a href="../changelog/">Changelog</a><a href="https://github.com/qianzhu18/workisland" target="_blank" rel="noreferrer">GitHub</a><span>WorkIsland is a local-first native Mac work interface for AI workflows, starting with coding agents.</span><p class="en-web-privacy">This website uses self-hosted Umami and Microsoft Clarity to understand visits and interactions. Clarity is provided by Microsoft; see its <a href="https://privacy.microsoft.com/privacystatement" target="_blank" rel="noreferrer">Privacy Statement</a>.</p></footer>
     <script src="../downloads.js" defer></script>
+    <script src="../agent-copy.js" defer></script>
   </body>
 </html>
