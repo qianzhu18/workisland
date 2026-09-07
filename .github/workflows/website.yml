@@ -37,17 +37,26 @@ jobs:
           test -s website/icon.png
           test -s website/robots.txt
           test -s website/sitemap.xml
+          test -s website/llms.txt
+          test -s website/skill.md
+          test -s website/index.md
+          test -s website/agent-copy.js
           test -s website/en/index.html
+          test -s website/en/index.md
           test -s website/en/en.css
           test -s website/guide/index.html
+          test -s website/guide/index.md
           test -s website/guide/guide.css
           test -s website/guides/article.css
           test -s website/guides/claude-code-notifications/index.html
+          test -s website/guides/claude-code-notifications/index.md
           test -s website/en/claude-code-notifications/index.html
+          test -s website/en/claude-code-notifications/index.md
           test -s website/changelog/index.html
           test -s website/changelog/changelog.css
           node --check website/script.js
           node --check website/downloads.js
+          node --check website/agent-copy.js
           node --check scripts/submit-indexnow.mjs
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5

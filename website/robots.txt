@@ -1,4 +1,5 @@
 User-agent: *
 Allow: /
 
+# Agent-readable product and documentation index: https://workisland.yanglaishe.cn/llms.txt
 Sitemap: https://workisland.yanglaishe.cn/sitemap.xml
