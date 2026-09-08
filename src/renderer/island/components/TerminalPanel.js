@@ -30,7 +30,7 @@ export function TerminalPanel({ active = false, panelOpen = true, savedCommands 
     terminal.onData((data) => window.islandBridge.sendTerminalInput(data));
     const resize = () => {
       const rect = hostRef.current?.getBoundingClientRect();
-      if (!rect) return;
+      if (!rect || rect.width < 1 || rect.height < 1) return;
       const cols = Math.max(20, Math.min(500, Math.floor(rect.width / 7.3)));
       const rows = Math.max(5, Math.min(200, Math.floor(rect.height / 16)));
       terminal.resize(cols, rows);

@@ -121,6 +121,11 @@ test("terminal visibility controls shortcuts without owning xterm lifetime", () 
   assert.match(terminal, /terminal-panel\$\{active \? "" : " is-hidden"\}/);
 });
 
+test("hidden terminal never resizes the PTY to a zero-sized viewport", () => {
+  const terminal = read("TerminalPanel.js");
+  assert.match(terminal, /if \(!rect \|\| rect\.width < 1 \|\| rect\.height < 1\) return/);
+});
+
 test("terminal quick commands come only from user settings", () => {
   const source = read("TerminalPanel.js");
   assert.doesNotMatch(source, /QUICK_COMMANDS/);
