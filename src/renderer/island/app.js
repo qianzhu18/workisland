@@ -119,6 +119,7 @@ const MOUSE_LEAVE_CLOSE_DELAY_MS = 300;
 const CLOSE_WINDOW_RESIZE_DELAY_MS = 300;
 const OPEN_WINDOW_SHADOW_MARGIN_PX = 32;
 function isToolboxInteractionFocused() {
+  if (document.documentElement.hasAttribute('data-toolbar-dragging') || document.querySelector('.toolbar-overflow')) return true;
   return Boolean(document.activeElement?.closest?.(".toolbox-panel input, .toolbox-panel textarea, .terminal-host"));
 }
 function IslandApp() {
@@ -751,10 +752,15 @@ function IslandApp() {
       return;
     }
     mouseLeaveCloseTimer.current = setTimeout(() => {
+      if (isToolboxInteractionFocused()) return;
       collapsePanelToPill();
     }, MOUSE_LEAVE_CLOSE_DELAY_MS);
   }, [collapsePanelToPill, isOpen]);
   const handlePillClick = reactExports.useCallback(() => {
+    if (mouseLeaveCloseTimer.current) {
+      clearTimeout(mouseLeaveCloseTimer.current);
+      mouseLeaveCloseTimer.current = null;
+    }
     if (hoverOpenTimer.current) {
       clearTimeout(hoverOpenTimer.current);
       hoverOpenTimer.current = null;
@@ -992,6 +998,7 @@ function IslandApp() {
             sessionRecaps,
             surface,
             notchHeight: notchH,
+            notchWidth: notchInfo.hasNotch ? notchInfo.notchWidth + 16 : 0,
             panelMaxHeightPx,
             agentQuotas,
             hasUpdate,

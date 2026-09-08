@@ -80,7 +80,7 @@ test("capability projection exposes only documented product metadata and safe st
   }
   assert.equal(capabilities.find(({ id }) => id === "media").enabled, true);
   assert.equal(capabilities.find(({ id }) => id === "lyrics").enabled, false);
-  assert.equal(capabilities.find(({ id }) => id === "clipboard-history").enabled, false);
+  assert.equal(capabilities.find(({ id }) => id === "clipboard-history").enabled, true);
 });
 
 test("capability details reject unknown ids without leaking arbitrary input", () => {

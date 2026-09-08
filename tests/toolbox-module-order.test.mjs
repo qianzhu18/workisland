@@ -9,6 +9,13 @@ const {
 } = await import("../src/renderer/island/components/productivity-toolbox-model.mjs");
 const { mergeSettings, DEFAULT_SETTINGS } = require("../src/shared/settings.cjs");
 
+test("exact toolbar slots persist and reject invalid preferences", () => {
+  const slots = { pet: 'right:2', shelf: 'left:0', terminal: 'overflow', usage: -1, unknown: 'left:1' };
+  const merged = mergeSettings({ toolbarModuleSlots: slots });
+  assert.deepEqual(merged.toolbarModuleSlots, { pet: 'right:2', shelf: 'left:0', terminal: 'overflow' });
+  assert.deepEqual(mergeSettings(JSON.parse(JSON.stringify(merged))).toolbarModuleSlots, merged.toolbarModuleSlots);
+});
+
 test("orderToolboxModules keeps default order when preference is empty", () => {
   assert.deepEqual(
     orderToolboxModules(["shelf", "clipboard", "terminal"], []),
@@ -49,4 +56,15 @@ test("settings merge sanitizes toolboxModuleOrder", () => {
   assert.deepEqual(merged.toolboxModuleOrder, ["terminal", "clipboard"]);
   assert.deepEqual(DEFAULT_SETTINGS.toolboxModuleOrder, []);
   assert.deepEqual(mergeSettings({}).toolboxModuleOrder, []);
+});
+
+test("system utilities retain order, bank and overflow preferences across reload", () => {
+  const merged = mergeSettings({ toolboxModuleOrder: ['performance','pet','terminal'],
+    toolbarHiddenModules: ['pet','pet','unknown'],
+    toolbarModuleSides: { performance: 'right', terminal: 'left', pet: 'center', unknown: 'left' }
+  });
+  assert.deepEqual(merged.toolboxModuleOrder, ['performance','pet','terminal']);
+  assert.deepEqual(merged.toolbarHiddenModules, ['pet']);
+  assert.deepEqual(merged.toolbarModuleSides, { performance: 'right', terminal: 'left' });
+  assert.deepEqual(mergeSettings(merged).toolbarModuleSides, merged.toolbarModuleSides);
 });

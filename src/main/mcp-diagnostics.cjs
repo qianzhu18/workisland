@@ -85,7 +85,7 @@ function diagnoseMcpSubject(subject, context = {}) {
     }
     case "clipboard-not-visible": {
       const enabled = settings.clipboardHistoryEnabled === true;
-      return diagnosis(subject, enabled ? "enabled" : "disabled", [enabled ? "剪贴板历史已由用户明确开启。" : "剪贴板历史当前为关闭状态；新安装默认关闭。"], enabled ? ["尚未捕获可保存的剪贴板内容。", "工作台当前显示的是其他模块。"] : ["剪贴板历史为隐私敏感功能，必须由用户明确开启。"], enabled ? ["复制一段非敏感文字后打开剪贴板模块。"] : ["如确有需要，在通用设置中阅读隐私说明后手动开启。"], "general");
+      return diagnosis(subject, enabled ? "enabled" : "disabled", [enabled ? "剪贴板历史已开启，历史保存在本机。" : "剪贴板历史当前为关闭状态。"], enabled ? ["尚未捕获可保存的剪贴板内容。", "工作台当前显示的是其他模块。"] : ["已保存的关闭选择会保留，不会因升级而自动开启。"], enabled ? ["复制一段非敏感文字后打开剪贴板模块；可在设置中关闭或清空历史。"] : ["如有需要，在通用设置中开启剪贴板历史。"], "general");
     }
     case "terminal-not-visible": {
       const enabled = settings.terminalEnabled !== false && modules.terminal !== false;

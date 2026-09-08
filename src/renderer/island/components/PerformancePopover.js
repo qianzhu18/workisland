@@ -7,9 +7,8 @@ function bytes(value) {
   return `${(Math.max(0, Number(value) || 0) / 1073741824).toFixed(1)} GB`;
 }
 
-export function PerformancePopover({ state }) {
+export function PerformancePopover({ state, labelled = false }) {
   const [hovered, setHovered] = React.useState(false);
-  const [pinned, setPinned] = React.useState(false);
   const [position, setPosition] = React.useState({ left: 12, top: 12 });
   const [selectedProcess, setSelectedProcess] = React.useState(null);
   const [selectedMetric, setSelectedMetric] = React.useState("");
@@ -19,16 +18,34 @@ export function PerformancePopover({ state }) {
   const triggerRef = React.useRef(null);
   const popoverRef = React.useRef(null);
   const closeTimer = React.useRef(null);
-  const visible = hovered || pinned;
+  const visible = hovered;
   const cancelClose = () => {
     if (closeTimer.current) window.clearTimeout(closeTimer.current);
     closeTimer.current = null;
   };
-  const open = () => { cancelClose(); setHovered(true); };
+  const open = () => { if (document.documentElement.hasAttribute('data-toolbar-dragging')) return; cancelClose(); setHovered(true); };
   const closeSoon = () => {
     cancelClose();
     closeTimer.current = window.setTimeout(() => setHovered(false), 350);
   };
+  React.useEffect(() => {
+    const close = (event) => {
+      if (event.type === "keydown" && event.key !== "Escape") return;
+      if (event.type === "pointerdown" && (triggerRef.current?.contains(event.target) || popoverRef.current?.contains(event.target))) return;
+      cancelClose(); setHovered(false); setSelectedProcess(null);
+    };
+    window.addEventListener("keydown", close);
+    window.addEventListener("pointerdown", close);
+    window.addEventListener("blur", close);
+    window.addEventListener("workisland:toolbar-drag-start", close);
+    return () => {
+      cancelClose();
+      window.removeEventListener("keydown", close);
+      window.removeEventListener("pointerdown", close);
+      window.removeEventListener("blur", close);
+      window.removeEventListener("workisland:toolbar-drag-start", close);
+    };
+  }, []);
   React.useLayoutEffect(() => {
     if (!visible || !triggerRef.current) return undefined;
     const updatePosition = () => {
@@ -72,7 +89,7 @@ export function PerformancePopover({ state }) {
     }
   };
   const popover = visible && React.createElement("div", { ref: popoverRef, className: "performance-popover", role: "dialog", "aria-label": "性能详情", style: { left: `${position.left}px`, top: `${position.top}px` }, onMouseEnter: open, onMouseLeave: closeSoon },
-    React.createElement("div", { className: "performance-popover-header" }, React.createElement("strong", null, "系统性能"), React.createElement("span", null, pinned ? "已固定" : "实时")),
+    React.createElement("div", { className: "performance-popover-header" }, React.createElement("strong", null, "系统性能"), React.createElement("span", null, "实时")),
     React.createElement("div", { className: "performance-metrics" },
       React.createElement("button", { type: "button", className: `performance-metric${metric === "cpu" ? " is-active" : ""}`, onClick: () => setSelectedMetric("cpu"), "aria-pressed": metric === "cpu", title: "按 CPU 占用排序" }, React.createElement("span", null, "CPU"), React.createElement("strong", null, `${cpu}%`), React.createElement("i", { style: { "--value": `${cpu}%` } })),
       React.createElement("button", { type: "button", className: `performance-metric${metric === "memory" ? " is-active" : ""}`, onClick: () => setSelectedMetric("memory"), "aria-pressed": metric === "memory", title: "按内存占用排序" }, React.createElement("span", null, "内存"), React.createElement("strong", null, `${memory}%`), React.createElement("i", { style: { "--value": `${memory}%` } }))
@@ -82,7 +99,7 @@ export function PerformancePopover({ state }) {
     state?.processes?.length > 0 && React.createElement("div", { className: "performance-processes" },
       React.createElement("div", { className: "performance-process-title" }, React.createElement("span", null, metric === "memory" ? "按内存占用排序" : "按 CPU 占用排序"), React.createElement("span", null, `${orderedProcesses.length} 个可见进程`)),
       React.createElement("div", { className: `performance-process-list${showAllProcesses ? " is-expanded" : ""}` },
-        visibleProcesses.map((process) => React.createElement("button", { type: "button", disabled: Boolean(process.protected), className: `performance-process${selectedProcess?.pid === process.pid ? " is-selected" : ""}${process.protected ? " is-protected" : ""}`, key: process.pid, onClick: () => { if (process.protected) return; setSelectedProcess(process); setFeedback(""); setPinned(true); }, "aria-label": process.protected ? `${process.name} 是受保护进程` : `管理进程 ${process.name}` },
+        visibleProcesses.map((process) => React.createElement("button", { type: "button", disabled: Boolean(process.protected), className: `performance-process${selectedProcess?.pid === process.pid ? " is-selected" : ""}${process.protected ? " is-protected" : ""}`, key: process.pid, onClick: () => { if (process.protected) return; setSelectedProcess(process); setFeedback(""); }, "aria-label": process.protected ? `${process.name} 是受保护进程` : `管理进程 ${process.name}` },
           React.createElement("span", { className: "performance-process-name", title: process.name }, process.name),
           React.createElement("span", { className: "performance-process-values" },
             React.createElement("strong", { className: metric === "cpu" ? "is-primary" : "" }, `${Number(process.cpuPct || 0).toFixed(1)}% CPU`),
@@ -105,9 +122,10 @@ export function PerformancePopover({ state }) {
     )
   );
   return React.createElement("div", { ref: triggerRef, className: "performance-control", onMouseEnter: open, onMouseLeave: closeSoon },
-    React.createElement("button", { type: "button", className: `panel-btn performance-button is-${level}${pinned ? " is-pinned" : ""}`, onClick: () => setPinned((value) => !value), "aria-expanded": visible, "aria-label": "性能监视器", title: "性能监视器" },
+    React.createElement("button", { type: "button", className: `panel-btn performance-button is-${level}`, onClick: open, "aria-expanded": visible, "aria-label": "性能监视器", title: "性能监视器" },
       React.createElement("span", { className: "performance-gauge", style: { "--load": `${Math.max(cpu, memory)}%` } }),
-      React.createElement("span", { className: "performance-mini" }, `${cpu}%`)
+      React.createElement("span", { className: "performance-mini" }, `${cpu}%`),
+      labelled && React.createElement("span", { className: "performance-menu-label" }, "性能监视器")
     ),
     popover && ReactDOM.createPortal(popover, document.body)
   );

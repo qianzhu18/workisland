@@ -126,7 +126,7 @@ const DEFAULT_SETTINGS = {
   performanceEnabled: true,
   performanceAlertsEnabled: false,
   fileShelfEnabled: true,
-  clipboardHistoryEnabled: false,
+  clipboardHistoryEnabled: true,
   clipboardHistoryLimit: 100,
   clipboardRetentionHours: 24,
   terminalEnabled: true,

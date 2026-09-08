@@ -145,8 +145,8 @@ const DEFAULT_SETTINGS = {
   performanceAlertsEnabled: false,
   fileShelfEnabled: true,
   shelfQuickShareProvider: "AirDrop",
-  // Clipboard history is opt-in because copied content can contain secrets.
-  clipboardHistoryEnabled: false,
+  // Local-only history defaults on; persisted user opt-outs survive upgrades.
+  clipboardHistoryEnabled: true,
   clipboardHistoryLimit: 100,
   clipboardRetentionHours: 24,
   terminalEnabled: true,
@@ -159,6 +159,9 @@ const DEFAULT_SETTINGS = {
   // array means the built-in default order; unknown ids are dropped on merge
   // and newly introduced modules append after the ordered ones.
   toolboxModuleOrder: [],
+  toolbarHiddenModules: [],
+  toolbarModuleSides: {},
+  toolbarModuleSlots: {},
   showUsageQuota: true,
   usageDisplayValue: "used",
   disableClaudeTerminalTitle: true,
@@ -355,11 +358,17 @@ function mergeSettings(parsed = {}) {
     ? parsed.toolboxReopenMode
     : DEFAULT_SETTINGS.toolboxReopenMode;
   {
-    const known = ["shelf", "clipboard", "terminal", "usage"];
+    const known = ["shelf", "clipboard", "terminal", "usage", "performance", "pet"];
     const order = Array.isArray(parsed.toolboxModuleOrder)
       ? parsed.toolboxModuleOrder.filter((id) => known.includes(id))
       : [];
     merged.toolboxModuleOrder = Array.from(new Set(order));
+    merged.toolbarHiddenModules = [...new Set(Array.isArray(parsed.toolbarHiddenModules)
+      ? parsed.toolbarHiddenModules.filter(id => known.includes(id)) : [])];
+    merged.toolbarModuleSlots = Object.fromEntries(Object.entries(parsed.toolbarModuleSlots || {})
+      .filter(([id, slot]) => known.includes(id) && typeof slot === 'string' && /^(?:left:\d{1,3}|right:\d{1,3}|overflow)$/.test(slot)));
+    merged.toolbarModuleSides = Object.fromEntries(Object.entries(parsed.toolbarModuleSides || {})
+      .filter(([id, side]) => known.includes(id) && ['left', 'right'].includes(side)));
   }
 
   return merged;
