@@ -1,7 +1,7 @@
 import { R as React } from '../../vendor/react-runtime.js';
-import { insertTool, TOOL_SLOT, toolbarSlots, toolbarDropTarget, visibleToolbarOrder, placeToolbarTools } from './toolbar-model.mjs';
+import { insertTool, moveToolbarTool, TOOL_SLOT, toolbarSlots, toolbarDropTarget, visibleToolbarOrder, placeToolbarTools } from './toolbar-model.mjs';
 
-export function ToolbarTools({ modules, active, onSelect, onOrder, order = [], hiddenModules = [], moduleSides = {},
+export function ToolbarTools({ modules, active, onSelect, onOrder, order = [], hiddenModules = [], moduleSides = {}, moduleSlots = {},
   homeIcon, settingsIcon, onSettings, extras = [], leading, notchWidth = 0, notchHeight = 32 }) {
   const root = React.useRef(null);
   const leadingRef = React.useRef(null);
@@ -19,15 +19,15 @@ export function ToolbarTools({ modules, active, onSelect, onOrder, order = [], h
   const all = ids.map(id => defs.find(tool => tool.id === id));
   const layout = toolbarSlots(measure.width, notchWidth, measure.leading);
   const arranged = drag?.preview || visibleToolbarOrder(ids, hiddenModules);
-  const placements = placeToolbarTools(arranged, layout, drag?.sides || moduleSides);
+  const placements = placeToolbarTools(arranged, layout, drag?.sides || moduleSides, drag?.saved || moduleSlots);
   const shownIds = [...placements.keys()];
   const hidden = all.filter(tool => !shownIds.includes(tool.id));
   const menuTools = [...hidden, ...all.filter(tool => shownIds.includes(tool.id))];
-  latest.current = { ids, layout, onOrder, hiddenModules, moduleSides };
+  latest.current = { ids, layout, onOrder, hiddenModules, moduleSides, moduleSlots };
 
-  const save = (nextOrder, nextHidden, nextSides = latest.current.moduleSides) => {
+  const save = (nextOrder, nextHidden, nextSides = latest.current.moduleSides, nextSlots = latest.current.moduleSlots) => {
     setError('');
-    Promise.resolve(latest.current.onOrder(nextOrder, nextHidden, nextSides)).catch(() => setError('排列未能保存，请重试'));
+    Promise.resolve(latest.current.onOrder(nextOrder, nextHidden, nextSides, nextSlots)).catch(() => setError('排列未能保存，请重试'));
   };
   const finish = (commit = false) => {
     const state = dragRef.current;
@@ -44,7 +44,7 @@ export function ToolbarTools({ modules, active, onSelect, onOrder, order = [], h
         const next = state.target === 'more' ? current.ids : [
           ...state.preview, ...current.ids.filter(id => !state.preview.includes(id))
         ];
-        save(next, nextHidden, state.sides || current.moduleSides);
+        save(next, nextHidden, state.sides || current.moduleSides, state.saved || current.moduleSlots);
         setMenu(false);
       }
       // Suppress the synthesized click from this release, not a later keyboard click.
@@ -62,7 +62,7 @@ export function ToolbarTools({ modules, active, onSelect, onOrder, order = [], h
     update();
     return () => observer.disconnect();
   }, []);
-  React.useEffect(() => { finish(); }, [measure.width, measure.leading, notchWidth, ids.join(','), hiddenModules.join(','), JSON.stringify(moduleSides)]);
+  React.useEffect(() => { finish(); }, [measure.width, measure.leading, notchWidth, ids.join(','), hiddenModules.join(','), JSON.stringify(moduleSides), JSON.stringify(moduleSlots)]);
   React.useEffect(() => {
     const cancel = event => {
       if (event.type === 'blur' || event.key === 'Escape') { finish(); setMenu(false); }
@@ -117,12 +117,16 @@ export function ToolbarTools({ modules, active, onSelect, onOrder, order = [], h
     const base = visibleToolbarOrder(current.ids, current.hiddenModules, state.id);
     if (typeof state.target === 'number') {
       const destination = current.layout.slots[state.target];
-      const original = placeToolbarTools(base, current.layout, current.moduleSides);
+      const original = placeToolbarTools(base, current.layout, current.moduleSides, current.moduleSlots);
       const occupant = [...original.entries()].find(([, slot]) => slot.index === state.target)?.[0];
       state.sides = { ...current.moduleSides, [state.id]: destination.bank };
+      state.saved = moveToolbarTool(visibleToolbarOrder(current.ids, current.hiddenModules), current.layout, current.moduleSides, current.moduleSlots, state.id, state.target);
       state.preview = insertTool(base, state.id, occupant ? base.indexOf(occupant) : base.length - 1);
     } else {
       state.sides = current.moduleSides;
+      state.saved = state.target === 'more'
+        ? { ...current.moduleSlots, ...Object.fromEntries(placeToolbarTools(visibleToolbarOrder(current.ids, current.hiddenModules), current.layout, current.moduleSides, current.moduleSlots).entries().map(([id, slot]) => [id, slot.key])) }
+        : current.moduleSlots;
       state.preview = state.target === 'more' ? base.filter(id => id !== state.id) : visibleToolbarOrder(current.ids, current.hiddenModules);
     }
     state.left = Math.max(0, Math.min(measure.width - TOOL_SLOT, x - TOOL_SLOT / 2));
@@ -142,11 +146,15 @@ export function ToolbarTools({ modules, active, onSelect, onOrder, order = [], h
     setMenu(false);
   };
   const promote = tool => {
-    save(insertTool(ids, tool.id, 0), hiddenModules.filter(id => id !== tool.id));
+    if (!layout.slots.length) return;
+    const target = layout.slots.findIndex(slot => ![...placements.values()].some(p => p.key === slot.key));
+    const saved = moveToolbarTool(visibleToolbarOrder(ids, hiddenModules), layout, moduleSides, moduleSlots, tool.id, Math.max(0, target));
+    save(insertTool(ids, tool.id, 0), hiddenModules.filter(id => id !== tool.id), moduleSides, saved);
     setMenu(false);
   };
   const hide = tool => {
-    save(ids, [...new Set([...hiddenModules, tool.id])]);
+    save(ids, [...new Set([...hiddenModules, tool.id])], moduleSides,
+      { ...moduleSlots, ...Object.fromEntries([...placements].map(([id, slot]) => [id, slot.key])) });
     setMenu(false);
   };
   const basicButton = (tool, labelled = false) => React.createElement('button', {
@@ -162,7 +170,7 @@ export function ToolbarTools({ modules, active, onSelect, onOrder, order = [], h
     const previous = previousPositions.current.get(tool.id);
     positions.set(tool.id, slot);
     return React.createElement('div', { key: tool.id, 'data-tool-id': tool.id,
-      className: 'toolbar-slot', 'data-bank': slot.bank,
+      className: 'toolbar-slot', 'data-bank': slot.bank, 'data-slot': slot.key,
       'data-drag-source': drag?.id === tool.id ? 'true' : undefined,
       style: { position: 'absolute', left: 0, transform: 'translateX(' + slot.x + 'px)',
         transition: drag && previous?.bank === slot.bank ? 'transform 150ms ease' : 'none' }
@@ -195,7 +203,7 @@ export function ToolbarTools({ modules, active, onSelect, onOrder, order = [], h
       menu && React.createElement('div', { className: 'toolbar-overflow' + (drag ? ' is-dragging' : ''), 'aria-label': '更多功能',
         style: { top: Math.max(32, notchHeight) + 6, maxHeight: Math.max(64, Math.min(300, (root.current?.closest('.panel')?.clientHeight || 320) - Math.max(32, notchHeight) - 24)) }
       },
-        React.createElement('div', { className: 'toolbar-menu-hint' }, '拖到左侧或右侧快捷栏，也可拖回 ···'),
+        React.createElement('div', { className: 'toolbar-menu-hint' }, '拖到空位放置，拖到按钮交换，也可拖回 ···'),
         ...menuTools.map(tool => React.createElement('div', { key: tool.id, className: 'toolbar-overflow-row',
           'data-tool-id': tool.id, 'data-menu-tool': tool.id, 'data-drag-source': drag?.id === tool.id ? 'true' : undefined
         },

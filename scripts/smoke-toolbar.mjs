@@ -77,7 +77,7 @@ try {
     await pause(200);
   }
   saved = await settings();
-  await evaluate('window.islandBridge.setSettings({fileShelfEnabled:true, clipboardHistoryEnabled:true, terminalEnabled:true, usageDashboardEnabled:true, performanceEnabled:true, toolboxModuleOrder:[], toolbarHiddenModules:[], toolbarModuleSides:{}})');
+  await evaluate('window.islandBridge.setSettings({fileShelfEnabled:true, clipboardHistoryEnabled:true, terminalEnabled:true, usageDashboardEnabled:true, performanceEnabled:true, toolboxModuleOrder:[], toolbarHiddenModules:[], toolbarModuleSides:{}, toolbarModuleSlots:{}})');
   await openPanel();
   let geometry = await snapshot();
   assert.ok(geometry.slots.some(s=>s.bank==='left'), 'left spare space must be usable');
@@ -117,18 +117,35 @@ try {
   await drag(selector('performance'), await point('.toolbar-more'));
   assert.ok((await settings()).toolbarHiddenModules.includes('performance'));
 
-  // Force a genuinely full toolbar; dragging the hidden item must replace the tail.
+  // At narrow widths, promotion must occupy the exact target, not compact order.
   await evaluate('document.querySelector(".toolbar-header").style.width="420px"');
   await pause();
   await menu();
-  await drag('[data-menu-tool="performance"] .performance-button', await point(selector((await snapshot()).slots[0].id)));
-  assert.equal((await settings()).toolboxModuleOrder[0],'performance');
+  const narrowTarget = (await snapshot()).slots[0].id;
+  const narrowSlot = await evaluate('document.querySelector('+JSON.stringify('.toolbar-slot[data-tool-id="'+narrowTarget+'"]')+').dataset.slot');
+  await drag('[data-menu-tool="performance"] .performance-button', await point(selector(narrowTarget)));
+  assert.equal((await settings()).toolbarModuleSlots.performance, narrowSlot);
   assert.ok(await evaluate('document.querySelectorAll(".toolbar-slot").length < 6'));
   await evaluate('document.querySelector(".toolbar-header").style.removeProperty("width")');
   await openPanel();
   await menu();
   const shot=await send('Page.captureScreenshot');
   writeFileSync('/tmp/workisland-toolbar-v2-preview.png',Buffer.from(shot.data,'base64'));
+
+  // The last empty slot next to More must be an exact, persistent destination.
+  await evaluate('window.islandBridge.setSettings({toolbarModuleSlots:{},toolbarHiddenModules:[],toolboxModuleOrder:[]})');
+  await openPanel();
+  const more = await point('.toolbar-more');
+  await drag(selector('pet'), {x:more.x-32,y:more.y});
+  const exact = (await settings()).toolbarModuleSlots.pet;
+  assert.ok(exact.startsWith('right:'));
+  assert.equal(await evaluate('document.querySelector("[data-tool-id=pet].toolbar-slot").dataset.slot'), exact);
+  await send('Page.reload');
+  await pause(1000);
+  await openPanel();
+  assert.equal(await evaluate('document.querySelector("[data-tool-id=pet].toolbar-slot").dataset.slot'), exact);
+  const centers = await evaluate('(() => {const e=document.querySelector("[data-tool-id=pet].toolbar-slot"); const a=e.getBoundingClientRect(),b=e.querySelector("button").getBoundingClientRect();return [Math.abs(a.x+a.width/2-b.x-b.width/2),Math.abs(a.y+a.height/2-b.y-b.height/2)];})()');
+  assert.ok(centers.every(n=>n<1), 'pet button centered in its slot');
 
   // Fixture process is never terminated. Exercise the real component's click
   // selection and dismissal without depending on the machine's process list.
@@ -156,7 +173,7 @@ try {
   console.log('PASS: both banks, camera exclusion, click, repeated sort, cancellation, menu drag-out, cross-camera move, drag into More, full capacity, performance auto-close and Escape.');
 } finally {
   await mouse('mouseReleased',{x:700,y:400},{button:'left',clickCount:1}).catch(()=>{});
-  if(saved) await evaluate('window.islandBridge.setSettings('+JSON.stringify({fileShelfEnabled:saved.fileShelfEnabled,clipboardHistoryEnabled:saved.clipboardHistoryEnabled,terminalEnabled:saved.terminalEnabled,usageDashboardEnabled:saved.usageDashboardEnabled,performanceEnabled:saved.performanceEnabled,toolboxModuleOrder:saved.toolboxModuleOrder,toolbarHiddenModules:saved.toolbarHiddenModules||[],toolbarModuleSides:saved.toolbarModuleSides||{}})+')');
+  if(saved) await evaluate('window.islandBridge.setSettings('+JSON.stringify({fileShelfEnabled:saved.fileShelfEnabled,clipboardHistoryEnabled:saved.clipboardHistoryEnabled,terminalEnabled:saved.terminalEnabled,usageDashboardEnabled:saved.usageDashboardEnabled,performanceEnabled:saved.performanceEnabled,toolboxModuleOrder:saved.toolboxModuleOrder,toolbarHiddenModules:saved.toolbarHiddenModules||[],toolbarModuleSides:saved.toolbarModuleSides||{},toolbarModuleSlots:saved.toolbarModuleSlots||{}})+')');
   await evaluate('window.__perfTestRoot?.unmount();document.querySelector("#toolbar-perf-test")?.remove(); document.querySelector(".toolbar-header").style.removeProperty("width");document.querySelector(".toolbar-more[aria-expanded=true]")?.click()');
   ws.close();
 }

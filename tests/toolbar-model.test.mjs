@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { toolbarCapacity, insertTool, toolbarSlots, toolbarDropTarget, visibleToolbarOrder, placeToolbarTools } from '../src/renderer/island/components/toolbar-model.mjs';
+import { toolbarCapacity, insertTool, toolbarSlots, toolbarDropTarget, visibleToolbarOrder, placeToolbarTools, moveToolbarTool } from '../src/renderer/island/components/toolbar-model.mjs';
 test('overflow reserves home, settings and more without consuming camera space', () => {
   assert.equal(toolbarCapacity(256, 6), 6);
   assert.equal(toolbarCapacity(224, 6), 4);
@@ -48,7 +48,37 @@ test('a selected right bank remains right even when the left bank has empty slot
   const result = placeToolbarTools(['shelf','performance'], layout, { performance: 'right' });
   assert.equal(result.get('shelf').bank, 'left');
   assert.equal(result.get('performance').bank, 'right');
-  assert.equal(result.get('performance').x, layout.cameraRight + 32);
+  assert.equal(result.get('performance').x, layout.slots.find(s => s.bank === 'right').x);
+});
+
+test('exact empty slot survives reload and width changes without compaction', () => {
+  const layout = toolbarSlots(704, 194, 0);
+  const ids = ['shelf', 'pet'];
+  const target = layout.slots.length - 1;
+  const saved = moveToolbarTool(ids, layout, {}, {}, 'pet', target);
+  const placed = placeToolbarTools(ids, layout, {}, JSON.parse(JSON.stringify(saved)));
+  assert.equal(placed.get('pet').index, target);
+  assert.equal(placed.get('shelf').index, 0);
+  assert.equal(placed.get('pet').x + 32, layout.more);
+  assert.equal(toolbarDropTarget(layout, layout.more - 1, 15, 32), target);
+  assert.equal(placeToolbarTools(ids, toolbarSlots(420, 194, 0), {}, saved).has('pet'), false);
+  assert.equal(placeToolbarTools(ids, layout, {}, saved).get('pet').index, target);
+});
+
+test('occupied slot swaps, hidden promotion displaces only its occupant', () => {
+  const layout = toolbarSlots(640, 200, 92);
+  const ids = ['shelf', 'pet', 'terminal'];
+  const swapped = moveToolbarTool(ids, layout, {}, {}, 'shelf', 1);
+  assert.equal(swapped.pet, 'left:0');
+  assert.equal(swapped.shelf, 'left:1');
+  assert.equal(swapped.terminal, 'left:2');
+  const promoted = moveToolbarTool(ids, layout, {}, swapped, 'clipboard', 1);
+  assert.equal(promoted.clipboard, 'left:1');
+  assert.notEqual(promoted.shelf, 'left:1');
+  const full = layout.slots.map((_, i) => 'tool' + i);
+  const overflow = moveToolbarTool(full, layout, {}, {}, 'new', 0);
+  assert.equal(overflow.tool0, 'overflow');
+  assert.equal(placeToolbarTools(['new', ...full], layout, {}, overflow).get('new').index, 0);
 });
 
 test('full capacity gives the promoted utility a slot and preserves other tools as overflow', () => {

@@ -9,7 +9,8 @@ test("workstation features default to useful, privacy-conscious behavior", () =>
   assert.equal(settings.DEFAULT_SETTINGS.performanceEnabled, true);
   assert.equal(settings.DEFAULT_SETTINGS.performanceAlertsEnabled, false);
   assert.equal(settings.DEFAULT_SETTINGS.fileShelfEnabled, true);
-  assert.equal(settings.DEFAULT_SETTINGS.clipboardHistoryEnabled, false);
+  assert.equal(settings.DEFAULT_SETTINGS.clipboardHistoryEnabled, true);
+  assert.equal(settings.mergeSettings({ clipboardHistoryEnabled: false }).clipboardHistoryEnabled, false);
   assert.equal(settings.DEFAULT_SETTINGS.terminalEnabled, true);
   assert.equal(settings.DEFAULT_SETTINGS.clipboardHistoryLimit, 100);
   assert.equal(settings.DEFAULT_SETTINGS.clipboardRetentionHours, 24);

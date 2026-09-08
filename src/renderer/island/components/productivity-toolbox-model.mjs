@@ -27,7 +27,7 @@ function reorderToolboxModules(modules = [], sourceId, targetId) {
 function enabledToolboxModules(settings = {}) {
   const enabled = ["agent"];
   if (settings.fileShelfEnabled !== false) enabled.push("shelf");
-  if (settings.clipboardHistoryEnabled === true) enabled.push("clipboard");
+  if (settings.clipboardHistoryEnabled !== false) enabled.push("clipboard");
   if (settings.terminalEnabled !== false) enabled.push("terminal");
   // PRD-015：用量看板（Agent Center 独立窗口落地前的宿主位置）
   if (settings.usageDashboardEnabled !== false) enabled.push("usage");

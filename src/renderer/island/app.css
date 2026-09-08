@@ -232,6 +232,14 @@ body {
   -webkit-user-drag: none;
 }
 
+.toolbar-slot > .panel-btn.panel-pet-button {
+  width: 32px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .panel-btn.panel-pet-button:hover {
   background: rgba(255, 255, 255, 0.18);
   transform: scale(1.06);

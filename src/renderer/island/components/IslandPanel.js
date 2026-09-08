@@ -312,6 +312,7 @@ function AgentUsageRow({
   toolboxModuleOrder = [],
   toolbarHiddenModules = [],
   toolbarModuleSides = {},
+  toolbarModuleSlots = {},
   onToolboxModuleReorder,
   onOpenSettings,
   onOpenAbout,
@@ -340,7 +341,7 @@ function AgentUsageRow({
     return true;
   }).map((tool, idx, arr) => /* @__PURE__ */ React.createElement(React.Fragment, { key: tool }, /* @__PURE__ */ React.createElement(AgentQuotaCell, { tool, quota: agentQuotas[tool] }), idx < arr.length - 1 && /* @__PURE__ */ React.createElement("span", { className: "usage-cell-divider" }, "|")));
   return React.createElement(ToolbarTools, { modules: utilityModules, active: activeToolboxModule,
-      notchWidth, notchHeight, order: toolboxModuleOrder, hiddenModules: toolbarHiddenModules, moduleSides: toolbarModuleSides,
+      notchWidth, notchHeight, order: toolboxModuleOrder, hiddenModules: toolbarHiddenModules, moduleSides: toolbarModuleSides, moduleSlots: toolbarModuleSlots,
       leading: React.createElement(React.Fragment, null, showUsageQuota ? quotaCells : null,
         pillFirstRow.upgradeButton && (hasUpdate || hasActiveUpdateFlow(updateState)) && React.createElement(UpdateStatusButton, { updateState, hasUpdate, onDownload: onUpdateDownload, onInstall: onUpdateInstall, onOpenRelease })),
       onSelect: onToolboxModuleChange, onOrder: onToolboxModuleReorder,
@@ -1417,7 +1418,7 @@ function IslandPanel({
   performanceState,
   performanceEnabled = true,
   fileShelfEnabled = true,
-  clipboardHistoryEnabled = false,
+  clipboardHistoryEnabled = true,
   terminalEnabled = true,
   usageDashboardEnabled = true,
   terminalSavedCommands = [],
@@ -1440,6 +1441,7 @@ function IslandPanel({
   const [moduleOrder, setModuleOrder] = React.useState([]);
   const [toolbarHidden, setToolbarHidden] = React.useState([]);
   const [toolbarSides, setToolbarSides] = React.useState({});
+  const [toolbarSlots, setToolbarSlots] = React.useState({});
   React.useEffect(() => {
     let disposed = false;
     window.islandBridge?.getSettings?.().then((settings) => {
@@ -1447,12 +1449,14 @@ function IslandPanel({
         setModuleOrder(Array.isArray(settings?.toolboxModuleOrder) ? settings.toolboxModuleOrder : []);
         setToolbarHidden(settings?.toolbarHiddenModules || []);
         setToolbarSides(settings?.toolbarModuleSides || {});
+        setToolbarSlots(settings?.toolbarModuleSlots || {});
       }
     }).catch(() => {});
     const unsubscribe = window.islandBridge?.onSettingsChanged?.((settings) => {
       setModuleOrder(Array.isArray(settings?.toolboxModuleOrder) ? settings.toolboxModuleOrder : []);
       setToolbarHidden(settings?.toolbarHiddenModules || []);
       setToolbarSides(settings?.toolbarModuleSides || {});
+      setToolbarSlots(settings?.toolbarModuleSlots || {});
     });
     return () => {
       disposed = true;
@@ -1460,17 +1464,18 @@ function IslandPanel({
     };
   }, []);
   const enabledModules = enabledToolboxModules({ fileShelfEnabled, clipboardHistoryEnabled, terminalEnabled, usageDashboardEnabled });
-  const handleToolboxModuleReorder = async (visibleOrder, hiddenOrder = toolbarHidden, sides = toolbarSides) => {
+  const handleToolboxModuleReorder = async (visibleOrder, hiddenOrder = toolbarHidden, sides = toolbarSides, slots = toolbarSlots) => {
     const fullOrder = orderToolboxModules(["shelf", "clipboard", "terminal", "usage", "performance", "pet"], moduleOrder);
     let cursor = 0;
     const nextOrder = fullOrder.map(id => visibleOrder.includes(id) ? visibleOrder[cursor++] : id);
     setModuleOrder(nextOrder);
     setToolbarHidden(hiddenOrder);
     setToolbarSides(sides);
+    setToolbarSlots(slots);
     try {
-      await window.islandBridge?.setSettings?.({ toolboxModuleOrder: nextOrder, toolbarHiddenModules: hiddenOrder, toolbarModuleSides: sides });
+      await window.islandBridge?.setSettings?.({ toolboxModuleOrder: nextOrder, toolbarHiddenModules: hiddenOrder, toolbarModuleSides: sides, toolbarModuleSlots: slots });
     } catch (error) {
-      setModuleOrder(moduleOrder); setToolbarHidden(toolbarHidden); setToolbarSides(toolbarSides); throw error;
+      setModuleOrder(moduleOrder); setToolbarHidden(toolbarHidden); setToolbarSides(toolbarSides); setToolbarSlots(toolbarSlots); throw error;
     }
   };
   const agentAttention = Boolean(surface?.actionableSessionId) || sessions.some((session) => ["waitingForApproval", "waitingForAnswer", "failed"].includes(session.phase));
@@ -1552,6 +1557,7 @@ function IslandPanel({
       toolboxModuleOrder: moduleOrder,
       toolbarHiddenModules: toolbarHidden,
       toolbarModuleSides: toolbarSides,
+      toolbarModuleSlots: toolbarSlots,
       onToolboxModuleReorder: handleToolboxModuleReorder,
       onOpenSettings,
       onOpenAbout,
