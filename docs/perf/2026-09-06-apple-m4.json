@@ -1,0 +1,81 @@
+{
+  "label": "idle",
+  "machine": {
+    "cpu": "Apple M4",
+    "model": "Mac16,12",
+    "ramGb": 24,
+    "macOS": "15.6 (24G84)",
+    "date": "2026-09-06T08:05:10.649Z"
+  },
+  "app": "WorkIsland",
+  "version": "1.3.0",
+  "method": {
+    "tool": "macOS top -l",
+    "rounds": 44,
+    "intervalSeconds": 2,
+    "firstRoundDiscarded": true,
+    "processesTracked": 12,
+    "note": "CPU 合计口径：逐轮所有 WorkIsland 进程（主进程/Helper/Renderer/子进程）CPU 相加；中位数≈稳态，P95≈动画瞬时峰值。MEM 为 top 物理内存口径（与活动监视器同源）。"
+  },
+  "cpuPercent": {
+    "median": 2.9,
+    "p95": 4.44,
+    "max": 6.8
+  },
+  "memoryMb": {
+    "medianTop": 535,
+    "psRss": 341
+  },
+  "perProcessMedian": [
+    {
+      "pid": 88614,
+      "cpuMedian": 1.15,
+      "memMedianMb": 125
+    },
+    {
+      "pid": 88594,
+      "cpuMedian": 1.2,
+      "memMedianMb": 127
+    },
+    {
+      "pid": 88607,
+      "cpuMedian": 0.4,
+      "memMedianMb": 74
+    },
+    {
+      "pid": 88608,
+      "cpuMedian": 0,
+      "memMedianMb": 7
+    },
+    {
+      "pid": 57481,
+      "cpuMedian": 0,
+      "memMedianMb": 33
+    },
+    {
+      "pid": 87880,
+      "cpuMedian": 0,
+      "memMedianMb": 32
+    },
+    {
+      "pid": 93067,
+      "cpuMedian": 0,
+      "memMedianMb": 32
+    },
+    {
+      "pid": 88610,
+      "cpuMedian": 0,
+      "memMedianMb": 9
+    },
+    {
+      "pid": 81166,
+      "cpuMedian": 0,
+      "memMedianMb": 32
+    },
+    {
+      "pid": 72494,
+      "cpuMedian": 0,
+      "memMedianMb": 64
+    }
+  ]
+}

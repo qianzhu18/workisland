@@ -122,6 +122,11 @@ const DEFAULT_SETTINGS = {
   // session status metadata. See src/main/developer-api.cjs and
   // docs/DEVELOPER_API.md.
   developerApi: { enabled: false, port: 9938, token: "" },
+  // PRD-016 / ADR-0005 远程接入（2026-09）：observe-only SSH 隧道入口，默认
+  // 关闭。开启后 WorkIsland 只新增 127.0.0.1:7878 一个 loopback 监听；远程
+  // 状态事件经用户自管 SSH 隧道进入，入口白名单剥离一切内容字段（D3）。
+  // See src/main/remote-bridge-server.cjs and docs/REMOTE_ONBOARDING.md.
+  remoteAccess: { enabled: false, port: 7878 },
   // B-2 Quiet Hours (2026-09): suppress local alert sounds during the quiet
   // window (supports overnight ranges) and while macOS is locked. Bark push
   // is intentionally NOT suppressed — it is the notification path while the

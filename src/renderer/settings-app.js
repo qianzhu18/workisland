@@ -34,7 +34,7 @@ const AGENT_ICON_URLS = Object.freeze({
   "plugin:pi": "../assets/brands/pi.svg"
 });
 const VERIFY_ON_REAL_EVENT_AGENT_IDS = new Set(["dsh", "trae"]);
-const state = { settings: null, statuses: new Map(), doctorSummary: null, displays: [], codexPets: [], templates: { active: null, templates: [] }, shareProviders: [], activeTab: "general", busy: new Set(), expandedSettingDetails: new Set(), latestUpdate: null, updateState: null, onUpdateStateUi: null, telemetryStatus: null, agentControl: null, agentControlManual: null, commandDraft: { name: "", command: "" } };
+const state = { settings: null, statuses: new Map(), doctorSummary: null, displays: [], codexPets: [], templates: { active: null, templates: [] }, shareProviders: [], activeTab: "general", busy: new Set(), expandedSettingDetails: new Set(), latestUpdate: null, updateState: null, onUpdateStateUi: null, telemetryStatus: null, agentControl: null, agentControlManual: null, commandDraft: { name: "", command: "" }, remoteHosts: null, remotePairing: null };
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -717,6 +717,85 @@ function agentCard(report) {
   return card;
 }
 
+async function loadRemoteHosts(render = false) {
+  try {
+    state.remoteHosts = await api.getRemoteHostsState?.() || null;
+  } catch {
+    state.remoteHosts = null;
+  }
+  if (render && state.activeTab === "agents") renderPage();
+}
+
+function copyText(text, label) {
+  navigator.clipboard?.writeText(text).then(
+    () => showToast(`${label}已复制`),
+    () => showToast("复制失败，请手动选择复制", true)
+  );
+}
+
+// PRD-016 / ADR-0005 远程接入（observe-only）：令牌、主机列表与撤销。
+function remoteHostsSection() {
+  const remote = state.remoteHosts;
+  const cfg = state.settings.remoteAccess || { enabled: false, port: 7878 };
+  const node = section("远程主机", "远程机器上的 Agent 状态实时上岛。observe-only：只回传运行状态，不回传提示词、代码或路径；远程接入需要 Mac 开启「远程登录」并在远程机器上按 docs/REMOTE_ONBOARDING.md 建立隧道。");
+  node.append(row("启用远程接入", "开启后 WorkIsland 在本机 127.0.0.1 只新增一个 observe-only 监听端口。", toggle(remote?.enabled ?? cfg.enabled, async v => {
+    await save({ remoteAccess: { ...cfg, enabled: v } });
+    await loadRemoteHosts();
+    renderPage();
+  }, "启用远程接入")));
+  if (!remote) {
+    node.append(el("div", "setting-description", "远程主机状态不可用。"));
+    return node;
+  }
+  if (remote.enabled && !remote.listener?.running) {
+    node.append(el("div", "doctor-summary", remote.listener?.lastError === "PORT_IN_USE" ? `监听失败：端口 ${remote.listener?.port ?? cfg.port} 已被占用，请更换端口后重试。` : "监听未运行，请尝试重新开关远程接入。"));
+  }
+  const tokenArea = el("div", "inline-controls");
+  tokenArea.append(button("生成配对令牌", async () => {
+    try {
+      state.remotePairing = await api.createRemotePairingToken();
+      renderPage();
+    } catch (error) {
+      showToast(error?.message || "生成令牌失败", true);
+    }
+  }, "primary"));
+  if (state.remotePairing?.token) {
+    const expires = new Date(state.remotePairing.expiresAt).toLocaleTimeString();
+    const tokenBox = el("code", "remote-token-box", state.remotePairing.token);
+    tokenArea.append(tokenBox, button("复制", () => copyText(state.remotePairing.token, "令牌")));
+    node.append(el("div", "setting-description", `令牌 ${state.remotePairing.token.slice(0, 4)}… 只显示本次，10 分钟内有效且只能用一次（至 ${expires}）。把它提供给远程机器上的 AI 助手完成配对。`));
+  }
+  node.append(row("配对令牌", "远程机器首次接入时使用；每个令牌只能绑定一台主机一次。", tokenArea));
+  const list = el("div", "agent-list");
+  for (const host of remote.hosts || []) {
+    const pairedAt = host.pairedAt ? new Date(host.pairedAt).toLocaleString() : "";
+    const online = (remote.listener?.connectedHosts || []).includes(host.hostId);
+    const card = el("div", "remote-host-card");
+    const content = el("div", "remote-host-copy");
+    content.append(el("div", "remote-host-name", host.displayName));
+    content.append(el("div", "remote-host-detail", `${online ? "已连接" : "未连接"} · 配对于 ${pairedAt}`));
+    const revoke = button("撤销", async () => {
+      if (!window.confirm(`撤销 ${host.displayName} 后，该主机的会话密钥立即失效；重新接入需要生成新令牌。`)) return;
+      try {
+        await api.revokeRemoteHost(host.hostId);
+        state.remotePairing = null;
+        await loadRemoteHosts();
+        renderPage();
+        showToast("主机已撤销");
+      } catch (error) {
+        showToast(error?.message || "撤销失败", true);
+      }
+    }, "danger");
+    card.append(content, revoke);
+    list.append(card);
+  }
+  if ((remote.hosts || []).length === 0) {
+    list.append(el("div", "setting-description", "还没有接入的远程主机。生成配对令牌后，把 docs/REMOTE_ONBOARDING.md 交给远程机器上的 AI 助手即可。"));
+  }
+  node.append(list);
+  return node;
+}
+
 function agentsPage() {
   const root = document.createDocumentFragment();
   const hooks = section("本地 Agent", "连接只会修改对应 Agent 的本地 Hook 配置，不依赖云端服务。一键检测会扫描全部 Agent 的 Hook 配置并给出修复建议。");
@@ -744,6 +823,7 @@ function agentsPage() {
   );
   hooks.append(tools);
   root.append(hooks);
+  root.append(remoteHostsSection());
   return root;
 }
 
@@ -1227,11 +1307,15 @@ async function start() {
   await loadDisplays();
   await loadCodexPets();
   await loadAgentControlStatus();
+  await loadRemoteHosts();
   await loadTemplates();
   document.querySelectorAll(".nav-item").forEach(item => item.addEventListener("click", () => {
     state.activeTab = item.dataset.tab;
     renderPage();
-    if (state.activeTab === "agents") refreshAgents().catch(error => showToast(error.message, true));
+    if (state.activeTab === "agents") {
+      refreshAgents().catch(error => showToast(error.message, true));
+      loadRemoteHosts(true).catch(error => showToast(error.message, true));
+    }
     if (state.activeTab === "mcp") loadAgentControlStatus(true).catch(() => {});
   }));
   api.onNavigateToTab?.(tab => {

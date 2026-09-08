@@ -2,6 +2,10 @@ export function isVisibleInIsland(session) {
   if (session.parentSessionId) return false;
   if (session.phase === "waitingForApproval" || session.phase === "waitingForAnswer") return true;
 
+  // PRD-016 远程会话（observe-only）：不回传 latestUserPrompt（D3），
+  // 只要未结束就保留在岛上；断线时以断线完成态收卡，不悬挂假 running。
+  if (session.isRemote) return !session.isSessionEnded;
+
   if (session.isHookManaged) {
     if (session.isSessionEnded) return false;
     if (session.tool === "trae") return Boolean(session.latestUserPrompt);

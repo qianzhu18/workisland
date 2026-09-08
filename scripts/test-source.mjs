@@ -59,7 +59,9 @@ const {
 // public bridge contract. Agent Doctor (B-1 PR2) adds settings:repair-hook /
 // repair-all-hooks / get-doctor-audit (155 -> 158 via MCP, +3 here).
 // Island first-run empty state adds island:get-agent-setup-status (161 -> 162, 2026-09).
-assert.equal(Object.keys(IPC).length, 162, "IPC contract changed; review both main and preload consumers");
+// PRD-016 remote access (observe-only) adds remote-hosts:get-state /
+// create-token / revoke (162 -> 165, 2026-09).
+assert.equal(Object.keys(IPC).length, 165, "IPC contract changed; review both main and preload consumers");
 assert.equal(listProductCapabilities({ platform: "darwin" }).length, 15, "MCP product catalog must stay explicit");
 assert.equal(diagnoseMcpSubject("performance-details-not-visible", { settings: {} }).subject, "performance-details-not-visible");
 assert.equal(IPC.APP_UPDATE_DOWNLOAD, "app:update-download");
