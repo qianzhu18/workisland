@@ -24,6 +24,14 @@ test("collapsing a utility uses the configured reopen policy instead of pinning 
   assert.doesNotMatch(app, /activeModule === "shelf" \|\| activeModule === "clipboard" \|\| activeModule === "terminal"/);
 });
 
+test("a collapsed full terminal reopens ahead of the generic toolbox preference", () => {
+  const app = readFileSync(new URL("../src/renderer/island/app.js", import.meta.url), "utf8");
+  assert.match(app, /terminalFullRef/);
+  assert.match(app, /activeModuleRef\.current === "terminal" && terminalFullRef\.current/);
+  assert.match(app, /onTerminalFullChange/);
+  assert.match(app, /panelOpen: isOpen/);
+});
+
 test("shelf supports real drag input and reference-only removal", () => {
   const source = read("ShelfPanel.js");
   assert.match(source, /onDragOver/);

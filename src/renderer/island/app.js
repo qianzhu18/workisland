@@ -165,6 +165,7 @@ function IslandApp() {
   // 当前展开的是哪个工作台模块；用于在鼠标离开时判断是否仍停留于常驻工具面板
   // （文件架/剪贴板/终端），避免误触发的 mouseleave 把面板收起后造成点击穿透死锁。
   const activeModuleRef = reactExports.useRef("agent");
+  const terminalFullRef = reactExports.useRef(false);
   const pendingFollowUpDismissRef = reactExports.useRef(false);
   const focusLossHandledRef = reactExports.useRef(false);
   const handleFollowUpChange = reactExports.useCallback((active) => {
@@ -456,11 +457,14 @@ function IslandApp() {
       collapsePanelToPillTimerRef.current = null;
     }
     const enabledModules = enabledToolboxModules({ fileShelfEnabled, clipboardHistoryEnabled, terminalEnabled, usageDashboardEnabled });
-    const nextModule = resolveToolboxReopenModule({
-      mode: toolboxReopenMode,
-      lastModule: activeModuleRef.current,
-      enabled: enabledModules
-    });
+    const resumeFullTerminal = activeModuleRef.current === "terminal" && terminalFullRef.current;
+    const nextModule = resumeFullTerminal
+      ? "terminal"
+      : resolveToolboxReopenModule({
+          mode: toolboxReopenMode,
+          lastModule: activeModuleRef.current,
+          enabled: enabledModules
+        });
     setRequestedToolboxModule({ id: nextModule, nonce: Date.now() });
     window.islandBridge?.leaveIsland();
     close();
@@ -738,6 +742,9 @@ function IslandApp() {
   const reportActiveModule = reactExports.useCallback((module) => {
     activeModuleRef.current = module;
   }, []);
+  const reportTerminalFull = reactExports.useCallback((full) => {
+    terminalFullRef.current = Boolean(full);
+  }, []);
   const handleMouseLeave = reactExports.useCallback(() => {
     if (hoverOpenTimer.current) {
       clearTimeout(hoverOpenTimer.current);
@@ -1013,6 +1020,7 @@ function IslandApp() {
             fileShelfEnabled,
             clipboardHistoryEnabled,
             terminalEnabled,
+            panelOpen: isOpen,
             usageDashboardEnabled,
             terminalSavedCommands,
             requestedToolboxModule,
@@ -1023,6 +1031,7 @@ function IslandApp() {
             onCollapse: collapsePanelToPill,
             onFollowUpChange: handleFollowUpChange,
             onActiveModuleChange: reportActiveModule,
+            onTerminalFullChange: reportTerminalFull,
             updateState,
             onUpdateDownload: handleUpdateDownload,
             onUpdateInstall: handleUpdateInstall,
