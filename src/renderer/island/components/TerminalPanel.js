@@ -1,15 +1,19 @@
 import { R as React } from "../../vendor/react-runtime.js";
 import { Terminal } from "../../../../node_modules/@xterm/xterm/lib/xterm.mjs";
 
-export function TerminalPanel({ savedCommands = [], onOpenSettings }) {
+export function TerminalPanel({ active = false, panelOpen = true, savedCommands = [], onOpenSettings, onFullChange }) {
   const [full, setFull] = React.useState(false);
   const [status, setStatus] = React.useState({ running: false, cwd: "" });
   const hostRef = React.useRef(null);
   const terminalRef = React.useRef(null);
+  const resizeRef = React.useRef(null);
   React.useEffect(() => {
     window.islandBridge?.getTerminalState?.().then(setStatus);
     return window.islandBridge?.onTerminalStatus?.(setStatus);
   }, []);
+  React.useEffect(() => {
+    onFullChange?.(full);
+  }, [full, onFullChange]);
   React.useEffect(() => {
     if (!full || !hostRef.current) return undefined;
     const terminal = new Terminal({
@@ -21,7 +25,6 @@ export function TerminalPanel({ savedCommands = [], onOpenSettings }) {
       scrollback: 5000
     });
     terminal.open(hostRef.current);
-    window.islandBridge?.setTerminalInteractive?.(true);
     terminalRef.current = terminal;
     if (status.recentOutput) terminal.write(status.recentOutput);
     terminal.onData((data) => window.islandBridge.sendTerminalInput(data));
@@ -33,14 +36,25 @@ export function TerminalPanel({ savedCommands = [], onOpenSettings }) {
       terminal.resize(cols, rows);
       window.islandBridge.resizeTerminal(cols, rows);
     };
+    resizeRef.current = resize;
     const observer = new ResizeObserver(resize);
     observer.observe(hostRef.current);
     const offData = window.islandBridge?.onTerminalData?.((data) => terminal.write(data));
     window.islandBridge.startTerminal().then((next) => { setStatus(next); resize(); });
-    return () => { window.islandBridge?.setTerminalInteractive?.(false); offData?.(); observer.disconnect(); terminal.dispose(); terminalRef.current = null; };
+    return () => { window.islandBridge?.setTerminalInteractive?.(false); offData?.(); observer.disconnect(); terminal.dispose(); terminalRef.current = null; resizeRef.current = null; };
   }, [full]);
+  React.useEffect(() => {
+    const interactive = Boolean(panelOpen && active && full);
+    window.islandBridge?.setTerminalInteractive?.(interactive);
+    if (!interactive) return undefined;
+    const frame = requestAnimationFrame(() => {
+      resizeRef.current?.();
+      terminalRef.current?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [active, full, panelOpen]);
   const commands = savedCommands;
-  return React.createElement("section", { className: "toolbox-panel terminal-panel", "data-terminal-interactive": full ? "true" : "false" },
+  return React.createElement("section", { className: `toolbox-panel terminal-panel${active ? "" : " is-hidden"}`, "aria-hidden": active ? undefined : "true", "data-terminal-interactive": panelOpen && active && full ? "true" : "false" },
     React.createElement("div", { className: "toolbox-panel-heading" },
       React.createElement("div", null, React.createElement("strong", null, full ? "完整终端" : "快捷终端"), React.createElement("span", null, status.cwd || "优先使用当前 Agent 项目目录")),
       full && React.createElement("button", { type: "button", onClick: () => setFull(false) }, "返回快捷命令")

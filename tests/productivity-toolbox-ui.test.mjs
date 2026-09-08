@@ -94,8 +94,23 @@ test("terminal uses xterm and offers quick commands plus full shell", () => {
   assert.match(source, /进入完整终端/);
   assert.match(source, /runSavedTerminalCommand/);
   assert.match(source, /sendTerminalInput/);
-  assert.match(source, /setTerminalInteractive\?\.\(true\)/);
+  assert.match(source, /setTerminalInteractive\?\.\(interactive\)/);
   assert.match(source, /setTerminalInteractive\?\.\(false\)/);
+});
+
+test("terminal remains mounted while another workspace is visible", () => {
+  const panel = read("IslandPanel.js");
+  assert.match(panel, /terminalEnabled && \/\* @__PURE__ \*\/ React\.createElement\(TerminalPanel/);
+  assert.match(panel, /active: activeModule === "terminal"/);
+  assert.doesNotMatch(panel, /activeModule === "terminal" && \/\* @__PURE__ \*\/ React\.createElement\(TerminalPanel/);
+});
+
+test("terminal visibility controls shortcuts without owning xterm lifetime", () => {
+  const terminal = read("TerminalPanel.js");
+  assert.match(terminal, /panelOpen && active && full/);
+  assert.match(terminal, /setTerminalInteractive\?\.\(interactive\)/);
+  assert.match(terminal, /terminalRef\.current\?\.focus\(\)/);
+  assert.match(terminal, /terminal-panel\$\{active \? "" : " is-hidden"\}/);
 });
 
 test("terminal quick commands come only from user settings", () => {

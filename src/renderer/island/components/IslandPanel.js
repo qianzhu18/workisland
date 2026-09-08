@@ -1423,6 +1423,7 @@ function IslandPanel({
   fileShelfEnabled = true,
   clipboardHistoryEnabled = true,
   terminalEnabled = true,
+  panelOpen = true,
   usageDashboardEnabled = true,
   terminalSavedCommands = [],
   requestedToolboxModule = null,
@@ -1433,6 +1434,7 @@ function IslandPanel({
   onCollapse,
   onFollowUpChange,
   onActiveModuleChange,
+  onTerminalFullChange,
   updateState,
   onUpdateDownload,
   onUpdateInstall,
@@ -1481,18 +1483,17 @@ function IslandPanel({
       setModuleOrder(moduleOrder); setToolbarHidden(toolbarHidden); setToolbarSides(toolbarSides); setToolbarSlots(toolbarSlots); throw error;
     }
   };
-  const agentAttention = Boolean(surface?.actionableSessionId) || sessions.some((session) => ["waitingForApproval", "waitingForAnswer", "failed"].includes(session.phase));
   React.useEffect(() => {
-    setActiveModule((current) => selectToolboxModule({ current, attention: agentAttention, enabled: enabledModules }));
-  }, [agentAttention, fileShelfEnabled, clipboardHistoryEnabled, terminalEnabled, usageDashboardEnabled]);
+    setActiveModule((current) => selectToolboxModule({ current, enabled: enabledModules }));
+  }, [fileShelfEnabled, clipboardHistoryEnabled, terminalEnabled, usageDashboardEnabled]);
   React.useEffect(() => {
     onActiveModuleChange?.(activeModule);
   }, [activeModule, onActiveModuleChange]);
   React.useEffect(() => {
-    if (!agentAttention && requestedToolboxModule?.id && enabledModules.includes(requestedToolboxModule.id)) {
+    if (requestedToolboxModule?.id && enabledModules.includes(requestedToolboxModule.id)) {
       setActiveModule(requestedToolboxModule.id);
     }
-  }, [requestedToolboxModule, agentAttention, enabledModules.join("|")]);
+  }, [requestedToolboxModule, enabledModules.join("|")]);
   const { actionableId, actionableRef, visibleSessions } = useActionable(sessions, surface, {
     disableScroll: !!followUpSessionId
   });
@@ -1570,7 +1571,7 @@ function IslandPanel({
       onUpdateInstall,
       onOpenRelease
     }
-  ), /* @__PURE__ */ React.createElement("div", { className: "panel-divider" }), activeModule === "shelf" && /* @__PURE__ */ React.createElement(ShelfPanel), activeModule === "clipboard" && /* @__PURE__ */ React.createElement(ClipboardPanel), activeModule === "terminal" && /* @__PURE__ */ React.createElement(TerminalPanel, { savedCommands: terminalSavedCommands, onOpenSettings: () => onOpenSettings("general") }), activeModule === "usage" && /* @__PURE__ */ React.createElement(UsagePanel), /* @__PURE__ */ React.createElement("div", { className: `workspace-content${mediaEnabled && mediaState?.active && mediaState?.title ? " has-media" : ""}${activeModule === "agent" ? "" : " is-hidden"}` }, mediaEnabled && mediaState?.active && mediaState?.title && /* @__PURE__ */ React.createElement(MediaCard, { media: mediaState, lyrics: lyricsState }), /* @__PURE__ */ React.createElement("div", { className: "workspace-agent-pane" }, /* @__PURE__ */ React.createElement("div", { className: "session-list", ref: sessionListRef }, visibleSessions.length > 0 && React.createElement('div', { className: 'session-list-actions' }, React.createElement('button', { type: 'button', className: 'panel-btn', onClick: () => window.islandBridge?.deleteSessions(visibleSessions.map(session => session.id)), title: '清理会话' }, '清理会话')), visibleSessions.length === 0 ? (hasConnectedAgent === false ? /* @__PURE__ */ React.createElement(SessionEmptyOnboarding, { onOpenSettings }) : /* @__PURE__ */ React.createElement("div", { className: "session-list-empty" }, /* @__PURE__ */ React.createElement(
+  ), /* @__PURE__ */ React.createElement("div", { className: "panel-divider" }), activeModule === "shelf" && /* @__PURE__ */ React.createElement(ShelfPanel), activeModule === "clipboard" && /* @__PURE__ */ React.createElement(ClipboardPanel), terminalEnabled && /* @__PURE__ */ React.createElement(TerminalPanel, { active: activeModule === "terminal", panelOpen, savedCommands: terminalSavedCommands, onOpenSettings: () => onOpenSettings("general"), onFullChange: onTerminalFullChange }), activeModule === "usage" && /* @__PURE__ */ React.createElement(UsagePanel), /* @__PURE__ */ React.createElement("div", { className: `workspace-content${mediaEnabled && mediaState?.active && mediaState?.title ? " has-media" : ""}${activeModule === "agent" ? "" : " is-hidden"}` }, mediaEnabled && mediaState?.active && mediaState?.title && /* @__PURE__ */ React.createElement(MediaCard, { media: mediaState, lyrics: lyricsState }), /* @__PURE__ */ React.createElement("div", { className: "workspace-agent-pane" }, /* @__PURE__ */ React.createElement("div", { className: "session-list", ref: sessionListRef }, visibleSessions.length > 0 && React.createElement('div', { className: 'session-list-actions' }, React.createElement('button', { type: 'button', className: 'panel-btn', onClick: () => window.islandBridge?.deleteSessions(visibleSessions.map(session => session.id)), title: '清理会话' }, '清理会话')), visibleSessions.length === 0 ? (hasConnectedAgent === false ? /* @__PURE__ */ React.createElement(SessionEmptyOnboarding, { onOpenSettings }) : /* @__PURE__ */ React.createElement("div", { className: "session-list-empty" }, /* @__PURE__ */ React.createElement(
     "img",
     {
       className: "session-list-empty-icon",
