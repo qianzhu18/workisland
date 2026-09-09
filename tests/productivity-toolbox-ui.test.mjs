@@ -24,6 +24,14 @@ test("collapsing a utility uses the configured reopen policy instead of pinning 
   assert.doesNotMatch(app, /activeModule === "shelf" \|\| activeModule === "clipboard" \|\| activeModule === "terminal"/);
 });
 
+test("a collapsed full terminal reopens ahead of the generic toolbox preference", () => {
+  const app = readFileSync(new URL("../src/renderer/island/app.js", import.meta.url), "utf8");
+  assert.match(app, /terminalFullRef/);
+  assert.match(app, /activeModuleRef\.current === "terminal" && terminalFullRef\.current/);
+  assert.match(app, /onTerminalFullChange/);
+  assert.match(app, /panelOpen: isOpen/);
+});
+
 test("shelf supports real drag input and reference-only removal", () => {
   const source = read("ShelfPanel.js");
   assert.match(source, /onDragOver/);
@@ -94,8 +102,28 @@ test("terminal uses xterm and offers quick commands plus full shell", () => {
   assert.match(source, /进入完整终端/);
   assert.match(source, /runSavedTerminalCommand/);
   assert.match(source, /sendTerminalInput/);
-  assert.match(source, /setTerminalInteractive\?\.\(true\)/);
+  assert.match(source, /setTerminalInteractive\?\.\(interactive\)/);
   assert.match(source, /setTerminalInteractive\?\.\(false\)/);
+});
+
+test("terminal remains mounted while another workspace is visible", () => {
+  const panel = read("IslandPanel.js");
+  assert.match(panel, /terminalEnabled && \/\* @__PURE__ \*\/ React\.createElement\(TerminalPanel/);
+  assert.match(panel, /active: activeModule === "terminal"/);
+  assert.doesNotMatch(panel, /activeModule === "terminal" && \/\* @__PURE__ \*\/ React\.createElement\(TerminalPanel/);
+});
+
+test("terminal visibility controls shortcuts without owning xterm lifetime", () => {
+  const terminal = read("TerminalPanel.js");
+  assert.match(terminal, /panelOpen && active && full/);
+  assert.match(terminal, /setTerminalInteractive\?\.\(interactive\)/);
+  assert.match(terminal, /terminalRef\.current\?\.focus\(\)/);
+  assert.match(terminal, /terminal-panel\$\{active \? "" : " is-hidden"\}/);
+});
+
+test("hidden terminal never resizes the PTY to a zero-sized viewport", () => {
+  const terminal = read("TerminalPanel.js");
+  assert.match(terminal, /if \(!rect \|\| rect\.width < 1 \|\| rect\.height < 1\) return/);
 });
 
 test("terminal quick commands come only from user settings", () => {

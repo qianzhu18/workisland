@@ -34,8 +34,7 @@ function enabledToolboxModules(settings = {}) {
   return enabled;
 }
 
-function selectToolboxModule({ current = "agent", attention = false, enabled = ["agent"] } = {}) {
-  if (attention) return "agent";
+function selectToolboxModule({ current = "agent", enabled = ["agent"] } = {}) {
   return TOOLBOX_MODULES.includes(current) && enabled.includes(current) ? current : "agent";
 }
 
@@ -47,7 +46,7 @@ function resolveToolboxReopenModule({ mode = "agent", lastModule = "agent", enab
 function reduceToolboxState(state, event) {
   const current = TOOLBOX_MODULES.includes(state?.current) ? state.current : "agent";
   const previousUtility = current === "agent" ? state?.previousUtility || "" : current;
-  if (event?.type === "agent-attention") return { current: "agent", previousUtility };
+  if (event?.type === "agent-attention") return { current, previousUtility };
   if (event?.type === "select" && TOOLBOX_MODULES.includes(event.module)) {
     return {
       current: event.module,

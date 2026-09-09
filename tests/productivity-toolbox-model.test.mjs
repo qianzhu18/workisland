@@ -29,17 +29,25 @@ test("reopen policy changes only the presented toolbox module", () => {
   assert.equal(resolveToolboxReopenModule({ mode: "last", lastModule: "clipboard", enabled }), "agent");
 });
 
-test("attention always returns the toolbox to Agent", () => {
+test("attention preserves the current enabled workspace", () => {
   assert.equal(selectToolboxModule({
     current: "terminal",
     attention: true,
     enabled: ["agent", "terminal"]
+  }), "terminal");
+});
+
+test("workspace selection falls back when the current module is disabled", () => {
+  assert.equal(selectToolboxModule({
+    current: "terminal",
+    attention: true,
+    enabled: ["agent"]
   }), "agent");
 });
 
-test("Agent preemption remembers the previous utility", () => {
+test("attention events preserve the current workspace", () => {
   assert.deepEqual(reduceToolboxState(
-    { current: "clipboard", previousUtility: "clipboard" },
+    { current: "terminal", previousUtility: "terminal" },
     { type: "agent-attention" }
-  ), { current: "agent", previousUtility: "clipboard" });
+  ), { current: "terminal", previousUtility: "terminal" });
 });
