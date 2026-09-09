@@ -1,0 +1,10 @@
+{
+  "common.cancel": "Cancel",
+  "common.close": "Close",
+  "common.save": "Save",
+  "common.settings": "Settings",
+  "settings.general.language.english": "English",
+  "settings.general.language.followSystem": "Follow System",
+  "settings.general.language.simplifiedChinese": "简体中文",
+  "settings.general.language.title": "Language"
+}
