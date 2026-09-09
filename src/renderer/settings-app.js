@@ -984,13 +984,13 @@ function mcpPage() {
 function appearancePage() {
   const root = document.createDocumentFragment();
   root.append(templateSection());
-  const pet = section("桌宠", "桌宠与 Island 使用同一套会话状态，切换不会中断监控。");
+  const pet = section(t("settings.appearance.pet.sectionTitle"), t("settings.appearance.pet.description"));
   const configuredSprite = state.settings.petSprite || DEFAULT_PET_SPRITE;
   const spriteOptions = [
-    ["echo:little", "Echo · 程序化动画"],
-    [DEFAULT_PET_SPRITE, "千雪 · 内置 Codex V2"],
-    ["codex:codex-buddy", "宝剑 Skyler · 内置 Codex V2"],
-    ["orca.png", "Orca · 兼容素材"]
+    ["echo:little", t("settings.appearance.pet.echo")],
+    [DEFAULT_PET_SPRITE, t("settings.appearance.pet.qianxue")],
+    ["codex:codex-buddy", t("settings.appearance.pet.skyler")],
+    ["orca.png", t("settings.appearance.pet.orca")]
   ];
   for (const codexPet of state.codexPets) {
     if (!spriteOptions.some(([value]) => value === codexPet.value)) {
@@ -998,15 +998,15 @@ function appearancePage() {
     }
   }
   if (!spriteOptions.some(([value]) => value === configuredSprite)) {
-    spriteOptions.push([configuredSprite, `${configuredSprite} · 当前设置`]);
+    spriteOptions.push([configuredSprite, t("settings.appearance.currentValue", { value: configuredSprite })]);
   }
-  const spriteSelect = select(configuredSprite, spriteOptions, value => save({ petSprite: value }), "Codex 桌宠");
+  const spriteSelect = select(configuredSprite, spriteOptions, value => save({ petSprite: value }), t("settings.appearance.pet.codexPet"));
   const sprite = document.createElement("input");
   sprite.type = "text";
   sprite.className = "text-input";
   sprite.value = configuredSprite;
-  sprite.placeholder = "codex:qianxue、orca.png 或其他 PNG/WebP";
-  sprite.setAttribute("aria-label", "桌宠精灵素材标识");
+  sprite.placeholder = t("settings.appearance.pet.spritePlaceholder");
+  sprite.setAttribute("aria-label", t("settings.appearance.pet.spriteLabel"));
   sprite.addEventListener("change", () => save({ petSprite: sprite.value.trim() || DEFAULT_PET_SPRITE }));
   const scale = document.createElement("input");
   scale.type = "range"; scale.min = "0.6"; scale.max = "2"; scale.step = "0.1"; scale.value = state.settings.petScale || 1;
@@ -1015,68 +1015,68 @@ function appearancePage() {
   scale.addEventListener("change", () => save({ petScale: Number(scale.value) }));
   const scaleControl = el("div", "range-control"); scaleControl.append(scale, scaleValue);
   pet.append(
-    row("桌宠预览", "在当前显示器中央显示桌宠；再次点击可收起。", button("显示 / 隐藏桌宠", () => api.togglePet?.())),
-    row("桌宠缩放", "调整桌宠在屏幕上的显示尺寸。", scaleControl),
-    row("Codex 桌宠", "默认使用内置千雪；也可切换本机 ~/.codex/pets 中的其他 V2 桌宠，运行中的桌宠会实时换图。", spriteSelect),
-    row("自定义素材标识", "支持 codex:<名称>，或填写本地 pet-sprites 目录中的 PNG/WebP 文件名。", sprite),
-    row("精灵素材", "打开目录后可替换 PNG 桌宠素材。", button("打开目录", () => api.openSpritesDir()))
+    row(t("settings.appearance.pet.preview.title"), t("settings.appearance.pet.preview.description"), button(t("settings.appearance.pet.preview.action"), () => api.togglePet?.())),
+    row(t("settings.appearance.pet.scale.title"), t("settings.appearance.pet.scale.description"), scaleControl),
+    row(t("settings.appearance.pet.codexPet"), t("settings.appearance.pet.codexDescription"), spriteSelect),
+    row(t("settings.appearance.pet.custom.title"), t("settings.appearance.pet.custom.description"), sprite),
+    row(t("settings.appearance.pet.assets.title"), t("settings.appearance.pet.assets.description"), button(t("common.openFolder"), () => api.openSpritesDir()))
   );
-  const panel = section("面板", "限制展开面板的高度，避免遮挡主要工作区。");
-  const heights = [["420", "紧凑 · 420 px"], ["540", "标准 · 540 px"], ["680", "宽松 · 680 px"]];
-  panel.append(row("最大高度", "修改后下一次展开生效。", select(String(state.settings.panelMaxHeightPx || 540), heights, v => save({ panelMaxHeightPx: Number(v) }), "面板最大高度")));
+  const panel = section(t("settings.appearance.panel.sectionTitle"), t("settings.appearance.panel.description"));
+  const heights = [["420", t("settings.appearance.panel.compact")], ["540", t("settings.appearance.panel.standard")], ["680", t("settings.appearance.panel.relaxed")]];
+  panel.append(row(t("settings.appearance.panel.height.title"), t("settings.appearance.panel.height.description"), select(String(state.settings.panelMaxHeightPx || 540), heights, v => save({ panelMaxHeightPx: Number(v) }), t("settings.appearance.panel.height.label"))));
   root.append(islandBackgroundSection(), pet, panel);
   return root;
 }
 
 function templateSection() {
-  const tpl = section("外观模板", "以模板为单位更换 Island 的状态角色、背景与桌宠；本机 AI Agent 可通过 workisland-template Skill 完成同样的流程。");
+  const tpl = section(t("settings.appearance.template.sectionTitle"), t("settings.appearance.template.description"));
   const active = state.settings.appearanceTemplate || { id: "builtin:workisland-xiaoyu", version: "*" };
   const validTemplates = (state.templates.templates || []).filter(entry => entry.valid);
   const options = validTemplates.map(entry => [`${entry.id}@${entry.version}`, `${entry.name} · ${entry.id}${entry.modules.length ? `（${entry.modules.join("/")}）` : ""} · ${entry.license}`]);
   const activeKey = `${active.id}@${active.version}`;
   if (!options.some(([value]) => value === activeKey)) {
-    options.unshift([activeKey, `${active.id}@${active.version} · 当前设置`]);
+    options.unshift([activeKey, t("settings.appearance.currentValue", { value: `${active.id}@${active.version}` })]);
   }
   const templateSelect = select(activeKey, options, value => {
     const at = value.lastIndexOf("@");
     save({
       appearanceTemplate: { id: value.slice(0, at), version: value.slice(at + 1) }
-    }).then(() => showToast("模板已切换，Island 状态角色将实时刷新"));
-  }, "外观模板");
-  const reset = button("恢复官方默认", async () => {
+    }).then(() => showToast(t("settings.appearance.template.changed")));
+  }, t("settings.appearance.template.sectionTitle"));
+  const reset = button(t("settings.appearance.template.restoreAction"), async () => {
     await save({
       appearanceTemplate: { id: "builtin:workisland-xiaoyu", version: "1.0.0" }
     });
     await loadTemplates();
     renderPage();
-    showToast("已恢复官方小宇模板");
+    showToast(t("settings.appearance.template.restored"));
   }, "secondary");
   tpl.append(
-    row("当前模板", "模板决定会话状态图标（idle/运行/待审批/完成/错误）的角色形象；官方内置 WorkIsland 小宇（守岛人）。", templateSelect),
-    row("恢复默认", "切回官方小宇模板；不会删除已安装的模板和你的 Codex 宠物。", reset),
-    row("AI 换装", "对 Agent 说“帮我换个外观模板”，装有 workisland-template Skill 的 Agent 会先预览再经你确认后应用。", el("span", "range-value", "Skill 入口"))
+    row(t("settings.appearance.template.current.title"), t("settings.appearance.template.current.description"), templateSelect),
+    row(t("settings.appearance.template.restore.title"), t("settings.appearance.template.restore.description"), reset),
+    row(t("settings.appearance.template.ai.title"), t("settings.appearance.template.ai.description"), el("span", "range-value", t("settings.appearance.template.ai.badge")))
   );
   return tpl;
 }
 
 const ISLAND_APPEARANCE_PRESETS = [
-  { id: "default", label: "默认 · 纯黑", value: { kind: "default" } },
-  { id: "deep-blue", label: "深海蓝", value: { kind: "solid", color: "#0B1E3A", opacity: 1 } },
-  { id: "forest", label: "墨绿", value: { kind: "solid", color: "#0A231A", opacity: 1 } },
-  { id: "night-purple", label: "夜紫渐变", value: { kind: "gradient", color: "#1F1330", color2: "#0B0716", angle: 135, opacity: 1 } },
-  { id: "frost", label: "半透石墨", value: { kind: "solid", color: "#0E0F13", opacity: 0.72 } }
+  { id: "default", labelKey: "settings.appearance.background.preset.default", value: { kind: "default" } },
+  { id: "deep-blue", labelKey: "settings.appearance.background.preset.blue", value: { kind: "solid", color: "#0B1E3A", opacity: 1 } },
+  { id: "forest", labelKey: "settings.appearance.background.preset.green", value: { kind: "solid", color: "#0A231A", opacity: 1 } },
+  { id: "night-purple", labelKey: "settings.appearance.background.preset.purple", value: { kind: "gradient", color: "#1F1330", color2: "#0B0716", angle: 135, opacity: 1 } },
+  { id: "frost", labelKey: "settings.appearance.background.preset.graphite", value: { kind: "solid", color: "#0E0F13", opacity: 0.72 } }
 ];
 
 function islandBackgroundSection() {
-  const island = section("岛屿背景", "自定义 Island 的背景颜色、透明度与背景图；本机 AI Agent 也可通过 workisland-cli 接口修改。");
+  const island = section(t("settings.appearance.background.sectionTitle"), t("settings.appearance.background.description"));
   const current = state.settings.islandAppearance || { kind: "default" };
   const matchingPreset = ISLAND_APPEARANCE_PRESETS.find(
     preset => JSON.stringify(preset.value) === JSON.stringify(current)
   );
-  const presetOptions = ISLAND_APPEARANCE_PRESETS.map(preset => [preset.id, preset.label]);
+  const presetOptions = ISLAND_APPEARANCE_PRESETS.map(preset => [preset.id, t(preset.labelKey)]);
   if (!matchingPreset) {
-    const kindLabel = current.kind === "gradient" ? "渐变" : current.kind === "image" ? "背景图" : "纯色";
-    presetOptions.push(["__custom__", `当前自定义 · ${kindLabel}`]);
+    const kindLabel = t(`settings.appearance.background.kind.${current.kind === "gradient" ? "gradient" : current.kind === "image" ? "image" : "solid"}`);
+    presetOptions.push(["__custom__", t("settings.appearance.background.customCurrent", { kind: kindLabel })]);
   }
   const presetSelect = select(
     matchingPreset ? matchingPreset.id : "__custom__",
@@ -1085,13 +1085,13 @@ function islandBackgroundSection() {
       const preset = ISLAND_APPEARANCE_PRESETS.find(entry => entry.id === value);
       if (preset) save({ islandAppearance: preset.value });
     },
-    "岛屿背景预设"
+    t("settings.appearance.background.presetLabel")
   );
   const color = document.createElement("input");
   color.type = "color";
   color.className = "color-input";
   color.value = /^#[0-9a-fA-F]{6}$/.test(current.color || "") ? current.color : "#000000";
-  color.setAttribute("aria-label", "自定义背景颜色");
+  color.setAttribute("aria-label", t("settings.appearance.background.colorLabel"));
   color.addEventListener("change", () => save({
     islandAppearance: { kind: "solid", color: color.value, opacity: current.kind === "image" ? 1 : (current.opacity ?? 1) }
   }));
@@ -1111,10 +1111,10 @@ function islandBackgroundSection() {
   }));
   const opacityControl = el("div", "range-control"); opacityControl.append(opacity, opacityValue);
   island.append(
-    row("背景预设", "选择常用深色主题；过亮的颜色会被自动压暗以保持文字可读。", presetSelect),
-    row("自定义颜色", "直接指定纯色背景。", color),
-    row("背景不透明度", "纯色与渐变背景的透明程度；背景图模式不可用。", opacityControl),
-    row("恢复默认", "清除 AI 或手动设置，回到经典纯黑 Island。", button("重置背景", () => save({ islandAppearance: { kind: "default" } }), "secondary"))
+    row(t("settings.appearance.background.preset.title"), t("settings.appearance.background.preset.description"), presetSelect),
+    row(t("settings.appearance.background.color.title"), t("settings.appearance.background.color.description"), color),
+    row(t("settings.appearance.background.opacity.title"), t("settings.appearance.background.opacity.description"), opacityControl),
+    row(t("settings.appearance.background.restore.title"), t("settings.appearance.background.restore.description"), button(t("settings.appearance.background.restore.action"), () => save({ islandAppearance: { kind: "default" } }), "secondary"))
   );
   return island;
 }
@@ -1122,7 +1122,7 @@ function islandBackgroundSection() {
 function soundPage() {
   const root = document.createDocumentFragment();
   const sound = state.settings.sound || {};
-  const main = section("声音", "声音全部在本机播放，不上传会话内容。");
+  const main = section(t("settings.sound.sectionTitle"), t("settings.sound.description"));
   const volume = document.createElement("input");
   volume.type = "range"; volume.min = "0"; volume.max = "100"; volume.value = sound.volume ?? 50;
   const volumeValue = el("span", "range-value", `${volume.value}%`);
@@ -1130,24 +1130,24 @@ function soundPage() {
   volume.addEventListener("change", () => save({ sound: { ...sound, volume: Number(volume.value) } }));
   const volumeControl = el("div", "range-control"); volumeControl.append(volume, volumeValue);
   main.append(
-    row("启用声音", "播放任务开始、完成和审批提示。", toggle(sound.enabled, v => save({ sound: { ...sound, enabled: v } }), "启用声音")),
-    row("音量", "统一调整所有提示音。", volumeControl),
-    row("自定义声音", "在本地目录中添加或替换提示音文件。", button("打开目录", () => api.openSoundsDir()))
+    row(t("settings.sound.enable.title"), t("settings.sound.enable.description"), toggle(sound.enabled, v => save({ sound: { ...sound, enabled: v } }), t("settings.sound.enable.title"))),
+    row(t("settings.sound.volume.title"), t("settings.sound.volume.description"), volumeControl),
+    row(t("settings.sound.custom.title"), t("settings.sound.custom.description"), button(t("common.openFolder"), () => api.openSoundsDir()))
   );
   const bark = state.settings.barkPush || { enabled: false, url: "", events: {} };
-  const barkSection = section("手机推送（Bark）", "Agent 等待审批、提问或完成、失败时推送到 iPhone。默认关闭；只推送事件类型与 Agent 名，不含会话内容。");
+  const barkSection = section(t("settings.sound.bark.sectionTitle"), t("settings.sound.bark.description"));
   const barkUrl = document.createElement("input");
   barkUrl.className = "text-input";
-  barkUrl.placeholder = "https://api.day.app/你的设备Key";
+  barkUrl.placeholder = t("settings.sound.bark.placeholder");
   barkUrl.value = bark.url || "";
-  barkUrl.setAttribute("aria-label", "Bark 推送地址");
+  barkUrl.setAttribute("aria-label", t("settings.sound.bark.urlLabel"));
   barkUrl.addEventListener("change", () => save({ barkPush: { ...bark, url: barkUrl.value.trim() } }));
   barkSection.append(
-    row("启用推送", "仅向你配置的 Bark 端点发请求，自托管同样支持。", toggle(bark.enabled, v => save({ barkPush: { ...bark, enabled: v } }), "启用 Bark 推送")),
-    row("推送地址", "iOS 安装 Bark App 后复制推送 URL 粘贴到这里。", barkUrl)
+    row(t("settings.sound.bark.enable.title"), t("settings.sound.bark.enable.description"), toggle(bark.enabled, v => save({ barkPush: { ...bark, enabled: v } }), t("settings.sound.bark.enable.label"))),
+    row(t("settings.sound.bark.url.title"), t("settings.sound.bark.url.description"), barkUrl)
   );
   const quiet = state.settings.quietHours || { enabled: false, start: "22:00", end: "08:00", suppressOnLockScreen: true };
-  const quietSection = section("安静时段", "勿扰时间段与锁屏期间静音本地提示音；手机推送不受影响，岛行为保持正常。");
+  const quietSection = section(t("settings.sound.quiet.sectionTitle"), t("settings.sound.quiet.description"));
   const quietTimeInput = (key, label) => {
     const input = document.createElement("input");
     input.type = "time";
@@ -1158,11 +1158,11 @@ function soundPage() {
     return input;
   };
   const quietRange = el("div", "inline-controls");
-  quietRange.append(quietTimeInput("start", "勿扰开始时间"), quietTimeInput("end", "勿扰结束时间"));
+  quietRange.append(quietTimeInput("start", t("settings.sound.quiet.startLabel")), quietTimeInput("end", t("settings.sound.quiet.endLabel")));
   quietSection.append(
-    row("启用勿扰时段", "时间段内不播放任务提示音（支持跨午夜，如 22:00 → 08:00）。", toggle(quiet.enabled, v => save({ quietHours: { ...quiet, enabled: v } }), "启用勿扰时段")),
-    row("勿扰时间", "开始与结束时间；结束早于开始时按跨午夜处理。", quietRange),
-    row("锁屏时静音", "macOS 锁屏期间不播放任务提示音。", toggle(quiet.suppressOnLockScreen, v => save({ quietHours: { ...quiet, suppressOnLockScreen: v } }), "锁屏时静音"))
+    row(t("settings.sound.quiet.enable.title"), t("settings.sound.quiet.enable.description"), toggle(quiet.enabled, v => save({ quietHours: { ...quiet, enabled: v } }), t("settings.sound.quiet.enable.title"))),
+    row(t("settings.sound.quiet.range.title"), t("settings.sound.quiet.range.description"), quietRange),
+    row(t("settings.sound.quiet.lock.title"), t("settings.sound.quiet.lock.description"), toggle(quiet.suppressOnLockScreen, v => save({ quietHours: { ...quiet, suppressOnLockScreen: v } }), t("settings.sound.quiet.lock.title")))
   );
   root.append(main, barkSection, quietSection);
   return root;
