@@ -26,6 +26,7 @@ const { createNativePlatformService } = require("./native-platform-service.cjs")
 const { configureLogTransport, createLogLifecycle } = require("./log-lifecycle.cjs");
 const { isAllowedExternalUrl } = require("./external-url-policy.cjs");
 const { createUpdateService } = require("./update-service.cjs");
+const { createLocalizationService } = require("./localization-service.cjs");
 const { createTelemetryService } = require("./telemetry-service.cjs");
 const { EVENTS } = require("../shared/telemetry.cjs");
 const {
@@ -770,6 +771,19 @@ async function runIslandApp() {
   } catch {
   }
   const coordinator = new AppCoordinator();
+  const localization = createLocalizationService({
+    getPreference: () => coordinator.getSettings().languagePreference,
+    setPreference: (languagePreference) => coordinator.updateSettings({ languagePreference }, "settings"),
+    getPreferredSystemLanguages: () => electron.app.getPreferredSystemLanguages(),
+    broadcast: (snapshot) => {
+      for (const win of electron.BrowserWindow.getAllWindows()) {
+        if (!win.isDestroyed()) win.webContents.send(IPC.LOCALE_DID_CHANGE, snapshot);
+      }
+    }
+  });
+  electron.app.on("activate", () => {
+    localization.refreshSystemLocale();
+  });
   electron.app.on("second-instance", () => {
     log.info("[main] second-instance launch — surfacing settings window");
     coordinator.openSettingsWindow();
@@ -808,12 +822,7 @@ async function runIslandApp() {
   coordinator.setTelemetryService(telemetryService);
   telemetryService.track(EVENTS.APP_LAUNCHED);
   telemetryService.start();
-  registerIpcHandlers(coordinator);
-  if (!coordinator.getSettings().locale) {
-    const languages = electron.app.getPreferredSystemLanguages();
-    const fallback = languages.find((l) => l.startsWith("en")) ? "en" : "zh";
-    coordinator.updateSettings({ locale: fallback });
-  }
+  registerIpcHandlers(coordinator, localization);
   const QUIT_WATCHDOG_MS = 1e4;
   let quitWatchdog = null;
   let willQuitFired = false;

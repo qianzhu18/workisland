@@ -55,11 +55,16 @@ electron.contextBridge.exposeInMainWorld("petPanelBridge", {
   onSurface(cb) {
     electron.ipcRenderer.on(ipc.IPC.PET_PANEL_SURFACE, (_event, surface) => cb(surface));
   },
-  getLocale() {
-    return electron.ipcRenderer.invoke(ipc.IPC.GET_LOCALE);
+  getLocaleState() {
+    return electron.ipcRenderer.invoke(ipc.IPC.LOCALE_GET_STATE);
   },
-  setLocale(locale) {
-    return electron.ipcRenderer.invoke(ipc.IPC.SET_LOCALE, { locale });
+  setLanguagePreference(preference) {
+    return electron.ipcRenderer.invoke(ipc.IPC.LOCALE_SET_PREFERENCE, { preference });
+  },
+  onLocaleChanged(cb) {
+    const handler = (_event, snapshot) => cb(snapshot);
+    electron.ipcRenderer.on(ipc.IPC.LOCALE_DID_CHANGE, handler);
+    return () => electron.ipcRenderer.off(ipc.IPC.LOCALE_DID_CHANGE, handler);
   }
 });
 electron.contextBridge.exposeInMainWorld("islandBridge", sessionApi);

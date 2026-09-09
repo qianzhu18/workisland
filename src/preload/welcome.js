@@ -3,11 +3,16 @@ const electron = require("electron");
 const ipc = require("../../src/shared/ipc.cjs");
 electron.contextBridge.exposeInMainWorld("welcomeBridge", {
   platform: process.platform,
-  getLocale() {
-    return electron.ipcRenderer.invoke(ipc.IPC.GET_LOCALE);
+  getLocaleState() {
+    return electron.ipcRenderer.invoke(ipc.IPC.LOCALE_GET_STATE);
   },
-  setLocale(locale) {
-    return electron.ipcRenderer.invoke(ipc.IPC.SET_LOCALE, { locale });
+  setLanguagePreference(preference) {
+    return electron.ipcRenderer.invoke(ipc.IPC.LOCALE_SET_PREFERENCE, { preference });
+  },
+  onLocaleChanged(cb) {
+    const handler = (_event, snapshot) => cb(snapshot);
+    electron.ipcRenderer.on(ipc.IPC.LOCALE_DID_CHANGE, handler);
+    return () => electron.ipcRenderer.off(ipc.IPC.LOCALE_DID_CHANGE, handler);
   },
   getStarted() {
     // 引导完成信号。遥测不再随引导提交选择（2026-08-22 默认开启政策，

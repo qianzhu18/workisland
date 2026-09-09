@@ -1,34 +1,40 @@
 import { d as i18nInit } from "../vendor/react-runtime.js";
+import { createRendererI18n } from "./i18n-runtime.mjs";
 
-const LOCAL_LANG = "flux-language";
-
-function getInitLangSync() {
-  const saved = localStorage.getItem(LOCAL_LANG);
-  if (saved === "en" || saved === "zh") return saved;
-  return navigator.language?.toLowerCase().startsWith("zh") ? "zh" : "en";
-}
-
-async function syncLangFromMain() {
-  try {
-    const bridge = window.islandBridge || window.settingsApi || window.debugBridge || window.welcomeBridge || window.petPanelBridge;
-    if (typeof bridge?.getLocale !== "function") return;
-    const locale = await bridge.getLocale();
-    if (locale === "en" || locale === "zh") localStorage.setItem(LOCAL_LANG, locale);
-  } catch {
+const runtime = createRendererI18n({
+  onApply(snapshot) {
+    i18nInit({
+      [snapshot.locale]: { translation: snapshot.messages },
+      en: { translation: snapshot.fallbackMessages }
+    }, snapshot.locale);
+    if (typeof document !== "undefined") document.documentElement.lang = snapshot.locale;
   }
+});
+
+function defaultBridge() {
+  if (typeof window === "undefined") return null;
+  return window.islandBridge || window.settingsApi || window.debugBridge || window.welcomeBridge || window.petBridge || window.petPanelBridge;
 }
 
-async function switchLang(lang) {
-  if (lang !== "en" && lang !== "zh") return;
-  localStorage.setItem(LOCAL_LANG, lang);
-  const bridge = window.islandBridge || window.settingsApi || window.debugBridge || window.welcomeBridge || window.petPanelBridge;
-  if (typeof bridge?.setLocale === "function") await bridge.setLocale(lang);
+async function initializeI18n(bridge = defaultBridge()) {
+  return runtime.initialize(bridge);
 }
 
-// Active renderer components carry their maintainable fallback strings. The
-// translation proxy returns those fallbacks whenever this intentionally small
-// local resource does not define a key.
-i18nInit({ zh: { translation: {} }, en: { translation: {} } }, getInitLangSync());
-void syncLangFromMain();
+async function setLanguagePreference(preference, bridge = defaultBridge()) {
+  if (typeof bridge?.setLanguagePreference !== "function") return null;
+  return bridge.setLanguagePreference(preference);
+}
 
-export { getInitLangSync as g, switchLang as s };
+const t = (key, parameters) => runtime.t(key, parameters);
+const onLocaleChange = (listener) => runtime.onChange(listener);
+const getLocale = () => runtime.getLocale();
+const getLanguagePreference = () => runtime.getLanguagePreference();
+
+export {
+  getLanguagePreference,
+  getLocale,
+  initializeI18n,
+  onLocaleChange,
+  setLanguagePreference,
+  t
+};

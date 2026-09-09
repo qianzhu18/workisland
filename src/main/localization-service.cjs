@@ -36,7 +36,8 @@ function createLocalizationService({
   const getSnapshot = () => ({
     preference,
     locale,
-    messages: catalogs[locale] || fallbackMessages
+    messages: catalogs[locale] || fallbackMessages,
+    fallbackMessages
   });
 
   const translate = (key, parameters = {}) => {

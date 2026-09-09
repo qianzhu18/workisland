@@ -34,7 +34,8 @@ test("localization service resolves system language and translates", () => {
   assert.deepEqual(service.getSnapshot(), {
     preference: "system",
     locale: "en",
-    messages: fixtureCatalogs().en
+    messages: fixtureCatalogs().en,
+    fallbackMessages: fixtureCatalogs().en
   });
   assert.equal(service.t("common.cancel"), "Cancel");
   assert.equal(service.t("welcome.greeting", { name: "Skyler" }), "Hello, Skyler");
@@ -43,6 +44,7 @@ test("localization service resolves system language and translates", () => {
   assert.equal(preference, "zh-CN");
   assert.equal(service.getLocale(), "zh-CN");
   assert.equal(broadcasts.at(-1).messages["common.cancel"], "取消");
+  assert.equal(broadcasts.at(-1).fallbackMessages["fallback.only"], "English fallback");
 });
 
 test("localization service normalizes invalid preferences and falls back to English keys", () => {

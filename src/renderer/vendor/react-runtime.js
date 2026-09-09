@@ -5,11 +5,24 @@ function formatFallback(template, params = {}) {
   });
 }
 
-function i18nInit() {}
+let i18nResources = {};
+let i18nLanguage = "en";
 
-const i18n = new Proxy({}, {
-  get(_target, key) {
-    return (params, fallback) => formatFallback(fallback || String(key), params);
+function i18nInit(resources = {}, language = "en") {
+  i18nResources = resources && typeof resources === "object" ? resources : {};
+  i18nLanguage = language === "zh-CN" ? "zh-CN" : "en";
+}
+
+function translateI18n(key, params = {}, fallback = "") {
+  const messages = i18nResources[i18nLanguage]?.translation || {};
+  const english = i18nResources.en?.translation || {};
+  return formatFallback((messages[key] ?? english[key] ?? fallback) || String(key), params);
+}
+
+const i18n = new Proxy({ t: translateI18n }, {
+  get(target, key) {
+    if (Object.prototype.hasOwnProperty.call(target, key)) return target[key];
+    return (params, fallback) => translateI18n(String(key), params, fallback);
   }
 });
 

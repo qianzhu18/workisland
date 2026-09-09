@@ -166,7 +166,7 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
   function trackedOn(channel, handler) {
     electron.ipcMain.on(channel, handler);
   }
-  function registerIpcHandlers(coordinator) {
+  function registerIpcHandlers(coordinator, localization) {
     electron.ipcMain.handle(IPC.SETTINGS_GET, () => {
       return coordinator.getSettings();
     });
@@ -195,11 +195,11 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
     electron.ipcMain.handle(IPC.APP_UPDATE_DOWNLOAD, () => downloadUpdate());
     electron.ipcMain.handle(IPC.APP_UPDATE_INSTALL, () => installUpdate());
     electron.ipcMain.handle(IPC.APP_UPDATE_STATE, () => getUpdateState());
-    electron.ipcMain.handle(IPC.GET_LOCALE, () => {
-      return coordinator.getSettings().locale ?? "zh";
+    electron.ipcMain.handle(IPC.LOCALE_GET_STATE, () => {
+      return localization.getSnapshot();
     });
-    electron.ipcMain.handle(IPC.SET_LOCALE, (_event, { locale }) => {
-      coordinator.updateSettings({ locale }, "settings");
+    electron.ipcMain.handle(IPC.LOCALE_SET_PREFERENCE, (_event, { preference } = {}) => {
+      return localization.setPreference(preference);
     });
     electron.ipcMain.handle(IPC.SETTINGS_SET, (_event, partial) => {
       if (typeof partial?.petSprite === "string" && partial.petSprite.startsWith("codex:")) {
