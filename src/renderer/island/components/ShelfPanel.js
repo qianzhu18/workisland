@@ -1,4 +1,5 @@
 import { R as React } from "../../vendor/react-runtime.js";
+import { t } from "../../shared/i18n.js";
 
 const INTERNAL_SHELF_DRAG = "application/x-workisland-shelf-id";
 
@@ -64,7 +65,7 @@ export function ShelfPanel() {
   const quickShareProvider = React.useMemo(() => shareProviders.find((provider) => provider.id === quickShareProviderId)
     || shareProviders.find((provider) => provider.id === "AirDrop")
     || shareProviders[0]
-    || { id: "__system__", title: "系统分享菜单", iconDataUrl: "" }, [quickShareProviderId, shareProviders]);
+    || { id: "__system__", title: t("shelf.systemShare"), iconDataUrl: "" }, [quickShareProviderId, shareProviders]);
   const finishShelfDrag = React.useCallback(() => {
     setDragging(false);
     setShareTargeted(false);
@@ -120,9 +121,9 @@ export function ShelfPanel() {
       const addedCount = Number(event.detail?.addedCount || 0);
       if (event.detail?.shared) {
         setDropError("");
-        setShareStatus("已打开系统分享");
+        setShareStatus(t("shelf.status.systemShareOpened"));
       } else {
-        setDropError(addedCount > 0 ? "" : event.detail?.error || "没有读取到文件，请从 Finder 拖入本地文件");
+        setDropError(addedCount > 0 ? "" : event.detail?.error || t("shelf.error.noFiles"));
         if (event.detail?.error) setShareStatus(event.detail.error);
       }
       refresh();
@@ -137,24 +138,24 @@ export function ShelfPanel() {
   }, [refresh]);
   const copyItems = React.useCallback(async (ids) => {
     const ok = await window.islandBridge?.copyShelfItems?.(ids);
-    setShareStatus(ok ? `已复制 ${ids.length} 项，可在 Finder 中粘贴` : "没有可复制的项目");
+    setShareStatus(ok ? t("shelf.status.copied", { count: ids.length }) : t("shelf.error.nothingToCopy"));
     return ok;
   }, []);
   const shareItems = React.useCallback(async (ids) => {
-    if (!ids.length) { setShareStatus("请先选择要分享的文件"); return false; }
-    setShareStatus("正在打开系统分享…");
+    if (!ids.length) { setShareStatus(t("shelf.error.selectFirst")); return false; }
+    setShareStatus(t("shelf.status.openingSystemShare"));
     const ok = await window.islandBridge?.shareShelfItems?.(ids);
-    setShareStatus(ok ? "已打开系统分享" : "系统分享暂时不可用");
+    setShareStatus(ok ? t("shelf.status.systemShareOpened") : t("shelf.error.systemShareUnavailable"));
     return ok;
   }, []);
   const shareViaDefault = React.useCallback(async (ids) => {
-    if (!ids.length) { setShareStatus("请先选择要分享的文件"); return false; }
-    setShareStatus(`正在通过 ${quickShareProvider.title} 分享…`);
+    if (!ids.length) { setShareStatus(t("shelf.error.selectFirst")); return false; }
+    setShareStatus(t("shelf.status.sharingVia", { provider: quickShareProvider.title }));
     const result = await window.islandBridge?.shareShelfItemsViaDefault?.(ids);
     const ok = result?.ok === true;
     setShareStatus(ok
-      ? result.fallback ? `${quickShareProvider.title} 不可用，已打开系统分享` : `已打开 ${quickShareProvider.title}`
-      : "快速分享暂时不可用");
+      ? result.fallback ? t("shelf.status.providerFallback", { provider: quickShareProvider.title }) : t("shelf.status.providerOpened", { provider: quickShareProvider.title })
+      : t("shelf.error.quickShareUnavailable"));
     return ok;
   }, [quickShareProvider.title]);
   const changeQuickShareProvider = React.useCallback(async (providerId) => {
@@ -162,7 +163,7 @@ export function ShelfPanel() {
     if (ok) {
       setQuickShareProviderId(providerId);
       setProviderMenuOpen(false);
-      setShareStatus(`默认分享已改为 ${shareProviders.find((provider) => provider.id === providerId)?.title || providerId}`);
+      setShareStatus(t("shelf.status.defaultChanged", { provider: shareProviders.find((provider) => provider.id === providerId)?.title || providerId }));
     }
   }, [shareProviders]);
 
@@ -232,10 +233,10 @@ export function ShelfPanel() {
     onDrop
   },
   React.createElement("div", { className: "toolbox-panel-heading" },
-    React.createElement("div", null, React.createElement("strong", null, "文件架"), React.createElement("span", null, "拖入文件，跨应用临时周转与分享")),
+    React.createElement("div", null, React.createElement("strong", null, t("shelf.title")), React.createElement("span", null, t("shelf.description"))),
     React.createElement("div", { className: "toolbox-heading-actions" },
-      React.createElement("button", { type: "button", onClick: paste }, "粘贴"),
-      state.items.length > 0 && React.createElement("button", { type: "button", onClick: () => window.confirm("清空文件架引用？原文件不会被删除。") && window.islandBridge.clearShelf() }, "清空")
+      React.createElement("button", { type: "button", onClick: paste }, t("shelf.paste")),
+      state.items.length > 0 && React.createElement("button", { type: "button", onClick: () => window.confirm(t("shelf.clearConfirm")) && window.islandBridge.clearShelf() }, t("shelf.clear"))
     )
   ),
   React.createElement("div", { className: "shelf-workspace" },
@@ -254,12 +255,12 @@ export function ShelfPanel() {
       React.createElement("button", {
         type: "button",
         className: "shelf-share-switch",
-        title: "更换默认快速分享",
-        "aria-label": "更换默认快速分享",
+        title: t("shelf.changeDefaultShare"),
+        "aria-label": t("shelf.changeDefaultShare"),
         onClick: (event) => { event.stopPropagation(); setProviderMenuOpen((open) => !open); }
       }, "⇄"),
       providerMenuOpen && React.createElement("div", { className: "shelf-share-provider-menu", onClick: (event) => event.stopPropagation() },
-        React.createElement("div", { className: "shelf-share-provider-heading" }, "默认快速分享"),
+        React.createElement("div", { className: "shelf-share-provider-heading" }, t("shelf.defaultShare")),
         shareProviders.map((provider) => React.createElement("button", {
           type: "button",
           key: provider.id,
@@ -277,26 +278,26 @@ export function ShelfPanel() {
         ? React.createElement("img", { src: quickShareProvider.iconDataUrl, alt: "" })
         : React.createElement(SystemShareIcon)),
       React.createElement("strong", null, quickShareProvider.title),
-      React.createElement("span", null, `拖到这里直接使用 ${quickShareProvider.title}`),
+      React.createElement("span", null, t("shelf.dropToShare", { provider: quickShareProvider.title })),
       React.createElement("button", {
         type: "button",
         className: "shelf-system-share-once",
         disabled: selectedArray.length === 0,
         onClick: (event) => { event.stopPropagation(); shareItems(selectedArray); }
-      }, React.createElement(SystemShareIcon), React.createElement("span", null, "临时打开系统分享")),
-      React.createElement("small", null, shareStatus || "右上角可更换默认方式")
+      }, React.createElement(SystemShareIcon), React.createElement("span", null, t("shelf.openSystemShareOnce"))),
+      React.createElement("small", null, shareStatus || t("shelf.changeHint"))
     ),
     React.createElement("div", { className: "shelf-files-area" },
       selectedArray.length > 0 && React.createElement("div", { className: "shelf-selection-bar" },
-        React.createElement("span", null, `已选择 ${selectedArray.length} 项`),
+        React.createElement("span", null, t("shelf.selected", { count: selectedArray.length })),
         React.createElement("div", null,
-          React.createElement(IconButton, { label: "复制所选文件", onClick: () => copyItems(selectedArray) }, React.createElement(CopyIcon)),
-          React.createElement(IconButton, { label: "分享所选文件", onClick: () => shareItems(selectedArray) }, React.createElement(SystemShareIcon)),
-          React.createElement(IconButton, { label: "移除所选引用", onClick: () => remove(selectedArray) }, React.createElement(RemoveIcon))
+          React.createElement(IconButton, { label: t("shelf.copySelected"), onClick: () => copyItems(selectedArray) }, React.createElement(CopyIcon)),
+          React.createElement(IconButton, { label: t("shelf.shareSelected"), onClick: () => shareItems(selectedArray) }, React.createElement(SystemShareIcon)),
+          React.createElement(IconButton, { label: t("shelf.removeSelected"), onClick: () => remove(selectedArray) }, React.createElement(RemoveIcon))
         )
       ),
       state.items.length === 0
-        ? React.createElement("div", { className: "toolbox-empty shelf-drop-target" }, React.createElement("span", { className: "toolbox-empty-icon" }, "↓"), React.createElement("strong", null, dropError || "拖入文件，或按 ⌘V 粘贴"), React.createElement("span", null, dropError ? "也可以点击右上角“粘贴”重试" : "原文件不会被移动或删除"))
+        ? React.createElement("div", { className: "toolbox-empty shelf-drop-target" }, React.createElement("span", { className: "toolbox-empty-icon" }, "↓"), React.createElement("strong", null, dropError || t("shelf.empty.title")), React.createElement("span", null, dropError ? t("shelf.empty.retry") : t("shelf.empty.description")))
         : React.createElement("div", { className: `shelf-grid${selectedArray.length ? " has-selection" : ""}` }, state.items.map((item, index) => React.createElement("article", {
           key: item.id,
           className: `shelf-item${item.available ? "" : " is-missing"}${selectedIds.has(item.id) ? " is-selected" : ""}`,
@@ -315,13 +316,13 @@ export function ShelfPanel() {
           onDragEnd: finishShelfDrag,
           onDoubleClick: () => item.path && window.islandBridge.openShelfItem(item.id)
         },
-        React.createElement(IconButton, { label: "移除引用", className: "shelf-remove-button", onClick: () => remove(item.id) }, React.createElement(RemoveIcon)),
+        React.createElement(IconButton, { label: t("shelf.removeReference"), className: "shelf-remove-button", onClick: () => remove(item.id) }, React.createElement(RemoveIcon)),
         React.createElement(ShelfItemPreview, { item }),
         React.createElement("div", { className: "shelf-item-name", title: item.name }, item.name),
         React.createElement("div", { className: "shelf-item-actions" },
-          item.path && React.createElement(IconButton, { label: "预览", disabled: !item.available, onClick: () => window.islandBridge.quickLookShelfItem(item.id) }, React.createElement(PreviewIcon)),
-          item.path && React.createElement(IconButton, { label: "在 Finder 中显示", disabled: !item.available, onClick: () => window.islandBridge.revealShelfItem(item.id) }, React.createElement(FinderIcon)),
-          item.path && React.createElement(IconButton, { label: "系统分享", disabled: !item.available, onClick: () => shareItems([item.id]) }, React.createElement(SystemShareIcon))
+          item.path && React.createElement(IconButton, { label: t("shelf.preview"), disabled: !item.available, onClick: () => window.islandBridge.quickLookShelfItem(item.id) }, React.createElement(PreviewIcon)),
+          item.path && React.createElement(IconButton, { label: t("shelf.revealInFinder"), disabled: !item.available, onClick: () => window.islandBridge.revealShelfItem(item.id) }, React.createElement(FinderIcon)),
+          item.path && React.createElement(IconButton, { label: t("shelf.systemShare"), disabled: !item.available, onClick: () => shareItems([item.id]) }, React.createElement(SystemShareIcon))
         ))))
     )
   ));

@@ -7,7 +7,7 @@ function source(path) {
 }
 
 test("Island and Welcome initialize locale before first render and rerender in place", () => {
-  for (const path of ["../src/renderer/island/app.js", "../src/renderer/assets/welcome-app.js"]) {
+  for (const path of ["../src/renderer/island/app.js", "../src/renderer/assets/welcome-app.js", "../src/renderer/pet/panel-app.js"]) {
     const value = source(path);
     assert.match(value, /initializeI18n/);
     assert.match(value, /await initializeI18n/);

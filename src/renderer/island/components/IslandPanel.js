@@ -1,4 +1,5 @@
-import { r as reactExports, R as React, i as i18n } from "../../vendor/react-runtime.js";
+import { r as reactExports, R as React } from "../../vendor/react-runtime.js";
+import { t } from "../../shared/i18n.js";
 import { A as AGENT_TOOL_LABELS, j as isPluginAgentTool, g as getPluginColor, h as getAgentLabel, i as getPluginLabelMap, e as DEFAULT_SHORTCUTS } from "../../shared/settings.js";
 import { g as getFireIconByTokenCount, s as sanitizeAgentDisplayText, c as cleanAppName, b as buildApproveAlwaysTooltip } from "../../shared/formatters.js";
 import { f as formatTokenCount } from "../../shared/tokens.js";
@@ -224,10 +225,10 @@ function AgentQuotaCell({ tool, quota }) {
   const activePeriod = dailyValid ? quota.daily : weeklyValid ? quota.weekly : null;
   const tooltipLines = [];
   if (dailyValid) {
-    tooltipLines.push(`${i18n.k296832979({ placeholder1: quota.daily.total, placeholder2: formatPct(quota.daily.usedPct), placeholder3: quota.daily.remaining }, "{placeholder1} 额度已用 {placeholder2}%, {placeholder3} 后重置")}`);
+    tooltipLines.push(t("usage.quotaTooltip", { total: quota.daily.total, used: formatPct(quota.daily.usedPct), remaining: quota.daily.remaining }));
   }
   if (weeklyValid) {
-    tooltipLines.push(`${i18n.k296832979({ placeholder1: quota.weekly.total, placeholder2: formatPct(quota.weekly.usedPct), placeholder3: quota.weekly.remaining }, "{placeholder1} 额度已用 {placeholder2}%, {placeholder3} 后重置")}`);
+    tooltipLines.push(t("usage.quotaTooltip", { total: quota.weekly.total, used: formatPct(quota.weekly.usedPct), remaining: quota.weekly.remaining }));
   }
   return /* @__PURE__ */ React.createElement(
     "div",
@@ -291,9 +292,9 @@ function PetButtonIcon() {
     };
   }, []);
   if (!sprite) {
-    return /* @__PURE__ */ React.createElement("img", { className: "pet-button-icon-fallback", src: defaultIcon, alt: "桌宠" });
+    return /* @__PURE__ */ React.createElement("img", { className: "pet-button-icon-fallback", src: defaultIcon, alt: t("pet.title") });
   }
-  return /* @__PURE__ */ React.createElement("span", { className: "pet-button-icon", role: "img", "aria-label": "桌宠", style: { backgroundImage: `url(${sprite.dataUrl})`, backgroundSize: sprite.backgroundSize } });
+  return /* @__PURE__ */ React.createElement("span", { className: "pet-button-icon", role: "img", "aria-label": t("pet.title"), style: { backgroundImage: `url(${sprite.dataUrl})`, backgroundSize: sprite.backgroundSize } });
 }
 function AgentUsageRow({
   agentQuotas,
@@ -326,8 +327,8 @@ function AgentUsageRow({
     (tool) => agentQuotas[tool] && (tool !== "codex" || isValidQuota(agentQuotas[tool]))
   );
   const utilityModuleDefs = [
-    ['shelf', '文件架', ShelfToolIcon], ['clipboard', '剪贴板', ClipboardToolIcon],
-    ['terminal', '终端', TerminalToolIcon], ["usage", "用量", UsageToolIcon]
+    ['shelf', t('toolbox.shelf'), ShelfToolIcon], ['clipboard', t('toolbox.clipboard'), ClipboardToolIcon],
+    ['terminal', t('toolbox.terminal'), TerminalToolIcon], ["usage", t("toolbox.usage"), UsageToolIcon]
   ];
   const utilityModules = orderToolboxModules(
     utilityModuleDefs.filter(([id]) => enabledToolboxModules.includes(id)).map(([id]) => id), toolboxModuleOrder
@@ -347,8 +348,8 @@ function AgentUsageRow({
       onSelect: onToolboxModuleChange, onOrder: onToolboxModuleReorder,
       homeIcon: React.createElement(AgentHomeIcon), settingsIcon: React.createElement('img', { src: settingIcon, alt: '' }),
       onSettings: () => onOpenSettings('display'), extras: [
-        ...(performanceEnabled ? [{ id: 'performance', label: '性能监视器', icon: React.createElement('span', null, '◔'), render: (labelled) => React.createElement(PerformancePopover, { state: performanceState, labelled }) }] : []),
-        { id: 'pet', label: '打开或关闭桌宠', fixed: true, icon: React.createElement(PetButtonIcon), action: onOpenPet }
+        ...(performanceEnabled ? [{ id: 'performance', label: t('performance.monitor'), icon: React.createElement('span', null, '◔'), render: (labelled) => React.createElement(PerformancePopover, { state: performanceState, labelled }) }] : []),
+        { id: 'pet', label: t('pet.toggle'), fixed: true, icon: React.createElement(PetButtonIcon), action: onOpenPet }
       ]
     });
 }
@@ -472,16 +473,16 @@ function SessionRow({
         height: 32
       }
     ),
-    /* @__PURE__ */ React.createElement("div", { className: "session-body" }, /* @__PURE__ */ React.createElement("div", { className: "session-headline" }, /* @__PURE__ */ React.createElement("div", { className: "session-headline-left" }, /* @__PURE__ */ React.createElement(AgentToolBadge, { tool: session.tool }), session.remoteHostName && /* @__PURE__ */ React.createElement("span", { className: "session-remote-host", title: "远程主机" }, session.remoteHostName), /* @__PURE__ */ React.createElement("span", { className: "session-title" }, session.title)), /* @__PURE__ */ React.createElement("div", { className: "session-meta" }, terminalApp && /* @__PURE__ */ React.createElement("span", { className: "session-terminal" }, terminalApp.toLowerCase() === "claude" ? "APP" : cleanAppName(terminalApp)), /* @__PURE__ */ React.createElement("span", { className: "session-elapsed" }, elapsed), canContinueSession && /* @__PURE__ */ React.createElement(
+    /* @__PURE__ */ React.createElement("div", { className: "session-body" }, /* @__PURE__ */ React.createElement("div", { className: "session-headline" }, /* @__PURE__ */ React.createElement("div", { className: "session-headline-left" }, /* @__PURE__ */ React.createElement(AgentToolBadge, { tool: session.tool }), session.remoteHostName && /* @__PURE__ */ React.createElement("span", { className: "session-remote-host", title: t("remote.host") }, session.remoteHostName), /* @__PURE__ */ React.createElement("span", { className: "session-title" }, session.title)), /* @__PURE__ */ React.createElement("div", { className: "session-meta" }, terminalApp && /* @__PURE__ */ React.createElement("span", { className: "session-terminal" }, terminalApp.toLowerCase() === "claude" ? "APP" : cleanAppName(terminalApp)), /* @__PURE__ */ React.createElement("span", { className: "session-elapsed" }, elapsed), canContinueSession && /* @__PURE__ */ React.createElement(
       "button",
       {
         type: "button",
         className: `session-continue-btn${isFollowUpOpen ? " is-active" : ""}`,
         onClick: handleFollowUpClick,
-        title: i18n.k4191004497({}, "继续现有会话"),
-        "aria-label": i18n.k4191004497({}, "继续现有会话")
+        title: t("session.continue"),
+        "aria-label": t("session.continue")
       },
-      i18n.k3182587559({}, "💬 追问")
+      t("session.followUp")
     ), /* @__PURE__ */ React.createElement(
       "button",
       {
@@ -490,7 +491,7 @@ function SessionRow({
         title: "Delete session"
       },
       /* @__PURE__ */ React.createElement("img", { src: deleteIcon, alt: "delete", width: 14, height: 14 })
-    ))), latestUserPrompt && /* @__PURE__ */ React.createElement("div", { className: "session-prompt" }, `${i18n.k722092343({ placeholder1: latestUserPrompt }, "你: {placeholder1}")}`), (currentActivity || lastAssistantMessage) && /* @__PURE__ */ React.createElement("div", { className: "session-activity" }, currentActivity || lastAssistantMessage))
+    ))), latestUserPrompt && /* @__PURE__ */ React.createElement("div", { className: "session-prompt" }, t("session.you", { prompt: latestUserPrompt })), (currentActivity || lastAssistantMessage) && /* @__PURE__ */ React.createElement("div", { className: "session-activity" }, currentActivity || lastAssistantMessage))
   );
 }
 const MAX_VISIBLE = 3;
@@ -551,7 +552,7 @@ function SubagentList({ subagents }) {
       className: "subagent-list-toggle",
       onClick: () => setExpanded((v) => !v)
     },
-    expanded ? i18n.k4797988({}, "收起") : `+${overflowCount} more`
+    expanded ? t("common.collapse") : t("common.moreCount", { count: overflowCount })
   ) : null));
 }
 class Diff {
@@ -932,22 +933,22 @@ function ApprovalCard({ session }) {
       oldContent: diff.oldContent,
       newContent: diff.newContent
     }
-  ))), isExternal ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "approval-note" }, isFromTrae ? i18n.k408497818({}, "请前往 TRAE IDE 中处理此权限请求。") : i18n.k3026826246({}, "由于 Code Agent 权限限制，请在终端的原生审批框中处理这次权限请求。")), /* @__PURE__ */ React.createElement("div", { className: "approval-actions" }, /* @__PURE__ */ React.createElement(
+  ))), isExternal ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "approval-note" }, t(isFromTrae ? "approval.external.trae" : "approval.external.terminal")), /* @__PURE__ */ React.createElement("div", { className: "approval-actions" }, /* @__PURE__ */ React.createElement(
     "button",
     {
       className: "approval-btn jump",
       onClick: jumpToTerminal,
       disabled: !canJumpToTerminal
     },
-    isFromTrae ? i18n.k1243075842({}, "前往 TRAE IDE") : canJumpToTerminal ? i18n.k1755521477({}, "前往终端确认") : i18n.k1734251801({}, "等待终端定位")
-  ))) : /* @__PURE__ */ React.createElement("div", { className: "approval-actions" }, /* @__PURE__ */ React.createElement("button", { className: "approval-btn deny", onClick: deny }, i18n.k6052010({}, "拒绝"), rejectHint && /* @__PURE__ */ React.createElement("span", { className: "kbd" }, rejectHint)), /* @__PURE__ */ React.createElement("button", { className: "approval-btn allow", onClick: allowOnce }, isExitPlanMode ? i18n.k3627436501({}, "手动采纳编辑") : i18n.k2477555965({}, "允许一次"), approveHint && /* @__PURE__ */ React.createElement("span", { className: "kbd" }, approveHint)), showAllowAlways && /* @__PURE__ */ React.createElement(
+    t(isFromTrae ? "approval.action.openTrae" : canJumpToTerminal ? "approval.action.openTerminal" : "approval.action.locatingTerminal")
+  ))) : /* @__PURE__ */ React.createElement("div", { className: "approval-actions" }, /* @__PURE__ */ React.createElement("button", { className: "approval-btn deny", onClick: deny }, t("approval.action.deny"), rejectHint && /* @__PURE__ */ React.createElement("span", { className: "kbd" }, rejectHint)), /* @__PURE__ */ React.createElement("button", { className: "approval-btn allow", onClick: allowOnce }, t(isExitPlanMode ? "approval.action.acceptEditsManual" : "approval.action.allowOnce"), approveHint && /* @__PURE__ */ React.createElement("span", { className: "kbd" }, approveHint)), showAllowAlways && /* @__PURE__ */ React.createElement(
     "button",
     {
       className: "approval-btn allow-always",
       onClick: allowAlways,
       "data-tooltip": allowAlwaysTooltip
     },
-    isExitPlanMode ? i18n.k3627461236({}, "自动采纳编辑") : i18n.k1008057599({}, "始终允许"),
+    t(isExitPlanMode ? "approval.action.acceptEditsAutomatic" : "approval.action.allowAlways"),
     allowAlwaysHint && /* @__PURE__ */ React.createElement("span", { className: "kbd" }, allowAlwaysHint)
   )));
 }
@@ -1031,7 +1032,7 @@ function QuestionCard({
   function jumpToTerminal() {
     window.islandBridge?.jumpToSession(session.id);
   }
-  return /* @__PURE__ */ React.createElement("div", { className: "question-card" }, /* @__PURE__ */ React.createElement("div", { className: "question-container" }, /* @__PURE__ */ React.createElement("div", { className: "question-header" }, /* @__PURE__ */ React.createElement("span", { className: "question-header-title" }, i18n.k4606587({}, "提问")), /* @__PURE__ */ React.createElement("span", { className: "question-header-count" }, prompt.questions.length)), /* @__PURE__ */ React.createElement("div", { className: "question-list" }, prompt.questions.map((q, qIndex) => {
+  return /* @__PURE__ */ React.createElement("div", { className: "question-card" }, /* @__PURE__ */ React.createElement("div", { className: "question-container" }, /* @__PURE__ */ React.createElement("div", { className: "question-header" }, /* @__PURE__ */ React.createElement("span", { className: "question-header-title" }, t("question.title")), /* @__PURE__ */ React.createElement("span", { className: "question-header-count" }, prompt.questions.length)), /* @__PURE__ */ React.createElement("div", { className: "question-list" }, prompt.questions.map((q, qIndex) => {
     const isMultiple = q.type === "multiple";
     return /* @__PURE__ */ React.createElement("div", { key: q.id, className: "question-item" }, /* @__PURE__ */ React.createElement("div", { className: "question-title" }, /* @__PURE__ */ React.createElement("span", { className: "question-title-text" }, /* @__PURE__ */ React.createElement("span", { className: "question-number" }, qIndex + 1, ". "), q.question)), /* @__PURE__ */ React.createElement("div", { className: "question-options" }, q.choices.map((choice, cIndex) => {
       const isSelected = isOptionSelected(q.id, cIndex);
@@ -1072,13 +1073,13 @@ function QuestionCard({
           className: "question-native-input"
         }
       ),
-      /* @__PURE__ */ React.createElement("span", { className: "question-option-label" }, i18n.k2340434329({}, "输入回答"))
+      /* @__PURE__ */ React.createElement("span", { className: "question-option-label" }, t("question.customAnswer"))
     ), isCustomSelected(q.id) && /* @__PURE__ */ React.createElement(
       "input",
       {
         type: "text",
         className: "question-custom-input",
-        placeholder: i18n.k1881288656({}, "输入自定义答案…"),
+        placeholder: t("question.customPlaceholder"),
         value: drafts[q.id]?.customText ?? "",
         disabled: isDisableInCardThenJump2CLI,
         autoComplete: "off",
@@ -1088,22 +1089,22 @@ function QuestionCard({
         onChange: (e) => setCustomText(q.id, e.target.value)
       }
     ))));
-  }))), isDisableInCardThenJump2CLI ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "approval-note" }, i18n.k1237460428({}, "由于 Code Agent 限制，请前往终端处理这次问答请求")), /* @__PURE__ */ React.createElement("div", { className: "approval-actions" }, /* @__PURE__ */ React.createElement(
+  }))), isDisableInCardThenJump2CLI ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "approval-note" }, t("question.externalTerminal")), /* @__PURE__ */ React.createElement("div", { className: "approval-actions" }, /* @__PURE__ */ React.createElement(
     "button",
     {
       className: "approval-btn jump",
       onClick: jumpToTerminal,
       disabled: !canJumpToTerminal
     },
-    canJumpToTerminal ? i18n.k1755521477({}, "前往终端确认") : i18n.k1734251801({}, "等待终端定位")
-  ))) : /* @__PURE__ */ React.createElement("div", { className: "question-actions" }, /* @__PURE__ */ React.createElement("button", { className: "question-submit-btn", onClick: handleSubmit }, i18n.k2395458847({}, "提交信息")), AGENT_TOOLS_CANCEL_QUESTIONS.includes(session.tool) && /* @__PURE__ */ React.createElement(
+    t(canJumpToTerminal ? "approval.action.openTerminal" : "approval.action.locatingTerminal")
+  ))) : /* @__PURE__ */ React.createElement("div", { className: "question-actions" }, /* @__PURE__ */ React.createElement("button", { className: "question-submit-btn", onClick: handleSubmit }, t("common.submit")), AGENT_TOOLS_CANCEL_QUESTIONS.includes(session.tool) && /* @__PURE__ */ React.createElement(
     "button",
     {
       type: "button",
       className: "question-cancel-btn",
       onClick: handleCancelQuestion
     },
-    i18n.k6131227({}, "取消")
+    t("common.cancel")
   )));
 }
 function PlanConfirmationCard({
@@ -1121,10 +1122,10 @@ function PlanConfirmationCard({
   function jumpToTerminal() {
     window.islandBridge?.jumpToSession(session.id);
   }
-  return /* @__PURE__ */ React.createElement("div", { className: "plan-confirmation-card" }, /* @__PURE__ */ React.createElement("div", { className: "plan-confirmation-container" }, /* @__PURE__ */ React.createElement("div", { className: "plan-confirmation-header" }, /* @__PURE__ */ React.createElement("span", { className: "plan-confirmation-header-title" }, i18n.k3476981328({}, "等待确认计划"))), /* @__PURE__ */ React.createElement("div", { className: "plan-confirmation-content" }, /* @__PURE__ */ React.createElement("div", { className: `plan-confirmation-plan island-markdown${planExpanded ? "" : " is-collapsed"}` }, /* @__PURE__ */ React.createElement(Markdown, { remarkPlugins: [remarkGfm], components: { a: ({ href, children }) => /* @__PURE__ */ React.createElement("a", { href, onClick: (e) => {
+  return /* @__PURE__ */ React.createElement("div", { className: "plan-confirmation-card" }, /* @__PURE__ */ React.createElement("div", { className: "plan-confirmation-container" }, /* @__PURE__ */ React.createElement("div", { className: "plan-confirmation-header" }, /* @__PURE__ */ React.createElement("span", { className: "plan-confirmation-header-title" }, t("plan.awaitingConfirmation"))), /* @__PURE__ */ React.createElement("div", { className: "plan-confirmation-content" }, /* @__PURE__ */ React.createElement("div", { className: `plan-confirmation-plan island-markdown${planExpanded ? "" : " is-collapsed"}` }, /* @__PURE__ */ React.createElement(Markdown, { remarkPlugins: [remarkGfm], components: { a: ({ href, children }) => /* @__PURE__ */ React.createElement("a", { href, onClick: (e) => {
     e.preventDefault();
     if (href) window.islandBridge?.openExternal?.(href);
-  } }, children) } }, planConfirmation.plan || ""), !planExpanded && /* @__PURE__ */ React.createElement("button", { className: "plan-confirmation-expand", type: "button", onClick: () => setPlanExpanded(true) }, i18n.k3476981328({}, "展开完整计划"))), /* @__PURE__ */ React.createElement("div", { className: "plan-confirmation-choices" }, /* @__PURE__ */ React.createElement(
+  } }, children) } }, planConfirmation.plan || ""), !planExpanded && /* @__PURE__ */ React.createElement("button", { className: "plan-confirmation-expand", type: "button", onClick: () => setPlanExpanded(true) }, t("plan.expand"))), /* @__PURE__ */ React.createElement("div", { className: "plan-confirmation-choices" }, /* @__PURE__ */ React.createElement(
     "label",
     {
       className: `plan-confirmation-choice ${selectedChoice === "AGENT" ? "is-selected" : ""}`
@@ -1140,7 +1141,7 @@ function PlanConfirmationCard({
         className: "plan-confirmation-native-input"
       }
     ),
-    /* @__PURE__ */ React.createElement("span", { className: "plan-confirmation-choice-label" }, i18n.k2507976213({}, "同意计划"))
+    /* @__PURE__ */ React.createElement("span", { className: "plan-confirmation-choice-label" }, t("plan.accept"))
   ), /* @__PURE__ */ React.createElement(
     "label",
     {
@@ -1157,7 +1158,7 @@ function PlanConfirmationCard({
         className: "plan-confirmation-native-input"
       }
     ),
-    /* @__PURE__ */ React.createElement("span", { className: "plan-confirmation-choice-label" }, i18n.k2507819097({}, "拒绝计划"))
+    /* @__PURE__ */ React.createElement("span", { className: "plan-confirmation-choice-label" }, t("plan.reject"))
   )))), /* @__PURE__ */ React.createElement("div", { className: "plan-confirmation-actions" }, /* @__PURE__ */ React.createElement(
     "button",
     {
@@ -1165,14 +1166,14 @@ function PlanConfirmationCard({
       onClick: handleSubmit,
       disabled: !selectedChoice
     },
-    i18n.k2395458847({}, "提交信息")
+    t("common.submit")
   ), canJumpToTerminal && /* @__PURE__ */ React.createElement(
     "button",
     {
       className: "plan-confirmation-jump-btn",
       onClick: jumpToTerminal
     },
-    i18n.k3125065045({}, "前往页面确认")
+    t("plan.openPage")
   )));
 }
 const continueChatIcon = "data:image/svg+xml,%3csvg%20width='12'%20height='12'%20viewBox='0%200%2012%2012'%20fill='none'%20xmlns='http://www.w3.org/2000/svg'%3e%3cpath%20d='M1.04554%208.05423C1.12274%208.24896%201.13992%208.46233%201.09489%208.66691L0.535765%2010.3941C0.517749%2010.4817%200.522407%2010.5725%200.549297%2010.6578C0.576187%2010.7431%200.624418%2010.8201%200.689415%2010.8815C0.754412%2010.9429%200.834022%2010.9867%200.920694%2011.0087C1.00737%2011.0308%201.09823%2011.0303%201.18466%2011.0073L2.97649%2010.4834C3.16954%2010.4451%203.36946%2010.4618%203.55346%2010.5317C4.67454%2011.0552%205.9445%2011.166%207.13929%2010.8444C8.33407%2010.5229%209.3769%209.78969%2010.0838%208.7742C10.7906%207.75871%2011.1161%206.52619%2011.0028%205.29409C10.8895%204.062%2010.3447%202.90952%209.46446%202.03998C8.58423%201.17045%207.42517%200.639736%206.19178%200.541487C4.95839%200.443238%203.72993%200.783765%202.72314%201.50299C1.71636%202.22221%200.995943%203.27391%200.689009%204.47252C0.382074%205.67114%200.508344%206.93964%201.04554%208.05423Z'%20stroke='%230C0C0D'%20style='stroke:%230C0C0D;stroke:color(display-p3%200.0471%200.0471%200.0510);stroke-opacity:1;'%20stroke-width='1.05'%20stroke-linecap='round'%20stroke-linejoin='round'/%3e%3c/svg%3e";
@@ -1198,11 +1199,11 @@ function CompletionCard({
     {
       className: `completion-header${hasContent ? "" : " completion-header-no-content"}${isError ? " completion-header-error" : ""}`
     },
-    /* @__PURE__ */ React.createElement("div", { className: `completion-title${isError ? " completion-title-error" : ""}` }, isError ? `${i18n.k2930548929({ placeholder1: session.error }, "⚠ 任务异常终止：{placeholder1}")}` : prompt ? `${i18n.k981631581({ placeholder1: prompt }, "你: {placeholder1}")}` : i18n.k2887680449({}, "最新任务已完成"))
+    /* @__PURE__ */ React.createElement("div", { className: `completion-title${isError ? " completion-title-error" : ""}` }, isError ? t("completion.error", { error: session.error }) : prompt ? t("session.you", { prompt }) : t("completion.latestFinished"))
   ), hasContent && /* @__PURE__ */ React.createElement("div", { className: "completion-content" }, isError ? /* @__PURE__ */ React.createElement("div", { className: "completion-error-detail" }, session.errorDetail || session.error) : details && /* @__PURE__ */ React.createElement("div", { className: "island-markdown" }, /* @__PURE__ */ React.createElement(Markdown, { remarkPlugins: [remarkGfm], components: { a: ({ href, children }) => /* @__PURE__ */ React.createElement("a", { href, onClick: (e) => {
     e.preventDefault();
     if (href) window.islandBridge?.openExternal?.(href);
-  } }, children) } }, details)))), session.jumpTarget && !isFollowUpOpen && /* @__PURE__ */ React.createElement("div", { className: "completion-actions" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "approval-btn completion-jump-btn", onClick: handleJump }, i18n.k6315286({}, "打开"), " ", cleanAppName(session.jumpTarget.app), " ↗", jumpHint && /* @__PURE__ */ React.createElement("span", { className: "kbd" }, jumpHint)), canFollowUp && /* @__PURE__ */ React.createElement("button", { type: "button", className: "approval-btn completion-follow-up-btn", onClick: onFollowUpClick }, /* @__PURE__ */ React.createElement("img", { src: continueChatIcon, alt: "continue chat", className: "completion-follow-up-icon", "aria-hidden": "true" }), i18n.k746418620({}, "继续追问"))));
+  } }, children) } }, details)))), session.jumpTarget && !isFollowUpOpen && /* @__PURE__ */ React.createElement("div", { className: "completion-actions" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "approval-btn completion-jump-btn", onClick: handleJump }, t("common.open"), " ", cleanAppName(session.jumpTarget.app), " ↗", jumpHint && /* @__PURE__ */ React.createElement("span", { className: "kbd" }, jumpHint)), canFollowUp && /* @__PURE__ */ React.createElement("button", { type: "button", className: "approval-btn completion-follow-up-btn", onClick: onFollowUpClick }, /* @__PURE__ */ React.createElement("img", { src: continueChatIcon, alt: "continue chat", className: "completion-follow-up-icon", "aria-hidden": "true" }), t("session.continueFollowUp"))));
 }
 const AUTOMATION_PRIVACY_SETTINGS_URL = "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation";
 const TEXTAREA_MIN_HEIGHT = 40;
@@ -1211,15 +1212,15 @@ function continuePromptErrorMessage(result) {
   switch (result.reason) {
     case "automation-denied":
       return {
-        text: i18n.k1905081417({}, "需要允许 WorkIsland 控制 Terminal/iTerm，才能继续会话。"),
+        text: t("session.error.automationDenied"),
         showSettings: true
       };
     case "terminal-session-not-found":
-      return { text: i18n.k1502991054({}, "未找到对应终端会话。"), showSettings: false };
+      return { text: t("session.error.terminalNotFound"), showSettings: false };
     case "unsupported":
-      return { text: i18n.k3600427917({}, "当前会话不支持通过终端继续。"), showSettings: false };
+      return { text: t("session.error.unsupported"), showSettings: false };
     default:
-      return { text: i18n.k3452160286({}, "继续会话失败。"), showSettings: false };
+      return { text: t("session.error.continueFailed"), showSettings: false };
   }
 }
 function ContinuePromptInput({
@@ -1279,13 +1280,13 @@ function ContinuePromptInput({
       const continueSessionViaTerminalPrompt = window.islandBridge?.continueSessionViaTerminalPrompt;
       if (!continueSessionViaTerminalPrompt) {
         console.warn("[ContinuePromptInput] continueSessionViaTerminalPrompt unavailable: bridge not ready");
-        setContinueError({ text: i18n.k3452160286({}, "继续会话失败。"), showSettings: false });
+        setContinueError({ text: t("session.error.continueFailed"), showSettings: false });
         return;
       }
       const result = await continueSessionViaTerminalPrompt(session.id, prompt);
       if (!result) {
         console.warn("[ContinuePromptInput] continueSessionViaTerminalPrompt returned empty result");
-        setContinueError({ text: i18n.k3452160286({}, "继续会话失败。"), showSettings: false });
+        setContinueError({ text: t("session.error.continueFailed"), showSettings: false });
         return;
       }
       if (!result?.ok) {
@@ -1296,7 +1297,7 @@ function ContinuePromptInput({
       onSubmitted?.();
     } catch (err) {
       console.warn("[ContinuePromptInput] continueSessionViaTerminalPrompt rejected:", err);
-      setContinueError({ text: i18n.k3452160286({}, "继续会话失败。"), showSettings: false });
+      setContinueError({ text: t("session.error.continueFailed"), showSettings: false });
     } finally {
       setIsSending(false);
     }
@@ -1325,7 +1326,7 @@ function ContinuePromptInput({
       value: text,
       onChange: (e) => setText(e.target.value),
       onKeyDown: handleKeyDown,
-      placeholder: i18n.k3464911708({}, "输入追问内容"),
+      placeholder: t("session.followUpPlaceholder"),
       disabled: isSending,
       "data-scrollable": isScrollable ? "true" : void 0
     }
@@ -1337,7 +1338,7 @@ function ContinuePromptInput({
       disabled: isSending,
       onClick: onCancel
     },
-    i18n.k746513288({}, "取消追问")
+    t("session.cancelFollowUp")
   ), continueError && /* @__PURE__ */ React.createElement("div", { className: "continue-prompt-error" }, /* @__PURE__ */ React.createElement("span", null, continueError.text), continueError.showSettings && /* @__PURE__ */ React.createElement(
     "button",
     {
@@ -1345,14 +1346,14 @@ function ContinuePromptInput({
       className: "continue-prompt-error-action",
       onClick: handleOpenAutomationSettings
     },
-    i18n.k1441193026({}, "打开系统设置")
+    t("common.openSystemSettings")
   )), /* @__PURE__ */ React.createElement(
     "button",
     {
       type: "submit",
       className: "continue-prompt-send-btn",
       disabled: !canSubmit,
-      "aria-label": i18n.k2395458847({}, "提交信息")
+      "aria-label": t("common.submit")
     },
     /* @__PURE__ */ React.createElement(
       "svg",
@@ -1393,14 +1394,14 @@ function renderActionableCard(props) {
 }
 function SessionEmptyOnboarding({ onOpenSettings }) {
   return /* @__PURE__ */ React.createElement("div", { className: "session-empty-onboarding" },
-    /* @__PURE__ */ React.createElement("div", { className: "session-empty-onboarding-title" }, "还没有接入任何 Agent"),
+    /* @__PURE__ */ React.createElement("div", { className: "session-empty-onboarding-title" }, t("onboarding.empty.title")),
     /* @__PURE__ */ React.createElement("div", { className: "session-empty-onboarding-steps" },
-      React.createElement("p", null, "① 安装一个支持的 AI 编码 Agent（Claude Code、Codex CLI 等）"),
-      React.createElement("p", null, "② 打开设置 → Agents，一键接入（自动写入 Hook）"),
-      React.createElement("p", null, "③ 跑一条命令，这里就会亮起它的状态")
+      React.createElement("p", null, t("onboarding.empty.install")),
+      React.createElement("p", null, t("onboarding.empty.connect")),
+      React.createElement("p", null, t("onboarding.empty.run"))
     ),
-    React.createElement("button", { className: "session-empty-onboarding-button", type: "button", onClick: () => onOpenSettings?.("agents") }, "打开设置接入"),
-    React.createElement("p", { className: "session-empty-onboarding-hint" }, "首次接入约 30 秒，全程本地完成")
+    React.createElement("button", { className: "session-empty-onboarding-button", type: "button", onClick: () => onOpenSettings?.("agents") }, t("onboarding.empty.action")),
+    React.createElement("p", { className: "session-empty-onboarding-hint" }, t("onboarding.empty.hint"))
   );
 }
 function IslandPanel({
@@ -1571,7 +1572,7 @@ function IslandPanel({
       onUpdateInstall,
       onOpenRelease
     }
-  ), /* @__PURE__ */ React.createElement("div", { className: "panel-divider" }), activeModule === "shelf" && /* @__PURE__ */ React.createElement(ShelfPanel), activeModule === "clipboard" && /* @__PURE__ */ React.createElement(ClipboardPanel), terminalEnabled && /* @__PURE__ */ React.createElement(TerminalPanel, { active: activeModule === "terminal", panelOpen, savedCommands: terminalSavedCommands, onOpenSettings: () => onOpenSettings("general"), onFullChange: onTerminalFullChange }), activeModule === "usage" && /* @__PURE__ */ React.createElement(UsagePanel), /* @__PURE__ */ React.createElement("div", { className: `workspace-content${mediaEnabled && mediaState?.active && mediaState?.title ? " has-media" : ""}${activeModule === "agent" ? "" : " is-hidden"}` }, mediaEnabled && mediaState?.active && mediaState?.title && /* @__PURE__ */ React.createElement(MediaCard, { media: mediaState, lyrics: lyricsState }), /* @__PURE__ */ React.createElement("div", { className: "workspace-agent-pane" }, /* @__PURE__ */ React.createElement("div", { className: "session-list", ref: sessionListRef }, visibleSessions.length > 0 && React.createElement('div', { className: 'session-list-actions' }, React.createElement('button', { type: 'button', className: 'panel-btn', onClick: () => window.islandBridge?.deleteSessions(visibleSessions.map(session => session.id)), title: '清理会话' }, '清理会话')), visibleSessions.length === 0 ? (hasConnectedAgent === false ? /* @__PURE__ */ React.createElement(SessionEmptyOnboarding, { onOpenSettings }) : /* @__PURE__ */ React.createElement("div", { className: "session-list-empty" }, /* @__PURE__ */ React.createElement(
+  ), /* @__PURE__ */ React.createElement("div", { className: "panel-divider" }), activeModule === "shelf" && /* @__PURE__ */ React.createElement(ShelfPanel), activeModule === "clipboard" && /* @__PURE__ */ React.createElement(ClipboardPanel), terminalEnabled && /* @__PURE__ */ React.createElement(TerminalPanel, { active: activeModule === "terminal", panelOpen, savedCommands: terminalSavedCommands, onOpenSettings: () => onOpenSettings("general"), onFullChange: onTerminalFullChange }), activeModule === "usage" && /* @__PURE__ */ React.createElement(UsagePanel), /* @__PURE__ */ React.createElement("div", { className: `workspace-content${mediaEnabled && mediaState?.active && mediaState?.title ? " has-media" : ""}${activeModule === "agent" ? "" : " is-hidden"}` }, mediaEnabled && mediaState?.active && mediaState?.title && /* @__PURE__ */ React.createElement(MediaCard, { media: mediaState, lyrics: lyricsState }), /* @__PURE__ */ React.createElement("div", { className: "workspace-agent-pane" }, /* @__PURE__ */ React.createElement("div", { className: "session-list", ref: sessionListRef }, visibleSessions.length > 0 && React.createElement('div', { className: 'session-list-actions' }, React.createElement('button', { type: 'button', className: 'panel-btn', onClick: () => window.islandBridge?.deleteSessions(visibleSessions.map(session => session.id)), title: t('session.clear') }, t('session.clear'))), visibleSessions.length === 0 ? (hasConnectedAgent === false ? /* @__PURE__ */ React.createElement(SessionEmptyOnboarding, { onOpenSettings }) : /* @__PURE__ */ React.createElement("div", { className: "session-list-empty" }, /* @__PURE__ */ React.createElement(
     "img",
     {
       className: "session-list-empty-icon",
@@ -1579,7 +1580,7 @@ function IslandPanel({
       alt: "",
       draggable: false
     }
-  ), /* @__PURE__ */ React.createElement("span", { className: "session-list-empty-text" }, i18n.k1005597952({}, "暂无会话")))) : visibleSessions.map((session) => {
+  ), /* @__PURE__ */ React.createElement("span", { className: "session-list-empty-text" }, t("session.empty")))) : visibleSessions.map((session) => {
     const canFollowUp = session.phase === "completed" && canContinueSessionViaTerminalPrompt(session);
     const isFollowUpOpen = followUpSessionId === session.id && canFollowUp;
     const openFollowUp = canFollowUp ? () => setFollowUpSessionId(session.id) : void 0;

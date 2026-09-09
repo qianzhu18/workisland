@@ -12,7 +12,7 @@ test("usage dashboard is registered as a fifth toolbox module", () => {
   const panel = read("IslandPanel.js");
   assert.match(panel, /import \{ UsagePanel \} from "\.\/UsagePanel\.js"/);
   assert.match(panel, /function UsageToolIcon/);
-  assert.match(panel, /\["usage", "用量", UsageToolIcon\]/);
+  assert.match(panel, /\["usage", t\("toolbox\.usage"\), UsageToolIcon\]/);
   assert.match(panel, /activeModule === "usage" && \/\* @__PURE__ \*\/ React\.createElement\(UsagePanel\)/);
   assert.match(panel, /usageDashboardEnabled/);
 
@@ -28,25 +28,25 @@ test("usage panel renders overview and sessions from the aggregation API", () =>
   assert.match(source, /getUsageSummary/);
   assert.match(source, /getSessionInsights/);
   assert.match(source, /onTodayBurnUpdate/);
-  // 两个 tab：总览 + 会话
-  assert.match(source, /总览/);
-  assert.match(source, /会话/);
+  // Two localized tabs: overview + sessions.
+  assert.match(source, /usage\.tab\.overview/);
+  assert.match(source, /usage\.tab\.sessions/);
   // 时间范围切换（PRD：回看几个月的趋势）
-  for (const label of ["7 天", "30 天", "90 天"]) assert.match(source, new RegExp(label));
+  for (const label of ["usage.range.7", "usage.range.30", "usage.range.90"]) assert.match(source, new RegExp(label.replaceAll(".", "\\.")));
   // 趋势图（手写 SVG）与热力图
   assert.match(source, /usage-trend-chart/);
   assert.match(source, /usage-heatmap/);
   // 按 Agent / 按模型表
-  assert.match(source, /按 Agent/);
-  assert.match(source, /按模型/);
+  assert.match(source, /usage\.section\.byAgent/);
+  assert.match(source, /usage\.section\.byModel/);
 });
 
 test("usage panel never shows a fake zero cost and marks unknown pricing", () => {
   const source = read("UsagePanel.js");
-  assert.match(source, /unknownTokens > 0\) return "未知"/);
+  assert.match(source, /unknownTokens > 0\) return t\("common\.unknown"\)/);
   assert.match(source, /formatCost/);
   // 会话分类徽章 + remote 标注
-  for (const term of ["快速", "标准", "马拉松", "自动化", "远程"]) {
+  for (const term of ["usage.category.quick", "usage.category.standard", "usage.category.marathon", "usage.category.automation", "usage.remote"]) {
     assert.match(source, new RegExp(term));
   }
   assert.match(source, /CATEGORY_LABELS/);
@@ -59,7 +59,7 @@ test("usage panel supports JSON export and confirmed clear", () => {
   assert.match(source, /exportUsageData/);
   assert.match(source, /clearUsageData/);
   assert.match(source, /window\.confirm/);
-  assert.match(source, /不可恢复/);
+  assert.match(source, /usage\.clear\.confirm/);
   const ipc = readFileSync(new URL("../src/shared/ipc.cjs", import.meta.url), "utf8");
   for (const channel of ["usage:get-summary", "usage:get-session-insights", "usage:export-data", "usage:clear-data"]) {
     assert.match(ipc, new RegExp(channel.replace(/:/g, "\\:")));
