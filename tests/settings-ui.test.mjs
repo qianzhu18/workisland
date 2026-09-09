@@ -112,8 +112,8 @@ test("settings use product images instead of letter placeholders", () => {
 
 test("DeepSeek Harness distinguishes a written config from a verified connection", () => {
   assert.match(source, /VERIFY_ON_REAL_EVENT_AGENT_IDS/);
-  assert.match(source, /配置已写入/);
-  assert.match(source, /已连接/);
+  assert.match(source, /settings\.agents\.status\.configured/);
+  assert.match(source, /settings\.agents\.status\.connected/);
   assert.match(source, /report\?\.connectionState === "verified"/);
 });
 

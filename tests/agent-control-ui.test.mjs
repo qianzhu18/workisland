@@ -19,37 +19,36 @@ test("Settings names MCP directly and places it immediately before About", () =>
 });
 
 test("MCP explains authorization and configuration as separate steps", () => {
-  for (const copy of [
-    "MCP 服务",
-    "启用 WorkIsland MCP",
-    "默认关闭",
-    "连接智能体",
-    "连接 Codex",
-    "已配置，等待首次调用",
-    "已连接",
-    "你可以这样问",
-    "权限与隐私",
-    "最近活动",
-    "高级设置"
+  for (const key of [
+    "settings.mcp.service.sectionTitle",
+    "settings.mcp.service.enable.title",
+    "settings.mcp.client.sectionTitle",
+    "settings.mcp.client.connectCodex",
+    "settings.mcp.client.configured",
+    "settings.mcp.client.connected",
+    "settings.mcp.examples.sectionTitle",
+    "settings.mcp.privacy.sectionTitle",
+    "settings.mcp.activity.sectionTitle",
+    "settings.mcp.advanced"
   ]) {
-    assert.equal(renderer.includes(copy), true, `missing UI copy: ${copy}`);
+    assert.equal(renderer.includes(key), true, `missing catalog key: ${key}`);
   }
   assert.equal(renderer.includes("允许智能体控制 WorkIsland"), false);
 });
 
 test("MCP leads with product questions and keeps manual configuration collapsed", () => {
-  for (const example of [
-    "灵动岛有哪些扩展功能？",
-    "现在有哪些智能体正在运行？",
-    "有没有智能体在等我处理？",
-    "为什么性能监控没有显示进程详情？"
+  for (const key of [
+    "settings.mcp.examples.features",
+    "settings.mcp.examples.running",
+    "settings.mcp.examples.attention",
+    "settings.mcp.examples.performance"
   ]) {
-    assert.equal(renderer.includes(example), true, `missing MCP example: ${example}`);
+    assert.equal(renderer.includes(key), true, `missing MCP example key: ${key}`);
   }
   assert.match(renderer, /document\.createElement\("details"\)/);
   assert.match(renderer, /advanced\.open\s*=\s*false/);
-  const order = ["MCP 服务", "连接智能体", "你可以这样问", "权限与隐私", "最近活动", "高级设置"]
-    .map((copy) => renderer.indexOf(copy));
+  const order = ["settings.mcp.service.sectionTitle", "settings.mcp.client.sectionTitle", "settings.mcp.examples.sectionTitle", "settings.mcp.privacy.sectionTitle", "settings.mcp.activity.sectionTitle", "settings.mcp.advanced"]
+    .map((key) => renderer.indexOf(key));
   assert.equal(order.every((position) => position >= 0), true);
   assert.deepEqual([...order].sort((a, b) => a - b), order);
 });

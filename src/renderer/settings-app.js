@@ -854,17 +854,17 @@ async function changeAgentControlClient(connect, action) {
   if (state.busy.has("agent-control-codex")) return;
   state.busy.add("agent-control-codex");
   action.disabled = true;
-  action.textContent = connect ? "连接中…" : "移除中…";
+  action.textContent = connect ? t("settings.agents.connecting") : t("settings.agents.removing");
   try {
     if (connect) await api.connectAgentControlClient("codex");
     else await api.disconnectAgentControlClient("codex");
     await loadAgentControlStatus();
     renderPage();
-    showToast(connect ? "Codex 配置已写入；重开会话后即可调用" : "已移除 WorkIsland MCP 配置");
+    showToast(t(connect ? "settings.mcp.client.connectedToast" : "settings.mcp.client.removedToast"));
   } catch (error) {
-    state.agentControl = { ...(state.agentControl || {}), error: error?.message || "配置失败" };
+    state.agentControl = { ...(state.agentControl || {}), error: error?.message || t("settings.mcp.configureFailed") };
     renderPage();
-    showToast(error?.message || "配置失败", true);
+    showToast(error?.message || t("settings.mcp.configureFailed"), true);
   } finally {
     state.busy.delete("agent-control-codex");
   }
@@ -878,80 +878,80 @@ function mcpPage() {
     activity: []
   };
   const enabled = state.settings.localAgentControlEnabled === true;
-  const authorization = section("MCP 服务", "默认关闭。开启后，已配置的本机 MCP 客户端可以调用 WorkIsland 明确开放的安全工具。");
+  const authorization = section(t("settings.mcp.service.sectionTitle"), t("settings.mcp.service.description"));
   authorization.append(row(
-    "启用 WorkIsland MCP",
-    "这是总开关；仅开启它不会自动连接任何智能体。关闭后，已经配置的客户端也会立即被拒绝。",
+    t("settings.mcp.service.enable.title"),
+    t("settings.mcp.service.enable.description"),
     toggle(enabled, async value => {
       await save({ localAgentControlEnabled: value });
       await loadAgentControlStatus();
       renderPage();
-    }, "启用 WorkIsland MCP")
+    }, t("settings.mcp.service.enable.title"))
   ));
 
-  const clientSection = section("连接智能体", "连接会备份 Codex 配置，添加 WorkIsland 条目，并开启当前 Codex 版本加载本机 MCP 所需的兼容开关。配置成功不等于已经调用成功。");
+  const clientSection = section(t("settings.mcp.client.sectionTitle"), t("settings.mcp.client.description"));
   const client = control.client;
   if (client) {
     const card = el("div", "agent-control-client");
     const copy = el("div", "agent-content");
     const heading = el("div", "agent-heading");
     const stateText = client.connectionState === "connected"
-      ? "已连接"
+      ? t("settings.mcp.client.connected")
       : client.connectionState === "configured"
-        ? "已配置，等待首次调用"
-        : client.installed ? "已检测，尚未配置" : "未检测到客户端";
+        ? t("settings.mcp.client.configured")
+        : client.installed ? t("settings.mcp.client.detected") : t("settings.mcp.client.notDetected");
     const badgeClass = client.connectionState === "connected" ? "installed" : client.configured ? "pending" : "missing";
     heading.append(el("strong", "", client.label || "Codex"), el("span", `status ${badgeClass}`, stateText));
     copy.append(
       heading,
       el("div", "agent-detail", client.configured
-        ? `配置位置：${client.configPath}`
-        : "开启总开关后点击“连接 Codex”；已打开的 Codex 会话需要重开一次才能发现新工具。")
+        ? t("settings.mcp.client.configPath", { path: client.configPath })
+        : t("settings.mcp.client.connectHint"))
     );
-    const action = button(client.configured ? "移除" : "连接 Codex", () => changeAgentControlClient(!client.configured, action), client.configured ? "secondary" : "primary");
+    const action = button(client.configured ? t("settings.agents.remove") : t("settings.mcp.client.connectCodex"), () => changeAgentControlClient(!client.configured, action), client.configured ? "secondary" : "primary");
     action.disabled = state.busy.has("agent-control-codex") || (!client.configured && (!enabled || !client.installed));
     card.append(copy, action);
     clientSection.append(card);
   } else {
-    clientSection.append(el("div", "agent-control-empty", "正在检测 Codex…"));
+    clientSection.append(el("div", "agent-control-empty", t("settings.mcp.client.detecting")));
   }
 
-  const examples = section("你可以这样问", "连接后，智能体可以先理解 WorkIsland 的功能和当前观察到的状态，再回答你的问题。");
+  const examples = section(t("settings.mcp.examples.sectionTitle"), t("settings.mcp.examples.description"));
   const exampleList = el("div", "mcp-example-list");
   for (const question of [
-    "灵动岛有哪些扩展功能？",
-    "现在有哪些智能体正在运行？",
-    "有没有智能体在等我处理？",
-    "为什么性能监控没有显示进程详情？",
-    "WorkIsland 支持哪些智能体，哪些已经连接成功？",
-    "文件架和剪贴板历史有什么区别？"
+    t("settings.mcp.examples.features"),
+    t("settings.mcp.examples.running"),
+    t("settings.mcp.examples.attention"),
+    t("settings.mcp.examples.performance"),
+    t("settings.mcp.examples.supported"),
+    t("settings.mcp.examples.tools")
   ]) {
     const example = button(question, async () => {
       await navigator.clipboard.writeText(question);
-      showToast("问题已复制，可以发给你的智能体");
+      showToast(t("settings.mcp.examples.copied"));
     }, "mcp-example");
-    example.setAttribute("aria-label", `复制问题：${question}`);
+    example.setAttribute("aria-label", t("settings.mcp.examples.copyLabel", { question }));
     exampleList.append(example);
   }
   examples.append(exampleList);
 
-  const privacy = section("权限与隐私", "MCP 只开放为 WorkIsland 专门设计的工具，不把本机进程或原始应用数据直接交给智能体。");
+  const privacy = section(t("settings.mcp.privacy.sectionTitle"), t("settings.mcp.privacy.description"));
   privacy.append(
-    row("可以读取", "产品功能说明、公开设置，以及 WorkIsland 当前观察到的智能体状态和集成状态。", el("span", "status installed", "只读")),
-    row("不会读取", "提示词、回答内容、文件路径、进程 ID、终端内容或系统中的完整进程列表。", el("span", "status installed", "受保护")),
-    row("修改设置", "只有你明确要求时才会执行；修改会留下最近活动，并提供撤销入口。", el("span", "status pending", "需确认意图"))
+    row(t("settings.mcp.privacy.read.title"), t("settings.mcp.privacy.read.description"), el("span", "status installed", t("settings.mcp.privacy.read.badge"))),
+    row(t("settings.mcp.privacy.protected.title"), t("settings.mcp.privacy.protected.description"), el("span", "status installed", t("settings.mcp.privacy.protected.badge"))),
+    row(t("settings.mcp.privacy.write.title"), t("settings.mcp.privacy.write.description"), el("span", "status pending", t("settings.mcp.privacy.write.badge")))
   );
 
-  const recent = section("最近活动", "只记录客户端、工具名、允许的设置键与结果；不保存提示词、会话内容、路径或终端信息。");
+  const recent = section(t("settings.mcp.activity.sectionTitle"), t("settings.mcp.activity.description"));
   const activity = el("div", "agent-control-activity");
   if (!Array.isArray(control.activity) || control.activity.length === 0) {
-    activity.append(el("div", "agent-control-empty", "还没有 MCP 调用。首次真实调用后，这里会出现记录并显示“已连接”。"));
+    activity.append(el("div", "agent-control-empty", t("settings.mcp.activity.empty")));
   } else {
     for (const item of control.activity) {
       const entry = el("div", "agent-control-activity-row");
-      const title = `${item.client || "本机客户端"} · ${item.tool || "调用"}`;
-      const details = [item.result === "success" ? "成功" : item.errorCode || "已拒绝"];
-      if (Array.isArray(item.keys) && item.keys.length) details.push(item.keys.join("、"));
+      const title = t("settings.mcp.activity.title", { client: item.client || t("settings.mcp.activity.localClient"), tool: item.tool || t("settings.mcp.activity.call") });
+      const details = [item.result === "success" ? t("settings.mcp.activity.success") : item.errorCode || t("settings.mcp.activity.denied")];
+      if (Array.isArray(item.keys) && item.keys.length) details.push(item.keys.join(t("format.listSeparator")));
       if (Number.isFinite(item.timestamp)) details.push(new Date(item.timestamp).toLocaleString());
       entry.append(el("strong", "", title), el("span", "", details.join(" · ")));
       activity.append(entry);
@@ -962,12 +962,12 @@ function mcpPage() {
   const advanced = document.createElement("details");
   advanced.className = "mcp-advanced";
   advanced.open = false;
-  const advancedSummary = el("summary", "mcp-advanced-summary", "高级设置");
+  const advancedSummary = el("summary", "mcp-advanced-summary", t("settings.mcp.advanced"));
   const advancedBody = el("div", "mcp-advanced-body");
-  const manual = section("手动配置", "其他支持本机 stdio MCP 的客户端，可按其说明使用同一命令。WorkIsland 不会自动改动尚未验证的客户端配置。");
-  const configBlock = el("pre", "agent-control-code", state.agentControlManual?.toml || "正在生成配置…");
+  const manual = section(t("settings.mcp.manual.sectionTitle"), t("settings.mcp.manual.description"));
+  const configBlock = el("pre", "agent-control-code", state.agentControlManual?.toml || t("settings.mcp.manual.generating"));
   manual.append(configBlock, el("div", "section-actions"));
-  manual.lastElementChild.append(button("复制配置", copyAgentControlConfig));
+  manual.lastElementChild.append(button(t("settings.mcp.manual.copy"), copyAgentControlConfig));
   advancedBody.append(manual);
   advanced.append(advancedSummary, advancedBody);
 
