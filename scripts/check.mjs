@@ -160,7 +160,7 @@ for (const unavailableFeature of ["feishuNotify", "remoteProfiles", "cloudAgentS
 }
 const islandPanelSource = readFileSync(join(root, "src/renderer/island/components/IslandPanel.js"), "utf8");
 const toolbarSource = readFileSync(join(root, "src/renderer/island/components/ToolbarTools.js"), "utf8");
-if (!toolbarSource.includes("panel-pet-button") || !islandPanelSource.includes("打开或关闭桌宠")) {
+if (!toolbarSource.includes("panel-pet-button") || !islandPanelSource.includes("t('pet.toggle')")) {
   console.error("The island pet entry button is missing.");
   process.exit(1);
 }

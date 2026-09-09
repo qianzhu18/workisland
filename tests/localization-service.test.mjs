@@ -83,7 +83,7 @@ test("system refresh broadcasts only when the resolved locale changes", () => {
   assert.equal(broadcasts[0].locale, "zh-CN");
 });
 
-test("main i18n supports semantic keys and legacy fallbacks during migration", () => {
+test("main i18n supports semantic keys without legacy fallback accessors", () => {
   configureI18n({
     locale: "en",
     messages: fixtureCatalogs().en,
@@ -92,5 +92,6 @@ test("main i18n supports semantic keys and legacy fallbacks during migration", (
 
   assert.equal(i18n.t("common.cancel"), "Cancel");
   assert.equal(i18n.t("welcome.greeting", { name: "Skyler" }), "Hello, Skyler");
-  assert.equal(i18n.k123({ name: "Skyler" }, "Legacy {name}"), "Legacy Skyler");
+  assert.equal(i18n.t("missing.key"), "missing.key");
+  assert.equal(i18n.k123, undefined);
 });
