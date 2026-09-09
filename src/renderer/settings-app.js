@@ -1,6 +1,7 @@
 "use strict";
 
-import { getLanguagePreference, initializeI18n, onLocaleChange, setLanguagePreference, t } from "./shared/i18n.js";
+import { getLanguagePreference, getLocale, initializeI18n, onLocaleChange, setLanguagePreference, t } from "./shared/i18n.js";
+import { localizedRuntimeText } from "./shared/localized-runtime-text.mjs";
 
 const api = window.settingsApi;
 
@@ -688,6 +689,15 @@ function capabilitySummary(capabilities = {}) {
   return items.join(" · ");
 }
 
+function agentDetailFallback(report, repairNeeded, verifyOnRealEvent) {
+  if (repairNeeded) return t("settings.agents.detail.repair");
+  if (verifyOnRealEvent && report.installed && report.connectionState !== "verified") return t("settings.agents.awaitingEvent");
+  if (report.available === false && !report.installed) return t("settings.agents.notDetectedHint", { agent: report.label });
+  if (report.connectionState === "verified") return t("settings.agents.detail.connected");
+  if (report.issues?.length) return t("settings.agents.detail.attention");
+  return t("settings.agents.detail.available");
+}
+
 function agentCard(report) {
   const { agentId, label } = report;
   const card = el("div", "agent-card");
@@ -705,13 +715,14 @@ function agentCard(report) {
   const diagnosis = report?.diagnosis;
   const repairNeeded = diagnosis?.status === "hook_missing" || diagnosis?.status === "hook_stale" || diagnosis?.status === "hook_invalid";
   const verifyOnRealEvent = VERIFY_ON_REAL_EVENT_AGENT_IDS.has(agentId);
-  const detail = repairNeeded && diagnosis.reasons?.length
+  const rawDetail = repairNeeded && diagnosis.reasons?.length
     ? diagnosis.reasons[0]
     : verifyOnRealEvent && report.installed && report.connectionState !== "verified"
     ? (issues[0] || t("settings.agents.awaitingEvent"))
     : report.available === false && !report.installed
     ? t("settings.agents.notDetectedHint", { agent: label })
     : issues.length ? issues[0] : report.description;
+  const detail = localizedRuntimeText(getLocale(), rawDetail, agentDetailFallback(report, repairNeeded, verifyOnRealEvent));
   content.append(el("div", "agent-detail", detail));
   const capabilities = capabilitySummary(report.capabilities);
   if (capabilities) content.append(el("div", "agent-detail", capabilities));
