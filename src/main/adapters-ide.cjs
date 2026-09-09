@@ -139,7 +139,7 @@ class CocoAdapter {
               sessionId,
               tool,
               timestamp: now,
-              activity: i18n.k2249756269({}, "由于 Code Agent 限制，请在终端中回答问题")
+              activity: i18n.t("agent.external.answerInTerminal")
             });
             ctx.emitEvent({
               type: "questionAsked",
@@ -255,7 +255,7 @@ class CocoAdapter {
           tool,
           timestamp: now,
           isInterrupt: payload.is_interrupt,
-          lastAssistantMessage: payload.systemMessage || i18n.k2627975638({}, "由于 Code Agent 限制，请在终端中查看对应执行结果"),
+          lastAssistantMessage: payload.systemMessage || i18n.t("agent.external.viewResultInTerminal"),
           isSessionEnd: false
         });
         ctx.playSoundEvent("taskComplete");
@@ -1519,7 +1519,7 @@ class TraeHookAdapter {
               id: `trae-notif-${sessionId}-${now}`,
               sessionId,
               toolName: "Trae",
-              toolInput: message || i18n.k1613623663({}, "由于 Code Agent 限制，请在 Trae 中确认操作"),
+              toolInput: message || i18n.t("agent.external.confirmInTrae"),
               riskLevel: "medium",
               approvalMode: "terminalNative"
             }
@@ -1536,7 +1536,7 @@ class TraeHookAdapter {
             sessionId,
             tool,
             timestamp: now,
-            activity: i18n.k3494688136({}, "由于 Code Agent 限制，请在 Trae 中回答问题")
+            activity: i18n.t("agent.external.answerInTrae")
           });
           ctx.emitEvent({
             type: "questionAsked",
@@ -1552,7 +1552,7 @@ class TraeHookAdapter {
             sessionId,
             tool,
             timestamp: now,
-            activity: i18n.k2102958132({}, "由于 Code Agent 限制，请在 Trae 中审阅文档")
+            activity: i18n.t("agent.external.reviewInTrae")
           });
           ctx.emitEvent({
             type: "questionAsked",

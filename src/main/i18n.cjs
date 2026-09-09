@@ -3,8 +3,8 @@
 const { interpolate } = require("../shared/locale.cjs");
 
 let currentLocale = "en";
-let currentMessages = {};
-let englishMessages = {};
+let englishMessages = require("../locales/en.json");
+let currentMessages = englishMessages;
 
 function formatFallback(template, params = {}) {
   return interpolate(template, params);
@@ -21,15 +21,9 @@ function translate(key, params = {}) {
   return interpolate(template, params);
 }
 
-const i18n = new Proxy({
+const i18n = {
   t: translate,
   getLocale: () => currentLocale
-}, {
-  get(target, key) {
-    if (key === "then") return undefined;
-    if (Object.prototype.hasOwnProperty.call(target, key)) return target[key];
-    return (params, fallback = "") => formatFallback(fallback, params);
-  }
-});
+};
 
 module.exports = { configureI18n, i18n, formatFallback };

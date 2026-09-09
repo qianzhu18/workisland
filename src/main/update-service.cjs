@@ -5,6 +5,7 @@ const os = require("node:os");
 const path = require("node:path");
 const { execFile } = require("node:child_process");
 const { createHash } = require("node:crypto");
+const { i18n } = require("./i18n.cjs");
 
 const DEFAULT_RELEASE_URL = "https://api.github.com/repos/qianzhu18/workisland/releases/latest";
 const DEFAULT_DOWNLOAD_URL = "https://github.com/qianzhu18/workisland/releases/latest";
@@ -151,7 +152,7 @@ function writeState(filePath, state) {
 }
 
 async function fetchLatestRelease(fetchImpl, releaseUrl) {
-  if (typeof fetchImpl !== "function") throw new Error("更新检测需要可用的网络请求实现");
+  if (typeof fetchImpl !== "function") throw new Error(i18n.t("update.error.fetchUnavailable"));
   const controller = typeof AbortController === "function" ? new AbortController() : null;
   const timeout = controller ? setTimeout(() => controller.abort(), UPDATE_REQUEST_TIMEOUT_MS) : null;
   try {
@@ -162,9 +163,9 @@ async function fetchLatestRelease(fetchImpl, releaseUrl) {
       },
       signal: controller?.signal
     });
-    if (!response?.ok) throw new Error(`版本信息请求失败（HTTP ${response?.status ?? "unknown"}）`);
+    if (!response?.ok) throw new Error(i18n.t("update.error.releaseRequest", { status: response?.status ?? "unknown" }));
     const release = normalizeRelease(await response.json());
-    if (!release) throw new Error("官方版本信息格式无效");
+    if (!release) throw new Error(i18n.t("update.error.invalidRelease"));
     return release;
   } finally {
     if (timeout) clearTimeout(timeout);
@@ -192,7 +193,7 @@ function bodyToAsyncIterable(body) {
       }
     })();
   }
-  throw new Error("下载响应缺少可读的数据流");
+  throw new Error(i18n.t("update.error.missingStream"));
 }
 
 async function downloadToFile(fetchImpl, url, destinationPath, { onProgress = () => {}, logger = console } = {}) {
@@ -201,7 +202,7 @@ async function downloadToFile(fetchImpl, url, destinationPath, { onProgress = ()
     headers: { Accept: "application/octet-stream", "User-Agent": "WorkIsland-update-check" },
     signal: controller?.signal
   });
-  if (!response?.ok) throw new Error(`下载失败（HTTP ${response?.status ?? "unknown"}）`);
+  if (!response?.ok) throw new Error(i18n.t("update.error.downloadHttp", { status: response?.status ?? "unknown" }));
   const total = Number(response.headers?.get?.("content-length")) || 0;
   const hash = createHash("sha256");
   const handle = await fs.promises.open(destinationPath, "w");
@@ -246,7 +247,7 @@ async function installFromDmg({ dmgPath, installDir, runner, fsModule = fs }) {
     await runInstallCommand(runner, "hdiutil", ["attach", dmgPath, "-readonly", "-nobrowse", "-mountpoint", mountPoint]);
     const sourceApp = path.join(mountPoint, APP_BUNDLE_NAME);
     if (!fsModule.existsSync(sourceApp)) {
-      throw new Error("安装镜像中没有找到 WorkIsland.app");
+      throw new Error(i18n.t("update.error.appMissing"));
     }
     const targetApp = path.join(installDir, APP_BUNDLE_NAME);
     await runInstallCommand(runner, "/bin/rm", ["-rf", targetApp]);
@@ -262,7 +263,7 @@ function defaultRunner() {
   return (file, args) => new Promise((resolve, reject) => {
     execFile(file, args, { timeout: INSTALL_COMMAND_TIMEOUT_MS }, (error, stdout, stderr) => {
       if (error) {
-        reject(new Error(String(stderr || error.message || "安装命令执行失败")));
+        reject(new Error(String(stderr || error.message || i18n.t("update.error.installCommand"))));
         return;
       }
       resolve(String(stdout ?? ""));
@@ -349,7 +350,7 @@ function createUpdateService({
     const current = currentVersion();
     const comparison = compareVersions(release.version, current);
     if (comparison === null) {
-      return { status: "error", currentVersion: current, message: "当前版本号无法比较" };
+      return { status: "error", currentVersion: current, message: i18n.t("update.error.invalidVersion") };
     }
     return {
       status: comparison > 0 ? "update-available" : "up-to-date",
@@ -366,8 +367,8 @@ function createUpdateService({
     try {
       if (typeof notificationClass.isSupported === "function" && !notificationClass.isSupported()) return false;
       const notification = new notificationClass({
-        title: "WorkIsland 有新版本",
-        body: `${result.latestVersion} 已发布，点击查看下载。`
+        title: i18n.t("update.notification.available.title"),
+        body: i18n.t("update.notification.available.body", { version: result.latestVersion })
       });
       notification.on("click", () => {
         void shell?.openExternal?.(result.releaseUrl || DEFAULT_DOWNLOAD_URL);
@@ -385,8 +386,8 @@ function createUpdateService({
     try {
       if (typeof notificationClass.isSupported === "function" && !notificationClass.isSupported()) return;
       const notification = new notificationClass({
-        title: "WorkIsland 更新已就绪",
-        body: `新版本 ${updateState.release?.version ?? ""} 下载完成，点击立即安装并重启。`
+        title: i18n.t("update.notification.ready.title"),
+        body: i18n.t("update.notification.ready.body", { version: updateState.release?.version ?? "" })
       });
       notification.on("click", () => {
         void install();
@@ -423,7 +424,7 @@ function createUpdateService({
       return {
         status: "error",
         currentVersion: currentVersion(),
-        message: "暂时无法获取更新信息，请稍后重试。"
+        message: i18n.t("update.error.unavailable")
       };
     }
   }
@@ -460,8 +461,8 @@ function createUpdateService({
 
   // 把更新下载到本地并做 SHA-256 校验，完成后进入 ready 阶段等待安装。
   async function download() {
-    if (!isSupportedPlatform) return { ...getUpdateState(), error: "当前平台暂不支持应用内更新，请前往发布页手动下载。" };
-    if (isDevelopment()) return { ...getUpdateState(), error: "开发模式下不执行更新下载" };
+    if (!isSupportedPlatform) return { ...getUpdateState(), error: i18n.t("update.error.unsupportedPlatform") };
+    if (isDevelopment()) return { ...getUpdateState(), error: i18n.t("update.error.downloadInDevelopment") };
     if (updateState.phase === "downloading" || updateState.phase === "ready" || updateState.phase === "installing") {
       return getUpdateState();
     }
@@ -471,13 +472,13 @@ function createUpdateService({
       result = await check({ force: true, notify: false });
       release = state.latestRelease;
       if (result?.status !== "update-available" || !release) {
-        publishState({ phase: "idle", error: result?.message ?? "当前已是最新版本" });
+        publishState({ phase: "idle", error: result?.message ?? i18n.t("update.error.upToDate") });
         return getUpdateState();
       }
     }
     const asset = pickDmgAsset(release.assets, arch);
     if (!asset) {
-      publishState({ phase: "error", error: "未找到与当前芯片匹配的安装包，请前往发布页手动下载。" });
+      publishState({ phase: "error", error: i18n.t("update.error.assetMissing") });
       return getUpdateState();
     }
     const downloadDir = path.join(userDataPath || ".", UPDATE_DOWNLOAD_DIR);
@@ -498,7 +499,7 @@ function createUpdateService({
           const expected = extractChecksum(await responseText(checksumResponse), asset.name);
           if (expected && expected !== sha256) {
             await fs.promises.rm(destinationPath, { force: true }).catch(() => {});
-            throw new Error("安装包校验失败，已停止安装。请稍后重试或前往发布页手动下载。");
+            throw new Error(i18n.t("update.error.checksum"));
           }
         }
       }
@@ -507,7 +508,7 @@ function createUpdateService({
       return getUpdateState();
     } catch (error) {
       logger.warn?.("[UpdateService] download failed:", error);
-      publishState({ phase: "error", error: error?.message || "更新下载失败，请稍后重试。" });
+      publishState({ phase: "error", error: error?.message || i18n.t("update.error.downloadFailed") });
       return getUpdateState();
     }
   }
@@ -515,8 +516,8 @@ function createUpdateService({
   // 安装已下载的更新：挂载 DMG、替换当前安装目录内的应用并重启。
   // 任何一步失败都会回退为打开 DMG，让用户手动拖拽安装。
   async function install() {
-    if (!isSupportedPlatform) return { ...getUpdateState(), error: "当前平台暂不支持应用内更新，请前往发布页手动下载。" };
-    if (isDevelopment()) return { ...getUpdateState(), error: "开发模式下不执行更新安装" };
+    if (!isSupportedPlatform) return { ...getUpdateState(), error: i18n.t("update.error.unsupportedPlatform") };
+    if (isDevelopment()) return { ...getUpdateState(), error: i18n.t("update.error.installInDevelopment") };
     if (updateState.phase !== "ready" || !updateState.downloadedPath) {
       return getUpdateState();
     }
@@ -538,8 +539,8 @@ function createUpdateService({
       publishState({
         phase: opened ? "manual" : "error",
         error: opened
-          ? "自动安装未完成，已打开安装镜像，请将 WorkIsland 拖入「应用程序」后重新打开。"
-          : error?.message || "自动安装失败，请前往发布页手动下载。"
+          ? i18n.t("update.error.manualInstall")
+          : error?.message || i18n.t("update.error.installFailed")
       });
       return getUpdateState();
     }

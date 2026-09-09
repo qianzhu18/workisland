@@ -538,15 +538,15 @@ function formatInstallError(agentId, err) {
       const suggestDir = targetPath.includes(String(agentId)) ? path.dirname(targetPath) : targetPath;
       const homeDir = electron.app.getPath("home");
       const safeDir = suggestDir === "~" || suggestDir === homeDir ? targetPath : suggestDir;
-      return `${i18n.k462278895({ placeholder1: targetPath, placeholder2: safeDir }, "权限不足，无法写入 {placeholder1}。请在终端执行：chmod -R 755 {placeholder2}")}`;
+      return i18n.t("hook.install.error.permission", { path: targetPath, directory: safeDir });
     }
     case "ENOSPC":
-      return `${i18n.k105353553({ placeholder1: targetPath }, "磁盘空间不足，无法写入 {placeholder1}。")}`;
+      return i18n.t("hook.install.error.diskSpace", { path: targetPath });
     case "EROFS":
     case "EPERM":
-      return `${i18n.k2846839386({ placeholder1: targetPath }, "文件系统只读或操作被禁止：{placeholder1}。请检查磁盘权限或 SIP 设置。")}`;
+      return i18n.t("hook.install.error.readOnly", { path: targetPath });
     default:
-      return `${i18n.k1793199776({ placeholder1: agentId, placeholder2: err.message }, "安装 {placeholder1} hook 失败：{placeholder2}")}`;
+      return i18n.t("hook.install.error.generic", { agent: agentId, error: err.message });
   }
 }
 const TOOL_JUMP_HANDLERS = {
@@ -779,6 +779,7 @@ async function runIslandApp() {
       for (const win of electron.BrowserWindow.getAllWindows()) {
         if (!win.isDestroyed()) win.webContents.send(IPC.LOCALE_DID_CHANGE, snapshot);
       }
+      refreshStatusTrayMenu();
     }
   });
   electron.app.on("activate", () => {
@@ -1055,26 +1056,30 @@ async function runIslandApp() {
       }
       statusTray = new electron.Tray(icon.resize({ width: 16, height: 16 }));
       statusTray.setToolTip("WorkIsland");
-      const zh = (coordinator.getSettings().locale || "zh") !== "en";
-      const menu = electron.Menu.buildFromTemplate([
-        { label: zh ? "显示灵动岛" : "Show Island", click: () => {
-          islandWindow?.revealForHover();
-        } },
-        { label: zh ? "设置…" : "Settings…", click: () => {
-          coordinator.openSettingsWindow();
-        } },
-        { type: "separator" },
-        { label: zh ? "退出 WorkIsland" : "Quit WorkIsland", click: () => {
-          electron.app.quit();
-        } }
-      ]);
-      statusTray.setContextMenu(menu);
+      refreshStatusTrayMenu();
       statusTray.on("click", () => {
         islandWindow?.revealForHover();
       });
     } catch (err) {
       log.warn("[main] failed to create status tray:", err?.message || err);
     }
+  }
+
+  function refreshStatusTrayMenu() {
+    if (!statusTray) return;
+    const menu = electron.Menu.buildFromTemplate([
+        { label: i18n.t("tray.showIsland"), click: () => {
+          islandWindow?.revealForHover();
+        } },
+        { label: i18n.t("tray.settings"), click: () => {
+          coordinator.openSettingsWindow();
+        } },
+        { type: "separator" },
+        { label: i18n.t("tray.quit"), click: () => {
+          electron.app.quit();
+        } }
+      ]);
+    statusTray.setContextMenu(menu);
   }
 
   if (needsOnboarding) {

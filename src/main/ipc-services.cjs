@@ -6,6 +6,7 @@ const path = require("node:path");
 const child_process = require("node:child_process");
 const promises = require("node:fs/promises");
 const { IPC } = require("../shared/ipc.cjs");
+const { i18n } = require("./i18n.cjs");
 const { listPluginAgentMeta } = require("./agent-registry.cjs");
 const { previewSound, getUserSoundsDir } = require("./sound-service.cjs");
 const { syncDeveloperApi } = require("./developer-api.cjs");
@@ -20,13 +21,13 @@ const {
 const { listCodexPets } = require("./codex-pet.cjs");
 const path__namespace = path;
 const QUICK_SHARE_PROVIDER_TITLES = Object.freeze({
-  Mail: "邮件",
-  Messages: "信息",
-  Notes: "备忘录",
-  Freeform: "无边记",
-  Simulator: "模拟器",
-  Shortcuts: "快捷指令",
-  "Add to Reading List": "加入阅读列表"
+  Mail: "share.provider.mail",
+  Messages: "share.provider.messages",
+  Notes: "share.provider.notes",
+  Freeform: "share.provider.freeform",
+  Simulator: "share.provider.simulator",
+  Shortcuts: "share.provider.shortcuts",
+  "Add to Reading List": "share.provider.readingList"
 });
 
 function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPasteboardFileURLs = () => [], copyFilesToPasteboard = () => false, getFileIconDataUrl = () => null, getShareProviders = async () => [], shareFilesViaProvider = () => false, showFilesSharePicker = () => false, getAirDropIconDataUrl = () => null, shareFilesViaAirDrop = () => false, checkForUpdates = async () => ({ status: "unavailable" }), downloadUpdate = async () => ({ phase: "unavailable" }), installUpdate = async () => ({ phase: "unavailable" }), getUpdateState = async () => ({ phase: "unavailable" }) }) {
@@ -60,13 +61,14 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
     return pending;
   }
   async function listShelfShareProviders() {
-    if (process.platform === "win32") return [{ id: "__system__", title: "复制文件路径", iconDataUrl: "" }];
+    if (process.platform === "win32") return [{ id: "__system__", title: i18n.t("share.provider.copyPaths"), iconDataUrl: "" }];
     try {
       const providers = await getShareProviders();
       return (Array.isArray(providers) ? providers : []).flatMap((provider) => {
         const id = typeof provider?.id === "string" ? provider.id.trim().slice(0, 160) : "";
         const nativeTitle = typeof provider?.title === "string" ? provider.title.trim().slice(0, 160) : id;
-        const title = QUICK_SHARE_PROVIDER_TITLES[id] || QUICK_SHARE_PROVIDER_TITLES[nativeTitle] || nativeTitle;
+        const titleKey = QUICK_SHARE_PROVIDER_TITLES[id] || QUICK_SHARE_PROVIDER_TITLES[nativeTitle];
+        const title = titleKey ? i18n.t(titleKey) : nativeTitle;
         const iconDataUrl = typeof provider?.iconDataUrl === "string" && provider.iconDataUrl.startsWith("data:image/png;base64,") && provider.iconDataUrl.length <= 256 * 1024
           ? provider.iconDataUrl
           : "";
@@ -118,9 +120,9 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
   }
   async function selectCustomIcon(parentWindow) {
     const result = await electron.dialog.showOpenDialog(parentWindow, {
-      title: "选择自定义 Icon",
+      title: i18n.t("dialog.customIcon.title"),
       properties: ["openFile"],
-      filters: [{ name: "图片", extensions: ["png", "jpg", "jpeg", "webp"] }]
+      filters: [{ name: i18n.t("dialog.filter.images"), extensions: ["png", "jpg", "jpeg", "webp"] }]
     });
     if (result.canceled || result.filePaths.length === 0) return getCustomIconDataUrl();
     const sourcePath = result.filePaths[0];
@@ -158,7 +160,7 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
   }
   async function selectDirectory(parentWindow) {
     const result = await electron.dialog.showOpenDialog(parentWindow, {
-      title: "选择终端默认目录",
+      title: i18n.t("dialog.terminalDirectory.title"),
       properties: ["openDirectory", "createDirectory"]
     });
     return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
@@ -334,7 +336,7 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
       const win = coordinator.islandWindow && !coordinator.islandWindow.isDestroyed() ? coordinator.islandWindow : undefined;
       const stamp = new Date(data.exportedAt).toISOString().slice(0, 10);
       const result = await electron.dialog.showSaveDialog(win, {
-        title: "导出用量数据",
+        title: i18n.t("dialog.usageExport.title"),
         defaultPath: `workisland-usage-${stamp}.json`,
         filters: [{ name: "JSON", extensions: ["json"] }]
       });
