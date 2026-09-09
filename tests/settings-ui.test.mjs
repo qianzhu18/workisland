@@ -6,6 +6,18 @@ const source = readFileSync(new URL("../src/renderer/settings-app.js", import.me
 const html = readFileSync(new URL("../src/renderer/island/renderer/settings.html", import.meta.url), "utf8");
 const css = readFileSync(new URL("../src/renderer/settings-app.css", import.meta.url), "utf8");
 
+test("Settings initializes localization and offers a live system language preference", () => {
+  assert.match(html, /<script type="module" src="\.\.\/\.\.\/settings-app\.js"><\/script>/);
+  assert.match(source, /import \{[^}]*initializeI18n[^}]*onLocaleChange[^}]*setLanguagePreference[^}]*t[^}]*\} from "\.\/shared\/i18n\.js"/s);
+  assert.match(source, /await initializeI18n\(api\)/);
+  assert.match(source, /onLocaleChange\(\(\) => \{/);
+  assert.match(source, /select\([^,]+,\s*\[\s*\["system"/s);
+  assert.match(source, /\["zh-CN"/);
+  assert.match(source, /\["en"/);
+  assert.match(source, /setLanguagePreference\(value, api\)/);
+  assert.match(source, /t\("settings\.general\.language\.title"\)/);
+});
+
 test("Agent descriptions wrap instead of truncating long guidance", () => {
   const rule = css.match(/\.agent-detail\s*\{([^}]*)\}/)?.[1] || "";
   assert.match(rule, /white-space:\s*normal/);

@@ -1,5 +1,7 @@
 "use strict";
 
+import { getLanguagePreference, initializeI18n, onLocaleChange, setLanguagePreference, t } from "./shared/i18n.js";
+
 const api = window.settingsApi;
 
 const DEFAULT_PET_SPRITE = "codex:qianxue";
@@ -116,6 +118,15 @@ function section(title, subtitle) {
   if (subtitle) heading.append(el("p", "", subtitle));
   node.append(heading);
   return node;
+}
+
+function localizeStaticShell() {
+  document.querySelectorAll("[data-i18n]").forEach((node) => {
+    node.textContent = t(node.dataset.i18n);
+  });
+  document.querySelectorAll("[data-i18n-aria-label]").forEach((node) => {
+    node.setAttribute("aria-label", t(node.dataset.i18nAriaLabel));
+  });
 }
 
 async function save(partial) {
@@ -299,6 +310,18 @@ function quickShareProviderControl() {
 
 function generalPage() {
   const root = document.createDocumentFragment();
+  const language = section(t("settings.general.language.sectionTitle"), t("settings.general.language.description"));
+  language.append(row(
+    t("settings.general.language.title"),
+    t("settings.general.language.changeHint"),
+    select(getLanguagePreference(), [
+      ["system", t("settings.general.language.followSystem")],
+      ["zh-CN", t("settings.general.language.simplifiedChinese")],
+      ["en", t("settings.general.language.english")]
+    ], async (value) => {
+      await setLanguagePreference(value, api);
+    }, t("settings.general.language.title"))
+  ));
   const workstation = section("工作台", "让灵动岛同时承载媒体控制和轻量性能监视。所有数据只在本机读取与展示。");
   workstation.append(
     featureSettingsRow(
@@ -469,7 +492,7 @@ function generalPage() {
   lifecycle.append(
     row("退出 WorkIsland", "需要重新打开应用后才会继续监测本机 Agent 状态。", button("退出应用", requestQuitApp, "danger"))
   );
-  root.append(workstation, productivity, behavior, display, lifecycle);
+  root.append(language, workstation, productivity, behavior, display, lifecycle);
   return root;
 }
 
@@ -1301,6 +1324,8 @@ function showToast(message, error = false) {
 
 async function start() {
   if (!api) throw new Error("settingsApi unavailable");
+  await initializeI18n(api);
+  localizeStaticShell();
   state.settings = await api.getSettings();
   try { state.shareProviders = await api.getShelfShareProviders?.() || []; } catch { state.shareProviders = []; }
   await loadTelemetryStatus();
@@ -1334,6 +1359,10 @@ async function start() {
     state.onUpdateStateUi?.();
   });
   api.onSettingsChanged?.(settings => { state.settings = settings; renderPage(); });
+  onLocaleChange(() => {
+    localizeStaticShell();
+    if (state.settings) renderPage();
+  });
   renderPage();
   refreshAgents().catch(() => {});
   setInterval(() => {
