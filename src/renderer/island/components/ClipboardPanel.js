@@ -1,7 +1,8 @@
 import { R as React } from "../../vendor/react-runtime.js";
+import { t } from "../../shared/i18n.js";
 
 function preview(entry) {
-  if (entry.type === "image") return React.createElement("img", { src: entry.dataUrl, alt: "剪贴板图片" });
+  if (entry.type === "image") return React.createElement("img", { src: entry.dataUrl, alt: t("clipboard.imageAlt") });
   if (entry.type === "files") return entry.paths?.join("\n");
   return entry.text;
 }
@@ -22,19 +23,19 @@ export function ClipboardPanel() {
   };
   return React.createElement("section", { className: "toolbox-panel clipboard-panel" },
     React.createElement("div", { className: "toolbox-panel-heading" },
-      React.createElement("div", null, React.createElement("strong", null, "剪贴板"), React.createElement("span", null, "内容只保存在本机")),
-      state.items.length > 0 && React.createElement("button", { type: "button", onClick: () => window.confirm("清空全部剪贴板历史？") && window.islandBridge.clearClipboardHistory() }, "清空")
+      React.createElement("div", null, React.createElement("strong", null, t("clipboard.title")), React.createElement("span", null, t("clipboard.localOnly"))),
+      state.items.length > 0 && React.createElement("button", { type: "button", onClick: () => window.confirm(t("clipboard.clearConfirm")) && window.islandBridge.clearClipboardHistory() }, t("clipboard.clear"))
     ),
-    React.createElement("input", { className: "toolbox-search", value: query, onChange: (event) => setQuery(event.target.value), placeholder: "搜索剪贴板", "aria-label": "搜索剪贴板" }),
+    React.createElement("input", { className: "toolbox-search", value: query, onChange: (event) => setQuery(event.target.value), placeholder: t("clipboard.search"), "aria-label": t("clipboard.search") }),
     entries.length === 0
-      ? React.createElement("div", { className: "toolbox-empty" }, React.createElement("span", { className: "toolbox-empty-icon" }, "▤"), React.createElement("strong", null, "还没有剪贴板历史"), React.createElement("span", null, "复制文本、代码、链接或图片后会显示在这里"))
+      ? React.createElement("div", { className: "toolbox-empty" }, React.createElement("span", { className: "toolbox-empty-icon" }, "▤"), React.createElement("strong", null, t("clipboard.empty.title")), React.createElement("span", null, t("clipboard.empty.description")))
       : React.createElement("div", { className: "clipboard-list" }, entries.map((entry) => React.createElement("article", { key: entry.id, className: "clipboard-item" },
-        React.createElement("button", { type: "button", className: "clipboard-preview", onClick: () => copyEntry(entry.id), title: "复制此项" }, preview(entry)),
+        React.createElement("button", { type: "button", className: "clipboard-preview", onClick: () => copyEntry(entry.id), title: t("clipboard.copyItem") }, preview(entry)),
         React.createElement("div", { className: "clipboard-actions" },
-          React.createElement("span", null, entry.type === "code" ? "代码" : entry.type === "url" ? "链接" : entry.type === "image" ? "图片" : "文本"),
-          React.createElement("button", { type: "button", className: copiedId === entry.id ? "is-copied" : "", onClick: () => copyEntry(entry.id) }, copiedId === entry.id ? "已复制" : "复制"),
+          React.createElement("span", null, t(`clipboard.type.${entry.type === "code" || entry.type === "url" || entry.type === "image" ? entry.type : "text"}`)),
+          React.createElement("button", { type: "button", className: copiedId === entry.id ? "is-copied" : "", onClick: () => copyEntry(entry.id) }, t(copiedId === entry.id ? "clipboard.copied" : "clipboard.copy")),
           React.createElement("button", { type: "button", className: entry.favorite ? "is-active" : "", onClick: () => window.islandBridge.favoriteClipboardEntry(entry.id, !entry.favorite) }, entry.favorite ? "★" : "☆"),
-          React.createElement("button", { type: "button", onClick: () => window.islandBridge.removeClipboardEntries([entry.id]) }, "删除")
+          React.createElement("button", { type: "button", onClick: () => window.islandBridge.removeClipboardEntries([entry.id]) }, t("common.delete"))
         ))))
   );
 }

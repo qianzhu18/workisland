@@ -1,4 +1,4 @@
-import "../shared/i18n.js";
+import { initializeI18n, onLocaleChange } from "../shared/i18n.js";
 import { I as ISLAND_PANEL_MAX_HEIGHT_DEFAULT_PX, D as DEFAULT_SETTINGS, c as clampPanelMaxHeightPx, l as loadPluginAgentMeta } from "../shared/settings.js";
 import { r as reactExports, R as React, a as ReactDOM } from "../vendor/react-runtime.js";
 import { D as DEFAULT_NOTCH_INFO, r as requiresAttention, d as dominantPhase, I as IslandPill, g as getIslandClipShape, a as getIslandMaxBodyWidth } from "./components/IslandPill.js";
@@ -1044,4 +1044,8 @@ function IslandApp() {
 }
 void loadPluginAgentMeta(() => window.islandBridge.getPluginAgentMeta());
 const root = document.getElementById("root");
-ReactDOM.createRoot(root).render(/* @__PURE__ */ React.createElement(IslandApp, null));
+const reactRoot = ReactDOM.createRoot(root);
+const render = () => reactRoot.render(/* @__PURE__ */ React.createElement(IslandApp, null));
+await initializeI18n(window.islandBridge);
+render();
+onLocaleChange(render);

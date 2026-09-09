@@ -1,4 +1,5 @@
 import { R as React } from "../../vendor/react-runtime.js";
+import { t } from "../../shared/i18n.js";
 
 function activeLineIndex(lines, elapsedSec) {
   let active = -1;
@@ -10,10 +11,10 @@ function activeLineIndex(lines, elapsedSec) {
 }
 
 const STATUS_COPY = {
-  loading: ["正在寻找歌词", "从公开歌词库匹配当前歌曲"],
-  instrumental: ["纯音乐", "让旋律占满这一刻"],
-  "not-found": ["暂未找到歌词", "媒体控制仍可正常使用"],
-  unavailable: ["歌词暂时不可用", "网络恢复后会自动重试"]
+  loading: ["lyrics.loading.title", "lyrics.loading.description"],
+  instrumental: ["lyrics.instrumental.title", "lyrics.instrumental.description"],
+  "not-found": ["lyrics.notFound.title", "lyrics.notFound.description"],
+  unavailable: ["lyrics.unavailable.title", "lyrics.unavailable.description"]
 };
 
 export function LyricsPanel({ lyrics, elapsedSec = 0, mode = "full" }) {
@@ -42,8 +43,8 @@ export function LyricsPanel({ lyrics, elapsedSec = 0, mode = "full" }) {
   }, [activeIndex, following]);
 
   if (lyrics?.status === "synced" && lines.length) {
-    return React.createElement("section", { className: `lyrics-panel is-${mode}`, "aria-label": "同步歌词", "aria-hidden": mode === "compact" },
-      React.createElement("div", { className: "lyrics-eyebrow" }, "正在播放"),
+    return React.createElement("section", { className: `lyrics-panel is-${mode}`, "aria-label": t("lyrics.synced") , "aria-hidden": mode === "compact" },
+      React.createElement("div", { className: "lyrics-eyebrow" }, t("media.playing")),
       React.createElement("div", { className: "lyrics-viewport", ref: viewportRef, onWheel: pauseFollowing, onTouchMove: pauseFollowing },
         lines.map((line, index) => React.createElement("p", {
           key: `${line.atSec}:${index}`,
@@ -55,8 +56,8 @@ export function LyricsPanel({ lyrics, elapsedSec = 0, mode = "full" }) {
   }
 
   if (lyrics?.status === "plain" && lyrics.plainText) {
-    return React.createElement("section", { className: `lyrics-panel is-${mode}`, "aria-label": "歌词", "aria-hidden": mode === "compact" },
-      React.createElement("div", { className: "lyrics-eyebrow" }, "歌词"),
+    return React.createElement("section", { className: `lyrics-panel is-${mode}`, "aria-label": t("lyrics.title"), "aria-hidden": mode === "compact" },
+      React.createElement("div", { className: "lyrics-eyebrow" }, t("lyrics.title")),
       React.createElement("div", { className: "lyrics-viewport lyrics-plain", ref: viewportRef, onWheel: pauseFollowing, onTouchMove: pauseFollowing },
         lyrics.plainText.split("\n").map((line, index) => React.createElement("p", { className: "lyrics-line", key: index }, line))
       )
@@ -67,7 +68,7 @@ export function LyricsPanel({ lyrics, elapsedSec = 0, mode = "full" }) {
   if (!copy) return null;
   return React.createElement("section", { className: `lyrics-panel lyrics-status is-${mode}`, "aria-live": "polite", "aria-hidden": mode === "compact" },
     React.createElement("span", { className: `lyrics-status-mark is-${lyrics.status}`, "aria-hidden": "true" }, lyrics.status === "loading" ? "···" : "♪"),
-    React.createElement("strong", null, copy[0]),
-    React.createElement("span", null, copy[1])
+    React.createElement("strong", null, t(copy[0])),
+    React.createElement("span", null, t(copy[1]))
   );
 }

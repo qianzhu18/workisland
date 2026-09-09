@@ -91,15 +91,15 @@ test("starting a native shelf drag cancels Chromium's competing HTML drag sessio
 
 test("clipboard exposes search favorites replay and clear", () => {
   const source = read("ClipboardPanel.js");
-  for (const term of ["搜索剪贴板", "replayClipboardEntry", "favoriteClipboardEntry", "clearClipboardHistory"]) assert.match(source, new RegExp(term));
-  assert.match(source, /已复制/);
-  assert.match(source, /"已复制" : "复制"/);
+  for (const term of ["clipboard.search", "replayClipboardEntry", "favoriteClipboardEntry", "clearClipboardHistory"]) assert.match(source, new RegExp(term));
+  assert.match(source, /clipboard\.copied/);
+  assert.match(source, /clipboard\.copy/);
 });
 
 test("terminal uses xterm and offers quick commands plus full shell", () => {
   const source = read("TerminalPanel.js");
   assert.match(source, /@xterm\/xterm/);
-  assert.match(source, /进入完整终端/);
+  assert.match(source, /t\("terminal\.full\.enter"\)/);
   assert.match(source, /runSavedTerminalCommand/);
   assert.match(source, /sendTerminalInput/);
   assert.match(source, /setTerminalInteractive\?\.\(interactive\)/);
@@ -129,8 +129,8 @@ test("hidden terminal never resizes the PTY to a zero-sized viewport", () => {
 test("terminal quick commands come only from user settings", () => {
   const source = read("TerminalPanel.js");
   assert.doesNotMatch(source, /QUICK_COMMANDS/);
-  assert.match(source, /尚未添加快捷命令/);
-  assert.match(source, /前往设置添加/);
+  assert.match(source, /t\("terminal\.quick\.empty\.title"\)/);
+  assert.match(source, /t\("terminal\.quick\.empty\.action"\)/);
 });
 
 test("Island panel receives every productivity setting from the renderer", () => {

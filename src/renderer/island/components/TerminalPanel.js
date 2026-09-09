@@ -1,4 +1,5 @@
 import { R as React } from "../../vendor/react-runtime.js";
+import { t } from "../../shared/i18n.js";
 import { Terminal } from "../../../../node_modules/@xterm/xterm/lib/xterm.mjs";
 
 export function TerminalPanel({ active = false, panelOpen = true, savedCommands = [], onOpenSettings, onFullChange }) {
@@ -56,20 +57,20 @@ export function TerminalPanel({ active = false, panelOpen = true, savedCommands 
   const commands = savedCommands;
   return React.createElement("section", { className: `toolbox-panel terminal-panel${active ? "" : " is-hidden"}`, "aria-hidden": active ? undefined : "true", "data-terminal-interactive": panelOpen && active && full ? "true" : "false" },
     React.createElement("div", { className: "toolbox-panel-heading" },
-      React.createElement("div", null, React.createElement("strong", null, full ? "完整终端" : "快捷终端"), React.createElement("span", null, status.cwd || "优先使用当前 Agent 项目目录")),
-      full && React.createElement("button", { type: "button", onClick: () => setFull(false) }, "返回快捷命令")
+      React.createElement("div", null, React.createElement("strong", null, full ? t("terminal.full.title") : t("terminal.quick.title")), React.createElement("span", null, status.cwd || t("terminal.cwd.agentProject"))),
+      full && React.createElement("button", { type: "button", onClick: () => setFull(false) }, t("terminal.full.back"))
     ),
     full
-      ? React.createElement("div", { className: "terminal-shell" }, React.createElement("div", { className: "terminal-host", ref: hostRef }), !status.running && React.createElement("button", { type: "button", className: "terminal-restart", onClick: () => window.islandBridge.restartTerminal().then(setStatus) }, "重新启动终端"))
+      ? React.createElement("div", { className: "terminal-shell" }, React.createElement("div", { className: "terminal-host", ref: hostRef }), !status.running && React.createElement("button", { type: "button", className: "terminal-restart", onClick: () => window.islandBridge.restartTerminal().then(setStatus) }, t("terminal.full.restart")))
       : React.createElement(React.Fragment, null,
         commands.length > 0
           ? React.createElement("div", { className: "quick-command-grid" }, commands.map((command) => React.createElement("button", { key: command.id, type: "button", className: "quick-command", onClick: async () => { await window.islandBridge.runSavedTerminalCommand(command.id); setFull(true); } }, React.createElement("strong", null, command.name), React.createElement("code", null, command.command))))
           : React.createElement("div", { className: "terminal-command-empty" },
-            React.createElement("strong", null, "尚未添加快捷命令"),
-            React.createElement("span", null, "可以在设置中添加任何常用命令"),
-            React.createElement("button", { type: "button", onClick: onOpenSettings }, "前往设置添加")
+            React.createElement("strong", null, t("terminal.quick.empty.title")),
+            React.createElement("span", null, t("terminal.quick.empty.description")),
+            React.createElement("button", { type: "button", onClick: onOpenSettings }, t("terminal.quick.empty.action"))
           ),
-        React.createElement("button", { type: "button", className: "terminal-enter-full", onClick: () => setFull(true) }, "进入完整终端")
+        React.createElement("button", { type: "button", className: "terminal-enter-full", onClick: () => setFull(true) }, t("terminal.full.enter"))
       )
   );
 }
