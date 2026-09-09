@@ -1,5 +1,6 @@
 import { R as React } from "../../vendor/react-runtime.js";
 import { A as AGENT_TOOL_LABELS } from "../../shared/settings.js";
+import { t } from "../../shared/i18n.js";
 
 /**
  * PRD-015：Usage 看板（Island 工具箱「用量」模块）。
@@ -9,15 +10,15 @@ import { A as AGENT_TOOL_LABELS } from "../../shared/settings.js";
  */
 
 const RANGE_OPTIONS = [
-  { days: 7, label: "7 天" },
-  { days: 30, label: "30 天" },
-  { days: 90, label: "90 天" }
+  { days: 7, labelKey: "usage.range.7" },
+  { days: 30, labelKey: "usage.range.30" },
+  { days: 90, labelKey: "usage.range.90" }
 ];
 const CATEGORY_LABELS = {
-  quick: "快速",
-  standard: "标准",
-  marathon: "马拉松",
-  automation: "自动化"
+  quick: "usage.category.quick",
+  standard: "usage.category.standard",
+  marathon: "usage.category.marathon",
+  automation: "usage.category.automation"
 };
 
 function formatTokens(n) {
@@ -30,20 +31,20 @@ function formatTokens(n) {
 
 function formatCost(microUsd, unknownTokens) {
   // PRD 验收：定价缺失显示「未知」，绝不显示假 0
-  if (!microUsd && unknownTokens > 0) return "未知";
+  if (!microUsd && unknownTokens > 0) return t("common.unknown");
   const usd = microUsd / 1e6;
   const text = usd >= 1 ? `$${usd.toFixed(2)}` : usd >= 0.01 ? `$${usd.toFixed(3)}` : `$${usd.toFixed(4)}`;
-  return unknownTokens > 0 ? `${text}+未知` : text;
+  return unknownTokens > 0 ? t("usage.cost.partialUnknown", { cost: text }) : text;
 }
 
 function formatDuration(ms) {
   if (!Number.isFinite(ms) || ms < 0) return "—";
   const min = Math.round(ms / 6e4);
-  if (min < 1) return "<1 分钟";
-  if (min < 60) return `${min} 分钟`;
+  if (min < 1) return t("usage.duration.lessThanMinute");
+  if (min < 60) return t("usage.duration.minutes", { minutes: min });
   const h = Math.floor(min / 60);
   const rest = min % 60;
-  return rest ? `${h} 小时 ${rest} 分` : `${h} 小时`;
+  return rest ? t("usage.duration.hoursMinutes", { hours: h, minutes: rest }) : t("usage.duration.hours", { hours: h });
 }
 
 function dayTokens(day) {
@@ -63,7 +64,7 @@ function UsageTrendChart({ byDay }) {
     viewBox: `0 0 ${W} ${H}`,
     preserveAspectRatio: "none",
     role: "img",
-    "aria-label": "每日 token 消耗趋势"
+    "aria-label": t("usage.chart.trend")
   },
   byDay.map((day, i) => {
     const total = dayTokens(day);
@@ -71,7 +72,7 @@ function UsageTrendChart({ byDay }) {
     const inH = total > 0 ? (day.inputTokens / total) * h : 0;
     const cacheH = total > 0 ? ((day.cacheReadTokens + day.cacheCreationTokens) / total) * h : 0;
     const x = i * step + (step - barWidth) / 2;
-    const title = `${day.date}：输入 ${formatTokens(day.inputTokens)} / 输出 ${formatTokens(day.outputTokens)} / 缓存 ${formatTokens(day.cacheReadTokens + day.cacheCreationTokens)}${day.costMicroUsd || day.unknownCostTokens ? ` / 成本 ${formatCost(day.costMicroUsd, day.unknownCostTokens)}` : ""}`;
+    const title = t("usage.chart.dayTitle", { date: day.date, input: formatTokens(day.inputTokens), output: formatTokens(day.outputTokens), cache: formatTokens(day.cacheReadTokens + day.cacheCreationTokens), cost: day.costMicroUsd || day.unknownCostTokens ? t("usage.chart.costPart", { cost: formatCost(day.costMicroUsd, day.unknownCostTokens) }) : "" });
     return React.createElement("g", { key: day.date },
       React.createElement("title", null, title),
       React.createElement("rect", { className: "usage-trend-bar-input", x, y: H - inH, width: barWidth, height: inH }),
@@ -84,14 +85,14 @@ function UsageTrendChart({ byDay }) {
 /** 按日活动热力图（时区感知的按日分桶已在主进程完成）。 */
 function UsageHeatmap({ byDay }) {
   const max = Math.max(...byDay.map(dayTokens), 1);
-  return React.createElement("div", { className: "usage-heatmap", role: "img", "aria-label": "活动热力图" },
+  return React.createElement("div", { className: "usage-heatmap", role: "img", "aria-label": t("usage.heatmap") },
     byDay.map((day) => {
       const total = dayTokens(day);
       const level = total === 0 ? 0 : Math.min(4, Math.ceil((total / max) * 4));
       return React.createElement("span", {
         key: day.date,
         className: `usage-heatmap-cell is-level-${level}`,
-        title: `${day.date}：${total > 0 ? formatTokens(total) + " tokens" : "无活动"}`
+        title: t("usage.heatmap.dayTitle", { date: day.date, activity: total > 0 ? t("usage.tokens", { count: formatTokens(total) }) : t("usage.noActivity") })
       });
     })
   );
@@ -142,15 +143,15 @@ export function UsagePanel() {
   }, [refresh]);
 
   const exportData = React.useCallback(async () => {
-    setStatus("正在导出…");
+    setStatus(t("usage.export.exporting"));
     const result = await window.islandBridge?.exportUsageData?.();
-    if (!result) { setStatus("导出失败"); return; }
-    setStatus(result.ok ? `已导出到 ${result.path}` : "已取消导出");
+    if (!result) { setStatus(t("usage.export.failed")); return; }
+    setStatus(result.ok ? t("usage.export.exported", { path: result.path }) : t("usage.export.cancelled"));
   }, []);
   const clearData = React.useCallback(async () => {
-    if (!window.confirm("清除全部本地用量记录？该操作不可恢复（不影响会话与其他数据）。")) return;
+    if (!window.confirm(t("usage.clear.confirm"))) return;
     await window.islandBridge?.clearUsageData?.();
-    setStatus("已清除全部用量记录");
+    setStatus(t("usage.clear.done"));
     refresh();
   }, [refresh]);
 
@@ -161,54 +162,54 @@ export function UsagePanel() {
   return React.createElement("section", { className: "toolbox-panel usage-panel" },
     React.createElement("div", { className: "toolbox-panel-heading" },
       React.createElement("div", null,
-        React.createElement("strong", null, "用量"),
-        React.createElement("span", null, status || `本地聚合 · 最近 ${days} 天 · 成本为缓存感知微美元估算`)),
+        React.createElement("strong", null, t("usage.title")),
+        React.createElement("span", null, status || t("usage.description", { days }))),
       React.createElement("div", { className: "toolbox-heading-actions" },
-        React.createElement("div", { className: "usage-range-switch", role: "group", "aria-label": "时间范围" },
+        React.createElement("div", { className: "usage-range-switch", role: "group", "aria-label": t("usage.timeRange") },
           RANGE_OPTIONS.map((opt) => React.createElement("button", {
             key: opt.days,
             type: "button",
             className: days === opt.days ? "is-active" : "",
             onClick: () => setDays(opt.days)
-          }, opt.label))),
-        React.createElement("button", { type: "button", onClick: exportData }, "导出"),
-        hasData && React.createElement("button", { type: "button", onClick: clearData }, "清除")
+          }, t(opt.labelKey)))),
+        React.createElement("button", { type: "button", onClick: exportData }, t("usage.export.action")),
+        hasData && React.createElement("button", { type: "button", onClick: clearData }, t("usage.clear.action"))
       )
     ),
     React.createElement("div", { className: "usage-tabs", role: "tablist" },
-      React.createElement("button", { type: "button", role: "tab", "aria-selected": tab === "overview", className: `usage-tab${tab === "overview" ? " is-active" : ""}`, onClick: () => setTab("overview") }, "总览"),
-      React.createElement("button", { type: "button", role: "tab", "aria-selected": tab === "sessions", className: `usage-tab${tab === "sessions" ? " is-active" : ""}`, onClick: () => setTab("sessions") }, "会话")
+      React.createElement("button", { type: "button", role: "tab", "aria-selected": tab === "overview", className: `usage-tab${tab === "overview" ? " is-active" : ""}`, onClick: () => setTab("overview") }, t("usage.tab.overview")),
+      React.createElement("button", { type: "button", role: "tab", "aria-selected": tab === "sessions", className: `usage-tab${tab === "sessions" ? " is-active" : ""}`, onClick: () => setTab("sessions") }, t("usage.tab.sessions"))
     ),
     !summary
-      ? React.createElement("div", { className: "toolbox-empty" }, React.createElement("strong", null, "正在加载用量数据…"))
+      ? React.createElement("div", { className: "toolbox-empty" }, React.createElement("strong", null, t("usage.loading.summary")))
       : tab === "overview"
         ? React.createElement("div", { className: "usage-overview" },
           React.createElement("div", { className: "usage-stat-grid" },
-            React.createElement(StatCard, { label: "总 Token", value: formatTokens(totalTokens), hint: totals ? `输出 ${formatTokens(totals.outputTokens)} · 缓存读 ${formatTokens(totals.cacheReadTokens)}` : "" }),
-            React.createElement(StatCard, { label: "成本（估）", value: totals ? formatCost(totals.costMicroUsd, totals.unknownCostTokens) : "未知", hint: totals?.unknownCostTokens > 0 ? `${formatTokens(totals.unknownCostTokens)} tokens 定价未知` : "LiteLLM 定价表" }),
-            React.createElement(StatCard, { label: "会话数", value: String(totals?.sessionCount ?? 0) }),
+            React.createElement(StatCard, { label: t("usage.stat.totalTokens"), value: formatTokens(totalTokens), hint: totals ? t("usage.stat.tokenHint", { output: formatTokens(totals.outputTokens), cache: formatTokens(totals.cacheReadTokens) }) : "" }),
+            React.createElement(StatCard, { label: t("usage.stat.estimatedCost"), value: totals ? formatCost(totals.costMicroUsd, totals.unknownCostTokens) : t("common.unknown"), hint: totals?.unknownCostTokens > 0 ? t("usage.stat.unknownPricing", { tokens: formatTokens(totals.unknownCostTokens) }) : t("usage.stat.pricingSource") }),
+            React.createElement(StatCard, { label: t("usage.stat.sessions"), value: String(totals?.sessionCount ?? 0) }),
             summary.remote?.records > 0
-              ? React.createElement(StatCard, { label: "远程用量", value: formatTokens(summary.remote.tokens), hint: `${summary.remote.records} 条记录` })
+              ? React.createElement(StatCard, { label: t("usage.stat.remote"), value: formatTokens(summary.remote.tokens), hint: t("usage.stat.records", { count: summary.remote.records }) })
               : null
           ),
           !hasData
             ? React.createElement("div", { className: "toolbox-empty" },
                 React.createElement("span", { className: "toolbox-empty-icon" }, "◌"),
-                React.createElement("strong", null, "暂无 token 记录"),
-                React.createElement("span", null, "完成几次 Agent 会话后这里会出现统计"))
+                React.createElement("strong", null, t("usage.empty.tokens.title")),
+                React.createElement("span", null, t("usage.empty.tokens.description")))
             : React.createElement(React.Fragment, null,
               React.createElement("div", { className: "usage-section" },
-                React.createElement("h4", null, "趋势"),
+                React.createElement("h4", null, t("usage.section.trend")),
                 React.createElement(UsageTrendChart, { byDay: summary.byDay })
               ),
               React.createElement("div", { className: "usage-section" },
-                React.createElement("h4", null, "活动热力图"),
+                React.createElement("h4", null, t("usage.heatmap")),
                 React.createElement(UsageHeatmap, { byDay: summary.byDay })
               ),
               React.createElement("div", { className: "usage-section" },
-                React.createElement("h4", null, "按 Agent"),
+                React.createElement("h4", null, t("usage.section.byAgent")),
                 React.createElement(UsageTable, {
-                  headers: ["Agent", "会话", "输入", "输出", "缓存", "成本"],
+                  headers: ["Agent", t("usage.column.sessions"), t("usage.column.input"), t("usage.column.output"), t("usage.column.cache"), t("usage.column.cost")],
                   rows: summary.byAgent.map((a) => React.createElement("tr", { key: a.tool },
                     React.createElement("td", { className: "usage-cell-text" }, AGENT_TOOL_LABELS[a.tool] ?? a.tool),
                     React.createElement("td", { className: "usage-cell-text" }, String(a.sessionCount)),
@@ -217,13 +218,13 @@ export function UsagePanel() {
                     React.createElement("td", { className: "usage-cell-text" }, formatTokens(a.cacheReadTokens + a.cacheCreationTokens)),
                     React.createElement("td", { className: "usage-cell-text" }, formatCost(a.costMicroUsd, a.unknownCostTokens))
                   )),
-                  emptyText: "暂无 Agent 用量"
+                  emptyText: t("usage.empty.agent")
                 })
               ),
               summary.byModel.length > 0 && React.createElement("div", { className: "usage-section" },
-                React.createElement("h4", null, "按模型"),
+                React.createElement("h4", null, t("usage.section.byModel")),
                 React.createElement(UsageTable, {
-                  headers: ["模型", "输入", "输出", "缓存", "成本"],
+                  headers: [t("usage.column.model"), t("usage.column.input"), t("usage.column.output"), t("usage.column.cache"), t("usage.column.cost")],
                   rows: summary.byModel.map((m) => React.createElement("tr", { key: m.model },
                     React.createElement("td", { className: "usage-cell-text usage-model-name", title: m.model }, m.model),
                     React.createElement("td", { className: "usage-cell-text" }, formatTokens(m.inputTokens)),
@@ -231,32 +232,32 @@ export function UsagePanel() {
                     React.createElement("td", { className: "usage-cell-text" }, formatTokens(m.cacheReadTokens + m.cacheCreationTokens)),
                     React.createElement("td", { className: "usage-cell-text" }, formatCost(m.costMicroUsd, m.unknownCostTokens))
                   )),
-                  emptyText: "暂无模型用量"
+                  emptyText: t("usage.empty.model")
                 })
               )
             )
         )
         : React.createElement("div", { className: "usage-sessions" },
           !insights
-            ? React.createElement("div", { className: "toolbox-empty" }, React.createElement("strong", null, "正在加载会话数据…"))
+            ? React.createElement("div", { className: "toolbox-empty" }, React.createElement("strong", null, t("usage.loading.sessions")))
             : insights.sessions.length === 0
               ? React.createElement("div", { className: "toolbox-empty" },
                   React.createElement("span", { className: "toolbox-empty-icon" }, "◌"),
-                  React.createElement("strong", null, "暂无会话记录"),
-                  React.createElement("span", null, "会话完成并采集到 token 后出现在这里"))
+                  React.createElement("strong", null, t("usage.empty.sessions.title")),
+                  React.createElement("span", null, t("usage.empty.sessions.description")))
               : React.createElement("div", { className: "usage-session-list" },
                   insights.sessions.map((s) => React.createElement("article", { key: s.sessionId, className: `usage-session is-${s.category}` },
                     React.createElement("div", { className: "usage-session-main" },
                       React.createElement("span", { className: "usage-session-tool" }, AGENT_TOOL_LABELS[s.tool] ?? s.tool),
                       React.createElement("span", { className: "usage-session-model", title: s.model }, s.model),
-                      s.isRemote && React.createElement("span", { className: "usage-badge is-remote" }, "远程")
+                      s.isRemote && React.createElement("span", { className: "usage-badge is-remote" }, t("usage.remote"))
                     ),
                     React.createElement("div", { className: "usage-session-metrics" },
-                      React.createElement("span", { title: "输出 tokens" }, `出 ${formatTokens(s.outputTokens)}`),
-                      React.createElement("span", { title: "峰值上下文（估计）" }, `峰 ${formatTokens(s.peakContextTokens)}`),
-                      React.createElement("span", { title: "活跃时长" }, formatDuration(s.durationMs))
+                      React.createElement("span", { title: t("usage.metric.outputTokens") }, t("usage.metric.outputShort", { tokens: formatTokens(s.outputTokens) })),
+                      React.createElement("span", { title: t("usage.metric.peakContext") }, t("usage.metric.peakShort", { tokens: formatTokens(s.peakContextTokens) })),
+                      React.createElement("span", { title: t("usage.metric.activeDuration") }, formatDuration(s.durationMs))
                     ),
-                    React.createElement("span", { className: `usage-badge is-${s.category}` }, CATEGORY_LABELS[s.category] ?? s.category)
+                    React.createElement("span", { className: `usage-badge is-${s.category}` }, CATEGORY_LABELS[s.category] ? t(CATEGORY_LABELS[s.category]) : s.category)
                   ))
                 )
         )

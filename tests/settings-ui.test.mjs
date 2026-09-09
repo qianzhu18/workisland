@@ -6,6 +6,18 @@ const source = readFileSync(new URL("../src/renderer/settings-app.js", import.me
 const html = readFileSync(new URL("../src/renderer/island/renderer/settings.html", import.meta.url), "utf8");
 const css = readFileSync(new URL("../src/renderer/settings-app.css", import.meta.url), "utf8");
 
+test("Settings initializes localization and offers a live system language preference", () => {
+  assert.match(html, /<script type="module" src="\.\.\/\.\.\/settings-app\.js"><\/script>/);
+  assert.match(source, /import \{[^}]*initializeI18n[^}]*onLocaleChange[^}]*setLanguagePreference[^}]*t[^}]*\} from "\.\/shared\/i18n\.js"/s);
+  assert.match(source, /await initializeI18n\(api\)/);
+  assert.match(source, /onLocaleChange\(\(\) => \{/);
+  assert.match(source, /select\([^,]+,\s*\[\s*\["system"/s);
+  assert.match(source, /\["zh-CN"/);
+  assert.match(source, /\["en"/);
+  assert.match(source, /setLanguagePreference\(value, api\)/);
+  assert.match(source, /t\("settings\.general\.language\.title"\)/);
+});
+
 test("Agent descriptions wrap instead of truncating long guidance", () => {
   const rule = css.match(/\.agent-detail\s*\{([^}]*)\}/)?.[1] || "";
   assert.match(rule, /white-space:\s*normal/);
@@ -16,22 +28,22 @@ test("Agent descriptions wrap instead of truncating long guidance", () => {
 });
 
 test("general settings expose all completion notification duration options", () => {
-  assert.match(source, /完成通知停留时间/);
+  assert.match(source, /t\("settings\.general\.behavior\.completionDuration\.title"\)/);
   for (const seconds of [5, 10, 20, 30]) {
-    assert.match(source, new RegExp(`\\["${seconds}", "${seconds} 秒"\\]`));
+    assert.match(source, new RegExp(`\\["${seconds}", t\\("settings\\.duration\\.seconds", \\{ count: ${seconds} \\}\\)\\]`));
   }
   assert.match(source, /save\(\{ completionPopupDurationSec: Number\(v\) \}\)/);
 });
 
 test("workstation settings expose every productivity module and local privacy policy", () => {
-  for (const copy of ["文件架", "剪贴板历史", "快捷终端", "只保存在本机", "历史条数", "自动清理", "默认目录", "快捷命令"]) {
-    assert.match(source, new RegExp(copy));
+  for (const key of ["shelf.title", "clipboard.title", "terminal.title", "clipboard.limit.title", "clipboard.retention.title", "terminal.directory.title", "terminal.commands.title"]) {
+    assert.match(source, new RegExp(`t\\("settings\\.general\\.${key.replaceAll(".", "\\.")}"\\)`));
   }
   assert.match(source, /save\(\{ fileShelfEnabled: v \}\)/);
   assert.match(source, /save\(\{ clipboardHistoryEnabled: v \}\)/);
   assert.match(source, /save\(\{ terminalEnabled: v \}\)/);
   assert.match(source, /terminalSavedCommands/);
-  assert.match(source, /删除/);
+  assert.match(source, /t\("common\.delete"\)/);
   assert.match(source, /await save\([\s\S]*terminalSavedCommands:[\s\S]*renderPage\(\)/);
   assert.match(source, /selectDirectory/);
   assert.match(source, /terminal-command-editor/);
@@ -40,8 +52,8 @@ test("workstation settings expose every productivity module and local privacy po
 });
 
 test("Island behavior lets users choose the toolbox page shown after reopening", () => {
-  assert.match(source, /重新展开时/);
-  assert.match(source, /智能体主页（默认）/);
+  assert.match(source, /t\("settings\.general\.behavior\.reopen\.title"\)/);
+  assert.match(source, /t\("settings\.general\.behavior\.reopen\.agent"\)/);
   assert.match(source, /toolboxReopenMode/);
 });
 
@@ -49,7 +61,7 @@ test("workstation and productivity details use accessible inline disclosures", (
   assert.match(source, /function featureSettingsRow\(/);
   assert.match(source, /aria-expanded/);
   assert.match(source, /aria-controls/);
-  assert.match(source, /详细设置/);
+  assert.match(source, /t\("settings\.common\.details"\)/);
   assert.match(source, /expandedSettingDetails/);
   assert.doesNotMatch(source, /const clipboardSettings = section\("剪贴板"/);
   assert.doesNotMatch(source, /const terminalSettings = section\("快捷终端"/);
@@ -63,27 +75,27 @@ test("file shelf settings persist a selectable default quick-share provider", ()
   const settingsSource = readFileSync(new URL("../src/shared/settings.cjs", import.meta.url), "utf8");
   const preloadSource = readFileSync(new URL("../src/preload/settings.js", import.meta.url), "utf8");
   assert.match(settingsSource, /shelfQuickShareProvider:\s*"AirDrop"/);
-  assert.match(source, /默认快速分享/);
+  assert.match(source, /t\("settings\.general\.shelf\.quickShare\.title"\)/);
   assert.match(source, /getShelfShareProviders/);
   assert.match(preloadSource, /getShelfShareProviders/);
 });
 
 test("the default General page offers a confirmed safe quit action", () => {
   assert.match(source, /function requestQuitApp\(\)/);
-  assert.match(source, /window\.confirm\("退出 WorkIsland？\\n\\n这会关闭 Island、桌宠与后台监听。"\)/);
-  assert.match(source, /section\("应用", "关闭 WorkIsland 会同时关闭 Island、桌宠与后台监听。"\)/);
-  assert.match(source, /button\("退出应用", requestQuitApp, "danger"\)/);
+  assert.match(source, /window\.confirm\(t\("settings\.app\.quitConfirm"\)\)/);
+  assert.match(source, /section\(t\("settings\.general\.app\.sectionTitle"\)/);
+  assert.match(source, /button\(t\("settings\.general\.app\.quitAction"\), requestQuitApp, "danger"\)/);
   assert.doesNotMatch(source, /button\("退出应用", \(\) => api\.quitApp\(\), "danger"\)/);
 });
 
 test("about settings route the manual, feedback and community through stable website URLs", () => {
-  assert.match(source, /帮助与社区/);
+  assert.match(source, /settings\.about\.support\.sectionTitle/);
   assert.match(source, /https:\/\/workisland\.yanglaishe\.cn\/guide\//);
-  assert.match(source, /产品手册/);
+  assert.match(source, /settings\.about\.support\.guide\.title/);
   assert.match(source, /https:\/\/workisland\.yanglaishe\.cn\/#feedback/);
   assert.match(source, /https:\/\/workisland\.yanglaishe\.cn\/#community/);
-  assert.match(source, /提交反馈/);
-  assert.match(source, /加入社区/);
+  assert.match(source, /settings\.about\.support\.feedback\.title/);
+  assert.match(source, /settings\.about\.support\.community\.title/);
 });
 
 test("settings use product images instead of letter placeholders", () => {
@@ -100,8 +112,8 @@ test("settings use product images instead of letter placeholders", () => {
 
 test("DeepSeek Harness distinguishes a written config from a verified connection", () => {
   assert.match(source, /VERIFY_ON_REAL_EVENT_AGENT_IDS/);
-  assert.match(source, /配置已写入/);
-  assert.match(source, /已连接/);
+  assert.match(source, /settings\.agents\.status\.configured/);
+  assert.match(source, /settings\.agents\.status\.connected/);
   assert.match(source, /report\?\.connectionState === "verified"/);
 });
 

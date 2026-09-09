@@ -218,7 +218,7 @@ test("checksum mismatch aborts the download with an error state", async () => {
   await service.check({ force: true, notify: false });
   const state = await service.download();
   assert.equal(state.phase, "error");
-  assert.match(state.error, /校验失败/);
+  assert.match(state.error, /verification failed/i);
   assert.equal(existsSync(state.downloadedPath), false);
 });
 
@@ -240,7 +240,7 @@ test("download failure surfaces an error state with the message", async () => {
   await service.check({ force: true, notify: false });
   const state = await service.download();
   assert.equal(state.phase, "error");
-  assert.match(state.error, /下载失败/);
+  assert.match(state.error, /download failed/i);
 });
 
 test("install mounts the dmg, copies the app and relaunches", async () => {
@@ -297,7 +297,7 @@ test("failed install falls back to opening the dmg for manual drag install", asy
   const state = await service.install();
   assert.equal(state.phase, "manual");
   assert.equal(opened.length, 1);
-  assert.match(state.error, /拖入「应用程序」/);
+  assert.match(state.error, /drag WorkIsland into Applications/i);
 });
 
 test("relaunch inside the check interval restores the update arrow from cache without network", async () => {

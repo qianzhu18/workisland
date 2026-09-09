@@ -5,6 +5,7 @@ import test from "node:test";
 
 test("authored Island renderer modules parse as browser ESM", () => {
   const files = [
+    "src/renderer/vendor/react-runtime.js",
     "src/renderer/island/app.js",
     "src/renderer/island/components/IslandPanel.js",
     "src/renderer/island/components/IslandPill.js",

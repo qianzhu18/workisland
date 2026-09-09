@@ -1,16 +1,29 @@
 "use strict";
 
+const { interpolate } = require("../shared/locale.cjs");
+
+let currentLocale = "en";
+let englishMessages = require("../locales/en.json");
+let currentMessages = englishMessages;
+
 function formatFallback(template, params = {}) {
-  return String(template).replace(/\{([^}]+)\}/g, (match, key) => (
-    Object.prototype.hasOwnProperty.call(params, key) ? String(params[key]) : match
-  ));
+  return interpolate(template, params);
 }
 
-const i18n = new Proxy({}, {
-  get(_target, key) {
-    if (key === "then") return undefined;
-    return (params, fallback = "") => formatFallback(fallback, params);
-  }
-});
+function configureI18n({ locale = "en", messages = {}, fallbackMessages = {} } = {}) {
+  currentLocale = locale;
+  currentMessages = messages && typeof messages === "object" ? messages : {};
+  englishMessages = fallbackMessages && typeof fallbackMessages === "object" ? fallbackMessages : {};
+}
 
-module.exports = { i18n, formatFallback };
+function translate(key, params = {}) {
+  const template = currentMessages[key] ?? englishMessages[key] ?? key;
+  return interpolate(template, params);
+}
+
+const i18n = {
+  t: translate,
+  getLocale: () => currentLocale
+};
+
+module.exports = { configureI18n, i18n, formatFallback };

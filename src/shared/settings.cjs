@@ -37,6 +37,7 @@ const {
   DEFAULT_ISLAND_APPEARANCE,
   normalizeIslandAppearance
 } = require("./appearance.cjs");
+const { normalizeLanguagePreference } = require("./locale.cjs");
 const { OFFICIAL_TEMPLATE_ID, DEFAULT_APPEARANCE_TEMPLATE, normalizeAppearanceTemplate, normalizeAppearanceOverrides } = require("./template-defaults.cjs");
 
 const DEFAULT_SOUND_EVENTS = {
@@ -197,7 +198,7 @@ const DEFAULT_SETTINGS = {
       Object.entries(DEFAULT_SHORTCUTS.bindings).map(([id, binding]) => [id, { ...binding }])
     )
   },
-  locale: undefined,
+  languagePreference: "system",
   idleAutoCollapseMsecs: 7 * 24 * 60 * 60 * 1e3,
   panelMaxHeightPx: ISLAND_PANEL_MAX_HEIGHT_DEFAULT_PX,
   pillFirstRow: { ...DEFAULT_PILL_FIRST_ROW }
@@ -250,6 +251,9 @@ function migrateIslandDisplayMode(merged, parsed) {
 
 function mergeSettings(parsed = {}) {
   const merged = { ...createDefaultSettings(), ...parsed };
+
+  merged.languagePreference = normalizeLanguagePreference(parsed.languagePreference);
+  delete merged.locale;
 
   migrateIslandDisplayMode(merged, parsed);
   merged.islandDisplayModeVersion = DEFAULT_SETTINGS.islandDisplayModeVersion;

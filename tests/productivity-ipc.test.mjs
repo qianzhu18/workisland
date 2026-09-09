@@ -55,8 +55,9 @@ test("macOS native bridge provides stable Finder artwork and selectable quick sh
   assert.match(nativeSource, /canPerformWithItems:/);
   assert.match(nativeSource, /writeObjects:/);
   assert.match(nativeSource, /NSSharingServiceNameSendViaAirDrop/);
-  assert.match(handlers, /Notes: "备忘录"/);
-  assert.match(handlers, /Shortcuts: "快捷指令"/);
+  assert.match(handlers, /Notes: "share\.provider\.notes"/);
+  assert.match(handlers, /i18n\.t\(titleKey\)/);
+  assert.match(handlers, /Shortcuts: "share\.provider\.shortcuts"/);
   assert.match(handlers, /startDrag\(\{\s*files/);
   assert.doesNotMatch(handlers, /electron\.app\.getFileIcon/);
 });

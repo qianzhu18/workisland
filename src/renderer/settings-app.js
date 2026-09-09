@@ -1,5 +1,8 @@
 "use strict";
 
+import { getLanguagePreference, getLocale, initializeI18n, onLocaleChange, setLanguagePreference, t } from "./shared/i18n.js";
+import { localizedRuntimeText } from "./shared/localized-runtime-text.mjs";
+
 const api = window.settingsApi;
 
 const DEFAULT_PET_SPRITE = "codex:qianxue";
@@ -56,7 +59,7 @@ function featureSettingsRow(id, title, description, control, detailsBuilder) {
   const expanded = state.expandedSettingDetails.has(id);
   const card = el("div", `feature-settings-card${expanded ? " is-expanded" : ""}`);
   const actions = el("div", "feature-settings-actions");
-  const disclosure = button(expanded ? "收起" : "详细设置", () => {
+  const disclosure = button(expanded ? t("common.collapse") : t("settings.common.details"), () => {
     if (expanded) state.expandedSettingDetails.delete(id);
     else state.expandedSettingDetails.add(id);
     renderPage();
@@ -65,7 +68,7 @@ function featureSettingsRow(id, title, description, control, detailsBuilder) {
   disclosure.classList.add("feature-settings-disclosure");
   disclosure.setAttribute("aria-expanded", String(expanded));
   disclosure.setAttribute("aria-controls", detailId);
-  disclosure.setAttribute("aria-label", `${expanded ? "收起" : "展开"}${title}详细设置`);
+  disclosure.setAttribute("aria-label", t(expanded ? "settings.common.collapseDetails" : "settings.common.expandDetails", { title }));
   actions.append(control, disclosure);
   card.append(row(title, description, actions));
   if (expanded) {
@@ -82,7 +85,7 @@ function toggle(checked, onChange, label) {
   const input = document.createElement("input");
   input.type = "checkbox";
   input.checked = Boolean(checked);
-  input.setAttribute("aria-label", label || "切换设置");
+  input.setAttribute("aria-label", label || t("settings.common.toggle"));
   input.addEventListener("change", () => onChange(input.checked));
   wrap.append(input, el("span", "switch-track"));
   return wrap;
@@ -118,6 +121,15 @@ function section(title, subtitle) {
   return node;
 }
 
+function localizeStaticShell() {
+  document.querySelectorAll("[data-i18n]").forEach((node) => {
+    node.textContent = t(node.dataset.i18n);
+  });
+  document.querySelectorAll("[data-i18n-aria-label]").forEach((node) => {
+    node.setAttribute("aria-label", t(node.dataset.i18nAriaLabel));
+  });
+}
+
 async function save(partial) {
   const previous = state.settings;
   state.settings = { ...state.settings, ...partial };
@@ -128,7 +140,7 @@ async function save(partial) {
   } catch (error) {
     state.settings = previous;
     renderPage();
-    showToast(error?.message || "设置保存失败", true);
+    showToast(error?.message || t("settings.error.saveFailed"), true);
   }
 }
 
@@ -143,10 +155,10 @@ async function loadTelemetryStatus() {
 async function loadDisplays(showNotice = false) {
   try {
     state.displays = (await api.getDisplays()) || [];
-    if (showNotice) showToast(`已发现 ${state.displays.length} 台显示器`);
+    if (showNotice) showToast(t("settings.display.found", { count: state.displays.length }));
     if (state.activeTab === "general") renderPage();
   } catch (error) {
-    if (showNotice) showToast(error?.message || "无法读取显示器列表", true);
+    if (showNotice) showToast(error?.message || t("settings.display.readFailed"), true);
   }
 }
 
@@ -171,7 +183,7 @@ async function loadAgentControlStatus(render = false) {
       enabled: state.settings?.localAgentControlEnabled === true,
       client: null,
       activity: [],
-      error: error?.message || "无法读取 MCP 状态"
+      error: error?.message || t("settings.mcp.readFailed")
     };
   }
   if (render && state.activeTab === "mcp") renderPage();
@@ -182,9 +194,9 @@ async function copyAgentControlConfig() {
   if (!text) return;
   try {
     await navigator.clipboard.writeText(text);
-    showToast("配置已复制");
+    showToast(t("settings.mcp.configCopied"));
   } catch {
-    showToast("无法复制，请手动选择配置文本", true);
+    showToast(t("settings.mcp.copyFailed"), true);
   }
 }
 
@@ -197,7 +209,7 @@ async function loadTemplates() {
 }
 
 function requestQuitApp() {
-  const confirmed = window.confirm("退出 WorkIsland？\n\n这会关闭 Island、桌宠与后台监听。");
+  const confirmed = window.confirm(t("settings.app.quitConfirm"));
   if (confirmed) api.quitApp();
 }
 
@@ -207,7 +219,7 @@ function savedCommandsControl() {
     ? state.settings.terminalSavedCommands
     : [];
   const list = el("div", "saved-command-list");
-  if (commands.length === 0) list.append(el("span", "saved-command-empty", "尚未添加"));
+  if (commands.length === 0) list.append(el("span", "saved-command-empty", t("settings.terminal.commands.empty")));
   for (const command of commands) {
     const chip = el("div", "saved-command-chip");
     const copy = el("div", "saved-command-copy");
@@ -215,36 +227,36 @@ function savedCommandsControl() {
       el("span", "saved-command-name", command.name),
       el("code", "saved-command-value", command.command)
     );
-    const remove = button("删除", async () => {
+    const remove = button(t("common.delete"), async () => {
       await save({
         terminalSavedCommands: commands.filter(item => item.id !== command.id)
       });
       renderPage();
-      showToast(`已删除快捷命令「${command.name}」`);
+      showToast(t("settings.terminal.commands.removed", { name: command.name }));
     }, "danger");
     remove.classList.add("saved-command-remove");
-    remove.setAttribute("aria-label", `移除快捷命令 ${command.name}`);
+    remove.setAttribute("aria-label", t("settings.terminal.commands.removeLabel", { name: command.name }));
     chip.append(copy, remove);
     list.append(chip);
   }
   const editor = el("div", "terminal-command-editor");
   const nameInput = document.createElement("input");
   nameInput.className = "text-input";
-  nameInput.placeholder = "名称，例如：启动开发服务";
+  nameInput.placeholder = t("settings.terminal.commands.namePlaceholder");
   nameInput.value = state.commandDraft.name;
-  nameInput.setAttribute("aria-label", "快捷命令名称");
+  nameInput.setAttribute("aria-label", t("settings.terminal.commands.nameLabel"));
   nameInput.addEventListener("input", () => { state.commandDraft.name = nameInput.value; });
   const commandInput = document.createElement("input");
   commandInput.className = "text-input terminal-command-input";
-  commandInput.placeholder = "命令，例如：npm run dev";
+  commandInput.placeholder = t("settings.terminal.commands.commandPlaceholder");
   commandInput.value = state.commandDraft.command;
-  commandInput.setAttribute("aria-label", "快捷终端命令");
+  commandInput.setAttribute("aria-label", t("settings.terminal.commands.commandLabel"));
   commandInput.addEventListener("input", () => { state.commandDraft.command = commandInput.value; });
-  const add = button("添加命令", () => {
+  const add = button(t("settings.terminal.commands.add"), () => {
     const name = nameInput.value.trim();
     const command = commandInput.value.trim();
     if (!name || !command) {
-      showToast("请同时填写名称和命令", true);
+      showToast(t("settings.terminal.commands.incomplete"), true);
       return;
     }
     state.commandDraft = { name: "", command: "" };
@@ -264,24 +276,24 @@ async function selectTerminalDirectory() {
   const customDirectory = await api.selectDirectory?.();
   if (!customDirectory) return;
   await save({ terminalDefaultDirectory: "custom", terminalCustomDirectory: customDirectory });
-  showToast("终端默认目录已保存");
+  showToast(t("settings.terminal.directory.saved"));
 }
 
 function terminalDirectoryControl() {
   const wrap = el("div", "terminal-directory-control");
   const mode = select(
     state.settings.terminalDefaultDirectory,
-    [["agent-project", "当前 Agent 项目"], ["home", "用户目录"], ["custom", "自定义目录"]],
+    [["agent-project", t("settings.terminal.directory.agentProject")], ["home", t("settings.terminal.directory.home")], ["custom", t("settings.terminal.directory.custom")]],
     async value => {
       if (value === "custom") await selectTerminalDirectory();
       else await save({ terminalDefaultDirectory: value });
     },
-    "终端默认目录"
+    t("settings.terminal.directory.label")
   );
   wrap.append(mode);
   if (state.settings.terminalDefaultDirectory === "custom") {
-    wrap.append(el("span", "terminal-directory-path", state.settings.terminalCustomDirectory || "尚未选择"));
-    wrap.append(button("选择文件夹", selectTerminalDirectory));
+    wrap.append(el("span", "terminal-directory-path", state.settings.terminalCustomDirectory || t("settings.terminal.directory.notSelected")));
+    wrap.append(button(t("settings.terminal.directory.choose"), selectTerminalDirectory));
   }
   return wrap;
 }
@@ -290,138 +302,150 @@ function quickShareProviderControl() {
   const current = api.platform === "win32" ? "__system__" : (state.settings.shelfQuickShareProvider || "AirDrop");
   const providers = state.shareProviders.length
     ? state.shareProviders
-    : [{ id: current, title: current }, { id: "__system__", title: "系统分享菜单" }];
+    : [{ id: current, title: current }, { id: "__system__", title: t("settings.shelf.systemShare") }];
   return select(current, providers.map((provider) => [provider.id, provider.title]), async value => {
     await save({ shelfQuickShareProvider: value });
-    showToast(`默认快速分享已改为 ${providers.find((provider) => provider.id === value)?.title || value}`);
-  }, "默认快速分享");
+    showToast(t("settings.shelf.defaultShareChanged", { provider: providers.find((provider) => provider.id === value)?.title || value }));
+  }, t("settings.shelf.defaultShare"));
 }
 
 function generalPage() {
   const root = document.createDocumentFragment();
-  const workstation = section("工作台", "让灵动岛同时承载媒体控制和轻量性能监视。所有数据只在本机读取与展示。");
+  const language = section(t("settings.general.language.sectionTitle"), t("settings.general.language.description"));
+  language.append(row(
+    t("settings.general.language.title"),
+    t("settings.general.language.changeHint"),
+    select(getLanguagePreference(), [
+      ["system", t("settings.general.language.followSystem")],
+      ["zh-CN", t("settings.general.language.simplifiedChinese")],
+      ["en", t("settings.general.language.english")]
+    ], async (value) => {
+      await setLanguagePreference(value, api);
+    }, t("settings.general.language.title"))
+  ));
+  const workstation = section(t("settings.general.workstation.sectionTitle"), t("settings.general.workstation.description"));
   workstation.append(
     featureSettingsRow(
       "media",
-      "媒体播放",
-      `自动识别 ${api.platform === "win32" ? "Windows" : "macOS"} 当前播放的媒体；播放时显示封面、进度和控制按钮，没有媒体时恢复完整 Agent 视图。`,
-      toggle(state.settings.mediaEnabled, v => save({ mediaEnabled: v }), "媒体播放"),
+      t("settings.general.media.title"),
+      t("settings.general.media.description", { platform: api.platform === "win32" ? "Windows" : "macOS" }),
+      toggle(state.settings.mediaEnabled, v => save({ mediaEnabled: v }), t("settings.general.media.title")),
       () => [
-        row("切歌动态提醒", "歌曲变化时短暂显示新封面与曲名；Agent 审批、失败和完成提醒始终优先。", toggle(state.settings.mediaTrackChangeNotifications, v => save({ mediaTrackChangeNotifications: v }), "切歌动态提醒")),
-        row("在线歌词", "播放时把歌曲名、歌手、专辑和时长发送到 LRCLIB 查询歌词；默认关闭，歌词仅缓存在本机。", toggle(state.settings.lyricsEnabled, v => save({ lyricsEnabled: v }), "在线歌词")),
-        row("歌词缓存", "清除已缓存的歌词和未找到记录；不会影响音乐播放。", button("清除缓存", async () => {
+        row(t("settings.general.media.trackChange.title"), t("settings.general.media.trackChange.description"), toggle(state.settings.mediaTrackChangeNotifications, v => save({ mediaTrackChangeNotifications: v }), t("settings.general.media.trackChange.title"))),
+        row(t("settings.general.media.lyrics.title"), t("settings.general.media.lyrics.description"), toggle(state.settings.lyricsEnabled, v => save({ lyricsEnabled: v }), t("settings.general.media.lyrics.title"))),
+        row(t("settings.general.media.lyricsCache.title"), t("settings.general.media.lyricsCache.description"), button(t("settings.general.media.lyricsCache.clear"), async () => {
           await api.clearLyricsCache();
-          showToast("歌词缓存已清除");
+          showToast(t("settings.general.media.lyricsCache.cleared"));
         }))
       ]
     ),
     featureSettingsRow(
       "performance",
-      "性能监视器",
-      "在灵动岛右上角显示实时负载，悬停可查看 CPU、内存和高占用进程。",
-      toggle(state.settings.performanceEnabled, v => save({ performanceEnabled: v }), "性能监视器"),
-      () => [row("性能异常提醒", "CPU 或内存持续高占用时提醒。默认关闭，避免打扰专注。", toggle(state.settings.performanceAlertsEnabled, v => save({ performanceAlertsEnabled: v }), "性能异常提醒"))]
+      t("settings.general.performance.title"),
+      t("settings.general.performance.description"),
+      toggle(state.settings.performanceEnabled, v => save({ performanceEnabled: v }), t("settings.general.performance.title")),
+      () => [row(t("settings.general.performance.alerts.title"), t("settings.general.performance.alerts.description"), toggle(state.settings.performanceAlertsEnabled, v => save({ performanceAlertsEnabled: v }), t("settings.general.performance.alerts.title")))]
     )
   );
-  const productivity = section("效率工具", "选择要显示在灵动岛顶部的工具入口；Agent 需要审批、提问或报错时始终优先显示。");
+  const productivity = section(t("settings.general.productivity.sectionTitle"), t("settings.general.productivity.description"));
   productivity.append(
     featureSettingsRow(
       "shelf",
-      "文件架",
-      "把文件临时放在灵动岛中，方便跨应用拖放；只保存文件引用，移除不会删除原文件。",
-      toggle(state.settings.fileShelfEnabled, v => save({ fileShelfEnabled: v }), "文件架"),
-      () => [row("默认快速分享", "拖到文件架左侧时直接使用；也可以改为系统分享菜单，每次临时选择备忘录、微信等服务。", quickShareProviderControl())]
+      t("settings.general.shelf.title"),
+      t("settings.general.shelf.description"),
+      toggle(state.settings.fileShelfEnabled, v => save({ fileShelfEnabled: v }), t("settings.general.shelf.title")),
+      () => [row(t("settings.general.shelf.quickShare.title"), t("settings.general.shelf.quickShare.description"), quickShareProviderControl())]
     ),
     featureSettingsRow(
       "clipboard",
-      "剪贴板历史",
-      "记录复制的文字、链接、代码和图片，只保存在本机。为保护隐私，新安装默认关闭。",
+      t("settings.general.clipboard.title"),
+      t("settings.general.clipboard.description"),
       toggle(state.settings.clipboardHistoryEnabled, v => {
-        if (v && !window.confirm("开启剪贴板历史？\n\n复制的文字、链接、代码和图片会只保存在本机。你可以随时清空或关闭此功能。")) {
+        if (v && !window.confirm(t("settings.general.clipboard.enableConfirm"))) {
           renderPage();
           return;
         }
         save({ clipboardHistoryEnabled: v });
-      }, "剪贴板历史"),
+      }, t("settings.general.clipboard.title")),
       () => [
         row(
-          "历史条数",
-          "达到上限后自动移除最早且未收藏的记录。",
+          t("settings.general.clipboard.limit.title"),
+          t("settings.general.clipboard.limit.description"),
           select(
             state.settings.clipboardHistoryLimit,
-            [["25", "25 条"], ["50", "50 条"], ["100", "100 条"], ["250", "250 条"]],
+            [25, 50, 100, 250].map(count => [String(count), t("settings.count.items", { count })]),
             v => save({ clipboardHistoryLimit: Number(v) }),
-            "剪贴板历史条数"
+            t("settings.general.clipboard.limit.label")
           )
         ),
         row(
-          "自动清理",
-          "收藏内容不会被定时清理，也可以在灵动岛中手动清空。",
+          t("settings.general.clipboard.retention.title"),
+          t("settings.general.clipboard.retention.description"),
           select(
             state.settings.clipboardRetentionHours,
-            [["1", "1 小时"], ["8", "8 小时"], ["24", "24 小时"], ["168", "7 天"], ["0", "不自动清理"]],
+            [["1", t("settings.duration.hours", { count: 1 })], ["8", t("settings.duration.hours", { count: 8 })], ["24", t("settings.duration.hours", { count: 24 })], ["168", t("settings.duration.days", { count: 7 })], ["0", t("settings.general.clipboard.retention.never")]],
             v => save({ clipboardRetentionHours: Number(v) }),
-            "剪贴板自动清理"
+            t("settings.general.clipboard.retention.label")
           )
         )
       ]
     ),
     featureSettingsRow(
       "terminal",
-      "快捷终端",
-      "在灵动岛中运行快捷命令，也可以展开为可持续交互的完整终端。",
-      toggle(state.settings.terminalEnabled, v => save({ terminalEnabled: v }), "快捷终端"),
+      t("settings.general.terminal.title"),
+      t("settings.general.terminal.description"),
+      toggle(state.settings.terminalEnabled, v => save({ terminalEnabled: v }), t("settings.general.terminal.title")),
       () => [
-        row("默认目录", "优先使用当前 Agent 项目；也可以固定到用户目录或任意文件夹。", terminalDirectoryControl()),
-        row("快捷命令", "添加常用命令后，可以从灵动岛一键运行，例如 git status、npm test 或启动开发服务；示例不会自动添加，命令只保存在本机。", savedCommandsControl())
+        row(t("settings.general.terminal.directory.title"), t("settings.general.terminal.directory.description"), terminalDirectoryControl()),
+        row(t("settings.general.terminal.commands.title"), t("settings.general.terminal.commands.description"), savedCommandsControl())
       ]
     )
   );
-  const behavior = section("Island 行为", "控制灵动岛何时出现以及如何收起。");
+  const behavior = section(t("settings.general.behavior.sectionTitle"), t("settings.general.behavior.description"));
   behavior.append(
-    row("登录时启动", "开机登录后自动启动 WorkIsland。", toggle(state.settings.launchAtLogin, v => save({ launchAtLogin: v }), "登录时启动")),
-    row("悬停展开", "鼠标停留在 Island 上时展开面板。", toggle(state.settings.hoverToOpen, v => save({ hoverToOpen: v }), "悬停展开")),
-    row("失去焦点后隐藏", "失去窗口焦点后隐藏 Island；鼠标移到顶部热区可恢复。", toggle(state.settings.autoCollapseOnMouseLeave, v => save({ autoCollapseOnMouseLeave: v }), "失去焦点后隐藏")),
+    row(t("settings.general.behavior.launchAtLogin.title"), t("settings.general.behavior.launchAtLogin.description"), toggle(state.settings.launchAtLogin, v => save({ launchAtLogin: v }), t("settings.general.behavior.launchAtLogin.title"))),
+    row(t("settings.general.behavior.hover.title"), t("settings.general.behavior.hover.description"), toggle(state.settings.hoverToOpen, v => save({ hoverToOpen: v }), t("settings.general.behavior.hover.title"))),
+    row(t("settings.general.behavior.blur.title"), t("settings.general.behavior.blur.description"), toggle(state.settings.autoCollapseOnMouseLeave, v => save({ autoCollapseOnMouseLeave: v }), t("settings.general.behavior.blur.title"))),
     row(
-      "重新展开时",
-      "只决定先显示哪个页面；文件架、剪贴板和终端状态都会继续保留。",
+      t("settings.general.behavior.reopen.title"),
+      t("settings.general.behavior.reopen.description"),
       select(
         state.settings.toolboxReopenMode === "last" ? "last" : "agent",
-        [["agent", "智能体主页（默认）"], ["last", "上次使用的工具"]],
+        [["agent", t("settings.general.behavior.reopen.agent")], ["last", t("settings.general.behavior.reopen.last")]],
         v => save({ toolboxReopenMode: v }),
-        "重新展开时显示的页面"
+        t("settings.general.behavior.reopen.label")
       )
     ),
-    row("全屏时隐藏", "全屏应用位于当前屏幕时隐藏 Island。", toggle(state.settings.hideWhenFullscreen, v => save({ hideWhenFullscreen: v }), "全屏时隐藏")),
+    row(t("settings.general.behavior.fullscreen.title"), t("settings.general.behavior.fullscreen.description"), toggle(state.settings.hideWhenFullscreen, v => save({ hideWhenFullscreen: v }), t("settings.general.behavior.fullscreen.title"))),
     row(
-      "Island 显示模式",
-      "常驻（新装默认）：空闲时保留顶部紧凑胶囊，装完即可看到 WorkIsland；极简：空闲时隐藏，需要时通过顶部热区或快捷键唤回。两种模式下提交与完成都会短暂显示，审批、提问和错误持续显示。",
+      t("settings.general.behavior.displayMode.title"),
+      t("settings.general.behavior.displayMode.description"),
       select(
         state.settings.islandDisplayMode === "persistent" ? "persistent" : "minimal",
-        [["persistent", "常驻（默认）"], ["minimal", "极简"]],
+        [["persistent", t("settings.general.behavior.displayMode.persistent")], ["minimal", t("settings.general.behavior.displayMode.minimal")]],
         v => save({ islandDisplayMode: v }),
-        "Island 显示模式"
+        t("settings.general.behavior.displayMode.title")
       )
     ),
-    row("任务提交时展开", "提交新的 Agent 任务时显示 5 秒提醒。", toggle(state.settings.expandOnSessionSubmit, v => save({ expandOnSessionSubmit: v }), "提交时展开")),
-    row("需要操作时展开", "审批、提问或计划确认到来时自动展开。", toggle(state.settings.expandOnActionRequired, v => save({ expandOnActionRequired: v }), "操作时展开")),
-    row("任务完成时展开", "Agent 完成当前轮次时短暂展示结果。", toggle(state.settings.expandOnSessionComplete, v => save({ expandOnSessionComplete: v }), "完成时展开")),
+    row(t("settings.general.behavior.submit.title"), t("settings.general.behavior.submit.description"), toggle(state.settings.expandOnSessionSubmit, v => save({ expandOnSessionSubmit: v }), t("settings.general.behavior.submit.label"))),
+    row(t("settings.general.behavior.action.title"), t("settings.general.behavior.action.description"), toggle(state.settings.expandOnActionRequired, v => save({ expandOnActionRequired: v }), t("settings.general.behavior.action.label"))),
+    row(t("settings.general.behavior.complete.title"), t("settings.general.behavior.complete.description"), toggle(state.settings.expandOnSessionComplete, v => save({ expandOnSessionComplete: v }), t("settings.general.behavior.complete.label"))),
     row(
-      "完成通知停留时间",
-      "影响任务提交和完成通知；审批、提问和失败通知会保留到你处理为止。",
+      t("settings.general.behavior.completionDuration.title"),
+      t("settings.general.behavior.completionDuration.description"),
       select(
         state.settings.completionPopupDurationSec,
-        [["5", "5 秒"], ["10", "10 秒"], ["20", "20 秒"], ["30", "30 秒"]],
+        [["5", t("settings.duration.seconds", { count: 5 })], ["10", t("settings.duration.seconds", { count: 10 })], ["20", t("settings.duration.seconds", { count: 20 })], ["30", t("settings.duration.seconds", { count: 30 })]],
         v => save({ completionPopupDurationSec: Number(v) }),
-        "完成通知停留时间"
+        t("settings.general.behavior.completionDuration.title")
       )
     )
   );
 
-  const display = section("显示", "选择 Island 所在屏幕与信息密度。");
+  const display = section(t("settings.general.display.sectionTitle"), t("settings.general.display.description"));
   // "auto" tracks the screen containing the current frontmost app. A display
   // id is a pinned screen and is the reliable choice for an external monitor.
-  const displayOptions = [["primary", "主显示器", "主显示器"], ["auto", "当前活跃显示器", ""]];
+  const displayOptions = [["primary", t("settings.general.display.primary"), t("settings.general.display.primary")], ["auto", t("settings.general.display.active"), ""]];
   const displayPreference = state.settings.displayPreference === "active"
     ? "auto"
     : (state.settings.displayPreference || "primary");
@@ -430,8 +454,8 @@ function generalPage() {
     : state.displays.find(d => String(d.displayId) === String(displayPreference));
   if (state.displays && state.displays.length > 0) {
     for (const d of state.displays) {
-      const label = d.label || `显示器 ${d.displayId}`;
-      const tag = d.isMain ? "内置主屏" : "外接显示器";
+      const label = d.label || t("settings.general.display.named", { id: d.displayId });
+      const tag = d.isMain ? t("settings.general.display.builtin") : t("settings.general.display.external");
       displayOptions.push([String(d.displayId), `${label} · ${tag}`, label]);
     }
   }
@@ -440,7 +464,7 @@ function generalPage() {
   if (displayPreference !== "primary" && displayPreference !== "auto" && !currentDisplay) {
     displayOptions.push([
       String(displayPreference),
-      `${state.settings.displayPreferenceLabel || "已保存的显示器"} · 当前不可用`,
+      t("settings.general.display.unavailableOption", { display: state.settings.displayPreferenceLabel || t("settings.general.display.saved") }),
       state.settings.displayPreferenceLabel || ""
     ]);
   }
@@ -450,26 +474,26 @@ function generalPage() {
       displayPreference: v,
       displayPreferenceLabel: selected?.[2] || ""
     });
-  }, "显示器");
+  }, t("settings.general.display.label"));
   const displayControl = el("div", "inline-controls");
-  displayControl.append(displaySelect, button("刷新", () => loadDisplays(true)));
+  displayControl.append(displaySelect, button(t("common.refresh"), () => loadDisplays(true)));
   const displayDescription = displayPreference === "primary"
-    ? "使用 macOS 主显示器"
+    ? t("settings.general.display.usingPrimary")
     : currentDisplay
-    ? `${currentDisplay.label || "已连接显示器"} · ${currentDisplay.isMain ? "内置主屏" : "外接显示器"}`
+    ? t("settings.general.display.connected", { display: currentDisplay.label || t("settings.general.display.connectedFallback"), type: currentDisplay.isMain ? t("settings.general.display.builtin") : t("settings.general.display.external") })
     : displayPreference === "auto"
-      ? "跟随当前正在使用的应用所在显示器"
-      : "当前选择的显示器未连接，将暂时使用主显示器";
+      ? t("settings.general.display.followActive")
+      : t("settings.general.display.fallbackPrimary");
   display.append(
-    row("显示器", `${displayDescription}。外接屏插入后点击“刷新”即可选择。`, displayControl),
-    row("显示额度信息", "在面板顶部展示本地可读取的额度数据。", toggle(state.settings.showUsageQuota, v => save({ showUsageQuota: v }), "显示额度")),
-    row("触感反馈", "执行审批等关键操作时提供轻微触感。", toggle(state.settings.hapticFeedback, v => save({ hapticFeedback: v }), "触感反馈"))
+    row(t("settings.general.display.label"), t("settings.general.display.selectionHint", { display: displayDescription }), displayControl),
+    row(t("settings.general.display.quota.title"), t("settings.general.display.quota.description"), toggle(state.settings.showUsageQuota, v => save({ showUsageQuota: v }), t("settings.general.display.quota.label"))),
+    row(t("settings.general.display.haptics.title"), t("settings.general.display.haptics.description"), toggle(state.settings.hapticFeedback, v => save({ hapticFeedback: v }), t("settings.general.display.haptics.title")))
   );
-  const lifecycle = section("应用", "关闭 WorkIsland 会同时关闭 Island、桌宠与后台监听。");
+  const lifecycle = section(t("settings.general.app.sectionTitle"), t("settings.general.app.description"));
   lifecycle.append(
-    row("退出 WorkIsland", "需要重新打开应用后才会继续监测本机 Agent 状态。", button("退出应用", requestQuitApp, "danger"))
+    row(t("settings.general.app.quitTitle"), t("settings.general.app.quitDescription"), button(t("settings.general.app.quitAction"), requestQuitApp, "danger"))
   );
-  root.append(workstation, productivity, behavior, display, lifecycle);
+  root.append(language, workstation, productivity, behavior, display, lifecycle);
   return root;
 }
 
@@ -481,10 +505,10 @@ function statusBadge(report) {
   const diagnosis = report?.diagnosis;
   const repairNeeded = diagnosis?.status === "hook_missing" || diagnosis?.status === "hook_stale" || diagnosis?.status === "hook_invalid";
   const text = repairNeeded
-    ? "待修复"
+    ? t("settings.agents.status.repair")
     : verifyOnRealEvent && installed
-    ? (verified ? "已连接" : "配置已写入")
-    : installed ? "已连接" : unavailable ? "未检测" : "未连接";
+    ? (verified ? t("settings.agents.status.connected") : t("settings.agents.status.configured"))
+    : installed ? t("settings.agents.status.connected") : unavailable ? t("settings.agents.status.notDetected") : t("settings.agents.status.disconnected");
   const statusClass = repairNeeded
     ? "repair"
     : verifyOnRealEvent && installed && !verified
@@ -495,10 +519,10 @@ function statusBadge(report) {
 
 function doctorSummaryLine(summary) {
   if (!summary || !summary.total) return "";
-  const parts = [`${summary.total} 个 Agent`, `${summary.ok} 正常`];
-  if (summary.repairable) parts.push(`${summary.repairable} 待修复`);
-  if (summary.notInstalled) parts.push(`${summary.notInstalled} 未安装`);
-  if (summary.blocked) parts.push(`${summary.blocked} 需关注`);
+  const parts = [t("settings.agents.summary.total", { count: summary.total }), t("settings.agents.summary.ok", { count: summary.ok })];
+  if (summary.repairable) parts.push(t("settings.agents.summary.repair", { count: summary.repairable }));
+  if (summary.notInstalled) parts.push(t("settings.agents.summary.notInstalled", { count: summary.notInstalled }));
+  if (summary.blocked) parts.push(t("settings.agents.summary.attention", { count: summary.blocked }));
   return parts.join(" · ");
 }
 
@@ -506,7 +530,7 @@ function buildComplaintDiagnostics(appVersion) {
   const platform = navigator.userAgentData?.platform || navigator.platform || "unknown";
   const lines = [
     "---",
-    "由 WorkIsland 设置页「一键吐槽」自动生成",
+    t("settings.feedback.diagnostics.generated"),
     `WorkIsland: ${appVersion || "unknown"} (${platform})`
   ];
   try {
@@ -523,19 +547,19 @@ function openComplaintBox() {
   const overlay = el("div", "complaint-overlay");
   const card = el("div", "complaint-card");
   card.append(
-    el("h2", "complaint-title", "一键吐槽"),
-    el("p", "complaint-hint", "像跟朋友吐槽一样写就行：哪里不对、想要什么，一句话也可以。截图在打开的 GitHub 页面直接粘贴即可；版本与 Agent 状态会自动附带，不用你填。"),
-    el("p", "complaint-hint", "内容只用于反馈，不会自动上传任何会话数据。")
+    el("h2", "complaint-title", t("settings.feedback.title")),
+    el("p", "complaint-hint", t("settings.feedback.hint")),
+    el("p", "complaint-hint", t("settings.feedback.privacy"))
   );
   const textarea = document.createElement("textarea");
   textarea.className = "complaint-input";
   textarea.rows = 6;
-  textarea.placeholder = "例如：点了右上角的终端图标没反应，还弹出了别的东西。";
+  textarea.placeholder = t("settings.feedback.placeholder");
   const statusLine = el("p", "complaint-status", "");
-  const sendButton = button("送去 GitHub", async () => {
+  const sendButton = button(t("settings.feedback.send"), async () => {
     const text = textarea.value.trim();
     if (!text) {
-      statusLine.textContent = "先写一句吐槽再发送。";
+      statusLine.textContent = t("settings.feedback.empty");
       return;
     }
     sendButton.disabled = true;
@@ -545,31 +569,31 @@ function openComplaintBox() {
       try { await navigator.clipboard.writeText(fullBody); } catch { /* 剪贴板失败不影响打开 */ }
       const params = new URLSearchParams({
         template: GITHUB_ISSUE_TEMPLATE,
-        title: text.split("\n")[0].slice(0, 60) || "用户反馈",
+        title: text.split("\n")[0].slice(0, 60) || t("settings.feedback.issueTitle"),
         version: `${appVersion || "unknown"} (${navigator.userAgentData?.platform || navigator.platform || "unknown"})`,
         area: "Other",
         reproduction: text.slice(0, COMPLAINT_BODY_LIMIT),
-        expected: "按用户描述正常工作。",
+        expected: t("settings.feedback.expected"),
         actual: fullBody.slice(0, COMPLAINT_BODY_LIMIT + 600),
-        frequency: "未填写（应用内一键吐槽提交）"
+        frequency: t("settings.feedback.frequency")
       });
       api.openExternal(`${GITHUB_ISSUE_NEW_URL}?${params}`);
-      statusLine.textContent = "已在浏览器打开预填好的 issue，点一次 Submit 即可；内容较长时请把剪贴板里的原文粘贴进正文。";
+      statusLine.textContent = t("settings.feedback.opened");
       setTimeout(() => overlay.remove(), 8000);
     } finally {
       sendButton.disabled = false;
     }
   }, "primary");
-  const copyButton = button("复制诊断信息", async () => {
+  const copyButton = button(t("settings.feedback.copyDiagnostics"), async () => {
     const appVersion = await api.getAppVersion().catch(() => "");
     try {
       await navigator.clipboard.writeText(buildComplaintDiagnostics(appVersion));
-      statusLine.textContent = "诊断信息已复制，可直接粘贴给开发者。";
+      statusLine.textContent = t("settings.feedback.diagnosticsCopied");
     } catch {
-      statusLine.textContent = "复制失败，请手动截图本页 Agent 状态。";
+      statusLine.textContent = t("settings.feedback.copyFailed");
     }
   });
-  const cancelButton = button("取消", () => overlay.remove());
+  const cancelButton = button(t("common.cancel"), () => overlay.remove());
   const actions = el("div", "complaint-actions");
   actions.append(copyButton, cancelButton, sendButton);
   card.append(textarea, statusLine, actions);
@@ -598,10 +622,10 @@ async function setAgentInstalled(agentId, install, actionButton) {
   if (state.busy.has(agentId)) return;
   state.busy.add(agentId);
   actionButton.disabled = true;
-  actionButton.textContent = install ? "连接中…" : "移除中…";
+  actionButton.textContent = install ? t("settings.agents.connecting") : t("settings.agents.removing");
   try {
     const result = install ? await api.installHook(agentId) : await api.uninstallHook(agentId);
-    if (result?.success === false) throw new Error(result.error || "安装失败");
+    if (result?.success === false) throw new Error(result.error || t("settings.agents.installFailed"));
     const toggles = { ...(state.settings.hookToggles || {}), [agentId]: install };
     await save({ hookToggles: toggles });
     await refreshAgents();
@@ -616,11 +640,11 @@ async function repairAgentHook(agentId, actionButton) {
   if (state.busy.has(agentId)) return;
   state.busy.add(agentId);
   actionButton.disabled = true;
-  actionButton.textContent = "修复中…";
+  actionButton.textContent = t("settings.agents.repairing");
   try {
     const result = await api.repairHook(agentId);
-    if (result?.success === false) throw new Error(result.error || "修复失败");
-    if (result?.resolved === false) showToast(`${agentId} 修复后仍有异常，请查看卡片原因`, true);
+    if (result?.success === false) throw new Error(result.error || t("settings.agents.repairFailed"));
+    if (result?.resolved === false) showToast(t("settings.agents.repairUnresolved", { agent: agentId }), true);
     await refreshAgents();
   } catch (error) {
     showToast(error.message || String(error), true);
@@ -634,14 +658,14 @@ async function repairAllAgentHooks(actionButton) {
   state.busy.add("doctor-repair-all");
   actionButton.disabled = true;
   const originalText = actionButton.textContent;
-  actionButton.textContent = "修复中…";
+  actionButton.textContent = t("settings.agents.repairing");
   try {
     const results = await api.repairAllHooks();
     const ok = (results || []).filter(r => r?.success).length;
     const failed = (results || []).length - ok;
-    if (!(results || []).length) showToast("没有需要修复的 Agent");
-    else if (failed) showToast(`已修复 ${ok} 个，${failed} 个失败（见卡片原因）`, true);
-    else showToast(`已修复 ${ok} 个 Agent 的 Hook`);
+    if (!(results || []).length) showToast(t("settings.agents.nothingToRepair"));
+    else if (failed) showToast(t("settings.agents.repairAllPartial", { ok, failed }), true);
+    else showToast(t("settings.agents.repairAllSuccess", { count: ok }));
     await refreshAgents();
   } catch (error) {
     showToast(error.message || String(error), true);
@@ -654,15 +678,24 @@ async function repairAllAgentHooks(actionButton) {
 
 function capabilitySummary(capabilities = {}) {
   const items = [];
-  if (capabilities.liveStatus) items.push("实时状态");
-  if (capabilities.completion === "native") items.push("完成提醒");
-  else if (capabilities.completion === "inferred") items.push("推断完成");
-  if (capabilities.approval === "bridge") items.push("Island 审批");
-  else if (capabilities.approval === "observe") items.push("审批观察");
-  if (capabilities.jump === "session") items.push("会话回源");
-  else if (capabilities.jump === "workspace") items.push("工作区回源");
-  else if (capabilities.jump === "app") items.push("打开应用");
+  if (capabilities.liveStatus) items.push(t("settings.agents.capability.liveStatus"));
+  if (capabilities.completion === "native") items.push(t("settings.agents.capability.completion"));
+  else if (capabilities.completion === "inferred") items.push(t("settings.agents.capability.inferredCompletion"));
+  if (capabilities.approval === "bridge") items.push(t("settings.agents.capability.islandApproval"));
+  else if (capabilities.approval === "observe") items.push(t("settings.agents.capability.observeApproval"));
+  if (capabilities.jump === "session") items.push(t("settings.agents.capability.openSession"));
+  else if (capabilities.jump === "workspace") items.push(t("settings.agents.capability.openWorkspace"));
+  else if (capabilities.jump === "app") items.push(t("settings.agents.capability.openApp"));
   return items.join(" · ");
+}
+
+function agentDetailFallback(report, repairNeeded, verifyOnRealEvent) {
+  if (repairNeeded) return t("settings.agents.detail.repair");
+  if (verifyOnRealEvent && report.installed && report.connectionState !== "verified") return t("settings.agents.awaitingEvent");
+  if (report.available === false && !report.installed) return t("settings.agents.notDetectedHint", { agent: report.label });
+  if (report.connectionState === "verified") return t("settings.agents.detail.connected");
+  if (report.issues?.length) return t("settings.agents.detail.attention");
+  return t("settings.agents.detail.available");
 }
 
 function agentCard(report) {
@@ -682,34 +715,35 @@ function agentCard(report) {
   const diagnosis = report?.diagnosis;
   const repairNeeded = diagnosis?.status === "hook_missing" || diagnosis?.status === "hook_stale" || diagnosis?.status === "hook_invalid";
   const verifyOnRealEvent = VERIFY_ON_REAL_EVENT_AGENT_IDS.has(agentId);
-  const detail = repairNeeded && diagnosis.reasons?.length
+  const rawDetail = repairNeeded && diagnosis.reasons?.length
     ? diagnosis.reasons[0]
     : verifyOnRealEvent && report.installed && report.connectionState !== "verified"
-    ? (issues[0] || "连接配置已写入；请运行一次实际任务。收到事件后才会显示“已连接”。")
+    ? (issues[0] || t("settings.agents.awaitingEvent"))
     : report.available === false && !report.installed
-    ? `未检测到 ${label}，安装后即可连接。`
+    ? t("settings.agents.notDetectedHint", { agent: label })
     : issues.length ? issues[0] : report.description;
+  const detail = localizedRuntimeText(getLocale(), rawDetail, agentDetailFallback(report, repairNeeded, verifyOnRealEvent));
   content.append(el("div", "agent-detail", detail));
   const capabilities = capabilitySummary(report.capabilities);
   if (capabilities) content.append(el("div", "agent-detail", capabilities));
 
   if (report.capabilities?.approvalConfigurable) {
-    const approval = select(state.settings.approvalModes?.[agentId] || "bridge", [["bridge", "Island 审批"], ["terminalNative", "终端审批"]], async value => {
+    const approval = select(state.settings.approvalModes?.[agentId] || "bridge", [["bridge", t("settings.agents.approval.island")], ["terminalNative", t("settings.agents.approval.terminal")]], async value => {
       await save({ approvalModes: { ...(state.settings.approvalModes || {}), [agentId]: value } });
-      showToast("审批方式已保存，Hook 将自动刷新");
-    }, `${label} 审批方式`);
+      showToast(t("settings.agents.approval.saved"));
+    }, t("settings.agents.approval.label", { agent: label }));
     approval.classList.add("compact-select");
     content.append(approval);
   }
 
   const installed = Boolean(report?.installed);
-  const action = button(installed ? "移除" : "连接", () => setAgentInstalled(agentId, !installed, action), installed ? "secondary" : "primary");
+  const action = button(installed ? t("settings.agents.remove") : t("settings.agents.connect"), () => setAgentInstalled(agentId, !installed, action), installed ? "secondary" : "primary");
   if (report.available === false && !installed) {
     action.disabled = true;
-    action.textContent = "未安装";
+    action.textContent = t("settings.agents.notInstalled");
   }
   if (repairNeeded) {
-    const repair = button("修复", () => repairAgentHook(agentId, repair), "primary");
+    const repair = button(t("settings.agents.repair"), () => repairAgentHook(agentId, repair), "primary");
     card.append(iconFrame, content, repair, action);
   } else {
     card.append(iconFrame, content, action);
@@ -728,8 +762,8 @@ async function loadRemoteHosts(render = false) {
 
 function copyText(text, label) {
   navigator.clipboard?.writeText(text).then(
-    () => showToast(`${label}已复制`),
-    () => showToast("复制失败，请手动选择复制", true)
+    () => showToast(t("settings.copy.copied", { label })),
+    () => showToast(t("settings.copy.failed"), true)
   );
 }
 
@@ -737,35 +771,35 @@ function copyText(text, label) {
 function remoteHostsSection() {
   const remote = state.remoteHosts;
   const cfg = state.settings.remoteAccess || { enabled: false, port: 7878 };
-  const node = section("远程主机", "远程机器上的 Agent 状态实时上岛。observe-only：只回传运行状态，不回传提示词、代码或路径；远程接入需要 Mac 开启「远程登录」并在远程机器上按 docs/REMOTE_ONBOARDING.md 建立隧道。");
-  node.append(row("启用远程接入", "开启后 WorkIsland 在本机 127.0.0.1 只新增一个 observe-only 监听端口。", toggle(remote?.enabled ?? cfg.enabled, async v => {
+  const node = section(t("settings.remote.sectionTitle"), t("settings.remote.description"));
+  node.append(row(t("settings.remote.enable.title"), t("settings.remote.enable.description"), toggle(remote?.enabled ?? cfg.enabled, async v => {
     await save({ remoteAccess: { ...cfg, enabled: v } });
     await loadRemoteHosts();
     renderPage();
-  }, "启用远程接入")));
+  }, t("settings.remote.enable.title"))));
   if (!remote) {
-    node.append(el("div", "setting-description", "远程主机状态不可用。"));
+    node.append(el("div", "setting-description", t("settings.remote.unavailable")));
     return node;
   }
   if (remote.enabled && !remote.listener?.running) {
-    node.append(el("div", "doctor-summary", remote.listener?.lastError === "PORT_IN_USE" ? `监听失败：端口 ${remote.listener?.port ?? cfg.port} 已被占用，请更换端口后重试。` : "监听未运行，请尝试重新开关远程接入。"));
+    node.append(el("div", "doctor-summary", remote.listener?.lastError === "PORT_IN_USE" ? t("settings.remote.portInUse", { port: remote.listener?.port ?? cfg.port }) : t("settings.remote.notRunning")));
   }
   const tokenArea = el("div", "inline-controls");
-  tokenArea.append(button("生成配对令牌", async () => {
+  tokenArea.append(button(t("settings.remote.generateToken"), async () => {
     try {
       state.remotePairing = await api.createRemotePairingToken();
       renderPage();
     } catch (error) {
-      showToast(error?.message || "生成令牌失败", true);
+      showToast(error?.message || t("settings.remote.tokenFailed"), true);
     }
   }, "primary"));
   if (state.remotePairing?.token) {
     const expires = new Date(state.remotePairing.expiresAt).toLocaleTimeString();
     const tokenBox = el("code", "remote-token-box", state.remotePairing.token);
-    tokenArea.append(tokenBox, button("复制", () => copyText(state.remotePairing.token, "令牌")));
-    node.append(el("div", "setting-description", `令牌 ${state.remotePairing.token.slice(0, 4)}… 只显示本次，10 分钟内有效且只能用一次（至 ${expires}）。把它提供给远程机器上的 AI 助手完成配对。`));
+    tokenArea.append(tokenBox, button(t("common.copy"), () => copyText(state.remotePairing.token, t("settings.remote.token"))));
+    node.append(el("div", "setting-description", t("settings.remote.tokenHint", { prefix: state.remotePairing.token.slice(0, 4), expires })));
   }
-  node.append(row("配对令牌", "远程机器首次接入时使用；每个令牌只能绑定一台主机一次。", tokenArea));
+  node.append(row(t("settings.remote.pairing.title"), t("settings.remote.pairing.description"), tokenArea));
   const list = el("div", "agent-list");
   for (const host of remote.hosts || []) {
     const pairedAt = host.pairedAt ? new Date(host.pairedAt).toLocaleString() : "";
@@ -773,24 +807,24 @@ function remoteHostsSection() {
     const card = el("div", "remote-host-card");
     const content = el("div", "remote-host-copy");
     content.append(el("div", "remote-host-name", host.displayName));
-    content.append(el("div", "remote-host-detail", `${online ? "已连接" : "未连接"} · 配对于 ${pairedAt}`));
-    const revoke = button("撤销", async () => {
-      if (!window.confirm(`撤销 ${host.displayName} 后，该主机的会话密钥立即失效；重新接入需要生成新令牌。`)) return;
+    content.append(el("div", "remote-host-detail", t("settings.remote.hostDetail", { status: online ? t("settings.agents.status.connected") : t("settings.agents.status.disconnected"), time: pairedAt })));
+    const revoke = button(t("settings.remote.revoke"), async () => {
+      if (!window.confirm(t("settings.remote.revokeConfirm", { host: host.displayName }))) return;
       try {
         await api.revokeRemoteHost(host.hostId);
         state.remotePairing = null;
         await loadRemoteHosts();
         renderPage();
-        showToast("主机已撤销");
+        showToast(t("settings.remote.revoked"));
       } catch (error) {
-        showToast(error?.message || "撤销失败", true);
+        showToast(error?.message || t("settings.remote.revokeFailed"), true);
       }
     }, "danger");
     card.append(content, revoke);
     list.append(card);
   }
   if ((remote.hosts || []).length === 0) {
-    list.append(el("div", "setting-description", "还没有接入的远程主机。生成配对令牌后，把 docs/REMOTE_ONBOARDING.md 交给远程机器上的 AI 助手即可。"));
+    list.append(el("div", "setting-description", t("settings.remote.empty")));
   }
   node.append(list);
   return node;
@@ -798,13 +832,13 @@ function remoteHostsSection() {
 
 function agentsPage() {
   const root = document.createDocumentFragment();
-  const hooks = section("本地 Agent", "连接只会修改对应 Agent 的本地 Hook 配置，不依赖云端服务。一键检测会扫描全部 Agent 的 Hook 配置并给出修复建议。");
+  const hooks = section(t("settings.agents.sectionTitle"), t("settings.agents.description"));
   const summaryText = doctorSummaryLine(state.doctorSummary);
   if (summaryText) {
     const summary = el("div", "doctor-summary", summaryText);
     summary.setAttribute("role", "status");
     if (state.doctorSummary?.repairable > 0) {
-      const repairAll = button("一键修复全部", () => repairAllAgentHooks(repairAll), "primary");
+      const repairAll = button(t("settings.agents.repairAll"), () => repairAllAgentHooks(repairAll), "primary");
       summary.append(repairAll);
     }
     hooks.append(summary);
@@ -814,9 +848,9 @@ function agentsPage() {
   hooks.append(grid);
   const tools = el("div", "section-actions");
   tools.append(
-    button("一键检测", () => refreshAgents().catch(error => showToast(error.message, true))),
-    button("移除全部 Hook", async () => {
-      if (!window.confirm("确定移除全部 Agent 的 Hook 配置吗？\n移除后所有 Agent 将停止向 WorkIsland 上报状态，需要逐个重新连接。")) return;
+    button(t("settings.agents.checkAll"), () => refreshAgents().catch(error => showToast(error.message, true))),
+    button(t("settings.agents.removeAll"), async () => {
+      if (!window.confirm(t("settings.agents.removeAllConfirm"))) return;
       await api.uninstallAllHooks();
       await refreshAgents();
     }, "danger")
@@ -831,17 +865,17 @@ async function changeAgentControlClient(connect, action) {
   if (state.busy.has("agent-control-codex")) return;
   state.busy.add("agent-control-codex");
   action.disabled = true;
-  action.textContent = connect ? "连接中…" : "移除中…";
+  action.textContent = connect ? t("settings.agents.connecting") : t("settings.agents.removing");
   try {
     if (connect) await api.connectAgentControlClient("codex");
     else await api.disconnectAgentControlClient("codex");
     await loadAgentControlStatus();
     renderPage();
-    showToast(connect ? "Codex 配置已写入；重开会话后即可调用" : "已移除 WorkIsland MCP 配置");
+    showToast(t(connect ? "settings.mcp.client.connectedToast" : "settings.mcp.client.removedToast"));
   } catch (error) {
-    state.agentControl = { ...(state.agentControl || {}), error: error?.message || "配置失败" };
+    state.agentControl = { ...(state.agentControl || {}), error: error?.message || t("settings.mcp.configureFailed") };
     renderPage();
-    showToast(error?.message || "配置失败", true);
+    showToast(error?.message || t("settings.mcp.configureFailed"), true);
   } finally {
     state.busy.delete("agent-control-codex");
   }
@@ -855,80 +889,80 @@ function mcpPage() {
     activity: []
   };
   const enabled = state.settings.localAgentControlEnabled === true;
-  const authorization = section("MCP 服务", "默认关闭。开启后，已配置的本机 MCP 客户端可以调用 WorkIsland 明确开放的安全工具。");
+  const authorization = section(t("settings.mcp.service.sectionTitle"), t("settings.mcp.service.description"));
   authorization.append(row(
-    "启用 WorkIsland MCP",
-    "这是总开关；仅开启它不会自动连接任何智能体。关闭后，已经配置的客户端也会立即被拒绝。",
+    t("settings.mcp.service.enable.title"),
+    t("settings.mcp.service.enable.description"),
     toggle(enabled, async value => {
       await save({ localAgentControlEnabled: value });
       await loadAgentControlStatus();
       renderPage();
-    }, "启用 WorkIsland MCP")
+    }, t("settings.mcp.service.enable.title"))
   ));
 
-  const clientSection = section("连接智能体", "连接会备份 Codex 配置，添加 WorkIsland 条目，并开启当前 Codex 版本加载本机 MCP 所需的兼容开关。配置成功不等于已经调用成功。");
+  const clientSection = section(t("settings.mcp.client.sectionTitle"), t("settings.mcp.client.description"));
   const client = control.client;
   if (client) {
     const card = el("div", "agent-control-client");
     const copy = el("div", "agent-content");
     const heading = el("div", "agent-heading");
     const stateText = client.connectionState === "connected"
-      ? "已连接"
+      ? t("settings.mcp.client.connected")
       : client.connectionState === "configured"
-        ? "已配置，等待首次调用"
-        : client.installed ? "已检测，尚未配置" : "未检测到客户端";
+        ? t("settings.mcp.client.configured")
+        : client.installed ? t("settings.mcp.client.detected") : t("settings.mcp.client.notDetected");
     const badgeClass = client.connectionState === "connected" ? "installed" : client.configured ? "pending" : "missing";
     heading.append(el("strong", "", client.label || "Codex"), el("span", `status ${badgeClass}`, stateText));
     copy.append(
       heading,
       el("div", "agent-detail", client.configured
-        ? `配置位置：${client.configPath}`
-        : "开启总开关后点击“连接 Codex”；已打开的 Codex 会话需要重开一次才能发现新工具。")
+        ? t("settings.mcp.client.configPath", { path: client.configPath })
+        : t("settings.mcp.client.connectHint"))
     );
-    const action = button(client.configured ? "移除" : "连接 Codex", () => changeAgentControlClient(!client.configured, action), client.configured ? "secondary" : "primary");
+    const action = button(client.configured ? t("settings.agents.remove") : t("settings.mcp.client.connectCodex"), () => changeAgentControlClient(!client.configured, action), client.configured ? "secondary" : "primary");
     action.disabled = state.busy.has("agent-control-codex") || (!client.configured && (!enabled || !client.installed));
     card.append(copy, action);
     clientSection.append(card);
   } else {
-    clientSection.append(el("div", "agent-control-empty", "正在检测 Codex…"));
+    clientSection.append(el("div", "agent-control-empty", t("settings.mcp.client.detecting")));
   }
 
-  const examples = section("你可以这样问", "连接后，智能体可以先理解 WorkIsland 的功能和当前观察到的状态，再回答你的问题。");
+  const examples = section(t("settings.mcp.examples.sectionTitle"), t("settings.mcp.examples.description"));
   const exampleList = el("div", "mcp-example-list");
   for (const question of [
-    "灵动岛有哪些扩展功能？",
-    "现在有哪些智能体正在运行？",
-    "有没有智能体在等我处理？",
-    "为什么性能监控没有显示进程详情？",
-    "WorkIsland 支持哪些智能体，哪些已经连接成功？",
-    "文件架和剪贴板历史有什么区别？"
+    t("settings.mcp.examples.features"),
+    t("settings.mcp.examples.running"),
+    t("settings.mcp.examples.attention"),
+    t("settings.mcp.examples.performance"),
+    t("settings.mcp.examples.supported"),
+    t("settings.mcp.examples.tools")
   ]) {
     const example = button(question, async () => {
       await navigator.clipboard.writeText(question);
-      showToast("问题已复制，可以发给你的智能体");
+      showToast(t("settings.mcp.examples.copied"));
     }, "mcp-example");
-    example.setAttribute("aria-label", `复制问题：${question}`);
+    example.setAttribute("aria-label", t("settings.mcp.examples.copyLabel", { question }));
     exampleList.append(example);
   }
   examples.append(exampleList);
 
-  const privacy = section("权限与隐私", "MCP 只开放为 WorkIsland 专门设计的工具，不把本机进程或原始应用数据直接交给智能体。");
+  const privacy = section(t("settings.mcp.privacy.sectionTitle"), t("settings.mcp.privacy.description"));
   privacy.append(
-    row("可以读取", "产品功能说明、公开设置，以及 WorkIsland 当前观察到的智能体状态和集成状态。", el("span", "status installed", "只读")),
-    row("不会读取", "提示词、回答内容、文件路径、进程 ID、终端内容或系统中的完整进程列表。", el("span", "status installed", "受保护")),
-    row("修改设置", "只有你明确要求时才会执行；修改会留下最近活动，并提供撤销入口。", el("span", "status pending", "需确认意图"))
+    row(t("settings.mcp.privacy.read.title"), t("settings.mcp.privacy.read.description"), el("span", "status installed", t("settings.mcp.privacy.read.badge"))),
+    row(t("settings.mcp.privacy.protected.title"), t("settings.mcp.privacy.protected.description"), el("span", "status installed", t("settings.mcp.privacy.protected.badge"))),
+    row(t("settings.mcp.privacy.write.title"), t("settings.mcp.privacy.write.description"), el("span", "status pending", t("settings.mcp.privacy.write.badge")))
   );
 
-  const recent = section("最近活动", "只记录客户端、工具名、允许的设置键与结果；不保存提示词、会话内容、路径或终端信息。");
+  const recent = section(t("settings.mcp.activity.sectionTitle"), t("settings.mcp.activity.description"));
   const activity = el("div", "agent-control-activity");
   if (!Array.isArray(control.activity) || control.activity.length === 0) {
-    activity.append(el("div", "agent-control-empty", "还没有 MCP 调用。首次真实调用后，这里会出现记录并显示“已连接”。"));
+    activity.append(el("div", "agent-control-empty", t("settings.mcp.activity.empty")));
   } else {
     for (const item of control.activity) {
       const entry = el("div", "agent-control-activity-row");
-      const title = `${item.client || "本机客户端"} · ${item.tool || "调用"}`;
-      const details = [item.result === "success" ? "成功" : item.errorCode || "已拒绝"];
-      if (Array.isArray(item.keys) && item.keys.length) details.push(item.keys.join("、"));
+      const title = t("settings.mcp.activity.title", { client: item.client || t("settings.mcp.activity.localClient"), tool: item.tool || t("settings.mcp.activity.call") });
+      const details = [item.result === "success" ? t("settings.mcp.activity.success") : item.errorCode || t("settings.mcp.activity.denied")];
+      if (Array.isArray(item.keys) && item.keys.length) details.push(item.keys.join(t("format.listSeparator")));
       if (Number.isFinite(item.timestamp)) details.push(new Date(item.timestamp).toLocaleString());
       entry.append(el("strong", "", title), el("span", "", details.join(" · ")));
       activity.append(entry);
@@ -939,12 +973,12 @@ function mcpPage() {
   const advanced = document.createElement("details");
   advanced.className = "mcp-advanced";
   advanced.open = false;
-  const advancedSummary = el("summary", "mcp-advanced-summary", "高级设置");
+  const advancedSummary = el("summary", "mcp-advanced-summary", t("settings.mcp.advanced"));
   const advancedBody = el("div", "mcp-advanced-body");
-  const manual = section("手动配置", "其他支持本机 stdio MCP 的客户端，可按其说明使用同一命令。WorkIsland 不会自动改动尚未验证的客户端配置。");
-  const configBlock = el("pre", "agent-control-code", state.agentControlManual?.toml || "正在生成配置…");
+  const manual = section(t("settings.mcp.manual.sectionTitle"), t("settings.mcp.manual.description"));
+  const configBlock = el("pre", "agent-control-code", state.agentControlManual?.toml || t("settings.mcp.manual.generating"));
   manual.append(configBlock, el("div", "section-actions"));
-  manual.lastElementChild.append(button("复制配置", copyAgentControlConfig));
+  manual.lastElementChild.append(button(t("settings.mcp.manual.copy"), copyAgentControlConfig));
   advancedBody.append(manual);
   advanced.append(advancedSummary, advancedBody);
 
@@ -961,13 +995,13 @@ function mcpPage() {
 function appearancePage() {
   const root = document.createDocumentFragment();
   root.append(templateSection());
-  const pet = section("桌宠", "桌宠与 Island 使用同一套会话状态，切换不会中断监控。");
+  const pet = section(t("settings.appearance.pet.sectionTitle"), t("settings.appearance.pet.description"));
   const configuredSprite = state.settings.petSprite || DEFAULT_PET_SPRITE;
   const spriteOptions = [
-    ["echo:little", "Echo · 程序化动画"],
-    [DEFAULT_PET_SPRITE, "千雪 · 内置 Codex V2"],
-    ["codex:codex-buddy", "宝剑 Skyler · 内置 Codex V2"],
-    ["orca.png", "Orca · 兼容素材"]
+    ["echo:little", t("settings.appearance.pet.echo")],
+    [DEFAULT_PET_SPRITE, t("settings.appearance.pet.qianxue")],
+    ["codex:codex-buddy", t("settings.appearance.pet.skyler")],
+    ["orca.png", t("settings.appearance.pet.orca")]
   ];
   for (const codexPet of state.codexPets) {
     if (!spriteOptions.some(([value]) => value === codexPet.value)) {
@@ -975,15 +1009,15 @@ function appearancePage() {
     }
   }
   if (!spriteOptions.some(([value]) => value === configuredSprite)) {
-    spriteOptions.push([configuredSprite, `${configuredSprite} · 当前设置`]);
+    spriteOptions.push([configuredSprite, t("settings.appearance.currentValue", { value: configuredSprite })]);
   }
-  const spriteSelect = select(configuredSprite, spriteOptions, value => save({ petSprite: value }), "Codex 桌宠");
+  const spriteSelect = select(configuredSprite, spriteOptions, value => save({ petSprite: value }), t("settings.appearance.pet.codexPet"));
   const sprite = document.createElement("input");
   sprite.type = "text";
   sprite.className = "text-input";
   sprite.value = configuredSprite;
-  sprite.placeholder = "codex:qianxue、orca.png 或其他 PNG/WebP";
-  sprite.setAttribute("aria-label", "桌宠精灵素材标识");
+  sprite.placeholder = t("settings.appearance.pet.spritePlaceholder");
+  sprite.setAttribute("aria-label", t("settings.appearance.pet.spriteLabel"));
   sprite.addEventListener("change", () => save({ petSprite: sprite.value.trim() || DEFAULT_PET_SPRITE }));
   const scale = document.createElement("input");
   scale.type = "range"; scale.min = "0.6"; scale.max = "2"; scale.step = "0.1"; scale.value = state.settings.petScale || 1;
@@ -992,68 +1026,68 @@ function appearancePage() {
   scale.addEventListener("change", () => save({ petScale: Number(scale.value) }));
   const scaleControl = el("div", "range-control"); scaleControl.append(scale, scaleValue);
   pet.append(
-    row("桌宠预览", "在当前显示器中央显示桌宠；再次点击可收起。", button("显示 / 隐藏桌宠", () => api.togglePet?.())),
-    row("桌宠缩放", "调整桌宠在屏幕上的显示尺寸。", scaleControl),
-    row("Codex 桌宠", "默认使用内置千雪；也可切换本机 ~/.codex/pets 中的其他 V2 桌宠，运行中的桌宠会实时换图。", spriteSelect),
-    row("自定义素材标识", "支持 codex:<名称>，或填写本地 pet-sprites 目录中的 PNG/WebP 文件名。", sprite),
-    row("精灵素材", "打开目录后可替换 PNG 桌宠素材。", button("打开目录", () => api.openSpritesDir()))
+    row(t("settings.appearance.pet.preview.title"), t("settings.appearance.pet.preview.description"), button(t("settings.appearance.pet.preview.action"), () => api.togglePet?.())),
+    row(t("settings.appearance.pet.scale.title"), t("settings.appearance.pet.scale.description"), scaleControl),
+    row(t("settings.appearance.pet.codexPet"), t("settings.appearance.pet.codexDescription"), spriteSelect),
+    row(t("settings.appearance.pet.custom.title"), t("settings.appearance.pet.custom.description"), sprite),
+    row(t("settings.appearance.pet.assets.title"), t("settings.appearance.pet.assets.description"), button(t("common.openFolder"), () => api.openSpritesDir()))
   );
-  const panel = section("面板", "限制展开面板的高度，避免遮挡主要工作区。");
-  const heights = [["420", "紧凑 · 420 px"], ["540", "标准 · 540 px"], ["680", "宽松 · 680 px"]];
-  panel.append(row("最大高度", "修改后下一次展开生效。", select(String(state.settings.panelMaxHeightPx || 540), heights, v => save({ panelMaxHeightPx: Number(v) }), "面板最大高度")));
+  const panel = section(t("settings.appearance.panel.sectionTitle"), t("settings.appearance.panel.description"));
+  const heights = [["420", t("settings.appearance.panel.compact")], ["540", t("settings.appearance.panel.standard")], ["680", t("settings.appearance.panel.relaxed")]];
+  panel.append(row(t("settings.appearance.panel.height.title"), t("settings.appearance.panel.height.description"), select(String(state.settings.panelMaxHeightPx || 540), heights, v => save({ panelMaxHeightPx: Number(v) }), t("settings.appearance.panel.height.label"))));
   root.append(islandBackgroundSection(), pet, panel);
   return root;
 }
 
 function templateSection() {
-  const tpl = section("外观模板", "以模板为单位更换 Island 的状态角色、背景与桌宠；本机 AI Agent 可通过 workisland-template Skill 完成同样的流程。");
+  const tpl = section(t("settings.appearance.template.sectionTitle"), t("settings.appearance.template.description"));
   const active = state.settings.appearanceTemplate || { id: "builtin:workisland-xiaoyu", version: "*" };
   const validTemplates = (state.templates.templates || []).filter(entry => entry.valid);
   const options = validTemplates.map(entry => [`${entry.id}@${entry.version}`, `${entry.name} · ${entry.id}${entry.modules.length ? `（${entry.modules.join("/")}）` : ""} · ${entry.license}`]);
   const activeKey = `${active.id}@${active.version}`;
   if (!options.some(([value]) => value === activeKey)) {
-    options.unshift([activeKey, `${active.id}@${active.version} · 当前设置`]);
+    options.unshift([activeKey, t("settings.appearance.currentValue", { value: `${active.id}@${active.version}` })]);
   }
   const templateSelect = select(activeKey, options, value => {
     const at = value.lastIndexOf("@");
     save({
       appearanceTemplate: { id: value.slice(0, at), version: value.slice(at + 1) }
-    }).then(() => showToast("模板已切换，Island 状态角色将实时刷新"));
-  }, "外观模板");
-  const reset = button("恢复官方默认", async () => {
+    }).then(() => showToast(t("settings.appearance.template.changed")));
+  }, t("settings.appearance.template.sectionTitle"));
+  const reset = button(t("settings.appearance.template.restoreAction"), async () => {
     await save({
       appearanceTemplate: { id: "builtin:workisland-xiaoyu", version: "1.0.0" }
     });
     await loadTemplates();
     renderPage();
-    showToast("已恢复官方小宇模板");
+    showToast(t("settings.appearance.template.restored"));
   }, "secondary");
   tpl.append(
-    row("当前模板", "模板决定会话状态图标（idle/运行/待审批/完成/错误）的角色形象；官方内置 WorkIsland 小宇（守岛人）。", templateSelect),
-    row("恢复默认", "切回官方小宇模板；不会删除已安装的模板和你的 Codex 宠物。", reset),
-    row("AI 换装", "对 Agent 说“帮我换个外观模板”，装有 workisland-template Skill 的 Agent 会先预览再经你确认后应用。", el("span", "range-value", "Skill 入口"))
+    row(t("settings.appearance.template.current.title"), t("settings.appearance.template.current.description"), templateSelect),
+    row(t("settings.appearance.template.restore.title"), t("settings.appearance.template.restore.description"), reset),
+    row(t("settings.appearance.template.ai.title"), t("settings.appearance.template.ai.description"), el("span", "range-value", t("settings.appearance.template.ai.badge")))
   );
   return tpl;
 }
 
 const ISLAND_APPEARANCE_PRESETS = [
-  { id: "default", label: "默认 · 纯黑", value: { kind: "default" } },
-  { id: "deep-blue", label: "深海蓝", value: { kind: "solid", color: "#0B1E3A", opacity: 1 } },
-  { id: "forest", label: "墨绿", value: { kind: "solid", color: "#0A231A", opacity: 1 } },
-  { id: "night-purple", label: "夜紫渐变", value: { kind: "gradient", color: "#1F1330", color2: "#0B0716", angle: 135, opacity: 1 } },
-  { id: "frost", label: "半透石墨", value: { kind: "solid", color: "#0E0F13", opacity: 0.72 } }
+  { id: "default", labelKey: "settings.appearance.background.preset.default", value: { kind: "default" } },
+  { id: "deep-blue", labelKey: "settings.appearance.background.preset.blue", value: { kind: "solid", color: "#0B1E3A", opacity: 1 } },
+  { id: "forest", labelKey: "settings.appearance.background.preset.green", value: { kind: "solid", color: "#0A231A", opacity: 1 } },
+  { id: "night-purple", labelKey: "settings.appearance.background.preset.purple", value: { kind: "gradient", color: "#1F1330", color2: "#0B0716", angle: 135, opacity: 1 } },
+  { id: "frost", labelKey: "settings.appearance.background.preset.graphite", value: { kind: "solid", color: "#0E0F13", opacity: 0.72 } }
 ];
 
 function islandBackgroundSection() {
-  const island = section("岛屿背景", "自定义 Island 的背景颜色、透明度与背景图；本机 AI Agent 也可通过 workisland-cli 接口修改。");
+  const island = section(t("settings.appearance.background.sectionTitle"), t("settings.appearance.background.description"));
   const current = state.settings.islandAppearance || { kind: "default" };
   const matchingPreset = ISLAND_APPEARANCE_PRESETS.find(
     preset => JSON.stringify(preset.value) === JSON.stringify(current)
   );
-  const presetOptions = ISLAND_APPEARANCE_PRESETS.map(preset => [preset.id, preset.label]);
+  const presetOptions = ISLAND_APPEARANCE_PRESETS.map(preset => [preset.id, t(preset.labelKey)]);
   if (!matchingPreset) {
-    const kindLabel = current.kind === "gradient" ? "渐变" : current.kind === "image" ? "背景图" : "纯色";
-    presetOptions.push(["__custom__", `当前自定义 · ${kindLabel}`]);
+    const kindLabel = t(`settings.appearance.background.kind.${current.kind === "gradient" ? "gradient" : current.kind === "image" ? "image" : "solid"}`);
+    presetOptions.push(["__custom__", t("settings.appearance.background.customCurrent", { kind: kindLabel })]);
   }
   const presetSelect = select(
     matchingPreset ? matchingPreset.id : "__custom__",
@@ -1062,13 +1096,13 @@ function islandBackgroundSection() {
       const preset = ISLAND_APPEARANCE_PRESETS.find(entry => entry.id === value);
       if (preset) save({ islandAppearance: preset.value });
     },
-    "岛屿背景预设"
+    t("settings.appearance.background.presetLabel")
   );
   const color = document.createElement("input");
   color.type = "color";
   color.className = "color-input";
   color.value = /^#[0-9a-fA-F]{6}$/.test(current.color || "") ? current.color : "#000000";
-  color.setAttribute("aria-label", "自定义背景颜色");
+  color.setAttribute("aria-label", t("settings.appearance.background.colorLabel"));
   color.addEventListener("change", () => save({
     islandAppearance: { kind: "solid", color: color.value, opacity: current.kind === "image" ? 1 : (current.opacity ?? 1) }
   }));
@@ -1088,10 +1122,10 @@ function islandBackgroundSection() {
   }));
   const opacityControl = el("div", "range-control"); opacityControl.append(opacity, opacityValue);
   island.append(
-    row("背景预设", "选择常用深色主题；过亮的颜色会被自动压暗以保持文字可读。", presetSelect),
-    row("自定义颜色", "直接指定纯色背景。", color),
-    row("背景不透明度", "纯色与渐变背景的透明程度；背景图模式不可用。", opacityControl),
-    row("恢复默认", "清除 AI 或手动设置，回到经典纯黑 Island。", button("重置背景", () => save({ islandAppearance: { kind: "default" } }), "secondary"))
+    row(t("settings.appearance.background.preset.title"), t("settings.appearance.background.preset.description"), presetSelect),
+    row(t("settings.appearance.background.color.title"), t("settings.appearance.background.color.description"), color),
+    row(t("settings.appearance.background.opacity.title"), t("settings.appearance.background.opacity.description"), opacityControl),
+    row(t("settings.appearance.background.restore.title"), t("settings.appearance.background.restore.description"), button(t("settings.appearance.background.restore.action"), () => save({ islandAppearance: { kind: "default" } }), "secondary"))
   );
   return island;
 }
@@ -1099,7 +1133,7 @@ function islandBackgroundSection() {
 function soundPage() {
   const root = document.createDocumentFragment();
   const sound = state.settings.sound || {};
-  const main = section("声音", "声音全部在本机播放，不上传会话内容。");
+  const main = section(t("settings.sound.sectionTitle"), t("settings.sound.description"));
   const volume = document.createElement("input");
   volume.type = "range"; volume.min = "0"; volume.max = "100"; volume.value = sound.volume ?? 50;
   const volumeValue = el("span", "range-value", `${volume.value}%`);
@@ -1107,24 +1141,24 @@ function soundPage() {
   volume.addEventListener("change", () => save({ sound: { ...sound, volume: Number(volume.value) } }));
   const volumeControl = el("div", "range-control"); volumeControl.append(volume, volumeValue);
   main.append(
-    row("启用声音", "播放任务开始、完成和审批提示。", toggle(sound.enabled, v => save({ sound: { ...sound, enabled: v } }), "启用声音")),
-    row("音量", "统一调整所有提示音。", volumeControl),
-    row("自定义声音", "在本地目录中添加或替换提示音文件。", button("打开目录", () => api.openSoundsDir()))
+    row(t("settings.sound.enable.title"), t("settings.sound.enable.description"), toggle(sound.enabled, v => save({ sound: { ...sound, enabled: v } }), t("settings.sound.enable.title"))),
+    row(t("settings.sound.volume.title"), t("settings.sound.volume.description"), volumeControl),
+    row(t("settings.sound.custom.title"), t("settings.sound.custom.description"), button(t("common.openFolder"), () => api.openSoundsDir()))
   );
   const bark = state.settings.barkPush || { enabled: false, url: "", events: {} };
-  const barkSection = section("手机推送（Bark）", "Agent 等待审批、提问或完成、失败时推送到 iPhone。默认关闭；只推送事件类型与 Agent 名，不含会话内容。");
+  const barkSection = section(t("settings.sound.bark.sectionTitle"), t("settings.sound.bark.description"));
   const barkUrl = document.createElement("input");
   barkUrl.className = "text-input";
-  barkUrl.placeholder = "https://api.day.app/你的设备Key";
+  barkUrl.placeholder = t("settings.sound.bark.placeholder");
   barkUrl.value = bark.url || "";
-  barkUrl.setAttribute("aria-label", "Bark 推送地址");
+  barkUrl.setAttribute("aria-label", t("settings.sound.bark.urlLabel"));
   barkUrl.addEventListener("change", () => save({ barkPush: { ...bark, url: barkUrl.value.trim() } }));
   barkSection.append(
-    row("启用推送", "仅向你配置的 Bark 端点发请求，自托管同样支持。", toggle(bark.enabled, v => save({ barkPush: { ...bark, enabled: v } }), "启用 Bark 推送")),
-    row("推送地址", "iOS 安装 Bark App 后复制推送 URL 粘贴到这里。", barkUrl)
+    row(t("settings.sound.bark.enable.title"), t("settings.sound.bark.enable.description"), toggle(bark.enabled, v => save({ barkPush: { ...bark, enabled: v } }), t("settings.sound.bark.enable.label"))),
+    row(t("settings.sound.bark.url.title"), t("settings.sound.bark.url.description"), barkUrl)
   );
   const quiet = state.settings.quietHours || { enabled: false, start: "22:00", end: "08:00", suppressOnLockScreen: true };
-  const quietSection = section("安静时段", "勿扰时间段与锁屏期间静音本地提示音；手机推送不受影响，岛行为保持正常。");
+  const quietSection = section(t("settings.sound.quiet.sectionTitle"), t("settings.sound.quiet.description"));
   const quietTimeInput = (key, label) => {
     const input = document.createElement("input");
     input.type = "time";
@@ -1135,11 +1169,11 @@ function soundPage() {
     return input;
   };
   const quietRange = el("div", "inline-controls");
-  quietRange.append(quietTimeInput("start", "勿扰开始时间"), quietTimeInput("end", "勿扰结束时间"));
+  quietRange.append(quietTimeInput("start", t("settings.sound.quiet.startLabel")), quietTimeInput("end", t("settings.sound.quiet.endLabel")));
   quietSection.append(
-    row("启用勿扰时段", "时间段内不播放任务提示音（支持跨午夜，如 22:00 → 08:00）。", toggle(quiet.enabled, v => save({ quietHours: { ...quiet, enabled: v } }), "启用勿扰时段")),
-    row("勿扰时间", "开始与结束时间；结束早于开始时按跨午夜处理。", quietRange),
-    row("锁屏时静音", "macOS 锁屏期间不播放任务提示音。", toggle(quiet.suppressOnLockScreen, v => save({ quietHours: { ...quiet, suppressOnLockScreen: v } }), "锁屏时静音"))
+    row(t("settings.sound.quiet.enable.title"), t("settings.sound.quiet.enable.description"), toggle(quiet.enabled, v => save({ quietHours: { ...quiet, enabled: v } }), t("settings.sound.quiet.enable.title"))),
+    row(t("settings.sound.quiet.range.title"), t("settings.sound.quiet.range.description"), quietRange),
+    row(t("settings.sound.quiet.lock.title"), t("settings.sound.quiet.lock.description"), toggle(quiet.suppressOnLockScreen, v => save({ quietHours: { ...quiet, suppressOnLockScreen: v } }), t("settings.sound.quiet.lock.title")))
   );
   root.append(main, barkSection, quietSection);
   return root;
@@ -1147,60 +1181,60 @@ function soundPage() {
 
 function aboutPage() {
   const root = document.createDocumentFragment();
-  const about = section("关于 WorkIsland", "本地优先的 macOS Agent 会话监控与审批界面。");
+  const about = section(t("settings.about.sectionTitle"), t("settings.about.description"));
   const version = el("div", "about-card");
   const appMark = el("img", "app-mark");
   appMark.src = WORKISLAND_ICON_URL;
   appMark.alt = "";
   appMark.draggable = false;
-  version.append(appMark, el("div", "about-copy", "WorkIsland\n正在读取版本…"));
-  api.getAppVersion().then(v => version.querySelector(".about-copy").textContent = `WorkIsland\n版本 ${v}`).catch(() => {});
+  version.append(appMark, el("div", "about-copy", t("settings.about.loadingVersion")));
+  api.getAppVersion().then(v => version.querySelector(".about-copy").textContent = t("settings.about.version", { version: v })).catch(() => {});
   about.append(version);
-  const support = section("帮助与社区", "操作手册、反馈渠道与社区信息由 WorkIsland 官网统一维护，无需重新安装即可更新。");
+  const support = section(t("settings.about.support.sectionTitle"), t("settings.about.support.description"));
   support.append(
-    row("产品手册", "查看安装、首次任务、状态理解、隐私与反馈说明。", button("打开手册", () => api.openExternal(USER_GUIDE_URL), "primary")),
-    row("提交反馈", "像日常吐槽一样一句话反馈，会自动附带版本与 Agent 状态。", (() => { const group = el("div", "setting-actions-group"); group.append(button("一键吐槽", () => openComplaintBox(), "primary"), button("打开反馈入口", () => api.openExternal(FEEDBACK_URL))); return group; })()),
-    row("加入社区", "查看最新 WorkIsland 微信社区二维码。", button("查看群码", () => api.openExternal(COMMUNITY_URL)))
+    row(t("settings.about.support.guide.title"), t("settings.about.support.guide.description"), button(t("settings.about.support.guide.action"), () => api.openExternal(USER_GUIDE_URL), "primary")),
+    row(t("settings.about.support.feedback.title"), t("settings.about.support.feedback.description"), (() => { const group = el("div", "setting-actions-group"); group.append(button(t("settings.feedback.title"), () => openComplaintBox(), "primary"), button(t("settings.about.support.feedback.action"), () => api.openExternal(FEEDBACK_URL))); return group; })()),
+    row(t("settings.about.support.community.title"), t("settings.about.support.community.description"), button(t("settings.about.support.community.action"), () => api.openExternal(COMMUNITY_URL)))
   );
-  const updates = section("更新", "仅请求官方版本信息与官方安装包，不上传会话内容或使用数据。");
-  const updateStatus = el("div", "update-status", state.latestUpdate ? `发现新版本 ${state.latestUpdate.latestVersion}` : "尚未检查");
+  const updates = section(t("settings.about.update.sectionTitle"), t("settings.about.update.description"));
+  const updateStatus = el("div", "update-status", state.latestUpdate ? t("update.availableVersion", { version: state.latestUpdate.latestVersion }) : t("settings.about.update.notChecked"));
   let latestUrl = state.latestUpdate?.releaseUrl || "";
-  const openButton = button("打开下载页", () => {
+  const openButton = button(t("settings.about.update.openDownloads"), () => {
     if (latestUrl) api.openExternal(latestUrl);
   });
   openButton.hidden = !latestUrl;
-  const checkButton = button("检查更新", async () => {
+  const checkButton = button(t("settings.about.update.check"), async () => {
     checkButton.disabled = true;
-    updateStatus.textContent = "正在检查…";
+    updateStatus.textContent = t("settings.about.update.checking");
     try {
       const result = await api.checkForUpdates();
       if (result?.status === "update-available") {
         state.latestUpdate = result;
         latestUrl = result.releaseUrl || "";
         openButton.hidden = !latestUrl;
-        updateStatus.textContent = `发现新版本 ${result.latestVersion}`;
+        updateStatus.textContent = t("update.availableVersion", { version: result.latestVersion });
       } else if (result?.status === "up-to-date") {
-        updateStatus.textContent = `当前已是最新版本（${result.currentVersion}）`;
+        updateStatus.textContent = t("settings.about.update.current", { version: result.currentVersion });
       } else if (result?.status === "disabled") {
-        updateStatus.textContent = "开发模式下不执行更新检查";
+        updateStatus.textContent = t("settings.about.update.disabledDev");
       } else {
-        updateStatus.textContent = result?.message || "暂时无法获取更新信息";
+        updateStatus.textContent = result?.message || t("settings.about.update.unavailable");
       }
     } catch (error) {
-      updateStatus.textContent = error?.message || "暂时无法获取更新信息";
+      updateStatus.textContent = error?.message || t("settings.about.update.unavailable");
     } finally {
       checkButton.disabled = false;
     }
   });
   const formatMb = bytes => `${(Math.max(0, Number(bytes) || 0) / 1048576).toFixed(1)} MB`;
-  const installButton = button("下载并安装", async () => {
+  const installButton = button(t("update.action.download"), async () => {
     const phase = state.updateState?.phase || "idle";
     try {
       installButton.disabled = true;
       if (phase === "ready") await api.installUpdate();
       else await api.downloadUpdate();
     } catch (error) {
-      updateStatus.textContent = error?.message || "更新操作失败";
+      updateStatus.textContent = error?.message || t("settings.about.update.operationFailed");
     } finally {
       syncUpdateStateControls();
     }
@@ -1212,26 +1246,26 @@ function aboutPage() {
     installButton.hidden = !(hasUpdate || ["downloading", "ready", "installing", "manual", "error"].includes(phase));
     if (phase === "downloading") {
       const pct = snapshot?.progress?.pct ?? 0;
-      installButton.textContent = `正在下载 ${pct}%`;
-      updateStatus.textContent = `正在下载更新 ${pct}%（${formatMb(snapshot?.progress?.received)}${snapshot?.progress?.total ? ` / ${formatMb(snapshot.progress.total)}` : ""}），完成后会校验安装包。`;
+      installButton.textContent = t("settings.about.update.downloadingPercent", { percent: pct });
+      updateStatus.textContent = t("settings.about.update.downloadingStatus", { percent: pct, progress: `${formatMb(snapshot?.progress?.received)}${snapshot?.progress?.total ? ` / ${formatMb(snapshot.progress.total)}` : ""}` });
     } else if (phase === "ready") {
-      installButton.textContent = "重启并完成安装";
+      installButton.textContent = t("update.action.install");
       installButton.disabled = false;
-      updateStatus.textContent = "安装包已下载并通过 SHA-256 校验，点击按钮立即安装并重启。";
+      updateStatus.textContent = t("settings.about.update.readyStatus");
     } else if (phase === "installing") {
-      installButton.textContent = "正在安装…";
-      updateStatus.textContent = "正在安装更新，应用将自动重启。";
+      installButton.textContent = t("settings.about.update.installing");
+      updateStatus.textContent = t("settings.about.update.installingStatus");
     } else if (phase === "manual") {
-      installButton.textContent = "需手动完成";
-      updateStatus.textContent = snapshot?.error || "自动安装未完成，已打开安装镜像，请拖拽安装。";
+      installButton.textContent = t("update.badge.manual");
+      updateStatus.textContent = snapshot?.error || t("settings.about.update.manualStatus");
     } else if (phase === "error") {
-      installButton.textContent = "重试下载";
+      installButton.textContent = t("update.action.retry");
       installButton.disabled = false;
-      updateStatus.textContent = snapshot?.error || "更新失败，请稍后重试。";
+      updateStatus.textContent = snapshot?.error || t("update.status.error");
     } else {
-      installButton.textContent = "下载并安装";
+      installButton.textContent = t("update.action.download");
       installButton.disabled = false;
-      if (hasUpdate) updateStatus.textContent = `发现新版本 ${state.latestUpdate.latestVersion}`;
+      if (hasUpdate) updateStatus.textContent = t("update.availableVersion", { version: state.latestUpdate.latestVersion });
     }
   };
   state.onUpdateStateUi = syncUpdateStateControls;
@@ -1239,45 +1273,45 @@ function aboutPage() {
   const updateControls = el("div", "inline-controls");
   updateControls.append(updateStatus, checkButton, installButton, openButton);
   updates.append(
-    row("自动检查更新", "安装版每天检查一次 GitHub Release；关闭后仍可手动检查。", toggle(state.settings.updateChecksEnabled, v => save({ updateChecksEnabled: v }), "自动检查更新")),
-    row("版本检查", "发现新版本后会提醒，可直接下载官方安装包并在本机完成安装。", updateControls)
+    row(t("settings.about.update.auto.title"), t("settings.about.update.auto.description"), toggle(state.settings.updateChecksEnabled, v => save({ updateChecksEnabled: v }), t("settings.about.update.auto.title"))),
+    row(t("settings.about.update.versionCheck.title"), t("settings.about.update.versionCheck.description"), updateControls)
   );
-  const diagnostics = section("诊断", "导出仅包含本机诊断信息的日志；退出操作位于默认的“通用”页面。");
+  const diagnostics = section(t("settings.about.diagnostics.sectionTitle"), t("settings.about.diagnostics.description"));
   const actions = el("div", "section-actions");
-  actions.append(button("导出诊断日志", async () => { const path = await api.collectLogs(); showToast(path ? "日志已导出" : "日志导出完成"); }));
+  actions.append(button(t("settings.about.diagnostics.export"), async () => { const path = await api.collectLogs(); showToast(t(path ? "settings.about.diagnostics.exported" : "settings.about.diagnostics.complete")); }));
   diagnostics.append(actions);
-  const privacy = section("匿名使用统计", "默认开启。仅上报事件类型与 Agent 名称等匿名统计，可在下方随时关闭。");
+  const privacy = section(t("settings.about.telemetry.sectionTitle"), t("settings.about.telemetry.description"));
   const telemetryStatus = state.telemetryStatus;
   const statusText = !telemetryStatus
-    ? "正在读取本机发送状态…"
+    ? t("settings.about.telemetry.loading")
     : telemetryStatus.status === "disabled"
-      ? "已关闭：不会继续收集或发送，未上报数据已清空。"
+      ? t("settings.about.telemetry.disabled")
       : telemetryStatus.status === "development"
-        ? "开发模式：本机可检查队列，但不会出网发送。"
+        ? t("settings.about.telemetry.development")
         : telemetryStatus.status === "not-configured"
-          ? "上传未配置：本机不会向 PostHog 发送数据。"
+          ? t("settings.about.telemetry.notConfigured")
           : telemetryStatus.lastSuccessAt
-            ? `最近一次成功提交到 PostHog：${new Date(telemetryStatus.lastSuccessAt).toLocaleString()}；待发送 ${telemetryStatus.pendingEventCount} 条。`
-            : `已开启：等待首次成功提交；待发送 ${telemetryStatus.pendingEventCount} 条。`;
+            ? t("settings.about.telemetry.lastSuccess", { time: new Date(telemetryStatus.lastSuccessAt).toLocaleString(), count: telemetryStatus.pendingEventCount })
+            : t("settings.about.telemetry.awaiting", { count: telemetryStatus.pendingEventCount });
   privacy.append(
     row(
-      "允许匿名使用统计",
-      "默认开启；关闭后立即停止收集并清空未上报的数据。不包含会话内容、文件路径或个人信息；目的地为 PostHog（美国区），事件清单见开源代码 telemetry.cjs。",
-      toggle(state.settings.telemetryEnabled, v => save({ telemetryEnabled: v }), "允许匿名使用统计")
+      t("settings.about.telemetry.enable.title"),
+      t("settings.about.telemetry.enable.description"),
+      toggle(state.settings.telemetryEnabled, v => save({ telemetryEnabled: v }), t("settings.about.telemetry.enable.title"))
     ),
-    row("本机发送状态", "仅显示本机队列与 PostHog 批量接口最近一次 HTTP 2xx 确认，不展示或上传任何额外内容。", el("div", "setting-description", statusText))
+    row(t("settings.about.telemetry.status.title"), t("settings.about.telemetry.status.description"), el("div", "setting-description", statusText))
   );
   const devApi = state.settings.developerApi || { enabled: false, port: 9938, token: "" };
-  const devSection = section("开发者 API", "在本机回环地址提供只读的会话状态 JSON 端点，供脚本与工具集成。默认关闭；响应不含会话内容。");
+  const devSection = section(t("settings.about.developer.sectionTitle"), t("settings.about.developer.description"));
   const devToken = document.createElement("input");
   devToken.className = "text-input";
-  devToken.placeholder = "可选访问令牌（留空不鉴权）";
+  devToken.placeholder = t("settings.about.developer.tokenPlaceholder");
   devToken.value = devApi.token || "";
-  devToken.setAttribute("aria-label", "开发者 API 访问令牌");
+  devToken.setAttribute("aria-label", t("settings.about.developer.tokenLabel"));
   devToken.addEventListener("change", () => save({ developerApi: { ...devApi, token: devToken.value.trim() } }));
   devSection.append(
-    row("启用本地状态端点", `开启后 GET http://127.0.0.1:${devApi.port || 9938}/api/status 返回会话状态与版本信息。`, toggle(devApi.enabled, v => save({ developerApi: { ...devApi, enabled: v } }), "启用开发者 API")),
-    row("访问令牌", "填写后请求需携带 Bearer 令牌（或 ?token= 查询参数）；仅本机可访问。", devToken)
+    row(t("settings.about.developer.enable.title"), t("settings.about.developer.enable.description", { port: devApi.port || 9938 }), toggle(devApi.enabled, v => save({ developerApi: { ...devApi, enabled: v } }), t("settings.about.developer.enable.label"))),
+    row(t("settings.about.developer.token.title"), t("settings.about.developer.token.description"), devToken)
   );
   root.append(about, support, privacy, updates, devSection, diagnostics);
   return root;
@@ -1301,6 +1335,8 @@ function showToast(message, error = false) {
 
 async function start() {
   if (!api) throw new Error("settingsApi unavailable");
+  await initializeI18n(api);
+  localizeStaticShell();
   state.settings = await api.getSettings();
   try { state.shareProviders = await api.getShelfShareProviders?.() || []; } catch { state.shareProviders = []; }
   await loadTelemetryStatus();
@@ -1334,6 +1370,10 @@ async function start() {
     state.onUpdateStateUi?.();
   });
   api.onSettingsChanged?.(settings => { state.settings = settings; renderPage(); });
+  onLocaleChange(() => {
+    localizeStaticShell();
+    if (state.settings) renderPage();
+  });
   renderPage();
   refreshAgents().catch(() => {});
   setInterval(() => {
@@ -1343,5 +1383,5 @@ async function start() {
 }
 
 start().catch(error => {
-  document.querySelector("#content").textContent = `设置页加载失败：${error.message}`;
+  document.querySelector("#content").textContent = t("settings.error.loadFailed", { error: error.message });
 });

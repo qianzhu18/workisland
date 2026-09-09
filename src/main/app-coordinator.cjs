@@ -1640,7 +1640,7 @@ function createAppCoordinatorClass({
     async installHook(agentId) {
       log.info(`[AppCoordinator] installHook(${agentId}) start`);
       const manager = this.hookManagers.get(agentId);
-      if (!manager) return { success: false, error: `${i18n.k2159120351({ placeholder1: agentId }, "未知的 agent: {placeholder1}")}`, errorCode: "NOT_FOUND" };
+      if (!manager) return { success: false, error: i18n.t("agent.error.unknown", { agent: agentId }), errorCode: "NOT_FOUND" };
       const options = { statusLineEnabled: this.resolveClaudeStatusLineEnabled(agentId) };
       if (agentId === "zcode") options.workspacePaths = this.collectRecentSessionCwds();
       try {

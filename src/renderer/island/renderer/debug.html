@@ -11,16 +11,16 @@
   <body>
     <main>
       <header>
-        <h1>WorkIsland Debug</h1>
+        <h1 data-i18n="debug.title">WorkIsland Debug</h1>
         <div class="actions">
-          <button id="refresh" type="button">Refresh</button>
-          <button id="reset-onboarding" type="button">Reset onboarding</button>
+          <button id="refresh" type="button" data-i18n="debug.actions.refresh"></button>
+          <button id="reset-onboarding" type="button" data-i18n="debug.actions.reset"></button>
         </div>
       </header>
-      <div id="status" role="status">Loading...</div>
+      <div id="status" role="status" data-i18n="debug.status.loading"></div>
       <div class="grid">
-        <section><h2>Sessions</h2><pre id="sessions">[]</pre></section>
-        <section><h2>Hook reports</h2><pre id="hooks">[]</pre></section>
+        <section><h2 data-i18n="debug.sections.sessions"></h2><pre id="sessions">[]</pre></section>
+        <section><h2 data-i18n="debug.sections.hooks"></h2><pre id="hooks">[]</pre></section>
       </div>
     </main>
   </body>

@@ -138,14 +138,13 @@ test("action-required surfaces are not suppressed when WorkIsland is focused", (
 // ── Settings UI ─────────────────────────────────────────────────────────────
 
 test("settings expose a positive minimal / persistent choice instead of negative toggles", () => {
-  assert.match(settingsAppSource, /Island 显示模式/);
-  assert.match(settingsAppSource, /\[\["persistent", "常驻（默认）"\], \["minimal", "极简"\]\]/);
+  assert.match(settingsAppSource, /settings\.general\.behavior\.displayMode\.title/);
+  assert.match(settingsAppSource, /\[\["persistent", t\("settings\.general\.behavior\.displayMode\.persistent"\)\], \["minimal", t\("settings\.general\.behavior\.displayMode\.minimal"\)\]\]/);
   assert.match(settingsAppSource, /save\(\{ islandDisplayMode: v \}\)/);
   assert.doesNotMatch(settingsAppSource, /alwaysHide|hideWhenNoActiveSessions/);
 });
 
 test("onboarding copy points new users at the persistent pill and the minimal switch", () => {
   const welcomeSource = readFileSync(new URL("../src/renderer/assets/welcome-view.js", import.meta.url), "utf8");
-  assert.match(welcomeSource, /常驻在屏幕顶部/);
-  assert.match(welcomeSource, /极简/);
+  assert.match(welcomeSource, /t\("welcome\.hint"\)/);
 });

@@ -2,6 +2,17 @@
 const electron = require("electron");
 const ipc = require("../../src/shared/ipc.cjs");
 electron.contextBridge.exposeInMainWorld("petBridge", {
+  getLocaleState() {
+    return electron.ipcRenderer.invoke(ipc.IPC.LOCALE_GET_STATE);
+  },
+  setLanguagePreference(preference) {
+    return electron.ipcRenderer.invoke(ipc.IPC.LOCALE_SET_PREFERENCE, { preference });
+  },
+  onLocaleChanged(cb) {
+    const handler = (_event, snapshot) => cb(snapshot);
+    electron.ipcRenderer.on(ipc.IPC.LOCALE_DID_CHANGE, handler);
+    return () => electron.ipcRenderer.off(ipc.IPC.LOCALE_DID_CHANGE, handler);
+  },
   onSessionUpdate(cb) {
     electron.ipcRenderer.on(ipc.IPC.PET_SESSION_UPDATE, (_event, sessions) => cb(sessions));
   },

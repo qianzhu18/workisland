@@ -127,6 +127,6 @@ test("Windows update service never offers the macOS DMG as an update (issue #96)
   service.start();
   assert.equal(service.getUpdateState().phase, "idle");
 
-  assert.match((await service.download()).error, /暂不支持应用内更新/);
-  assert.match((await service.install()).error, /暂不支持应用内更新/);
+  assert.match((await service.download()).error, /not supported on this platform/i);
+  assert.match((await service.install()).error, /not supported on this platform/i);
 });

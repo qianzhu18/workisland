@@ -160,8 +160,9 @@ const IPC = Object.freeze({
   REMOTE_HOSTS_CREATE_TOKEN: "remote-hosts:create-token",
   REMOTE_HOSTS_REVOKE: "remote-hosts:revoke",
 
-  GET_LOCALE: "locale:get",
-  SET_LOCALE: "locale:set",
+  LOCALE_GET_STATE: "locale:get-state",
+  LOCALE_SET_PREFERENCE: "locale:set-preference",
+  LOCALE_DID_CHANGE: "locale:did-change",
   APP_QUIT: "app:quit",
   APP_OPEN_EXTERNAL: "app:open-external",
   APP_CHECK_FOR_UPDATES: "app:check-for-updates",

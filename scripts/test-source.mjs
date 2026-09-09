@@ -61,7 +61,9 @@ const {
 // Island first-run empty state adds island:get-agent-setup-status (161 -> 162, 2026-09).
 // PRD-016 remote access (observe-only) adds remote-hosts:get-state /
 // create-token / revoke (162 -> 165, 2026-09).
-assert.equal(Object.keys(IPC).length, 165, "IPC contract changed; review both main and preload consumers");
+// Issue #110 replaces the two legacy locale channels with get-state,
+// set-preference, and did-change so all windows update live (165 -> 166).
+assert.equal(Object.keys(IPC).length, 166, "IPC contract changed; review both main and preload consumers");
 assert.equal(listProductCapabilities({ platform: "darwin" }).length, 15, "MCP product catalog must stay explicit");
 assert.equal(diagnoseMcpSubject("performance-details-not-visible", { settings: {} }).subject, "performance-details-not-visible");
 assert.equal(IPC.APP_UPDATE_DOWNLOAD, "app:update-download");

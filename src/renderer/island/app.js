@@ -1,4 +1,4 @@
-import "../shared/i18n.js";
+import { initializeI18n, onLocaleChange, t } from "../shared/i18n.js";
 import { I as ISLAND_PANEL_MAX_HEIGHT_DEFAULT_PX, D as DEFAULT_SETTINGS, c as clampPanelMaxHeightPx, l as loadPluginAgentMeta } from "../shared/settings.js";
 import { r as reactExports, R as React, a as ReactDOM } from "../vendor/react-runtime.js";
 import { D as DEFAULT_NOTCH_INFO, r as requiresAttention, d as dominantPhase, I as IslandPill, g as getIslandClipShape, a as getIslandMaxBodyWidth } from "./components/IslandPill.js";
@@ -347,7 +347,9 @@ function IslandApp() {
     }
     if (!highLoadSinceRef.current) highLoadSinceRef.current = Date.now();
     if (Date.now() - highLoadSinceRef.current < 10e3 || sessions.some((session) => requiresAttention(session.phase))) return;
-    const label = performanceState.cpuPct >= 90 ? `CPU 高占用 ${Math.round(performanceState.cpuPct)}%` : `内存高占用 ${Math.round(performanceState.memoryPct)}%`;
+    const label = performanceState.cpuPct >= 90
+      ? t("performance.alert.cpu", { value: Math.round(performanceState.cpuPct) })
+      : t("performance.alert.memory", { value: Math.round(performanceState.memoryPct) });
     setPerformanceAlert(label);
     pop();
     if (performanceAlertTimerRef.current) clearTimeout(performanceAlertTimerRef.current);
@@ -822,9 +824,9 @@ function IslandApp() {
           try { ids = JSON.parse(internalShelfValue); } catch { ids = [internalShelfValue]; }
           const result = await window.islandBridge?.shareShelfItemsViaDefault?.(Array.isArray(ids) ? ids : [ids]);
           shared = result?.ok === true;
-          if (!shared) error = "系统分享暂时不可用";
+          if (!shared) error = t("shelf.error.systemShareUnavailable");
         } catch (shareError) {
-          error = shareError?.message || "系统分享暂时不可用";
+          error = shareError?.message || t("shelf.error.systemShareUnavailable");
         }
         window.dispatchEvent(new CustomEvent("workisland:shelf-drop-result", { detail: { addedCount: 0, shared, error } }));
         return;
@@ -841,7 +843,7 @@ function IslandApp() {
       try {
         added = await window.islandBridge?.addShelfDrop?.(files, uriList) || [];
       } catch (dropError) {
-        error = dropError?.message || "文件读取失败";
+        error = dropError?.message || t("shelf.error.readFailed");
       }
       window.dispatchEvent(new CustomEvent("workisland:shelf-drop-result", {
         detail: { addedCount: added.length, error }
@@ -1044,4 +1046,8 @@ function IslandApp() {
 }
 void loadPluginAgentMeta(() => window.islandBridge.getPluginAgentMeta());
 const root = document.getElementById("root");
-ReactDOM.createRoot(root).render(/* @__PURE__ */ React.createElement(IslandApp, null));
+const reactRoot = ReactDOM.createRoot(root);
+const render = () => reactRoot.render(/* @__PURE__ */ React.createElement(IslandApp, null));
+await initializeI18n(window.islandBridge);
+render();
+onLocaleChange(render);

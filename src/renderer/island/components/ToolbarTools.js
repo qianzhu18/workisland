@@ -1,4 +1,5 @@
 import { R as React } from '../../vendor/react-runtime.js';
+import { t } from '../../shared/i18n.js';
 import { insertTool, moveToolbarTool, TOOL_SLOT, toolbarSlots, toolbarDropTarget, visibleToolbarOrder, placeToolbarTools } from './toolbar-model.mjs';
 
 export function ToolbarTools({ modules, active, onSelect, onOrder, order = [], hiddenModules = [], moduleSides = {}, moduleSlots = {},
@@ -27,7 +28,7 @@ export function ToolbarTools({ modules, active, onSelect, onOrder, order = [], h
 
   const save = (nextOrder, nextHidden, nextSides = latest.current.moduleSides, nextSlots = latest.current.moduleSlots) => {
     setError('');
-    Promise.resolve(latest.current.onOrder(nextOrder, nextHidden, nextSides, nextSlots)).catch(() => setError('排列未能保存，请重试'));
+    Promise.resolve(latest.current.onOrder(nextOrder, nextHidden, nextSides, nextSlots)).catch(() => setError(t('toolbar.saveFailed')));
   };
   const finish = (commit = false) => {
     const state = dragRef.current;
@@ -187,32 +188,32 @@ export function ToolbarTools({ modules, active, onSelect, onOrder, order = [], h
       React.createElement('div', { ref: leadingRef, className: 'usage-row-agents toolbar-leading', style: { maxWidth: layout.cameraLeft } }, leading),
       React.createElement('div', { className: 'toolbar-camera-space', 'aria-hidden': true, style: { left: layout.cameraLeft, width: notchWidth } }),
       React.createElement('button', { type: 'button', className: 'panel-btn toolbar-tool toolbar-home' + (active === 'agent' ? ' is-active' : ''),
-        style: { left: layout.home }, title: '智能体主页', 'aria-label': '智能体主页', 'aria-pressed': active === 'agent', onClick: () => onSelect('agent') }, homeIcon),
+        style: { left: layout.home }, title: t('toolbar.agentHome'), 'aria-label': t('toolbar.agentHome'), 'aria-pressed': active === 'agent', onClick: () => onSelect('agent') }, homeIcon),
       ...slots,
       drag && layout.slots.map((slot, index) => ![...placements.values()].some(position => position.index === index) && React.createElement('div', {
         key: 'empty-' + index, className: 'toolbar-empty-slot', style: { left: slot.x }, 'aria-hidden': true
       })),
       React.createElement('button', { type: 'button', className: 'panel-btn toolbar-tool toolbar-more' + (selectedHidden ? ' is-active' : '') + (drag?.target === 'more' ? ' is-drop-target' : ''),
-        style: { left: layout.more }, title: selectedHidden ? '更多 · ' + selectedHidden.label : '更多功能与快捷栏',
-        'aria-label': '更多功能', 'aria-expanded': menu, onClick: () => setMenu(value => !value)
+        style: { left: layout.more }, title: selectedHidden ? t('toolbar.moreSelected', { tool: selectedHidden.label }) : t('toolbar.moreAndShortcuts'),
+        'aria-label': t('toolbar.more'), 'aria-expanded': menu, onClick: () => setMenu(value => !value)
       }, selectedHidden?.icon || '···'),
       React.createElement('button', { type: 'button', className: 'panel-btn toolbar-tool toolbar-settings',
-        style: { left: layout.settings }, title: '设置', 'aria-label': '设置', onClick: onSettings }, settingsIcon),
+        style: { left: layout.settings }, title: t('common.settings'), 'aria-label': t('common.settings'), onClick: onSettings }, settingsIcon),
       drag && React.createElement('div', { className: 'toolbar-drag-ghost' + (drag.target === null ? ' is-cancel' : ''),
         style: { left: drag.left, top: drag.top }, 'aria-hidden': true }, defs.find(tool => tool.id === drag.id)?.icon),
-      menu && React.createElement('div', { className: 'toolbar-overflow' + (drag ? ' is-dragging' : ''), 'aria-label': '更多功能',
+      menu && React.createElement('div', { className: 'toolbar-overflow' + (drag ? ' is-dragging' : ''), 'aria-label': t('toolbar.more'),
         style: { top: Math.max(32, notchHeight) + 6, maxHeight: Math.max(64, Math.min(300, (root.current?.closest('.panel')?.clientHeight || 320) - Math.max(32, notchHeight) - 24)) }
       },
-        React.createElement('div', { className: 'toolbar-menu-hint' }, '拖到空位放置，拖到按钮交换，也可拖回 ···'),
+        React.createElement('div', { className: 'toolbar-menu-hint' }, t('toolbar.dragHint')),
         ...menuTools.map(tool => React.createElement('div', { key: tool.id, className: 'toolbar-overflow-row',
           'data-tool-id': tool.id, 'data-menu-tool': tool.id, 'data-drag-source': drag?.id === tool.id ? 'true' : undefined
         },
           tool.render ? tool.render(true) : basicButton(tool, true),
           React.createElement('button', { type: 'button', 'data-toolbar-command': true,
-            title: shownIds.includes(tool.id) ? '移入更多' : '固定到快捷栏',
-            'aria-label': (shownIds.includes(tool.id) ? '将' + tool.label + '移入更多' : '将' + tool.label + '固定到快捷栏'),
+            title: t(shownIds.includes(tool.id) ? 'toolbar.moveToMore' : 'toolbar.pin'),
+            'aria-label': t(shownIds.includes(tool.id) ? 'toolbar.moveToolToMore' : 'toolbar.pinTool', { tool: tool.label }),
             onClick: () => shownIds.includes(tool.id) ? hide(tool) : promote(tool)
-          }, shownIds.includes(tool.id) ? '收纳' : '固定')
+          }, t(shownIds.includes(tool.id) ? 'toolbar.store' : 'toolbar.pinShort'))
         ))
       ),
       error && React.createElement('div', { className: 'toolbar-save-error', role: 'alert' }, error)

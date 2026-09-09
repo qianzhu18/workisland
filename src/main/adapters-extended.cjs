@@ -647,7 +647,7 @@ class GeminiAdapter {
               sessionId,
               tool,
               timestamp: now,
-              activity: question || i18n.k2249756269({}, "由于 Code Agent 限制，请在终端中回答问题")
+              activity: question || i18n.t("agent.external.answerInTerminal")
             });
             ctx.emitEvent({
               type: "questionAsked",
@@ -672,7 +672,7 @@ class GeminiAdapter {
             const permissionRequest = buildGeminiPermissionRequest(
               sessionId,
               title,
-              `${i18n.k2393745408({ placeholder1: title }, "需要审批：{placeholder1}")}`
+              i18n.t("agent.approval.required", { title })
             );
             ctx.emitEvent({
               type: "permissionRequested",
@@ -1883,7 +1883,7 @@ class AidenAdapter {
               sessionId,
               tool,
               timestamp: now,
-              activity: i18n.k2249756269({}, "由于 Code Agent 限制，请在终端中回答问题")
+              activity: i18n.t("agent.external.answerInTerminal")
             });
             ctx.emitEvent({
               type: "questionAsked",
@@ -2060,7 +2060,7 @@ class AidenAdapter {
           activity: ""
         });
         const emitCompleted = (lastMsg) => {
-          const assistantMsg = lastMsg || i18n.k2627975638({}, "由于 Code Agent 限制，请在终端中查看对应执行结果");
+          const assistantMsg = lastMsg || i18n.t("agent.external.viewResultInTerminal");
           ctx.emitEvent({
             type: "sessionCompleted",
             sessionId,

@@ -7,6 +7,7 @@ import { test } from "node:test";
 
 const require = createRequire(import.meta.url);
 const { SettingsRepository } = require("../src/main/settings-repository.cjs");
+const { mergeSettings } = require("../src/shared/settings.cjs");
 const { TELEMETRY_CONSENT_NOTICE_VERSION } = require("../src/shared/telemetry-consent.cjs");
 
 test("telemetry policy migration is persisted before a later restart", () => {
@@ -45,4 +46,13 @@ test("legacy explicit opt-outs are persisted as off", () => {
   const saved = JSON.parse(readFileSync(filePath, "utf8"));
   assert.equal(saved.telemetryEnabled, false);
   assert.equal(saved.telemetryPolicyVersion, 2);
+});
+
+test("legacy automatic locale values migrate to follow system", () => {
+  const migrated = mergeSettings({ locale: "zh" });
+  assert.equal(migrated.languagePreference, "system");
+  assert.equal(Object.hasOwn(migrated, "locale"), false);
+
+  assert.equal(mergeSettings({ languagePreference: "en" }).languagePreference, "en");
+  assert.equal(mergeSettings({ languagePreference: "fr" }).languagePreference, "system");
 });

@@ -1,4 +1,4 @@
-import { i as i18n } from "../vendor/react-runtime.js";
+import { t } from "./i18n.js";
 const fireHighIcon = new URL("./fire-high.png", import.meta.url).href;
 const fireMiddleIcon = new URL("./fire-middle.png", import.meta.url).href;
 const fireLowIcon = new URL("./fire-low.png", import.meta.url).href;
@@ -27,8 +27,8 @@ function basenameOfPath(p, trailingSlash = false) {
 function formatList(items, max = 2) {
   const cleaned = items.map((s) => s.trim()).filter(Boolean);
   if (cleaned.length === 0) return "";
-  if (cleaned.length <= max) return cleaned.join("、");
-  return `${i18n.k3760958615({ placeholder1: cleaned.slice(0, max).join("、"), placeholder2: cleaned.length }, "{placeholder1} 等{placeholder2}项")}`;
+  if (cleaned.length <= max) return cleaned.join(t("format.listSeparator"));
+  return t("format.listMore", { items: cleaned.slice(0, max).join(t("format.listSeparator")), count: cleaned.length });
 }
 function stripBashRedirections(cmd) {
   return cmd.replace(/\s+\d?>>\s+\S+[\s\S]*$/g, "").replace(/\s+\d?>\s+\S+[\s\S]*$/g, "").trim();
@@ -66,15 +66,15 @@ function buildApproveAlwaysTooltip(req) {
   const cmdNames = uniqCmds;
   let label;
   if (hasDirs && !hasRead && !hasCmds)
-    label = `${i18n.k2869054726({ placeholder1: formatList(pathNames) }, "将始终允许访问：{placeholder1}")}`;
+    label = t("approval.tooltip.allowAccess", { paths: formatList(pathNames) });
   else if (hasRead && !hasDirs && !hasCmds)
-    label = `${i18n.k2328913338({ placeholder1: formatList(pathNames) }, "将始终允许读取：{placeholder1}")}`;
+    label = t("approval.tooltip.allowRead", { paths: formatList(pathNames) });
   else if (hasCmds && !hasDirs && !hasRead)
-    label = `${i18n.k4228512737({ placeholder1: formatList(cmdNames) }, "将不再询问：{placeholder1}")}`;
+    label = t("approval.tooltip.allowCommands", { commands: formatList(cmdNames) });
   else if ((hasDirs || hasRead) && hasCmds) {
-    label = `${i18n.k1213928192({ placeholder1: formatList(pathNames), placeholder2: formatList(cmdNames) }, "将始终允许：访问 {placeholder1}；执行 {placeholder2}")}`;
+    label = t("approval.tooltip.allowAccessAndCommands", { paths: formatList(pathNames), commands: formatList(cmdNames) });
   } else if (hasDirs && hasRead && !hasCmds) {
-    label = `${i18n.k2869054726({ placeholder1: formatList(pathNames) }, "将始终允许访问：{placeholder1}")}`;
+    label = t("approval.tooltip.allowAccess", { paths: formatList(pathNames) });
   }
   if (label) return label;
   return void 0;
