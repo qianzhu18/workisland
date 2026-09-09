@@ -18,13 +18,13 @@ const windowSource = readFileSync(new URL("../src/main/windows.cjs", import.meta
 // 遥测政策 v2（2026-08-22）：默认开启、设置内披露、随时可关；不再有同意窗口。
 
 test("settings about page discloses default-on telemetry with a working toggle", () => {
-  assert.match(settingsSource, /匿名使用统计/);
-  assert.match(settingsSource, /默认开启/);
+  assert.match(settingsSource, /settings\.about\.telemetry\.sectionTitle/);
+  assert.match(settingsSource, /settings\.about\.telemetry\.enable\.description/);
   assert.match(settingsSource, /save\(\{ telemetryEnabled: v \}\)/);
   // 关闭语义必须向用户说明：立即停止收集并清空未上报数据。
-  assert.match(settingsSource, /清空未上报的数据/);
-  assert.match(settingsSource, /本机发送状态/);
-  assert.match(settingsSource, /最近一次成功提交到 PostHog/);
+  assert.match(settingsSource, /settings\.about\.telemetry\.disabled/);
+  assert.match(settingsSource, /settings\.about\.telemetry\.status\.title/);
+  assert.match(settingsSource, /settings\.about\.telemetry\.lastSuccess/);
   assert.match(settingsSource, /getTelemetryStatus/);
 });
 
@@ -32,7 +32,7 @@ test("welcome shows no telemetry consent UI under the default-on policy", () => 
   assert.doesNotMatch(welcomeSource, /允许匿名使用统计/);
   assert.doesNotMatch(welcomeSource, /getStarted\(\{ telemetry \}\)/);
   assert.doesNotMatch(welcomeSource, /telemetryConsentOnly|mode=telemetry/);
-  assert.match(welcomeSource, /进入 WorkIsland/);
+  assert.match(welcomeSource, /t\("welcome\.action\.enter"\)/);
 });
 
 test("welcome preload no longer carries a telemetry payload", () => {

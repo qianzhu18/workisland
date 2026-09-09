@@ -1170,60 +1170,60 @@ function soundPage() {
 
 function aboutPage() {
   const root = document.createDocumentFragment();
-  const about = section("关于 WorkIsland", "本地优先的 macOS Agent 会话监控与审批界面。");
+  const about = section(t("settings.about.sectionTitle"), t("settings.about.description"));
   const version = el("div", "about-card");
   const appMark = el("img", "app-mark");
   appMark.src = WORKISLAND_ICON_URL;
   appMark.alt = "";
   appMark.draggable = false;
-  version.append(appMark, el("div", "about-copy", "WorkIsland\n正在读取版本…"));
-  api.getAppVersion().then(v => version.querySelector(".about-copy").textContent = `WorkIsland\n版本 ${v}`).catch(() => {});
+  version.append(appMark, el("div", "about-copy", t("settings.about.loadingVersion")));
+  api.getAppVersion().then(v => version.querySelector(".about-copy").textContent = t("settings.about.version", { version: v })).catch(() => {});
   about.append(version);
-  const support = section("帮助与社区", "操作手册、反馈渠道与社区信息由 WorkIsland 官网统一维护，无需重新安装即可更新。");
+  const support = section(t("settings.about.support.sectionTitle"), t("settings.about.support.description"));
   support.append(
-    row("产品手册", "查看安装、首次任务、状态理解、隐私与反馈说明。", button("打开手册", () => api.openExternal(USER_GUIDE_URL), "primary")),
-    row("提交反馈", "像日常吐槽一样一句话反馈，会自动附带版本与 Agent 状态。", (() => { const group = el("div", "setting-actions-group"); group.append(button("一键吐槽", () => openComplaintBox(), "primary"), button("打开反馈入口", () => api.openExternal(FEEDBACK_URL))); return group; })()),
-    row("加入社区", "查看最新 WorkIsland 微信社区二维码。", button("查看群码", () => api.openExternal(COMMUNITY_URL)))
+    row(t("settings.about.support.guide.title"), t("settings.about.support.guide.description"), button(t("settings.about.support.guide.action"), () => api.openExternal(USER_GUIDE_URL), "primary")),
+    row(t("settings.about.support.feedback.title"), t("settings.about.support.feedback.description"), (() => { const group = el("div", "setting-actions-group"); group.append(button(t("settings.feedback.title"), () => openComplaintBox(), "primary"), button(t("settings.about.support.feedback.action"), () => api.openExternal(FEEDBACK_URL))); return group; })()),
+    row(t("settings.about.support.community.title"), t("settings.about.support.community.description"), button(t("settings.about.support.community.action"), () => api.openExternal(COMMUNITY_URL)))
   );
-  const updates = section("更新", "仅请求官方版本信息与官方安装包，不上传会话内容或使用数据。");
-  const updateStatus = el("div", "update-status", state.latestUpdate ? `发现新版本 ${state.latestUpdate.latestVersion}` : "尚未检查");
+  const updates = section(t("settings.about.update.sectionTitle"), t("settings.about.update.description"));
+  const updateStatus = el("div", "update-status", state.latestUpdate ? t("update.availableVersion", { version: state.latestUpdate.latestVersion }) : t("settings.about.update.notChecked"));
   let latestUrl = state.latestUpdate?.releaseUrl || "";
-  const openButton = button("打开下载页", () => {
+  const openButton = button(t("settings.about.update.openDownloads"), () => {
     if (latestUrl) api.openExternal(latestUrl);
   });
   openButton.hidden = !latestUrl;
-  const checkButton = button("检查更新", async () => {
+  const checkButton = button(t("settings.about.update.check"), async () => {
     checkButton.disabled = true;
-    updateStatus.textContent = "正在检查…";
+    updateStatus.textContent = t("settings.about.update.checking");
     try {
       const result = await api.checkForUpdates();
       if (result?.status === "update-available") {
         state.latestUpdate = result;
         latestUrl = result.releaseUrl || "";
         openButton.hidden = !latestUrl;
-        updateStatus.textContent = `发现新版本 ${result.latestVersion}`;
+        updateStatus.textContent = t("update.availableVersion", { version: result.latestVersion });
       } else if (result?.status === "up-to-date") {
-        updateStatus.textContent = `当前已是最新版本（${result.currentVersion}）`;
+        updateStatus.textContent = t("settings.about.update.current", { version: result.currentVersion });
       } else if (result?.status === "disabled") {
-        updateStatus.textContent = "开发模式下不执行更新检查";
+        updateStatus.textContent = t("settings.about.update.disabledDev");
       } else {
-        updateStatus.textContent = result?.message || "暂时无法获取更新信息";
+        updateStatus.textContent = result?.message || t("settings.about.update.unavailable");
       }
     } catch (error) {
-      updateStatus.textContent = error?.message || "暂时无法获取更新信息";
+      updateStatus.textContent = error?.message || t("settings.about.update.unavailable");
     } finally {
       checkButton.disabled = false;
     }
   });
   const formatMb = bytes => `${(Math.max(0, Number(bytes) || 0) / 1048576).toFixed(1)} MB`;
-  const installButton = button("下载并安装", async () => {
+  const installButton = button(t("update.action.download"), async () => {
     const phase = state.updateState?.phase || "idle";
     try {
       installButton.disabled = true;
       if (phase === "ready") await api.installUpdate();
       else await api.downloadUpdate();
     } catch (error) {
-      updateStatus.textContent = error?.message || "更新操作失败";
+      updateStatus.textContent = error?.message || t("settings.about.update.operationFailed");
     } finally {
       syncUpdateStateControls();
     }
@@ -1235,26 +1235,26 @@ function aboutPage() {
     installButton.hidden = !(hasUpdate || ["downloading", "ready", "installing", "manual", "error"].includes(phase));
     if (phase === "downloading") {
       const pct = snapshot?.progress?.pct ?? 0;
-      installButton.textContent = `正在下载 ${pct}%`;
-      updateStatus.textContent = `正在下载更新 ${pct}%（${formatMb(snapshot?.progress?.received)}${snapshot?.progress?.total ? ` / ${formatMb(snapshot.progress.total)}` : ""}），完成后会校验安装包。`;
+      installButton.textContent = t("settings.about.update.downloadingPercent", { percent: pct });
+      updateStatus.textContent = t("settings.about.update.downloadingStatus", { percent: pct, progress: `${formatMb(snapshot?.progress?.received)}${snapshot?.progress?.total ? ` / ${formatMb(snapshot.progress.total)}` : ""}` });
     } else if (phase === "ready") {
-      installButton.textContent = "重启并完成安装";
+      installButton.textContent = t("update.action.install");
       installButton.disabled = false;
-      updateStatus.textContent = "安装包已下载并通过 SHA-256 校验，点击按钮立即安装并重启。";
+      updateStatus.textContent = t("settings.about.update.readyStatus");
     } else if (phase === "installing") {
-      installButton.textContent = "正在安装…";
-      updateStatus.textContent = "正在安装更新，应用将自动重启。";
+      installButton.textContent = t("settings.about.update.installing");
+      updateStatus.textContent = t("settings.about.update.installingStatus");
     } else if (phase === "manual") {
-      installButton.textContent = "需手动完成";
-      updateStatus.textContent = snapshot?.error || "自动安装未完成，已打开安装镜像，请拖拽安装。";
+      installButton.textContent = t("update.badge.manual");
+      updateStatus.textContent = snapshot?.error || t("settings.about.update.manualStatus");
     } else if (phase === "error") {
-      installButton.textContent = "重试下载";
+      installButton.textContent = t("update.action.retry");
       installButton.disabled = false;
-      updateStatus.textContent = snapshot?.error || "更新失败，请稍后重试。";
+      updateStatus.textContent = snapshot?.error || t("update.status.error");
     } else {
-      installButton.textContent = "下载并安装";
+      installButton.textContent = t("update.action.download");
       installButton.disabled = false;
-      if (hasUpdate) updateStatus.textContent = `发现新版本 ${state.latestUpdate.latestVersion}`;
+      if (hasUpdate) updateStatus.textContent = t("update.availableVersion", { version: state.latestUpdate.latestVersion });
     }
   };
   state.onUpdateStateUi = syncUpdateStateControls;
@@ -1262,45 +1262,45 @@ function aboutPage() {
   const updateControls = el("div", "inline-controls");
   updateControls.append(updateStatus, checkButton, installButton, openButton);
   updates.append(
-    row("自动检查更新", "安装版每天检查一次 GitHub Release；关闭后仍可手动检查。", toggle(state.settings.updateChecksEnabled, v => save({ updateChecksEnabled: v }), "自动检查更新")),
-    row("版本检查", "发现新版本后会提醒，可直接下载官方安装包并在本机完成安装。", updateControls)
+    row(t("settings.about.update.auto.title"), t("settings.about.update.auto.description"), toggle(state.settings.updateChecksEnabled, v => save({ updateChecksEnabled: v }), t("settings.about.update.auto.title"))),
+    row(t("settings.about.update.versionCheck.title"), t("settings.about.update.versionCheck.description"), updateControls)
   );
-  const diagnostics = section("诊断", "导出仅包含本机诊断信息的日志；退出操作位于默认的“通用”页面。");
+  const diagnostics = section(t("settings.about.diagnostics.sectionTitle"), t("settings.about.diagnostics.description"));
   const actions = el("div", "section-actions");
-  actions.append(button("导出诊断日志", async () => { const path = await api.collectLogs(); showToast(path ? "日志已导出" : "日志导出完成"); }));
+  actions.append(button(t("settings.about.diagnostics.export"), async () => { const path = await api.collectLogs(); showToast(t(path ? "settings.about.diagnostics.exported" : "settings.about.diagnostics.complete")); }));
   diagnostics.append(actions);
-  const privacy = section("匿名使用统计", "默认开启。仅上报事件类型与 Agent 名称等匿名统计，可在下方随时关闭。");
+  const privacy = section(t("settings.about.telemetry.sectionTitle"), t("settings.about.telemetry.description"));
   const telemetryStatus = state.telemetryStatus;
   const statusText = !telemetryStatus
-    ? "正在读取本机发送状态…"
+    ? t("settings.about.telemetry.loading")
     : telemetryStatus.status === "disabled"
-      ? "已关闭：不会继续收集或发送，未上报数据已清空。"
+      ? t("settings.about.telemetry.disabled")
       : telemetryStatus.status === "development"
-        ? "开发模式：本机可检查队列，但不会出网发送。"
+        ? t("settings.about.telemetry.development")
         : telemetryStatus.status === "not-configured"
-          ? "上传未配置：本机不会向 PostHog 发送数据。"
+          ? t("settings.about.telemetry.notConfigured")
           : telemetryStatus.lastSuccessAt
-            ? `最近一次成功提交到 PostHog：${new Date(telemetryStatus.lastSuccessAt).toLocaleString()}；待发送 ${telemetryStatus.pendingEventCount} 条。`
-            : `已开启：等待首次成功提交；待发送 ${telemetryStatus.pendingEventCount} 条。`;
+            ? t("settings.about.telemetry.lastSuccess", { time: new Date(telemetryStatus.lastSuccessAt).toLocaleString(), count: telemetryStatus.pendingEventCount })
+            : t("settings.about.telemetry.awaiting", { count: telemetryStatus.pendingEventCount });
   privacy.append(
     row(
-      "允许匿名使用统计",
-      "默认开启；关闭后立即停止收集并清空未上报的数据。不包含会话内容、文件路径或个人信息；目的地为 PostHog（美国区），事件清单见开源代码 telemetry.cjs。",
-      toggle(state.settings.telemetryEnabled, v => save({ telemetryEnabled: v }), "允许匿名使用统计")
+      t("settings.about.telemetry.enable.title"),
+      t("settings.about.telemetry.enable.description"),
+      toggle(state.settings.telemetryEnabled, v => save({ telemetryEnabled: v }), t("settings.about.telemetry.enable.title"))
     ),
-    row("本机发送状态", "仅显示本机队列与 PostHog 批量接口最近一次 HTTP 2xx 确认，不展示或上传任何额外内容。", el("div", "setting-description", statusText))
+    row(t("settings.about.telemetry.status.title"), t("settings.about.telemetry.status.description"), el("div", "setting-description", statusText))
   );
   const devApi = state.settings.developerApi || { enabled: false, port: 9938, token: "" };
-  const devSection = section("开发者 API", "在本机回环地址提供只读的会话状态 JSON 端点，供脚本与工具集成。默认关闭；响应不含会话内容。");
+  const devSection = section(t("settings.about.developer.sectionTitle"), t("settings.about.developer.description"));
   const devToken = document.createElement("input");
   devToken.className = "text-input";
-  devToken.placeholder = "可选访问令牌（留空不鉴权）";
+  devToken.placeholder = t("settings.about.developer.tokenPlaceholder");
   devToken.value = devApi.token || "";
-  devToken.setAttribute("aria-label", "开发者 API 访问令牌");
+  devToken.setAttribute("aria-label", t("settings.about.developer.tokenLabel"));
   devToken.addEventListener("change", () => save({ developerApi: { ...devApi, token: devToken.value.trim() } }));
   devSection.append(
-    row("启用本地状态端点", `开启后 GET http://127.0.0.1:${devApi.port || 9938}/api/status 返回会话状态与版本信息。`, toggle(devApi.enabled, v => save({ developerApi: { ...devApi, enabled: v } }), "启用开发者 API")),
-    row("访问令牌", "填写后请求需携带 Bearer 令牌（或 ?token= 查询参数）；仅本机可访问。", devToken)
+    row(t("settings.about.developer.enable.title"), t("settings.about.developer.enable.description", { port: devApi.port || 9938 }), toggle(devApi.enabled, v => save({ developerApi: { ...devApi, enabled: v } }), t("settings.about.developer.enable.label"))),
+    row(t("settings.about.developer.token.title"), t("settings.about.developer.token.description"), devToken)
   );
   root.append(about, support, privacy, updates, devSection, diagnostics);
   return root;
@@ -1372,5 +1372,5 @@ async function start() {
 }
 
 start().catch(error => {
-  document.querySelector("#content").textContent = `设置页加载失败：${error.message}`;
+  document.querySelector("#content").textContent = t("settings.error.loadFailed", { error: error.message });
 });
