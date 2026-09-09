@@ -504,10 +504,10 @@ function statusBadge(report) {
   const diagnosis = report?.diagnosis;
   const repairNeeded = diagnosis?.status === "hook_missing" || diagnosis?.status === "hook_stale" || diagnosis?.status === "hook_invalid";
   const text = repairNeeded
-    ? "待修复"
+    ? t("settings.agents.status.repair")
     : verifyOnRealEvent && installed
-    ? (verified ? "已连接" : "配置已写入")
-    : installed ? "已连接" : unavailable ? "未检测" : "未连接";
+    ? (verified ? t("settings.agents.status.connected") : t("settings.agents.status.configured"))
+    : installed ? t("settings.agents.status.connected") : unavailable ? t("settings.agents.status.notDetected") : t("settings.agents.status.disconnected");
   const statusClass = repairNeeded
     ? "repair"
     : verifyOnRealEvent && installed && !verified
@@ -518,10 +518,10 @@ function statusBadge(report) {
 
 function doctorSummaryLine(summary) {
   if (!summary || !summary.total) return "";
-  const parts = [`${summary.total} 个 Agent`, `${summary.ok} 正常`];
-  if (summary.repairable) parts.push(`${summary.repairable} 待修复`);
-  if (summary.notInstalled) parts.push(`${summary.notInstalled} 未安装`);
-  if (summary.blocked) parts.push(`${summary.blocked} 需关注`);
+  const parts = [t("settings.agents.summary.total", { count: summary.total }), t("settings.agents.summary.ok", { count: summary.ok })];
+  if (summary.repairable) parts.push(t("settings.agents.summary.repair", { count: summary.repairable }));
+  if (summary.notInstalled) parts.push(t("settings.agents.summary.notInstalled", { count: summary.notInstalled }));
+  if (summary.blocked) parts.push(t("settings.agents.summary.attention", { count: summary.blocked }));
   return parts.join(" · ");
 }
 
@@ -529,7 +529,7 @@ function buildComplaintDiagnostics(appVersion) {
   const platform = navigator.userAgentData?.platform || navigator.platform || "unknown";
   const lines = [
     "---",
-    "由 WorkIsland 设置页「一键吐槽」自动生成",
+    t("settings.feedback.diagnostics.generated"),
     `WorkIsland: ${appVersion || "unknown"} (${platform})`
   ];
   try {
@@ -546,19 +546,19 @@ function openComplaintBox() {
   const overlay = el("div", "complaint-overlay");
   const card = el("div", "complaint-card");
   card.append(
-    el("h2", "complaint-title", "一键吐槽"),
-    el("p", "complaint-hint", "像跟朋友吐槽一样写就行：哪里不对、想要什么，一句话也可以。截图在打开的 GitHub 页面直接粘贴即可；版本与 Agent 状态会自动附带，不用你填。"),
-    el("p", "complaint-hint", "内容只用于反馈，不会自动上传任何会话数据。")
+    el("h2", "complaint-title", t("settings.feedback.title")),
+    el("p", "complaint-hint", t("settings.feedback.hint")),
+    el("p", "complaint-hint", t("settings.feedback.privacy"))
   );
   const textarea = document.createElement("textarea");
   textarea.className = "complaint-input";
   textarea.rows = 6;
-  textarea.placeholder = "例如：点了右上角的终端图标没反应，还弹出了别的东西。";
+  textarea.placeholder = t("settings.feedback.placeholder");
   const statusLine = el("p", "complaint-status", "");
-  const sendButton = button("送去 GitHub", async () => {
+  const sendButton = button(t("settings.feedback.send"), async () => {
     const text = textarea.value.trim();
     if (!text) {
-      statusLine.textContent = "先写一句吐槽再发送。";
+      statusLine.textContent = t("settings.feedback.empty");
       return;
     }
     sendButton.disabled = true;
@@ -568,31 +568,31 @@ function openComplaintBox() {
       try { await navigator.clipboard.writeText(fullBody); } catch { /* 剪贴板失败不影响打开 */ }
       const params = new URLSearchParams({
         template: GITHUB_ISSUE_TEMPLATE,
-        title: text.split("\n")[0].slice(0, 60) || "用户反馈",
+        title: text.split("\n")[0].slice(0, 60) || t("settings.feedback.issueTitle"),
         version: `${appVersion || "unknown"} (${navigator.userAgentData?.platform || navigator.platform || "unknown"})`,
         area: "Other",
         reproduction: text.slice(0, COMPLAINT_BODY_LIMIT),
-        expected: "按用户描述正常工作。",
+        expected: t("settings.feedback.expected"),
         actual: fullBody.slice(0, COMPLAINT_BODY_LIMIT + 600),
-        frequency: "未填写（应用内一键吐槽提交）"
+        frequency: t("settings.feedback.frequency")
       });
       api.openExternal(`${GITHUB_ISSUE_NEW_URL}?${params}`);
-      statusLine.textContent = "已在浏览器打开预填好的 issue，点一次 Submit 即可；内容较长时请把剪贴板里的原文粘贴进正文。";
+      statusLine.textContent = t("settings.feedback.opened");
       setTimeout(() => overlay.remove(), 8000);
     } finally {
       sendButton.disabled = false;
     }
   }, "primary");
-  const copyButton = button("复制诊断信息", async () => {
+  const copyButton = button(t("settings.feedback.copyDiagnostics"), async () => {
     const appVersion = await api.getAppVersion().catch(() => "");
     try {
       await navigator.clipboard.writeText(buildComplaintDiagnostics(appVersion));
-      statusLine.textContent = "诊断信息已复制，可直接粘贴给开发者。";
+      statusLine.textContent = t("settings.feedback.diagnosticsCopied");
     } catch {
-      statusLine.textContent = "复制失败，请手动截图本页 Agent 状态。";
+      statusLine.textContent = t("settings.feedback.copyFailed");
     }
   });
-  const cancelButton = button("取消", () => overlay.remove());
+  const cancelButton = button(t("common.cancel"), () => overlay.remove());
   const actions = el("div", "complaint-actions");
   actions.append(copyButton, cancelButton, sendButton);
   card.append(textarea, statusLine, actions);
@@ -621,10 +621,10 @@ async function setAgentInstalled(agentId, install, actionButton) {
   if (state.busy.has(agentId)) return;
   state.busy.add(agentId);
   actionButton.disabled = true;
-  actionButton.textContent = install ? "连接中…" : "移除中…";
+  actionButton.textContent = install ? t("settings.agents.connecting") : t("settings.agents.removing");
   try {
     const result = install ? await api.installHook(agentId) : await api.uninstallHook(agentId);
-    if (result?.success === false) throw new Error(result.error || "安装失败");
+    if (result?.success === false) throw new Error(result.error || t("settings.agents.installFailed"));
     const toggles = { ...(state.settings.hookToggles || {}), [agentId]: install };
     await save({ hookToggles: toggles });
     await refreshAgents();
@@ -639,11 +639,11 @@ async function repairAgentHook(agentId, actionButton) {
   if (state.busy.has(agentId)) return;
   state.busy.add(agentId);
   actionButton.disabled = true;
-  actionButton.textContent = "修复中…";
+  actionButton.textContent = t("settings.agents.repairing");
   try {
     const result = await api.repairHook(agentId);
-    if (result?.success === false) throw new Error(result.error || "修复失败");
-    if (result?.resolved === false) showToast(`${agentId} 修复后仍有异常，请查看卡片原因`, true);
+    if (result?.success === false) throw new Error(result.error || t("settings.agents.repairFailed"));
+    if (result?.resolved === false) showToast(t("settings.agents.repairUnresolved", { agent: agentId }), true);
     await refreshAgents();
   } catch (error) {
     showToast(error.message || String(error), true);
@@ -657,14 +657,14 @@ async function repairAllAgentHooks(actionButton) {
   state.busy.add("doctor-repair-all");
   actionButton.disabled = true;
   const originalText = actionButton.textContent;
-  actionButton.textContent = "修复中…";
+  actionButton.textContent = t("settings.agents.repairing");
   try {
     const results = await api.repairAllHooks();
     const ok = (results || []).filter(r => r?.success).length;
     const failed = (results || []).length - ok;
-    if (!(results || []).length) showToast("没有需要修复的 Agent");
-    else if (failed) showToast(`已修复 ${ok} 个，${failed} 个失败（见卡片原因）`, true);
-    else showToast(`已修复 ${ok} 个 Agent 的 Hook`);
+    if (!(results || []).length) showToast(t("settings.agents.nothingToRepair"));
+    else if (failed) showToast(t("settings.agents.repairAllPartial", { ok, failed }), true);
+    else showToast(t("settings.agents.repairAllSuccess", { count: ok }));
     await refreshAgents();
   } catch (error) {
     showToast(error.message || String(error), true);
@@ -677,14 +677,14 @@ async function repairAllAgentHooks(actionButton) {
 
 function capabilitySummary(capabilities = {}) {
   const items = [];
-  if (capabilities.liveStatus) items.push("实时状态");
-  if (capabilities.completion === "native") items.push("完成提醒");
-  else if (capabilities.completion === "inferred") items.push("推断完成");
-  if (capabilities.approval === "bridge") items.push("Island 审批");
-  else if (capabilities.approval === "observe") items.push("审批观察");
-  if (capabilities.jump === "session") items.push("会话回源");
-  else if (capabilities.jump === "workspace") items.push("工作区回源");
-  else if (capabilities.jump === "app") items.push("打开应用");
+  if (capabilities.liveStatus) items.push(t("settings.agents.capability.liveStatus"));
+  if (capabilities.completion === "native") items.push(t("settings.agents.capability.completion"));
+  else if (capabilities.completion === "inferred") items.push(t("settings.agents.capability.inferredCompletion"));
+  if (capabilities.approval === "bridge") items.push(t("settings.agents.capability.islandApproval"));
+  else if (capabilities.approval === "observe") items.push(t("settings.agents.capability.observeApproval"));
+  if (capabilities.jump === "session") items.push(t("settings.agents.capability.openSession"));
+  else if (capabilities.jump === "workspace") items.push(t("settings.agents.capability.openWorkspace"));
+  else if (capabilities.jump === "app") items.push(t("settings.agents.capability.openApp"));
   return items.join(" · ");
 }
 
@@ -708,31 +708,31 @@ function agentCard(report) {
   const detail = repairNeeded && diagnosis.reasons?.length
     ? diagnosis.reasons[0]
     : verifyOnRealEvent && report.installed && report.connectionState !== "verified"
-    ? (issues[0] || "连接配置已写入；请运行一次实际任务。收到事件后才会显示“已连接”。")
+    ? (issues[0] || t("settings.agents.awaitingEvent"))
     : report.available === false && !report.installed
-    ? `未检测到 ${label}，安装后即可连接。`
+    ? t("settings.agents.notDetectedHint", { agent: label })
     : issues.length ? issues[0] : report.description;
   content.append(el("div", "agent-detail", detail));
   const capabilities = capabilitySummary(report.capabilities);
   if (capabilities) content.append(el("div", "agent-detail", capabilities));
 
   if (report.capabilities?.approvalConfigurable) {
-    const approval = select(state.settings.approvalModes?.[agentId] || "bridge", [["bridge", "Island 审批"], ["terminalNative", "终端审批"]], async value => {
+    const approval = select(state.settings.approvalModes?.[agentId] || "bridge", [["bridge", t("settings.agents.approval.island")], ["terminalNative", t("settings.agents.approval.terminal")]], async value => {
       await save({ approvalModes: { ...(state.settings.approvalModes || {}), [agentId]: value } });
-      showToast("审批方式已保存，Hook 将自动刷新");
-    }, `${label} 审批方式`);
+      showToast(t("settings.agents.approval.saved"));
+    }, t("settings.agents.approval.label", { agent: label }));
     approval.classList.add("compact-select");
     content.append(approval);
   }
 
   const installed = Boolean(report?.installed);
-  const action = button(installed ? "移除" : "连接", () => setAgentInstalled(agentId, !installed, action), installed ? "secondary" : "primary");
+  const action = button(installed ? t("settings.agents.remove") : t("settings.agents.connect"), () => setAgentInstalled(agentId, !installed, action), installed ? "secondary" : "primary");
   if (report.available === false && !installed) {
     action.disabled = true;
-    action.textContent = "未安装";
+    action.textContent = t("settings.agents.notInstalled");
   }
   if (repairNeeded) {
-    const repair = button("修复", () => repairAgentHook(agentId, repair), "primary");
+    const repair = button(t("settings.agents.repair"), () => repairAgentHook(agentId, repair), "primary");
     card.append(iconFrame, content, repair, action);
   } else {
     card.append(iconFrame, content, action);
@@ -751,8 +751,8 @@ async function loadRemoteHosts(render = false) {
 
 function copyText(text, label) {
   navigator.clipboard?.writeText(text).then(
-    () => showToast(`${label}已复制`),
-    () => showToast("复制失败，请手动选择复制", true)
+    () => showToast(t("settings.copy.copied", { label })),
+    () => showToast(t("settings.copy.failed"), true)
   );
 }
 
@@ -760,35 +760,35 @@ function copyText(text, label) {
 function remoteHostsSection() {
   const remote = state.remoteHosts;
   const cfg = state.settings.remoteAccess || { enabled: false, port: 7878 };
-  const node = section("远程主机", "远程机器上的 Agent 状态实时上岛。observe-only：只回传运行状态，不回传提示词、代码或路径；远程接入需要 Mac 开启「远程登录」并在远程机器上按 docs/REMOTE_ONBOARDING.md 建立隧道。");
-  node.append(row("启用远程接入", "开启后 WorkIsland 在本机 127.0.0.1 只新增一个 observe-only 监听端口。", toggle(remote?.enabled ?? cfg.enabled, async v => {
+  const node = section(t("settings.remote.sectionTitle"), t("settings.remote.description"));
+  node.append(row(t("settings.remote.enable.title"), t("settings.remote.enable.description"), toggle(remote?.enabled ?? cfg.enabled, async v => {
     await save({ remoteAccess: { ...cfg, enabled: v } });
     await loadRemoteHosts();
     renderPage();
-  }, "启用远程接入")));
+  }, t("settings.remote.enable.title"))));
   if (!remote) {
-    node.append(el("div", "setting-description", "远程主机状态不可用。"));
+    node.append(el("div", "setting-description", t("settings.remote.unavailable")));
     return node;
   }
   if (remote.enabled && !remote.listener?.running) {
-    node.append(el("div", "doctor-summary", remote.listener?.lastError === "PORT_IN_USE" ? `监听失败：端口 ${remote.listener?.port ?? cfg.port} 已被占用，请更换端口后重试。` : "监听未运行，请尝试重新开关远程接入。"));
+    node.append(el("div", "doctor-summary", remote.listener?.lastError === "PORT_IN_USE" ? t("settings.remote.portInUse", { port: remote.listener?.port ?? cfg.port }) : t("settings.remote.notRunning")));
   }
   const tokenArea = el("div", "inline-controls");
-  tokenArea.append(button("生成配对令牌", async () => {
+  tokenArea.append(button(t("settings.remote.generateToken"), async () => {
     try {
       state.remotePairing = await api.createRemotePairingToken();
       renderPage();
     } catch (error) {
-      showToast(error?.message || "生成令牌失败", true);
+      showToast(error?.message || t("settings.remote.tokenFailed"), true);
     }
   }, "primary"));
   if (state.remotePairing?.token) {
     const expires = new Date(state.remotePairing.expiresAt).toLocaleTimeString();
     const tokenBox = el("code", "remote-token-box", state.remotePairing.token);
-    tokenArea.append(tokenBox, button("复制", () => copyText(state.remotePairing.token, "令牌")));
-    node.append(el("div", "setting-description", `令牌 ${state.remotePairing.token.slice(0, 4)}… 只显示本次，10 分钟内有效且只能用一次（至 ${expires}）。把它提供给远程机器上的 AI 助手完成配对。`));
+    tokenArea.append(tokenBox, button(t("common.copy"), () => copyText(state.remotePairing.token, t("settings.remote.token"))));
+    node.append(el("div", "setting-description", t("settings.remote.tokenHint", { prefix: state.remotePairing.token.slice(0, 4), expires })));
   }
-  node.append(row("配对令牌", "远程机器首次接入时使用；每个令牌只能绑定一台主机一次。", tokenArea));
+  node.append(row(t("settings.remote.pairing.title"), t("settings.remote.pairing.description"), tokenArea));
   const list = el("div", "agent-list");
   for (const host of remote.hosts || []) {
     const pairedAt = host.pairedAt ? new Date(host.pairedAt).toLocaleString() : "";
@@ -796,24 +796,24 @@ function remoteHostsSection() {
     const card = el("div", "remote-host-card");
     const content = el("div", "remote-host-copy");
     content.append(el("div", "remote-host-name", host.displayName));
-    content.append(el("div", "remote-host-detail", `${online ? "已连接" : "未连接"} · 配对于 ${pairedAt}`));
-    const revoke = button("撤销", async () => {
-      if (!window.confirm(`撤销 ${host.displayName} 后，该主机的会话密钥立即失效；重新接入需要生成新令牌。`)) return;
+    content.append(el("div", "remote-host-detail", t("settings.remote.hostDetail", { status: online ? t("settings.agents.status.connected") : t("settings.agents.status.disconnected"), time: pairedAt })));
+    const revoke = button(t("settings.remote.revoke"), async () => {
+      if (!window.confirm(t("settings.remote.revokeConfirm", { host: host.displayName }))) return;
       try {
         await api.revokeRemoteHost(host.hostId);
         state.remotePairing = null;
         await loadRemoteHosts();
         renderPage();
-        showToast("主机已撤销");
+        showToast(t("settings.remote.revoked"));
       } catch (error) {
-        showToast(error?.message || "撤销失败", true);
+        showToast(error?.message || t("settings.remote.revokeFailed"), true);
       }
     }, "danger");
     card.append(content, revoke);
     list.append(card);
   }
   if ((remote.hosts || []).length === 0) {
-    list.append(el("div", "setting-description", "还没有接入的远程主机。生成配对令牌后，把 docs/REMOTE_ONBOARDING.md 交给远程机器上的 AI 助手即可。"));
+    list.append(el("div", "setting-description", t("settings.remote.empty")));
   }
   node.append(list);
   return node;
@@ -821,13 +821,13 @@ function remoteHostsSection() {
 
 function agentsPage() {
   const root = document.createDocumentFragment();
-  const hooks = section("本地 Agent", "连接只会修改对应 Agent 的本地 Hook 配置，不依赖云端服务。一键检测会扫描全部 Agent 的 Hook 配置并给出修复建议。");
+  const hooks = section(t("settings.agents.sectionTitle"), t("settings.agents.description"));
   const summaryText = doctorSummaryLine(state.doctorSummary);
   if (summaryText) {
     const summary = el("div", "doctor-summary", summaryText);
     summary.setAttribute("role", "status");
     if (state.doctorSummary?.repairable > 0) {
-      const repairAll = button("一键修复全部", () => repairAllAgentHooks(repairAll), "primary");
+      const repairAll = button(t("settings.agents.repairAll"), () => repairAllAgentHooks(repairAll), "primary");
       summary.append(repairAll);
     }
     hooks.append(summary);
@@ -837,9 +837,9 @@ function agentsPage() {
   hooks.append(grid);
   const tools = el("div", "section-actions");
   tools.append(
-    button("一键检测", () => refreshAgents().catch(error => showToast(error.message, true))),
-    button("移除全部 Hook", async () => {
-      if (!window.confirm("确定移除全部 Agent 的 Hook 配置吗？\n移除后所有 Agent 将停止向 WorkIsland 上报状态，需要逐个重新连接。")) return;
+    button(t("settings.agents.checkAll"), () => refreshAgents().catch(error => showToast(error.message, true))),
+    button(t("settings.agents.removeAll"), async () => {
+      if (!window.confirm(t("settings.agents.removeAllConfirm"))) return;
       await api.uninstallAllHooks();
       await refreshAgents();
     }, "danger")
