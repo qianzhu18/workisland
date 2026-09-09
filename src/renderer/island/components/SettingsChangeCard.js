@@ -1,30 +1,31 @@
 import { R as React, r as reactExports } from "../../vendor/react-runtime.js";
+import { t } from "../../shared/i18n.js";
 
 const LABELS = {
-  autoCollapseDelayMs: "自动收起延迟",
-  autoCollapseOnMouseLeave: "移出后自动收起",
-  completionPopupDurationSec: "完成通知时长",
-  fileShelfEnabled: "文件架",
-  hoverToOpen: "悬停展开",
-  islandDisplayMode: "灵动岛显示模式",
-  lyricsEnabled: "歌词",
-  mediaEnabled: "媒体控制",
-  mediaTrackChangeNotifications: "切歌通知",
-  performanceAlertsEnabled: "性能提醒",
-  performanceEnabled: "性能监控",
-  petScale: "桌宠大小",
-  petSprite: "桌宠形象",
-  showUsageQuota: "用量额度",
-  "sound.enabled": "提示音",
-  "sound.volume": "提示音音量",
-  terminalEnabled: "终端",
-  updateChecksEnabled: "更新检查",
-  usageDisplayValue: "用量显示"
+  autoCollapseDelayMs: "settingsChange.field.autoCollapseDelayMs",
+  autoCollapseOnMouseLeave: "settingsChange.field.autoCollapseOnMouseLeave",
+  completionPopupDurationSec: "settingsChange.field.completionPopupDurationSec",
+  fileShelfEnabled: "settingsChange.field.fileShelfEnabled",
+  hoverToOpen: "settingsChange.field.hoverToOpen",
+  islandDisplayMode: "settingsChange.field.islandDisplayMode",
+  lyricsEnabled: "settingsChange.field.lyricsEnabled",
+  mediaEnabled: "settingsChange.field.mediaEnabled",
+  mediaTrackChangeNotifications: "settingsChange.field.mediaTrackChangeNotifications",
+  performanceAlertsEnabled: "settingsChange.field.performanceAlertsEnabled",
+  performanceEnabled: "settingsChange.field.performanceEnabled",
+  petScale: "settingsChange.field.petScale",
+  petSprite: "settingsChange.field.petSprite",
+  showUsageQuota: "settingsChange.field.showUsageQuota",
+  "sound.enabled": "settingsChange.field.soundEnabled",
+  "sound.volume": "settingsChange.field.soundVolume",
+  terminalEnabled: "settingsChange.field.terminalEnabled",
+  updateChecksEnabled: "settingsChange.field.updateChecksEnabled",
+  usageDisplayValue: "settingsChange.field.usageDisplayValue"
 };
 
 function formatValue(value) {
-  if (value === true) return "开启";
-  if (value === false) return "关闭";
+  if (value === true) return t("common.on");
+  if (value === false) return t("common.off");
   return String(value ?? "—");
 }
 
@@ -41,7 +42,7 @@ export function SettingsChangeCard({ surface, onOpenSettings, onCollapse }) {
       await window.islandBridge?.undoSettingsChanges?.(surface?.changeIds || []);
       onCollapse?.();
     } catch (undoError) {
-      setError(undoError?.message || "设置已再次变化，无法撤销");
+      setError(undoError?.message || t("settingsChange.undoFailed"));
     } finally {
       setBusy(false);
     }
@@ -55,20 +56,20 @@ export function SettingsChangeCard({ surface, onOpenSettings, onCollapse }) {
     React.createElement("div", { className: "settings-change-heading" },
       React.createElement("span", { className: "settings-change-mark", "aria-hidden": "true" }, "✓"),
       React.createElement("div", null,
-        React.createElement("strong", null, `${surface?.client || "智能体"} 修改了 WorkIsland 设置`),
-        React.createElement("span", null, "修改已应用，你随时可以撤销")
+        React.createElement("strong", null, t("settingsChange.heading", { client: surface?.client || t("common.agent") })),
+        React.createElement("span", null, t("settingsChange.description"))
       )
     ),
     React.createElement("div", { className: "settings-change-list" }, changes.map((change) =>
       React.createElement("div", { className: "settings-change-row", key: change.key },
-        React.createElement("span", null, LABELS[change.key] || change.key),
+        React.createElement("span", null, LABELS[change.key] ? t(LABELS[change.key]) : change.key),
         React.createElement("span", null, `${formatValue(change.oldValue)} → ${formatValue(change.newValue)}`)
       )
-    ), extraCount > 0 && React.createElement("div", { className: "settings-change-more" }, `另有 ${extraCount} 项修改`)),
+    ), extraCount > 0 && React.createElement("div", { className: "settings-change-more" }, t("settingsChange.more", { count: extraCount }))),
     error && React.createElement("div", { className: "settings-change-error", role: "alert" }, error),
     React.createElement("div", { className: "settings-change-actions" },
-      React.createElement("button", { type: "button", disabled: busy, onClick: undo }, busy ? "撤销中…" : "撤销"),
-      React.createElement("button", { type: "button", className: "is-secondary", onClick: viewSettings }, "查看设置")
+      React.createElement("button", { type: "button", disabled: busy, onClick: undo }, t(busy ? "settingsChange.undoing" : "settingsChange.undo")),
+      React.createElement("button", { type: "button", className: "is-secondary", onClick: viewSettings }, t("settingsChange.view"))
     )
   );
 }

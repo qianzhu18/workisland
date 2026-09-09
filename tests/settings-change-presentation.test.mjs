@@ -89,10 +89,10 @@ test("the Island and pet panel expose undo and settings actions for notices", ()
   const card = fs.readFileSync(new URL("../src/renderer/island/components/SettingsChangeCard.js", import.meta.url), "utf8");
   const island = fs.readFileSync(new URL("../src/renderer/island/components/IslandPanel.js", import.meta.url), "utf8");
   const pet = fs.readFileSync(new URL("../src/renderer/pet/panel-app.js", import.meta.url), "utf8");
-  assert.match(card, /修改了 WorkIsland 设置/);
+  assert.match(card, /settingsChange\.heading/);
   assert.match(card, /undoSettingsChanges/);
-  assert.match(card, /撤销/);
-  assert.match(card, /查看设置/);
+  assert.match(card, /settingsChange\.undo/);
+  assert.match(card, /settingsChange\.view/);
   assert.match(island, /SettingsChangeCard/);
   assert.match(pet, /SettingsChangeCard/);
 });

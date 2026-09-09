@@ -1,4 +1,5 @@
 import { R as React, b as ReactDOM } from "../../vendor/react-runtime.js";
+import { t } from "../../shared/i18n.js";
 import { placeFloatingLayer } from "./floating-layer-model.mjs";
 import { performanceActionMessage } from "./performance-action-model.mjs";
 import { formatProcessMemory, preferredProcessMetric, sortProcessesByMetric } from "./performance-process-model.mjs";
@@ -67,12 +68,12 @@ export function PerformancePopover({ state, labelled = false }) {
   const orderedProcesses = sortProcessesByMetric(state?.processes, metric);
   const visibleProcesses = showAllProcesses ? orderedProcesses : orderedProcesses.slice(0, 5);
   const processStatus = state?.processesLoading
-    ? "正在读取进程…"
+    ? t("performance.process.loading")
     : state?.processesUnavailable
-      ? "暂时无法读取进程"
+      ? t("performance.process.unavailable")
       : state?.processesLoaded
-        ? "没有可显示的进程"
-        : "正在读取进程…";
+        ? t("performance.process.empty")
+        : t("performance.process.loading");
   const level = cpu >= 85 || memory >= 90 ? "critical" : cpu >= 65 || memory >= 75 ? "warning" : "normal";
   const actOnProcess = async (action) => {
     if (!selectedProcess || pendingAction) return;
@@ -80,52 +81,52 @@ export function PerformancePopover({ state, labelled = false }) {
     setFeedback("");
     try {
       const result = await window.islandBridge?.actOnProcess?.({ ...selectedProcess, action });
-      setFeedback(performanceActionMessage(result));
+      setFeedback(t(performanceActionMessage(result)));
       if (result?.ok) setSelectedProcess(null);
     } catch {
-      setFeedback(performanceActionMessage({ ok: false, reason: "failed" }));
+      setFeedback(t(performanceActionMessage({ ok: false, reason: "failed" })));
     } finally {
       setPendingAction("");
     }
   };
-  const popover = visible && React.createElement("div", { ref: popoverRef, className: "performance-popover", role: "dialog", "aria-label": "性能详情", style: { left: `${position.left}px`, top: `${position.top}px` }, onMouseEnter: open, onMouseLeave: closeSoon },
-    React.createElement("div", { className: "performance-popover-header" }, React.createElement("strong", null, "系统性能"), React.createElement("span", null, "实时")),
+  const popover = visible && React.createElement("div", { ref: popoverRef, className: "performance-popover", role: "dialog", "aria-label": t("performance.details"), style: { left: `${position.left}px`, top: `${position.top}px` }, onMouseEnter: open, onMouseLeave: closeSoon },
+    React.createElement("div", { className: "performance-popover-header" }, React.createElement("strong", null, t("performance.system")), React.createElement("span", null, t("performance.realtime"))),
     React.createElement("div", { className: "performance-metrics" },
-      React.createElement("button", { type: "button", className: `performance-metric${metric === "cpu" ? " is-active" : ""}`, onClick: () => setSelectedMetric("cpu"), "aria-pressed": metric === "cpu", title: "按 CPU 占用排序" }, React.createElement("span", null, "CPU"), React.createElement("strong", null, `${cpu}%`), React.createElement("i", { style: { "--value": `${cpu}%` } })),
-      React.createElement("button", { type: "button", className: `performance-metric${metric === "memory" ? " is-active" : ""}`, onClick: () => setSelectedMetric("memory"), "aria-pressed": metric === "memory", title: "按内存占用排序" }, React.createElement("span", null, "内存"), React.createElement("strong", null, `${memory}%`), React.createElement("i", { style: { "--value": `${memory}%` } }))
+      React.createElement("button", { type: "button", className: `performance-metric${metric === "cpu" ? " is-active" : ""}`, onClick: () => setSelectedMetric("cpu"), "aria-pressed": metric === "cpu", title: t("performance.sort.cpu") }, React.createElement("span", null, "CPU"), React.createElement("strong", null, `${cpu}%`), React.createElement("i", { style: { "--value": `${cpu}%` } })),
+      React.createElement("button", { type: "button", className: `performance-metric${metric === "memory" ? " is-active" : ""}`, onClick: () => setSelectedMetric("memory"), "aria-pressed": metric === "memory", title: t("performance.sort.memory") }, React.createElement("span", null, t("performance.memory")), React.createElement("strong", null, `${memory}%`), React.createElement("i", { style: { "--value": `${memory}%` } }))
     ),
     React.createElement("div", { className: "performance-memory" }, `${bytes(state?.memoryUsedBytes)} / ${bytes(state?.memoryTotalBytes)}`),
     orderedProcesses.length === 0 && React.createElement("div", { className: "performance-process-status", role: "status" }, processStatus),
     state?.processes?.length > 0 && React.createElement("div", { className: "performance-processes" },
-      React.createElement("div", { className: "performance-process-title" }, React.createElement("span", null, metric === "memory" ? "按内存占用排序" : "按 CPU 占用排序"), React.createElement("span", null, `${orderedProcesses.length} 个可见进程`)),
+      React.createElement("div", { className: "performance-process-title" }, React.createElement("span", null, t(metric === "memory" ? "performance.sort.memory" : "performance.sort.cpu")), React.createElement("span", null, t("performance.process.count", { count: orderedProcesses.length }))),
       React.createElement("div", { className: `performance-process-list${showAllProcesses ? " is-expanded" : ""}` },
-        visibleProcesses.map((process) => React.createElement("button", { type: "button", disabled: Boolean(process.protected), className: `performance-process${selectedProcess?.pid === process.pid ? " is-selected" : ""}${process.protected ? " is-protected" : ""}`, key: process.pid, onClick: () => { if (process.protected) return; setSelectedProcess(process); setFeedback(""); }, "aria-label": process.protected ? `${process.name} 是受保护进程` : `管理进程 ${process.name}` },
+        visibleProcesses.map((process) => React.createElement("button", { type: "button", disabled: Boolean(process.protected), className: `performance-process${selectedProcess?.pid === process.pid ? " is-selected" : ""}${process.protected ? " is-protected" : ""}`, key: process.pid, onClick: () => { if (process.protected) return; setSelectedProcess(process); setFeedback(""); }, "aria-label": t(process.protected ? "performance.process.protectedLabel" : "performance.process.manageLabel", { name: process.name }) },
           React.createElement("span", { className: "performance-process-name", title: process.name }, process.name),
           React.createElement("span", { className: "performance-process-values" },
             React.createElement("strong", { className: metric === "cpu" ? "is-primary" : "" }, `${Number(process.cpuPct || 0).toFixed(1)}% CPU`),
             React.createElement("strong", { className: metric === "memory" ? "is-primary" : "" }, formatProcessMemory(process.memoryBytes)),
-            process.protected && React.createElement("em", null, "受保护")
+            process.protected && React.createElement("em", null, t("performance.process.protected"))
           )
         ))
       ),
-      orderedProcesses.length > 5 && React.createElement("button", { type: "button", className: "performance-process-toggle", onClick: () => setShowAllProcesses((value) => !value), "aria-expanded": showAllProcesses }, showAllProcesses ? "收起列表" : `查看全部（${orderedProcesses.length}）`),
+      orderedProcesses.length > 5 && React.createElement("button", { type: "button", className: "performance-process-toggle", onClick: () => setShowAllProcesses((value) => !value), "aria-expanded": showAllProcesses }, showAllProcesses ? t("performance.process.collapse") : t("performance.process.viewAll", { count: orderedProcesses.length })),
       selectedProcess && React.createElement("div", { className: "performance-process-confirm" },
         React.createElement("div", null, React.createElement("strong", null, selectedProcess.name), React.createElement("span", null, `PID ${selectedProcess.pid}`)),
-        React.createElement("p", null, "要退出这个进程吗？未保存的数据可能丢失。"),
+        React.createElement("p", null, t("performance.process.quitConfirm")),
         React.createElement("div", { className: "performance-process-actions" },
-          React.createElement("button", { type: "button", disabled: Boolean(pendingAction), onClick: () => { setSelectedProcess(null); setFeedback(""); } }, "取消"),
-          React.createElement("button", { type: "button", disabled: Boolean(pendingAction), onClick: () => actOnProcess("terminate") }, pendingAction === "terminate" ? "正在退出…" : "退出"),
-          React.createElement("button", { type: "button", className: "is-destructive", disabled: Boolean(pendingAction), onClick: () => actOnProcess("force") }, pendingAction === "force" ? "正在强制退出…" : "强制退出")
+          React.createElement("button", { type: "button", disabled: Boolean(pendingAction), onClick: () => { setSelectedProcess(null); setFeedback(""); } }, t("common.cancel")),
+          React.createElement("button", { type: "button", disabled: Boolean(pendingAction), onClick: () => actOnProcess("terminate") }, t(pendingAction === "terminate" ? "performance.process.quitting" : "performance.process.quit")),
+          React.createElement("button", { type: "button", className: "is-destructive", disabled: Boolean(pendingAction), onClick: () => actOnProcess("force") }, t(pendingAction === "force" ? "performance.process.forceQuitting" : "performance.process.forceQuit"))
         )
       ),
       feedback && React.createElement("div", { className: "performance-process-feedback", role: "status" }, feedback)
     )
   );
   return React.createElement("div", { ref: triggerRef, className: "performance-control", onMouseEnter: open, onMouseLeave: closeSoon },
-    React.createElement("button", { type: "button", className: `panel-btn performance-button is-${level}`, onClick: open, "aria-expanded": visible, "aria-label": "性能监视器", title: "性能监视器" },
+    React.createElement("button", { type: "button", className: `panel-btn performance-button is-${level}`, onClick: open, "aria-expanded": visible, "aria-label": t("performance.monitor"), title: t("performance.monitor") },
       React.createElement("span", { className: "performance-gauge", style: { "--load": `${Math.max(cpu, memory)}%` } }),
       React.createElement("span", { className: "performance-mini" }, `${cpu}%`),
-      labelled && React.createElement("span", { className: "performance-menu-label" }, "性能监视器")
+      labelled && React.createElement("span", { className: "performance-menu-label" }, t("performance.monitor"))
     ),
     popover && ReactDOM.createPortal(popover, document.body)
   );
