@@ -225,13 +225,16 @@ test("checksum mismatch aborts the download with an error state", async () => {
 test("download failure surfaces an error state with the message", async () => {
   const userDataPath = mkdtempSync(join(tmpdir(), "workisland-update-dl-err-"));
   const payload = releasePayload();
+  let downloadRequests = 0;
   const service = createUpdateService({
     platform: "darwin",
     app: makeApp("0.9.0"),
     userDataPath,
     arch: "arm64",
+    downloadRetryDelaysMs: [0, 0, 0],
     fetchImpl: async (url) => {
       if (url === RELEASE_API_URL) return { ok: true, json: async () => payload };
+      downloadRequests += 1;
       return { ok: false, status: 502 };
     },
     notificationClass: null,
@@ -241,6 +244,158 @@ test("download failure surfaces an error state with the message", async () => {
   const state = await service.download();
   assert.equal(state.phase, "error");
   assert.match(state.error, /download failed/i);
+  assert.equal(downloadRequests, 3);
+});
+
+test("download resumes a GitHub asset after its response stream drops", async () => {
+  const userDataPath = mkdtempSync(join(tmpdir(), "workisland-update-resume-"));
+  const { createHash } = await import("node:crypto");
+  const dmgBytes = Buffer.from("12345678", "utf8");
+  const dmgSha256 = createHash("sha256").update(dmgBytes).digest("hex");
+  const payload = releasePayload();
+  const ranges = [];
+  const service = createUpdateService({
+    platform: "darwin",
+    app: makeApp("0.9.0"),
+    userDataPath,
+    arch: "arm64",
+    downloadRetryDelaysMs: [0, 0, 0],
+    notificationClass: null,
+    logger: { warn() {}, debug() {} },
+    fetchImpl: async (url, options = {}) => {
+      if (url === RELEASE_API_URL) return { ok: true, json: async () => payload };
+      if (url === payload.assets[1].browser_download_url) {
+        const range = options.headers?.Range || null;
+        ranges.push(range);
+        if (ranges.length === 1) {
+          return {
+            ok: true,
+            status: 200,
+            headers: { get: () => String(dmgBytes.length) },
+            body: (async function* () {
+              yield dmgBytes.subarray(0, 4);
+              throw new TypeError("fetch failed");
+            })()
+          };
+        }
+        return {
+          ok: true,
+          status: 206,
+          headers: { get: () => String(dmgBytes.length - 4) },
+          body: (async function* () { yield dmgBytes.subarray(4); })()
+        };
+      }
+      if (url.endsWith("SHA256SUMS.txt")) return { ok: true, text: async () => `${dmgSha256}  WorkIsland-1.0.0-arm64.dmg\n` };
+      return { ok: false, status: 404 };
+    }
+  });
+
+  await service.check({ force: true, notify: false });
+  const state = await service.download();
+  assert.equal(state.phase, "ready");
+  assert.deepEqual(ranges, [null, "bytes=4-"]);
+  assert.deepEqual(readFileSync(state.downloadedPath), dmgBytes);
+});
+
+test("download restarts safely when a CDN ignores its Range request", async () => {
+  const userDataPath = mkdtempSync(join(tmpdir(), "workisland-update-range-reset-"));
+  const { createHash } = await import("node:crypto");
+  const dmgBytes = Buffer.from("12345678", "utf8");
+  const dmgSha256 = createHash("sha256").update(dmgBytes).digest("hex");
+  const payload = releasePayload();
+  const ranges = [];
+  const service = createUpdateService({
+    platform: "darwin",
+    app: makeApp("0.9.0"),
+    userDataPath,
+    arch: "arm64",
+    downloadRetryDelaysMs: [0, 0, 0],
+    notificationClass: null,
+    logger: { warn() {}, debug() {} },
+    fetchImpl: async (url, options = {}) => {
+      if (url === RELEASE_API_URL) return { ok: true, json: async () => payload };
+      if (url === payload.assets[1].browser_download_url) {
+        const range = options.headers?.Range || null;
+        ranges.push(range);
+        if (ranges.length === 1) {
+          return {
+            ok: true,
+            status: 200,
+            headers: { get: () => String(dmgBytes.length) },
+            body: (async function* () {
+              yield dmgBytes.subarray(0, 4);
+              throw new TypeError("fetch failed");
+            })()
+          };
+        }
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => String(dmgBytes.length) },
+          body: (async function* () { yield dmgBytes; })()
+        };
+      }
+      if (url.endsWith("SHA256SUMS.txt")) return { ok: true, text: async () => `${dmgSha256}  WorkIsland-1.0.0-arm64.dmg\n` };
+      return { ok: false, status: 404 };
+    }
+  });
+
+  await service.check({ force: true, notify: false });
+  const state = await service.download();
+  assert.equal(state.phase, "ready");
+  assert.deepEqual(ranges, [null, "bytes=4-"]);
+  assert.deepEqual(readFileSync(state.downloadedPath), dmgBytes);
+});
+
+test("download clears an unusable partial file when a CDN rejects its Range request", async () => {
+  const userDataPath = mkdtempSync(join(tmpdir(), "workisland-update-range-416-"));
+  const { createHash } = await import("node:crypto");
+  const dmgBytes = Buffer.from("12345678", "utf8");
+  const dmgSha256 = createHash("sha256").update(dmgBytes).digest("hex");
+  const payload = releasePayload();
+  const ranges = [];
+  const service = createUpdateService({
+    platform: "darwin",
+    app: makeApp("0.9.0"),
+    userDataPath,
+    arch: "arm64",
+    downloadRetryDelaysMs: [0, 0, 0],
+    notificationClass: null,
+    logger: { warn() {}, debug() {} },
+    fetchImpl: async (url, options = {}) => {
+      if (url === RELEASE_API_URL) return { ok: true, json: async () => payload };
+      if (url === payload.assets[1].browser_download_url) {
+        const range = options.headers?.Range || null;
+        ranges.push(range);
+        if (ranges.length === 1) {
+          return {
+            ok: true,
+            status: 200,
+            headers: { get: () => String(dmgBytes.length) },
+            body: (async function* () {
+              yield dmgBytes.subarray(0, 4);
+              throw new TypeError("fetch failed");
+            })()
+          };
+        }
+        if (ranges.length === 2) return { ok: false, status: 416 };
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => String(dmgBytes.length) },
+          body: (async function* () { yield dmgBytes; })()
+        };
+      }
+      if (url.endsWith("SHA256SUMS.txt")) return { ok: true, text: async () => `${dmgSha256}  WorkIsland-1.0.0-arm64.dmg\n` };
+      return { ok: false, status: 404 };
+    }
+  });
+
+  await service.check({ force: true, notify: false });
+  const state = await service.download();
+  assert.equal(state.phase, "ready");
+  assert.deepEqual(ranges, [null, "bytes=4-", null]);
+  assert.deepEqual(readFileSync(state.downloadedPath), dmgBytes);
 });
 
 test("install mounts the dmg, copies the app and relaunches", async () => {
