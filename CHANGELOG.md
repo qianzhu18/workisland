@@ -6,7 +6,7 @@
 
 ## [1.4.0] - 2026-09-07
 
-「覆盖与留存」第一阶段收口版本：把安静时段、Plan 确认卡 Markdown 渲染、本地开发者 API、用量发现通道与远程接入（observe-only 第一阶段）五个已验证特性正式发出，并首次公开闲置性能实测数据；发布侧自本版起执行中英双语 Release Notes。
+「覆盖与留存」第一阶段收口版本：把安静时段、Plan 确认卡 Markdown 渲染、本地开发者 API、用量发现通道、远程接入（observe-only 第一阶段）与全应用中英双语六项已验证能力正式发出，并首次公开闲置性能实测数据。
 
 ### Added
 
@@ -14,11 +14,12 @@
 - **Plan 确认卡 Markdown 渲染**（#92）：Plan 确认文本按 Markdown 渲染（标题、列表、代码块，复用岛上既有渲染样式），默认折叠至固定高度、可一键展开全文；不新增依赖与 IPC 通道。
 - **本地开发者 API**（#93）：设置 → 关于可开启只读状态端点 `127.0.0.1:9938/api/status`，返回会话状态 JSON（id / Agent / phase / 时间戳 + 版本）；默认关闭，可选 Bearer 令牌鉴权；响应不含 prompt、路径或会话内容。详见 [DEVELOPER_API.md](docs/DEVELOPER_API.md)。
 - **用量发现通道（首批）**（#94）：zcode / opencode / claude 三个客户端的 token 用量改为主动从各客户端本地会话数据发现并入账，不再依赖 Hook 携带 `transcript_path`；此前这些客户端会话能上岛但用量不入账。剩余适配器在 issue #90 跟踪。
+- **全应用中英双语**（#110）：新增跟随系统、简体中文与 English 三种语言偏好；设置页切换后灵动岛、设置、欢迎页、桌宠、原生菜单/对话框和可见诊断原地同步刷新，不重启窗口、不丢失终端或工作台状态。801 组词条和占位符由 CI 守卫校验。
 - **性能实测数据公开**（#108）：Apple M4 · v1.3.0 实测闲置 CPU 中位 2.9%（达标 < 3%，贴线）、内存 top 口径 535 MB / RSS 341 MB；方法与原始采样见 [PERFORMANCE.md](docs/PERFORMANCE.md)，`scripts/perf-idle-benchmark.mjs` 可复现，README 增加展示位。
 
 - **远程接入 observe-only 第一阶段**（#116，ADR-0005）：设置 → Agents → 远程主机生成一次性配对令牌后，远程机器上的 AI 助手按内置指南（[REMOTE_ONBOARDING.md](docs/REMOTE_ONBOARDING.md)）自助建立 SSH 隧道，远程 Agent 会话状态（运行中 / 等待审批 / 完成 / 失败）实时上岛并按主机分组；只回传状态，不回传提示词、代码或路径，入口白名单强制剥离内容字段；本机仅新增 `127.0.0.1:7878` loopback 监听，令牌可随时撤销；tmux attach 等交互式能力属二期另裁。
 
-> **English summary:** Quiet Hours and lock-screen mute for local alert sounds, with Bark push deliberately unsuppressed (#95); Plan confirmations now render as collapsible Markdown (#92); opt-in read-only local Developer API at `127.0.0.1:9938/api/status` with Bearer auth, off by default (#93); usage discovery covers zcode / opencode / claude without relying on `transcript_path` (#94); published idle-performance benchmarks — 2.9% median idle CPU, reproducible via `scripts/perf-idle-benchmark.mjs` (#108); phase 1 of observe-only remote access (#116) — pair a remote machine with a one-time token and stream its agent session status to the Island over a user-managed SSH tunnel, grouped by host, status only with content fields dropped at the entry, interactive attach deferred.
+> **English summary:** Quiet Hours and lock-screen mute for local alert sounds, with Bark push deliberately unsuppressed (#95); Plan confirmations now render as collapsible Markdown (#92); opt-in read-only local Developer API at `127.0.0.1:9938/api/status` with Bearer auth, off by default (#93); usage discovery covers zcode / opencode / claude without relying on `transcript_path` (#94); full Chinese/English localization (#110) with system-language detection, live switching and 801 catalog pairs guarded in CI; published idle-performance benchmarks — 2.9% median idle CPU, reproducible via `scripts/perf-idle-benchmark.mjs` (#108); phase 1 of observe-only remote access (#116) — pair a remote machine with a one-time token and stream its agent session status to the Island over a user-managed SSH tunnel, grouped by host, status only with content fields dropped at the entry, interactive attach deferred.
 
 ## [1.3.0] - 2026-09-05
 
