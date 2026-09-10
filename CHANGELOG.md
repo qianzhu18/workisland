@@ -4,6 +4,21 @@
 
 > **版本体系重置（2026-09-02）**：公开版本号统一归位——内测期整理为 `v0.1.0 – v0.10.0`（原 `v0.2.x` 系列与初版 `v0.1.0` 重排，各版本说明注明原版本号）；`v3.0.0 / v3.1.0 / v3.2.0` 分别平移为 `v1.0.0 / v1.1.0 / v1.2.0`；`v3.2.0-rc.1` 与整条 `v1.0.0-alpha`（Windows 试验线）已删除，Windows 支持暂停维护、欢迎社区贡献者主导适配。
 
+## [1.5.0] - 2026-09-10
+
+「远程与随手清理」版本：SSH 远程升级为独立设置页并由 WorkIsland 主动管理隧道，会话清理进岛工具栏，并修复刘海屏工具栏遮挡。
+
+### Added
+
+- **SSH 远程独立设置页**（#150，issue #116）：设置新增「SSH 远程」页——从 `~/.ssh/config` 发现主机（筛选/重新扫描/一键添加）、手动添加表单、主机接入与隧道状态、复制接入命令、重连隧道与撤销。隧道改由 WorkIsland 从 Mac 主动 `ssh -R` 建立并守护（指数退避重连），**Mac 不再需要开启「远程登录」**；observe-only 边界不变：只回传运行状态，不回传提示词、代码或路径。接入指南升级 v1.1（docs/REMOTE_ONBOARDING.md）。
+- **会话清理进工具栏**（#147/#149，issue #139）：岛工具栏新增「清理会话」操作，一键结束全部可见会话卡片；设置提供显示开关。
+
+### Fixed
+
+- **刘海屏工具栏遮挡**（#152，issue #151）：工具栏刘海禁区两侧各加 8px 安全边距——13/14 寸 MacBook 原生屏上边缘图标（如清理会话）不再被刘海物理遮挡；外接屏与无刘海屏行为不变。
+
+> **English summary:** Dedicated "SSH Remote" settings page (#150) — discover hosts from `~/.ssh/config` with filtering and one-click add, WorkIsland-managed reverse tunnels (no Mac Remote Login required), copyable setup commands and per-host tunnel status, observe-only boundaries unchanged; session cleanup moves into the island toolbar with a settings toggle (#147/#149); 8px camera-zone safety margin so toolbar icons are no longer occluded by the notch on 13"/14" MacBook displays (#152).
+
 ## [1.4.0] - 2026-09-07
 
 「覆盖与留存」第一阶段收口版本：把安静时段、Plan 确认卡 Markdown 渲染、本地开发者 API、用量发现通道、远程接入（observe-only 第一阶段）与全应用中英双语六项已验证能力正式发出，并首次公开闲置性能实测数据。
