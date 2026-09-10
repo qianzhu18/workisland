@@ -36,12 +36,13 @@ test("general settings expose all completion notification duration options", () 
 });
 
 test("workstation settings expose every productivity module and local privacy policy", () => {
-  for (const key of ["shelf.title", "clipboard.title", "terminal.title", "clipboard.limit.title", "clipboard.retention.title", "terminal.directory.title", "terminal.commands.title"]) {
+  for (const key of ["shelf.title", "clipboard.title", "terminal.title", "clearSessions.title", "clearSessions.description", "clipboard.limit.title", "clipboard.retention.title", "terminal.directory.title", "terminal.commands.title"]) {
     assert.match(source, new RegExp(`t\\("settings\\.general\\.${key.replaceAll(".", "\\.")}"\\)`));
   }
   assert.match(source, /save\(\{ fileShelfEnabled: v \}\)/);
   assert.match(source, /save\(\{ clipboardHistoryEnabled: v \}\)/);
   assert.match(source, /save\(\{ terminalEnabled: v \}\)/);
+  assert.match(source, /save\(\{ clearSessionsEnabled: v \}\)/);
   assert.match(source, /terminalSavedCommands/);
   assert.match(source, /t\("common\.delete"\)/);
   assert.match(source, /await save\([\s\S]*terminalSavedCommands:[\s\S]*renderPage\(\)/);

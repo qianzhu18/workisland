@@ -5,6 +5,7 @@ const LABELS = {
   autoCollapseDelayMs: "settingsChange.field.autoCollapseDelayMs",
   autoCollapseOnMouseLeave: "settingsChange.field.autoCollapseOnMouseLeave",
   completionPopupDurationSec: "settingsChange.field.completionPopupDurationSec",
+  clearSessionsEnabled: "settingsChange.field.clearSessionsEnabled",
   fileShelfEnabled: "settingsChange.field.fileShelfEnabled",
   hoverToOpen: "settingsChange.field.hoverToOpen",
   islandDisplayMode: "settingsChange.field.islandDisplayMode",

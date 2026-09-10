@@ -77,6 +77,7 @@ const CONTROLLED_SETTINGS = Object.freeze({
   autoCollapseDelayMs: numberEntry("autoCollapseDelayMs", "自动收起延迟", "鼠标离开后等待多久收起灵动岛。", { min: 500, max: 60000, integer: true }),
   autoCollapseOnMouseLeave: booleanEntry("autoCollapseOnMouseLeave", "离开后自动收起", "鼠标离开灵动岛后自动收起。"),
   completionPopupDurationSec: numberEntry("completionPopupDurationSec", "完成提醒时长", "任务完成提醒停留的秒数。", { min: 1, max: 60, integer: true }),
+  clearSessionsEnabled: booleanEntry("clearSessionsEnabled", "清理会话", "在顶部快捷栏显示清理全部可见会话的按钮。"),
   fileShelfEnabled: booleanEntry("fileShelfEnabled", "文件架", "在工作台显示文件架。"),
   hoverToOpen: booleanEntry("hoverToOpen", "悬停展开", "鼠标悬停时展开灵动岛。"),
   islandDisplayMode: enumEntry("islandDisplayMode", "灵动岛显示模式", "选择常驻或仅在需要时显示。", ["persistent", "minimal"]),

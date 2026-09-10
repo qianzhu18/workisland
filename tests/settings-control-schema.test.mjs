@@ -14,6 +14,7 @@ const { createDefaultSettings } = require("../src/shared/settings.cjs");
 const EXPECTED_KEYS = [
   "autoCollapseDelayMs",
   "autoCollapseOnMouseLeave",
+  "clearSessionsEnabled",
   "completionPopupDurationSec",
   "fileShelfEnabled",
   "hoverToOpen",
@@ -63,6 +64,7 @@ test("descriptions and reads include only requested controlled settings", () => 
     "sound.volume": 37,
     mediaEnabled: true
   });
+  assert.equal(CONTROLLED_SETTINGS.clearSessionsEnabled.defaultValue, true);
   assert.throws(
     () => readControlledSettings(settings, ["telemetryEnabled"]),
     (error) => error.code === "SETTING_NOT_ALLOWED"
