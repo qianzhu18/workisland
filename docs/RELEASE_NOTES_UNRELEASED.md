@@ -2,18 +2,19 @@
 
 状态：`release-candidate — 范围冻结；Tag 推送后由 GitHub Actions 签名公证并创建正式 Release`
 
-本版主题「覆盖与留存 · 第一阶段收口」：把已合入 `main` 验证的四个留存/开放特性与远程接入 observe-only 第一阶段正式发出去，并首次公开性能实测数据。范围基线见 [`docs/03-roadmap/v1.4.0-版本规划-2026-09-06.md`](./03-roadmap/v1.4.0-版本规划-2026-09-06.md)；完整历史见仓库根目录的 [`CHANGELOG.md`](../CHANGELOG.md)。
+本版主题「覆盖与留存 · 第一阶段收口」：把已合入 `main` 的留存/开放能力、远程接入 observe-only 第一阶段与全应用中英双语正式发出去，并首次公开性能实测数据。范围基线见 [`docs/03-roadmap/v1.4.0-版本规划-2026-09-06.md`](./03-roadmap/v1.4.0-版本规划-2026-09-06.md)；完整历史见仓库根目录的 [`CHANGELOG.md`](../CHANGELOG.md)。
 
 自本版起，GitHub Release 说明采用 **中文全文在前 + `### English Summary` 在后** 的双语结构（英文为摘要，不逐条直译），检查项见 [`RELEASE_PROCESS.md`](./RELEASE_PROCESS.md)。
 
 ## 中文说明（tag 时粘贴到 Release 页前半）
 
-### 覆盖与留存：四个新特性
+### 覆盖与留存：五个新特性
 
 - **安静时段与锁屏静音**（#95）：设置 → 声音可配置勿扰时段（如 22:00 → 08:00，支持跨午夜），时段内不播放任务提示音；macOS 锁屏期间同样静音；两项独立开关。手机推送（Bark）刻意不受抑制——安静时段用户不在电脑前，推送正是通知出口。
 - **Plan 确认卡 Markdown 渲染**（#92）：Plan 确认文本按 Markdown 渲染（标题、列表、代码块，复用岛上既有渲染样式），默认折叠、一键展开全文；链接点击走系统浏览器。
 - **本地开发者 API**（#93）：设置 → 关于可开启只读状态端点 `127.0.0.1:9938/api/status`，返回会话状态 JSON；默认关闭，可选 Bearer 令牌鉴权；响应不含 prompt、路径或会话内容。详见 [DEVELOPER_API.md](./DEVELOPER_API.md)。
 - **用量发现通道（首批）**（#94）：zcode / opencode / claude 三个客户端的 token 用量改为主动从本地会话数据发现并入账，不再依赖 Hook 携带 `transcript_path`；此前这些客户端会话能上岛但用量不入账。
+- **全应用中英双语**（#110）：新增“跟随系统 / 简体中文 / English”语言偏好；切换会同步刷新灵动岛、设置、欢迎页、桌宠、托盘、原生对话框与可见诊断，但不会 reload 窗口、终端或工作台。801 组中英文词条与占位符由 CI 质量门持续校验。
 
 ### 远程接入：observe-only 第一阶段
 
@@ -28,13 +29,13 @@
 
 ### 说明
 
-- 本 DMG 已 Developer ID 签名并通过 Apple 公证，下载后可直接打开（SHA256 见 `SHA256SUMS.txt`）。
+- 正式 DMG 只有在 GitHub Actions 完成 Developer ID 签名、Apple 公证、Staple 与 Gatekeeper 验证后才对外发布（SHA256 见随 Release 生成的 `SHA256SUMS.txt`）。
 - Intel（x64）安装包：#103 已修复 Intel 构建路径，本版 tag 是第一个验证点——x64 DMG 产出并通过签名公证后，才在宣发中解锁「支持 Intel」；发布后回填实际结果。
 - 装过 3.x 旧包的同学：由于版本号重置，旧包认不出 1.x 是新版，请手动下载重装这一次；此后应用内自动升级即生效。
 
 ### English Summary
 
-Quiet Hours and lock-screen mute for local alert sounds, with Bark push deliberately unsuppressed (#95); Plan confirmations render as collapsible Markdown (#92); opt-in read-only local Developer API at `127.0.0.1:9938/api/status` with Bearer auth, off by default (#93); usage discovery covers zcode / opencode / claude without relying on `transcript_path` (#94); phase 1 of observe-only remote access (#116) — pair a remote machine with a one-time token and stream its agent session status to the Island over a user-managed SSH tunnel, grouped by host; status only with content fields dropped at the entry, tunnel drops surface as explicit disconnected cards, interactive attach deferred; published idle-performance benchmarks — 2.9% median idle CPU, reproducible via `scripts/perf-idle-benchmark.mjs` (#108).
+Quiet Hours and lock-screen mute for local alert sounds, with Bark push deliberately unsuppressed (#95); Plan confirmations render as collapsible Markdown (#92); opt-in read-only local Developer API at `127.0.0.1:9938/api/status` with Bearer auth, off by default (#93); usage discovery covers zcode / opencode / claude without relying on `transcript_path` (#94); full Chinese/English localization (#110) supports system language, Chinese and English with live switching and no workspace reset; phase 1 of observe-only remote access (#116) — pair a remote machine with a one-time token and stream its agent session status to the Island over a user-managed SSH tunnel, grouped by host; status only with content fields dropped at the entry, tunnel drops surface as explicit disconnected cards, interactive attach deferred; published idle-performance benchmarks — 2.9% median idle CPU, reproducible via `scripts/perf-idle-benchmark.mjs` (#108).
 
 ## What's Changed
 
@@ -56,5 +57,5 @@ Quiet Hours and lock-screen mute for local alert sounds, with Bark push delibera
 
 - Intel 机型的媒体工作台依赖 MediaRemote 私有框架，行为与 Apple Silicon 存在差异，属尽力支持（见 [COMPATIBILITY.md](./COMPATIBILITY.md)）。
 - Windows Alpha 为独立版本线，不在本版本范围（见版本规划第五节）。
-- 会话/tab 级聚焦抑制（#111）、五大终端 tab 级跳转（#112）、无刘海悬浮条（#109）、应用内 i18n（#110）明确顺延 v1.5+，勿提前开工。
+- 会话/tab 级聚焦抑制（#111）、五大终端 tab 级跳转（#112）与无刘海悬浮条（#109）明确顺延 v1.5+，勿提前开工。
 - 出现 P0 时发布新的 `v1.4.1`，绝不覆盖既有 Tag 或替换既有产物。
