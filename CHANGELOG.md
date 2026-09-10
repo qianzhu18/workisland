@@ -16,8 +16,9 @@
 ### Fixed
 
 - **刘海屏工具栏遮挡**（#152，issue #151）：工具栏刘海禁区两侧各加 8px 安全边距——13/14 寸 MacBook 原生屏上边缘图标（如清理会话）不再被刘海物理遮挡；外接屏与无刘海屏行为不变。
+- **应用内更新传输韧性**（#154）：GitHub Release 大文件下载遇到短暂断网或 CDN 波动时，最多重试三次；流中断后从已写入字节续传，CDN 忽略或拒绝断点时安全地从头下载。每次下载仍须通过 SHA-256 校验才允许安装，不再直接向用户显示底层 `fetch failed`。
 
-> **English summary:** Dedicated "SSH Remote" settings page (#150) — discover hosts from `~/.ssh/config` with filtering and one-click add, WorkIsland-managed reverse tunnels (no Mac Remote Login required), copyable setup commands and per-host tunnel status, observe-only boundaries unchanged; session cleanup moves into the island toolbar with a settings toggle (#147/#149); 8px camera-zone safety margin so toolbar icons are no longer occluded by the notch on 13"/14" MacBook displays (#152).
+> **English summary:** Dedicated "SSH Remote" settings page (#150) — discover hosts from `~/.ssh/config` with filtering and one-click add, WorkIsland-managed reverse tunnels (no Mac Remote Login required), copyable setup commands and per-host tunnel status, observe-only boundaries unchanged; session cleanup moves into the island toolbar with a settings toggle (#147/#149); 8px camera-zone safety margin so toolbar icons are no longer occluded by the notch on 13"/14" MacBook displays (#152); interrupted GitHub Release downloads retry and resume with HTTP Range while retaining SHA-256 verification (#154).
 
 ## [1.4.0] - 2026-09-07
 

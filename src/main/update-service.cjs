@@ -17,6 +17,8 @@ const APP_BUNDLE_NAME = "WorkIsland.app";
 const CHECKSUM_ASSET_NAME = "SHA256SUMS.txt";
 const INSTALL_COMMAND_TIMEOUT_MS = 120e3;
 const DOWNLOAD_PROGRESS_MIN_INTERVAL_MS = 200;
+const DOWNLOAD_MAX_ATTEMPTS = 3;
+const DOWNLOAD_RETRY_DELAYS_MS = [0, 750, 1800];
 
 function parseVersion(value) {
   const raw = String(value ?? "").trim();
@@ -196,39 +198,103 @@ function bodyToAsyncIterable(body) {
   throw new Error(i18n.t("update.error.missingStream"));
 }
 
-async function downloadToFile(fetchImpl, url, destinationPath, { onProgress = () => {}, logger = console } = {}) {
-  const controller = typeof AbortController === "function" ? new AbortController() : null;
-  const response = await fetchImpl(url, {
-    headers: { Accept: "application/octet-stream", "User-Agent": "WorkIsland-update-check" },
-    signal: controller?.signal
-  });
-  if (!response?.ok) throw new Error(i18n.t("update.error.downloadHttp", { status: response?.status ?? "unknown" }));
-  const total = Number(response.headers?.get?.("content-length")) || 0;
-  const hash = createHash("sha256");
-  const handle = await fs.promises.open(destinationPath, "w");
+function createDownloadHttpError(status) {
+  const error = new Error(i18n.t("update.error.downloadHttp", { status: status ?? "unknown" }));
+  error.status = Number(status) || 0;
+  return error;
+}
+
+function isRetryableDownloadError(error) {
+  const status = Number(error?.status) || 0;
+  return status === 0 || status === 408 || status === 425 || status === 429 || status >= 500;
+}
+
+function waitForRetry(delayMs) {
+  const delay = Math.max(0, Number(delayMs) || 0);
+  if (delay === 0) return Promise.resolve();
+  return new Promise((resolve) => setTimeout(resolve, delay));
+}
+
+// GitHub Release 会重定向到短期签名的资产地址；网络稍有波动时，Node/Electron
+// 的流读取会抛出 `fetch failed`。保留已写入的前缀，使用 HTTP Range 继续传输。
+// 如果中间 CDN 忽略 Range 并返回 200，则安全地从头写入，绝不拼接重复字节。
+async function downloadToFile(fetchImpl, url, destinationPath, {
+  expectedSize = 0,
+  onProgress = () => {},
+  logger = console,
+  maxAttempts = DOWNLOAD_MAX_ATTEMPTS,
+  retryDelaysMs = DOWNLOAD_RETRY_DELAYS_MS
+} = {}) {
+  const attempts = Math.max(1, Number(maxAttempts) || DOWNLOAD_MAX_ATTEMPTS);
+  const total = Math.max(0, Number(expectedSize) || 0);
+  let hash = createHash("sha256");
   let received = 0;
   let lastReportedAt = 0;
-  try {
-    for await (const chunk of bodyToAsyncIterable(response.body)) {
-      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-      hash.update(buffer);
-      await handle.write(buffer, 0, buffer.length);
-      received += buffer.length;
-      const at = Date.now();
-      if (at - lastReportedAt >= DOWNLOAD_PROGRESS_MIN_INTERVAL_MS) {
-        lastReportedAt = at;
-        onProgress({ received, total, pct: total > 0 ? Math.min(100, Math.round((received / total) * 100)) : 0 });
-      }
-    }
-  } catch (error) {
-    controller?.abort();
-    throw error;
-  } finally {
-    await handle.close();
+  let lastError = null;
+
+  async function resetPartialDownload() {
+    received = 0;
+    hash = createHash("sha256");
+    await fs.promises.rm(destinationPath, { force: true }).catch(() => {});
   }
-  onProgress({ received, total, pct: total > 0 ? Math.min(100, Math.round((received / total) * 100)) : 100 });
-  logger.debug?.(`[UpdateService] downloaded ${received} bytes from ${url}`);
-  return { received, sha256: hash.digest("hex") };
+
+  await resetPartialDownload();
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const resumeAt = received;
+    const headers = { Accept: "application/octet-stream", "User-Agent": "WorkIsland-update-check" };
+    if (resumeAt > 0) headers.Range = `bytes=${resumeAt}-`;
+    let controller = typeof AbortController === "function" ? new AbortController() : null;
+    let handle = null;
+    try {
+      const response = await fetchImpl(url, { headers, signal: controller?.signal });
+      // 416 means our partial prefix is no longer usable. Clear it and retry from byte 0.
+      if (resumeAt > 0 && response.status === 416) {
+        await resetPartialDownload();
+        if (attempt < attempts) {
+          logger.warn?.("[UpdateService] download server rejected Range; restarting from byte 0");
+          await waitForRetry(retryDelaysMs[attempt] ?? retryDelaysMs.at?.(-1) ?? 0);
+          continue;
+        }
+      }
+      if (!response?.ok) throw createDownloadHttpError(response?.status);
+      if (resumeAt > 0 && response.status !== 206) {
+        logger.warn?.("[UpdateService] download server ignored Range; restarting from byte 0");
+        await resetPartialDownload();
+      }
+
+      handle = await fs.promises.open(destinationPath, received > 0 ? "a" : "w");
+      for await (const chunk of bodyToAsyncIterable(response.body)) {
+        const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+        hash.update(buffer);
+        await handle.write(buffer, 0, buffer.length);
+        received += buffer.length;
+        const at = Date.now();
+        if (at - lastReportedAt >= DOWNLOAD_PROGRESS_MIN_INTERVAL_MS) {
+          lastReportedAt = at;
+          onProgress({ received, total, pct: total > 0 ? Math.min(100, Math.round((received / total) * 100)) : 0 });
+        }
+      }
+      if (total > 0 && received !== total) {
+        throw new Error(i18n.t("update.error.downloadIncomplete"));
+      }
+      onProgress({ received, total, pct: total > 0 ? 100 : 100 });
+      logger.debug?.(`[UpdateService] downloaded ${received} bytes from ${url} in ${attempt} attempt(s)`);
+      return { received, sha256: hash.digest("hex") };
+    } catch (error) {
+      controller?.abort();
+      lastError = error;
+      const shouldRetry = attempt < attempts && isRetryableDownloadError(error);
+      if (!shouldRetry) break;
+      logger.warn?.(`[UpdateService] download attempt ${attempt}/${attempts} failed; resuming`, error);
+      await waitForRetry(retryDelaysMs[attempt] ?? retryDelaysMs.at?.(-1) ?? 0);
+    } finally {
+      await handle?.close();
+      controller = null;
+    }
+  }
+  await fs.promises.rm(destinationPath, { force: true }).catch(() => {});
+  if (isRetryableDownloadError(lastError)) throw new Error(i18n.t("update.error.downloadRetriesExhausted"));
+  throw lastError instanceof Error ? lastError : new Error(i18n.t("update.error.downloadFailed"));
 }
 
 async function runInstallCommand(runner, file, args, { optional = false } = {}) {
@@ -292,6 +358,7 @@ function createUpdateService({
   openPath = (value) => shell?.openPath?.(value),
   arch = process.arch,
   platform = process.platform,
+  downloadRetryDelaysMs = DOWNLOAD_RETRY_DELAYS_MS,
   getInstallDir
 } = {}) {
   if (!app || typeof app.getVersion !== "function") throw new TypeError("app.getVersion is required");
@@ -487,8 +554,10 @@ function createUpdateService({
     try {
       fs.mkdirSync(downloadDir, { recursive: true });
       const { sha256 } = await downloadToFile(fetchImpl, asset.url, destinationPath, {
+        expectedSize: asset.size,
         onProgress: (progress) => publishState({ progress }),
-        logger
+        logger,
+        retryDelaysMs: downloadRetryDelaysMs
       });
       const checksumAsset = pickChecksumAsset(release.assets, arch);
       if (checksumAsset) {
