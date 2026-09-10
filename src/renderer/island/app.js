@@ -185,6 +185,7 @@ function IslandApp() {
   const [performanceEnabled, setPerformanceEnabled] = reactExports.useState(DEFAULT_SETTINGS.performanceEnabled);
   const [performanceAlertsEnabled, setPerformanceAlertsEnabled] = reactExports.useState(DEFAULT_SETTINGS.performanceAlertsEnabled);
   const [fileShelfEnabled, setFileShelfEnabled] = reactExports.useState(DEFAULT_SETTINGS.fileShelfEnabled);
+  const [clearSessionsEnabled, setClearSessionsEnabled] = reactExports.useState(DEFAULT_SETTINGS.clearSessionsEnabled);
   const [clipboardHistoryEnabled, setClipboardHistoryEnabled] = reactExports.useState(DEFAULT_SETTINGS.clipboardHistoryEnabled);
   const [terminalEnabled, setTerminalEnabled] = reactExports.useState(DEFAULT_SETTINGS.terminalEnabled);
   const [usageDashboardEnabled, setUsageDashboardEnabled] = reactExports.useState(DEFAULT_SETTINGS.usageDashboardEnabled);
@@ -277,6 +278,7 @@ function IslandApp() {
       setPerformanceEnabled(s.performanceEnabled);
       setPerformanceAlertsEnabled(s.performanceAlertsEnabled);
       setFileShelfEnabled(s.fileShelfEnabled);
+      setClearSessionsEnabled(s.clearSessionsEnabled);
       setClipboardHistoryEnabled(s.clipboardHistoryEnabled);
       setTerminalEnabled(s.terminalEnabled);
       setUsageDashboardEnabled(s.usageDashboardEnabled);
@@ -296,6 +298,7 @@ function IslandApp() {
       setPerformanceEnabled(s.performanceEnabled);
       setPerformanceAlertsEnabled(s.performanceAlertsEnabled);
       setFileShelfEnabled(s.fileShelfEnabled);
+      setClearSessionsEnabled(s.clearSessionsEnabled);
       setClipboardHistoryEnabled(s.clipboardHistoryEnabled);
       setTerminalEnabled(s.terminalEnabled);
       setUsageDashboardEnabled(s.usageDashboardEnabled);
@@ -1020,6 +1023,7 @@ function IslandApp() {
             performanceState,
             performanceEnabled,
             fileShelfEnabled,
+            clearSessionsEnabled,
             clipboardHistoryEnabled,
             terminalEnabled,
             panelOpen: isOpen,

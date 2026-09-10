@@ -56,20 +56,23 @@ function row(title, description, control) {
 }
 
 function featureSettingsRow(id, title, description, control, detailsBuilder) {
-  const expanded = state.expandedSettingDetails.has(id);
+  const expanded = Boolean(detailsBuilder) && state.expandedSettingDetails.has(id);
   const card = el("div", `feature-settings-card${expanded ? " is-expanded" : ""}`);
   const actions = el("div", "feature-settings-actions");
-  const disclosure = button(expanded ? t("common.collapse") : t("settings.common.details"), () => {
-    if (expanded) state.expandedSettingDetails.delete(id);
-    else state.expandedSettingDetails.add(id);
-    renderPage();
-  });
   const detailId = `feature-settings-${id}`;
-  disclosure.classList.add("feature-settings-disclosure");
-  disclosure.setAttribute("aria-expanded", String(expanded));
-  disclosure.setAttribute("aria-controls", detailId);
-  disclosure.setAttribute("aria-label", t(expanded ? "settings.common.collapseDetails" : "settings.common.expandDetails", { title }));
-  actions.append(control, disclosure);
+  actions.append(control);
+  if (detailsBuilder) {
+    const disclosure = button(expanded ? t("common.collapse") : t("settings.common.details"), () => {
+      if (expanded) state.expandedSettingDetails.delete(id);
+      else state.expandedSettingDetails.add(id);
+      renderPage();
+    });
+    disclosure.classList.add("feature-settings-disclosure");
+    disclosure.setAttribute("aria-expanded", String(expanded));
+    disclosure.setAttribute("aria-controls", detailId);
+    disclosure.setAttribute("aria-label", t(expanded ? "settings.common.collapseDetails" : "settings.common.expandDetails", { title }));
+    actions.append(disclosure);
+  }
   card.append(row(title, description, actions));
   if (expanded) {
     const detail = el("div", "feature-settings-detail");
@@ -399,6 +402,12 @@ function generalPage() {
         row(t("settings.general.terminal.directory.title"), t("settings.general.terminal.directory.description"), terminalDirectoryControl()),
         row(t("settings.general.terminal.commands.title"), t("settings.general.terminal.commands.description"), savedCommandsControl())
       ]
+    ),
+    featureSettingsRow(
+      "clear-sessions",
+      t("settings.general.clearSessions.title"),
+      t("settings.general.clearSessions.description"),
+      toggle(state.settings.clearSessionsEnabled, v => save({ clearSessionsEnabled: v }), t("settings.general.clearSessions.title"))
     )
   );
   const behavior = section(t("settings.general.behavior.sectionTitle"), t("settings.general.behavior.description"));

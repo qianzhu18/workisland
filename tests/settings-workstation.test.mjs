@@ -9,6 +9,9 @@ test("workstation features default to useful, privacy-conscious behavior", () =>
   assert.equal(settings.DEFAULT_SETTINGS.performanceEnabled, true);
   assert.equal(settings.DEFAULT_SETTINGS.performanceAlertsEnabled, false);
   assert.equal(settings.DEFAULT_SETTINGS.fileShelfEnabled, true);
+  assert.equal(settings.DEFAULT_SETTINGS.clearSessionsEnabled, true);
+  assert.equal(settings.mergeSettings({ clearSessionsEnabled: false }).clearSessionsEnabled, false);
+  assert.equal(settings.mergeSettings({ clearSessionsEnabled: "false" }).clearSessionsEnabled, true);
   assert.equal(settings.DEFAULT_SETTINGS.clipboardHistoryEnabled, true);
   assert.equal(settings.mergeSettings({ clipboardHistoryEnabled: false }).clipboardHistoryEnabled, false);
   assert.equal(settings.DEFAULT_SETTINGS.terminalEnabled, true);
@@ -28,13 +31,15 @@ test("persisted workstation preferences survive settings merge", () => {
     mediaTrackChangeNotifications: false,
     lyricsEnabled: true,
     performanceEnabled: false,
-    performanceAlertsEnabled: true
+    performanceAlertsEnabled: true,
+    clearSessionsEnabled: false
   });
   assert.equal(merged.mediaEnabled, false);
   assert.equal(merged.mediaTrackChangeNotifications, false);
   assert.equal(merged.lyricsEnabled, true);
   assert.equal(merged.performanceEnabled, false);
   assert.equal(merged.performanceAlertsEnabled, true);
+  assert.equal(merged.clearSessionsEnabled, false);
 });
 
 test("productivity settings normalize unsafe persisted values", () => {

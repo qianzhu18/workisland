@@ -312,6 +312,7 @@ function AgentUsageRow({
   showUsageQuota = true,
   performanceState,
   performanceEnabled = true,
+  clearSessionsEnabled = true,
   enabledToolboxModules = [],
   activeToolboxModule = "agent",
   onToolboxModuleChange,
@@ -353,8 +354,8 @@ function AgentUsageRow({
       onSelect: onToolboxModuleChange, onOrder: onToolboxModuleReorder,
       homeIcon: React.createElement(AgentHomeIcon), settingsIcon: React.createElement('img', { src: settingIcon, alt: '' }),
       onSettings: () => onOpenSettings('display'), extras: [
-        { id: 'clear-sessions', label: t('session.clear'), icon: React.createElement(ClearSessionsToolIcon),
-          disabled: visibleSessionIds.length === 0, action: () => window.islandBridge?.deleteSessions?.(visibleSessionIds) },
+        ...(clearSessionsEnabled ? [{ id: 'clear-sessions', label: t('session.clear'), icon: React.createElement(ClearSessionsToolIcon),
+          disabled: visibleSessionIds.length === 0, action: () => window.islandBridge?.deleteSessions?.(visibleSessionIds) }] : []),
         ...(performanceEnabled ? [{ id: 'performance', label: t('performance.monitor'), icon: React.createElement('span', null, '◔'), render: (labelled) => React.createElement(PerformancePopover, { state: performanceState, labelled }) }] : []),
         { id: 'pet', label: t('pet.toggle'), fixed: true, icon: React.createElement(PetButtonIcon), action: onOpenPet }
       ]
@@ -1428,6 +1429,7 @@ function IslandPanel({
   mediaEnabled = true,
   performanceState,
   performanceEnabled = true,
+  clearSessionsEnabled = true,
   fileShelfEnabled = true,
   clipboardHistoryEnabled = true,
   terminalEnabled = true,
@@ -1563,6 +1565,7 @@ function IslandPanel({
       pillFirstRow,
       performanceState,
       performanceEnabled,
+      clearSessionsEnabled,
       enabledToolboxModules: enabledModules,
       activeToolboxModule: activeModule,
       onToolboxModuleChange: setActiveModule,

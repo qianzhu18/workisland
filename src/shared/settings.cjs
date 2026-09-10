@@ -145,6 +145,7 @@ const DEFAULT_SETTINGS = {
   // Resource alerts are opt-in so a workstation dashboard never becomes noisy.
   performanceAlertsEnabled: false,
   fileShelfEnabled: true,
+  clearSessionsEnabled: true,
   shelfQuickShareProvider: "AirDrop",
   // Local-only history defaults on; persisted user opt-outs survive upgrades.
   clipboardHistoryEnabled: true,
@@ -335,6 +336,7 @@ function mergeSettings(parsed = {}) {
   merged.clipboardRetentionHours = allowedRetentionHours.has(parsed.clipboardRetentionHours)
     ? parsed.clipboardRetentionHours
     : DEFAULT_SETTINGS.clipboardRetentionHours;
+  merged.clearSessionsEnabled = parsed.clearSessionsEnabled !== false;
   merged.shelfQuickShareProvider = typeof parsed.shelfQuickShareProvider === "string" && parsed.shelfQuickShareProvider.trim().length > 0 && parsed.shelfQuickShareProvider.length <= 160
     ? parsed.shelfQuickShareProvider.trim()
     : DEFAULT_SETTINGS.shelfQuickShareProvider;
