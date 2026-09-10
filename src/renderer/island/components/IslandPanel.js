@@ -123,6 +123,11 @@ function UsageToolIcon() {
     React.createElement("path", { d: "M2.6 13.6h12.8" })
   );
 }
+function ClearSessionsToolIcon() {
+  return React.createElement(ToolIconFrame, null,
+    React.createElement("path", { d: "M3.2 5.2h11.6M6.1 5.2V3.7h5.8v1.5M4.7 5.2l.7 9.1h7.2l.7-9.1M7.2 7.8v4M10.8 7.8v4" })
+  );
+}
 function AgentHomeIcon() {
   return React.createElement(ToolIconFrame, null,
     React.createElement("path", { d: "m3 8 6-5 6 5v6.5H3Z" }),
@@ -348,6 +353,8 @@ function AgentUsageRow({
       onSelect: onToolboxModuleChange, onOrder: onToolboxModuleReorder,
       homeIcon: React.createElement(AgentHomeIcon), settingsIcon: React.createElement('img', { src: settingIcon, alt: '' }),
       onSettings: () => onOpenSettings('display'), extras: [
+        { id: 'clear-sessions', label: t('session.clear'), icon: React.createElement(ClearSessionsToolIcon),
+          disabled: visibleSessionIds.length === 0, action: () => window.islandBridge?.deleteSessions?.(visibleSessionIds) },
         ...(performanceEnabled ? [{ id: 'performance', label: t('performance.monitor'), icon: React.createElement('span', null, '◔'), render: (labelled) => React.createElement(PerformancePopover, { state: performanceState, labelled }) }] : []),
         { id: 'pet', label: t('pet.toggle'), fixed: true, icon: React.createElement(PetButtonIcon), action: onOpenPet }
       ]
@@ -1471,7 +1478,7 @@ function IslandPanel({
   }, []);
   const enabledModules = enabledToolboxModules({ fileShelfEnabled, clipboardHistoryEnabled, terminalEnabled, usageDashboardEnabled });
   const handleToolboxModuleReorder = async (visibleOrder, hiddenOrder = toolbarHidden, sides = toolbarSides, slots = toolbarSlots) => {
-    const fullOrder = orderToolboxModules(["shelf", "clipboard", "terminal", "usage", "performance", "pet"], moduleOrder);
+    const fullOrder = orderToolboxModules(["shelf", "clipboard", "terminal", "usage", "clear-sessions", "performance", "pet"], moduleOrder);
     let cursor = 0;
     const nextOrder = fullOrder.map(id => visibleOrder.includes(id) ? visibleOrder[cursor++] : id);
     setModuleOrder(nextOrder);
@@ -1572,7 +1579,7 @@ function IslandPanel({
       onUpdateInstall,
       onOpenRelease
     }
-  ), /* @__PURE__ */ React.createElement("div", { className: "panel-divider" }), activeModule === "shelf" && /* @__PURE__ */ React.createElement(ShelfPanel), activeModule === "clipboard" && /* @__PURE__ */ React.createElement(ClipboardPanel), terminalEnabled && /* @__PURE__ */ React.createElement(TerminalPanel, { active: activeModule === "terminal", panelOpen, savedCommands: terminalSavedCommands, onOpenSettings: () => onOpenSettings("general"), onFullChange: onTerminalFullChange }), activeModule === "usage" && /* @__PURE__ */ React.createElement(UsagePanel), /* @__PURE__ */ React.createElement("div", { className: `workspace-content${mediaEnabled && mediaState?.active && mediaState?.title ? " has-media" : ""}${activeModule === "agent" ? "" : " is-hidden"}` }, mediaEnabled && mediaState?.active && mediaState?.title && /* @__PURE__ */ React.createElement(MediaCard, { media: mediaState, lyrics: lyricsState }), /* @__PURE__ */ React.createElement("div", { className: "workspace-agent-pane" }, /* @__PURE__ */ React.createElement("div", { className: "session-list", ref: sessionListRef }, visibleSessions.length > 0 && React.createElement('div', { className: 'session-list-actions' }, React.createElement('button', { type: 'button', className: 'panel-btn', onClick: () => window.islandBridge?.deleteSessions(visibleSessions.map(session => session.id)), title: t('session.clear') }, t('session.clear'))), visibleSessions.length === 0 ? (hasConnectedAgent === false ? /* @__PURE__ */ React.createElement(SessionEmptyOnboarding, { onOpenSettings }) : /* @__PURE__ */ React.createElement("div", { className: "session-list-empty" }, /* @__PURE__ */ React.createElement(
+  ), /* @__PURE__ */ React.createElement("div", { className: "panel-divider" }), activeModule === "shelf" && /* @__PURE__ */ React.createElement(ShelfPanel), activeModule === "clipboard" && /* @__PURE__ */ React.createElement(ClipboardPanel), terminalEnabled && /* @__PURE__ */ React.createElement(TerminalPanel, { active: activeModule === "terminal", panelOpen, savedCommands: terminalSavedCommands, onOpenSettings: () => onOpenSettings("general"), onFullChange: onTerminalFullChange }), activeModule === "usage" && /* @__PURE__ */ React.createElement(UsagePanel), /* @__PURE__ */ React.createElement("div", { className: `workspace-content${mediaEnabled && mediaState?.active && mediaState?.title ? " has-media" : ""}${activeModule === "agent" ? "" : " is-hidden"}` }, mediaEnabled && mediaState?.active && mediaState?.title && /* @__PURE__ */ React.createElement(MediaCard, { media: mediaState, lyrics: lyricsState }), /* @__PURE__ */ React.createElement("div", { className: "workspace-agent-pane" }, /* @__PURE__ */ React.createElement("div", { className: "session-list", ref: sessionListRef }, visibleSessions.length === 0 ? (hasConnectedAgent === false ? /* @__PURE__ */ React.createElement(SessionEmptyOnboarding, { onOpenSettings }) : /* @__PURE__ */ React.createElement("div", { className: "session-list-empty" }, /* @__PURE__ */ React.createElement(
     "img",
     {
       className: "session-list-empty-icon",
