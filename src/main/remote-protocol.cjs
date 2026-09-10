@@ -30,21 +30,23 @@ const TOOL_RE = /^[a-z][a-z0-9-]{1,23}$/;
 function createPairingTokenManager({ now = Date.now, ttlMs = PAIRING_TOKEN_TTL_MS } = {}) {
   const tokens = /* @__PURE__ */ new Map();
   return {
-    createToken() {
-      for (const [token, expiresAt] of tokens) {
-        if (expiresAt <= now()) tokens.delete(token);
+    /** meta（如 inviteHostId）随令牌保存，consume 成功时原样返回。 */
+    createToken(meta = {}) {
+      for (const [token, entry] of tokens) {
+        if (entry.expiresAt <= now()) tokens.delete(token);
       }
       const token = crypto.randomBytes(24).toString("base64url");
       const expiresAt = now() + ttlMs;
-      tokens.set(token, expiresAt);
+      tokens.set(token, { expiresAt, meta });
       return { token, expiresAt, ttlMs };
     },
     consume(token) {
-      if (typeof token !== "string" || token.length === 0) return false;
-      const expiresAt = tokens.get(token);
-      if (expiresAt === undefined) return false;
+      if (typeof token !== "string" || token.length === 0) return { ok: false, meta: null };
+      const entry = tokens.get(token);
+      if (entry === undefined) return { ok: false, meta: null };
       tokens.delete(token);
-      return expiresAt > now();
+      if (entry.expiresAt <= now()) return { ok: false, meta: null };
+      return { ok: true, meta: entry.meta ?? null };
     },
     get pendingCount() {
       return tokens.size;

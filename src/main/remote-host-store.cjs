@@ -43,12 +43,38 @@ function createRemoteHostStore({ filePath = getStorePath(), now = Date.now } = {
   load();
 
   return {
-    /** 首次配对或刷新显示名；每次调用都会轮换会话密钥哈希。 */
-    upsertHost(hostId, displayName, sessionKey) {
+    /**
+     * 「待接入」主机（SSH 远程设置页「添加主机」）：本地预登记身份与
+     * ssh 目标，会话密钥哈希留空；远程用绑定令牌配对后才转为已接入。
+     */
+    inviteHost({ hostId, displayName, sshTarget }) {
       const timestamp = now();
       let host = data.hosts.find((h) => h.hostId === hostId);
       if (host) {
         host.displayName = displayName;
+        host.sshTarget = sshTarget;
+        host.invitedAt = timestamp;
+      } else {
+        host = {
+          hostId,
+          displayName,
+          sshTarget,
+          sessionKeyHash: null,
+          invitedAt: timestamp,
+          pairedAt: null,
+          lastSeenAt: null
+        };
+        data.hosts.push(host);
+      }
+      save();
+      return { hostId: host.hostId, displayName: host.displayName, sshTarget: host.sshTarget };
+    },
+    /** 首次配对或刷新显示名；每次调用都会轮换会话密钥哈希。 */
+    upsertHost(hostId, displayName, sessionKey, { preserveDisplayName = false } = {}) {
+      const timestamp = now();
+      let host = data.hosts.find((h) => h.hostId === hostId);
+      if (host) {
+        if (!preserveDisplayName || !host.displayName) host.displayName = displayName;
         host.sessionKeyHash = hashSessionKey(sessionKey);
         host.pairedAt = timestamp;
         host.lastSeenAt = timestamp;
@@ -65,10 +91,10 @@ function createRemoteHostStore({ filePath = getStorePath(), now = Date.now } = {
       save();
       return { hostId: host.hostId, displayName: host.displayName, pairedAt: host.pairedAt, lastSeenAt: host.lastSeenAt };
     },
-    /** 会话密钥 → 主机记录（哈希比对）；命中时刷新 lastSeenAt。 */
+    /** 会话密钥 → 主机记录（哈希比对）；命中时刷新 lastSeenAt。待接入记录无哈希，不参与。 */
     findBySessionKey(sessionKey) {
       const hash = hashSessionKey(sessionKey);
-      const host = data.hosts.find((h) => h.sessionKeyHash === hash);
+      const host = data.hosts.find((h) => h.sessionKeyHash && h.sessionKeyHash === hash);
       if (!host) return null;
       host.lastSeenAt = now();
       return { hostId: host.hostId, displayName: host.displayName, pairedAt: host.pairedAt, lastSeenAt: host.lastSeenAt };
@@ -83,8 +109,16 @@ function createRemoteHostStore({ filePath = getStorePath(), now = Date.now } = {
     },
     listHosts() {
       return data.hosts
-        .map(({ hostId, displayName, pairedAt, lastSeenAt }) => ({ hostId, displayName, pairedAt, lastSeenAt }))
-        .sort((a, b) => (b.lastSeenAt ?? 0) - (a.lastSeenAt ?? 0));
+        .map(({ hostId, displayName, sshTarget, pairedAt, lastSeenAt, invitedAt }) => ({
+          hostId,
+          displayName,
+          sshTarget: sshTarget ?? null,
+          invited: !data.hosts.find((h) => h.hostId === hostId)?.sessionKeyHash,
+          pairedAt,
+          lastSeenAt,
+          invitedAt: invitedAt ?? null
+        }))
+        .sort((a, b) => (b.lastSeenAt ?? b.invitedAt ?? 0) - (a.lastSeenAt ?? a.invitedAt ?? 0));
     },
     hostCount() {
       return data.hosts.length;

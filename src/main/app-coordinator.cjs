@@ -40,6 +40,9 @@ const { ShelfService } = require("./shelf-service.cjs");
 const { ClipboardHistoryService } = require("./clipboard-history-service.cjs");
 const { RemoteBridgeServer } = require("./remote-bridge-server.cjs");
 const { createRemoteHostStore } = require("./remote-host-store.cjs");
+const { createRemoteTunnelManager } = require("./remote-tunnel-manager.cjs");
+const { scanSshConfig, formatSshTarget } = require("./ssh-config.cjs");
+const crypto = require("node:crypto");
 const { TerminalService } = require("./terminal-service.cjs");
 const { resolveRecentProjectCwd, resolveTerminalCommand } = require("../shared/terminal-state.cjs");
 const { listCodexPets } = require("./codex-pet.cjs");
@@ -313,6 +316,10 @@ function createAppCoordinatorClass({
       });
       this.remoteBridge.on("agentEvent", (event) => {
         this.bridge.emit("agentEvent", event);
+      });
+      // SSH 远程设置页：Mac 发起的反向隧道（复用 ~/.ssh/config 与用户密钥）。
+      this.remoteTunnels = createRemoteTunnelManager({
+        getLocalPort: () => this.getSettings()?.remoteAccess?.port ?? 7878
       });
       // AI customization commands (workisland-cli) share the settings
       // pipeline: updateSettings persists once and broadcasts to the island,
@@ -882,6 +889,7 @@ function createAppCoordinatorClass({
     }
     stop() {
       log.info("[AppCoordinator] stopping local services...");
+      this.remoteTunnels?.stopAll();
       this.remoteBridge.stop();
       this.bridge.stop();
       this.quotaService.stop();
@@ -1087,20 +1095,59 @@ function createAppCoordinatorClass({
     // PRD-016 远程接入（observe-only）：设置页状态、配对令牌与主机管理的
     // 主进程入口；监听器启停跟随 remoteAccess 设置（对齐 developer-api 模式）。
     syncRemoteBridge() {
-      return this.remoteBridge.sync(this.getSettings()?.remoteAccess ?? {});
+      const status = this.remoteBridge.sync(this.getSettings()?.remoteAccess ?? {});
+      if (status && !status.running) this.remoteTunnels.stopAll();
+      return status;
     }
     getRemoteHostsState() {
       return {
         enabled: this.getSettings()?.remoteAccess?.enabled === true,
         listener: this.remoteBridge.getStatus(),
-        hosts: this.remoteBridge.listHosts()
+        hosts: this.remoteBridge.listHosts(),
+        tunnels: this.remoteTunnels.status(),
+        scriptPath: this.getRemoteScriptPath()
       };
+    }
+    getRemoteScriptPath() {
+      return electron.app.isPackaged
+        ? path.join(process.resourcesPath, "remote", "workisland-remote.cjs")
+        : path.join(electron.app.getAppPath(), "resources", "remote", "workisland-remote.cjs");
     }
     createRemotePairingToken() {
       return this.remoteBridge.createPairingToken();
     }
     revokeRemoteHost(hostId) {
+      this.remoteTunnels.stopTunnel(hostId);
       return this.remoteBridge.revokeHost(hostId);
+    }
+    /** SSH 远程页：扫描 ~/.ssh/config 供「待添加主机」列表。 */
+    scanRemoteSshConfig() {
+      return scanSshConfig();
+    }
+    /**
+     * 添加主机：预登记「待接入」记录 + 生成绑定令牌 + 拉起反向隧道。
+     * 入参来自 SSH Config 行（alias/hostName/user/port）或手动表单。
+     */
+    inviteRemoteHost({ alias, hostName, user, port } = {}) {
+      const name = String(alias || hostName || "").trim();
+      const host = String(hostName || alias || "").trim();
+      if (!name || !host) throw Object.assign(new Error("host is required"), { code: "HOST_REQUIRED" });
+      if (!this.getSettings()?.remoteAccess?.enabled) {
+        throw Object.assign(new Error("remote access is disabled"), { code: "REMOTE_DISABLED" });
+      }
+      const entry = { alias: String(alias || "").trim() || null, hostName: host, user: user ? String(user).trim() : null, port: port ? String(port) : "22" };
+      const sshTarget = formatSshTarget(entry);
+      const hostId = crypto.randomUUID();
+      const displayName = entry.alias || sshTarget;
+      const record = this.remoteHostStore.inviteHost({ hostId, displayName, sshTarget });
+      this.remoteTunnels.startTunnel({ hostId, sshTarget });
+      const token = this.remoteBridge.createPairingToken({ inviteHostId: hostId });
+      return { host: record, token: token.token, expiresAt: token.expiresAt, scriptPath: this.getRemoteScriptPath() };
+    }
+    startRemoteTunnel(hostId) {
+      const host = this.remoteHostStore.listHosts().find((h) => h.hostId === hostId);
+      if (!host?.sshTarget) return false;
+      return this.remoteTunnels.startTunnel({ hostId, sshTarget: host.sshTarget });
     }
     getSessions() {
       return getVisibleSessions(this.state);

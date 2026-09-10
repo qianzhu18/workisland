@@ -133,6 +133,10 @@
       {
         "from": "resources/dsh-workisland-bridge",
         "to": "dsh-workisland-bridge"
+      },
+      {
+        "from": "resources/remote",
+        "to": "remote"
       }
     ],
     "afterPack": "scripts/after-pack.cjs",

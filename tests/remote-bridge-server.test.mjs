@@ -275,3 +275,48 @@ test("sync() starts and stops the listener with settings (loopback only)", () =>
     cleanup();
   }
 });
+
+test("invited host completes pairing with the locally chosen identity", async () => {
+  const ctx = await setupServer();
+  try {
+    ctx.store.inviteHost({ hostId: "7e6a1b00-0000-4000-8000-000000000001", displayName: "cn-tx", sshTarget: "cn-tx" });
+    const { token } = ctx.tokenManager.createToken({ inviteHostId: "7e6a1b00-0000-4000-8000-000000000001" });
+    const client = makeClient(ctx.port);
+    await client.waitLine();
+    // 远程上报的 hostId/displayName 与邀请不同：应以本地预登记记录为准。
+    client.send({ type: "pair", hostId: "ffffffff-0000-4000-8000-0000000000ff", displayName: "some-other-box", token });
+    const pairResult = await client.waitLine();
+    assert.equal(pairResult.ok, true);
+    assert.equal(pairResult.hostId, "7e6a1b00-0000-4000-8000-000000000001");
+    assert.equal(pairResult.displayName, "cn-tx");
+    const hosts = ctx.store.listHosts();
+    assert.equal(hosts.length, 1);
+    assert.equal(hosts[0].invited, false, "pairing must complete the invite");
+    assert.equal(hosts[0].sshTarget, "cn-tx");
+    await client.end();
+  } finally {
+    ctx.stop();
+    ctx.cleanup();
+  }
+});
+
+test("invite-bound token cannot be reused for another host after revocation", async () => {
+  const ctx = await setupServer();
+  try {
+    const inviteId = "7e6a1b00-0000-4000-8000-000000000002";
+    ctx.store.inviteHost({ hostId: inviteId, displayName: "us-la", sshTarget: "us-la" });
+    ctx.store.revokeHost(inviteId);
+    const { token } = ctx.tokenManager.createToken({ inviteHostId: inviteId });
+    const client = makeClient(ctx.port);
+    await client.waitLine();
+    client.send({ type: "pair", hostId: "aaaaaaaa-0000-4000-8000-0000000000aa", displayName: "x", token });
+    const pairResult = await client.waitLine();
+    assert.equal(pairResult.ok, false);
+    assert.equal(pairResult.error, "INVITE_REVOKED");
+    assert.equal(ctx.store.hostCount(), 0);
+    await client.end();
+  } finally {
+    ctx.stop();
+    ctx.cleanup();
+  }
+});

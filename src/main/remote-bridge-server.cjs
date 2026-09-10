@@ -194,7 +194,8 @@ class RemoteBridgeServer extends EventEmitter {
   }
 
   handlePair(conn, msg) {
-    if (!this.tokenManager.consume(msg.token)) {
+    const consumed = this.tokenManager.consume(msg.token);
+    if (!consumed.ok) {
       conn.pairFailures += 1;
       this.writeLine(conn, { type: "pairResult", ok: false, error: "TOKEN_INVALID" });
       if (conn.pairFailures >= MAX_PAIR_FAILURES) {
@@ -207,8 +208,20 @@ class RemoteBridgeServer extends EventEmitter {
       this.writeLine(conn, { type: "pairResult", ok: false, error: pair.reason });
       return;
     }
+    // 令牌绑定邀请（SSH 远程页「添加主机」）：以本地预登记记录为准，
+    // 远程上报的 hostId 仅作日志参考；显示名保留用户认识的别名。
+    const inviteHostId = consumed.meta?.inviteHostId;
+    const invited = inviteHostId
+      ? this.hostStore.listHosts().find((h) => h.hostId === inviteHostId && h.invited)
+      : null;
+    if (inviteHostId && !invited) {
+      this.writeLine(conn, { type: "pairResult", ok: false, error: "INVITE_REVOKED" });
+      return;
+    }
+    const hostId = invited ? invited.hostId : pair.hostId;
+    const displayName = invited ? invited.displayName : pair.displayName;
     const sessionKey = crypto.randomBytes(32).toString("base64url");
-    const host = this.hostStore.upsertHost(pair.hostId, pair.displayName, sessionKey);
+    const host = this.hostStore.upsertHost(hostId, displayName, sessionKey, { preserveDisplayName: !!invited });
     conn.hostId = host.hostId;
     conn.hostName = host.displayName;
     log.info("[RemoteBridge]", `主机已配对：${host.displayName} (${host.hostId})`);

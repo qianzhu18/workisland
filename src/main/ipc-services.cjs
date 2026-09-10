@@ -247,6 +247,16 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
       if (typeof hostId !== "string" || hostId.length === 0) return false;
       return coordinator.revokeRemoteHost(hostId);
     });
+    electron.ipcMain.handle(IPC.REMOTE_HOSTS_SCAN_SSH_CONFIG, () => {
+      return coordinator.scanRemoteSshConfig();
+    });
+    electron.ipcMain.handle(IPC.REMOTE_HOSTS_INVITE, (_event, payload = {}) => {
+      return coordinator.inviteRemoteHost(payload);
+    });
+    electron.ipcMain.handle(IPC.REMOTE_HOSTS_START_TUNNEL, (_event, { hostId } = {}) => {
+      if (typeof hostId !== "string" || hostId.length === 0) return false;
+      return coordinator.startRemoteTunnel(hostId);
+    });
     electron.ipcMain.handle(IPC.ISLAND_GET_AGENT_SETUP_STATUS, () => {
       return coordinator.getHookStatus();
     });

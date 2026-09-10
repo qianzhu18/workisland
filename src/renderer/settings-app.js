@@ -37,7 +37,7 @@ const AGENT_ICON_URLS = Object.freeze({
   "plugin:pi": "../assets/brands/pi.svg"
 });
 const VERIFY_ON_REAL_EVENT_AGENT_IDS = new Set(["dsh", "trae"]);
-const state = { settings: null, statuses: new Map(), doctorSummary: null, displays: [], codexPets: [], templates: { active: null, templates: [] }, shareProviders: [], activeTab: "general", busy: new Set(), expandedSettingDetails: new Set(), latestUpdate: null, updateState: null, onUpdateStateUi: null, telemetryStatus: null, agentControl: null, agentControlManual: null, commandDraft: { name: "", command: "" }, remoteHosts: null, remotePairing: null };
+const state = { settings: null, statuses: new Map(), doctorSummary: null, displays: [], codexPets: [], templates: { active: null, templates: [] }, shareProviders: [], activeTab: "general", busy: new Set(), expandedSettingDetails: new Set(), latestUpdate: null, updateState: null, onUpdateStateUi: null, telemetryStatus: null, agentControl: null, agentControlManual: null, commandDraft: { name: "", command: "" }, remoteHosts: null, remotePairing: null, remoteSshConfig: null, remoteFilter: "", remoteManualOpen: false, remoteInvites: {} };
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -760,6 +760,15 @@ function agentCard(report) {
   return card;
 }
 
+async function loadRemoteSsh(showNotice = false) {
+  try {
+    state.remoteSshConfig = await api.scanRemoteSshConfig?.() || { entries: [] };
+  } catch {
+    state.remoteSshConfig = { entries: [] };
+  }
+  if (showNotice) renderPage();
+}
+
 async function loadRemoteHosts(render = false) {
   try {
     state.remoteHosts = await api.getRemoteHostsState?.() || null;
@@ -776,23 +785,211 @@ function copyText(text, label) {
   );
 }
 
-// PRD-016 / ADR-0005 远程接入（observe-only）：令牌、主机列表与撤销。
-function remoteHostsSection() {
+// PRD-016 / ADR-0005 SSH 远程设置页：主机管理、SSH Config 发现与反向隧道。
+function remoteStatusLabel(host, remote) {
+  if (host.invited) {
+    const tunnel = remote.tunnels?.[host.hostId];
+    return `${t("settings.remote.invited")} · ${tunnel?.running ? t("settings.remote.tunnelRunning") : t("settings.remote.tunnelDown")}`;
+  }
+  const online = (remote.listener?.connectedHosts || []).includes(host.hostId);
+  const pairedAt = host.pairedAt ? new Date(host.pairedAt).toLocaleString() : "";
+  return t("settings.remote.hostDetail", { status: online ? t("settings.agents.status.connected") : t("settings.agents.status.disconnected"), time: pairedAt });
+}
+
+function remoteSetupCommands(host) {
+  const invite = state.remoteInvites[host.hostId];
+  if (!invite) return null;
+  return t("settings.remote.setupCommands", {
+    scriptPath: invite.scriptPath,
+    target: host.sshTarget || host.displayName,
+    token: invite.token
+  });
+}
+
+function remoteHostCard(host, remote) {
+  const card = el("div", "remote-host-card");
+  const content = el("div", "remote-host-copy");
+  content.append(el("div", "remote-host-name", host.displayName));
+  content.append(el("div", "remote-host-detail", `${host.sshTarget ? `${host.sshTarget} · ` : ""}${remoteStatusLabel(host, remote)}`));
+  card.append(content);
+  const actions = el("div", "remote-host-actions");
+  const setup = remoteSetupCommands(host);
+  if (host.invited && setup) {
+    actions.append(button(t("settings.remote.copySetup"), () => {
+      navigator.clipboard?.writeText(setup).then(
+        () => showToast(t("settings.remote.setupCopied")),
+        () => showToast(t("settings.copy.failed"), true)
+      );
+    }, "primary"));
+  }
+  const tunnel = remote.tunnels?.[host.hostId];
+  if (host.sshTarget && tunnel && !tunnel.running) {
+    actions.append(button(t("settings.remote.tunnelRetry"), async () => {
+      try {
+        await api.startRemoteTunnel(host.hostId);
+        await loadRemoteHosts();
+        renderPage();
+      } catch (error) {
+        showToast(error?.message || t("settings.remote.inviteFailed"), true);
+      }
+    }));
+  }
+  actions.append(button(t("settings.remote.revoke"), async () => {
+    if (!window.confirm(t("settings.remote.revokeConfirm", { host: host.displayName }))) return;
+    try {
+      await api.revokeRemoteHost(host.hostId);
+      delete state.remoteInvites[host.hostId];
+      await loadRemoteHosts();
+      renderPage();
+      showToast(t("settings.remote.revoked"));
+    } catch (error) {
+      showToast(error?.message || t("settings.remote.revokeFailed"), true);
+    }
+  }, "danger"));
+  card.append(actions);
+  if (host.invited && setup) {
+    const hint = el("div", "remote-setup-hint");
+    hint.append(el("div", "setting-description", t("settings.remote.setupHint")));
+    hint.append(el("pre", "remote-setup-commands", setup));
+    card.append(hint);
+  }
+  return card;
+}
+
+function remoteConfigRow(entry, addedNames) {
+  const rowNode = el("div", "remote-config-row");
+  const copy = el("div", "remote-host-copy");
+  copy.append(el("div", "remote-host-name", entry.alias));
+  const target = `${entry.user ? `${entry.user}@` : ""}${entry.hostName}`;
+  copy.append(el("div", "remote-host-detail", entry.port && entry.port !== "22" ? `${target} · Port ${entry.port}` : target));
+  rowNode.append(copy);
+  const added = addedNames.has(entry.alias) || addedNames.has(target) || addedNames.has(entry.hostName);
+  rowNode.append(button(added ? t("settings.remote.added") : t("settings.remote.add"), async (event) => {
+    if (added) return;
+    const btn = event?.target?.closest?.("button") ?? event?.target;
+    if (btn) btn.disabled = true;
+    try {
+      const invite = await api.inviteRemoteHost({ alias: entry.alias, hostName: entry.hostName, user: entry.user, port: entry.port });
+      state.remoteInvites[invite.host.hostId] = { token: invite.token, expiresAt: invite.expiresAt, scriptPath: invite.scriptPath };
+      await loadRemoteHosts();
+      renderPage();
+      showToast(t("settings.remote.setupCopied"));
+    } catch (error) {
+      if (btn) btn.disabled = false;
+      showToast(error?.message || t("settings.remote.inviteFailed"), true);
+    }
+  }, added ? "secondary" : "primary"));
+  return rowNode;
+}
+
+function remotePendingSection() {
+  const node = section(t("settings.remote.pendingSection"), "");
+  const actions = el("div", "section-actions");
+  actions.append(button(t("settings.remote.rescan"), () => loadRemoteSsh(true).catch(error => showToast(error.message, true))));
+  node.append(actions);
+  const filter = document.createElement("input");
+  filter.className = "text-input remote-filter";
+  filter.placeholder = t("settings.remote.filterPlaceholder");
+  filter.value = state.remoteFilter;
+  filter.setAttribute("aria-label", t("settings.remote.filterPlaceholder"));
+  node.append(filter);
+  const listContainer = el("div", "remote-config-list");
+  node.append(listContainer);
+  const renderList = () => {
+    listContainer.replaceChildren();
+    const remote = state.remoteHosts;
+    const entries = state.remoteSshConfig?.entries || [];
+    const terms = state.remoteFilter.trim().split(/\s+/).filter(Boolean).map(term => term.toLowerCase());
+    const filtered = entries.filter(entry => {
+      const haystack = `${entry.alias} ${entry.user ?? ""} ${entry.hostName}`.toLowerCase();
+      return terms.every(term => haystack.includes(term));
+    });
+    const addedNames = new Set((remote?.hosts || []).flatMap(host => [host.displayName, host.sshTarget].filter(Boolean)));
+    if (filtered.length > 0) {
+      const group = el("div", "remote-config-group");
+      group.append(el("div", "remote-config-group-title", `${t("settings.remote.sshConfigGroup")} · ${filtered.length}`));
+      for (const entry of filtered) group.append(remoteConfigRow(entry, addedNames));
+      listContainer.append(group);
+    } else if (entries.length > 0) {
+      listContainer.append(el("div", "setting-description", t("settings.remote.filterNoMatch")));
+    } else {
+      listContainer.append(el("div", "setting-description", t("settings.remote.sshConfigEmpty")));
+    }
+  };
+  renderList();
+  filter.addEventListener("input", () => {
+    state.remoteFilter = filter.value;
+    renderList();
+  });
+  return node;
+}
+
+function remotePage() {
+  const root = document.createDocumentFragment();
   const remote = state.remoteHosts;
   const cfg = state.settings.remoteAccess || { enabled: false, port: 7878 };
-  const node = section(t("settings.remote.sectionTitle"), t("settings.remote.description"));
-  node.append(row(t("settings.remote.enable.title"), t("settings.remote.enable.description"), toggle(remote?.enabled ?? cfg.enabled, async v => {
+  const main = section(t("settings.remote.sectionTitle"), t("settings.remote.description"));
+  main.append(row(t("settings.remote.enable.title"), t("settings.remote.enable.description"), toggle(remote?.enabled ?? cfg.enabled, async v => {
     await save({ remoteAccess: { ...cfg, enabled: v } });
     await loadRemoteHosts();
     renderPage();
   }, t("settings.remote.enable.title"))));
   if (!remote) {
-    node.append(el("div", "setting-description", t("settings.remote.unavailable")));
-    return node;
+    main.append(el("div", "setting-description", t("settings.remote.unavailable")));
+    root.append(main);
+    return root;
   }
   if (remote.enabled && !remote.listener?.running) {
-    node.append(el("div", "doctor-summary", remote.listener?.lastError === "PORT_IN_USE" ? t("settings.remote.portInUse", { port: remote.listener?.port ?? cfg.port }) : t("settings.remote.notRunning")));
+    main.append(el("div", "doctor-summary", remote.listener?.lastError === "PORT_IN_USE" ? t("settings.remote.portInUse", { port: remote.listener?.port ?? cfg.port }) : t("settings.remote.notRunning")));
   }
+  // 主机列表 + 手动添加表单
+  const hostActions = el("div", "section-actions");
+  hostActions.append(button(t("settings.remote.addHost"), () => {
+    state.remoteManualOpen = !state.remoteManualOpen;
+    renderPage();
+  }, "primary"));
+  main.append(hostActions);
+  if (state.remoteManualOpen) {
+    const draft = state.remoteManualDraft || (state.remoteManualDraft = { alias: "", hostName: "", user: "", port: "" });
+    const form = el("div", "remote-manual-form");
+    const field = (key, placeholder) => {
+      const input = document.createElement("input");
+      input.className = "text-input";
+      input.placeholder = placeholder;
+      input.value = draft[key];
+      input.setAttribute("aria-label", placeholder);
+      input.addEventListener("input", () => { draft[key] = input.value; });
+      return input;
+    };
+    form.append(field("alias", t("settings.remote.manualAlias")), field("hostName", t("settings.remote.manualHost")), field("user", t("settings.remote.manualUser")), field("port", t("settings.remote.manualPort")));
+    const formActions = el("div", "section-actions");
+    formActions.append(button(t("settings.remote.manualSave"), async () => {
+      if (!draft.hostName.trim()) return;
+      try {
+        const invite = await api.inviteRemoteHost({ alias: draft.alias.trim() || null, hostName: draft.hostName.trim(), user: draft.user.trim() || null, port: draft.port.trim() || "22" });
+        state.remoteInvites[invite.host.hostId] = { token: invite.token, expiresAt: invite.expiresAt, scriptPath: invite.scriptPath };
+        state.remoteManualDraft = { alias: "", hostName: "", user: "", port: "" };
+        state.remoteManualOpen = false;
+        await loadRemoteHosts();
+        renderPage();
+        showToast(t("settings.remote.setupCopied"));
+      } catch (error) {
+        showToast(error?.message || t("settings.remote.inviteFailed"), true);
+      }
+    }, "primary"), button(t("settings.remote.manualCancel"), () => {
+      state.remoteManualOpen = false;
+      renderPage();
+    }));
+    form.append(formActions);
+    main.append(form);
+  }
+  const list = el("div", "agent-list");
+  for (const host of remote.hosts || []) list.append(remoteHostCard(host, remote));
+  if ((remote.hosts || []).length === 0) {
+    list.append(el("div", "setting-description", t("settings.remote.emptyHosts")));
+  }
+  main.append(list);
+  // 全局配对令牌（兼容 docs/REMOTE_ONBOARDING.md 的通用接入路径）
   const tokenArea = el("div", "inline-controls");
   tokenArea.append(button(t("settings.remote.generateToken"), async () => {
     try {
@@ -801,42 +998,17 @@ function remoteHostsSection() {
     } catch (error) {
       showToast(error?.message || t("settings.remote.tokenFailed"), true);
     }
-  }, "primary"));
+  }));
   if (state.remotePairing?.token) {
     const expires = new Date(state.remotePairing.expiresAt).toLocaleTimeString();
     const tokenBox = el("code", "remote-token-box", state.remotePairing.token);
     tokenArea.append(tokenBox, button(t("common.copy"), () => copyText(state.remotePairing.token, t("settings.remote.token"))));
-    node.append(el("div", "setting-description", t("settings.remote.tokenHint", { prefix: state.remotePairing.token.slice(0, 4), expires })));
+    main.append(el("div", "setting-description", t("settings.remote.tokenHint", { prefix: state.remotePairing.token.slice(0, 4), expires })));
   }
-  node.append(row(t("settings.remote.pairing.title"), t("settings.remote.pairing.description"), tokenArea));
-  const list = el("div", "agent-list");
-  for (const host of remote.hosts || []) {
-    const pairedAt = host.pairedAt ? new Date(host.pairedAt).toLocaleString() : "";
-    const online = (remote.listener?.connectedHosts || []).includes(host.hostId);
-    const card = el("div", "remote-host-card");
-    const content = el("div", "remote-host-copy");
-    content.append(el("div", "remote-host-name", host.displayName));
-    content.append(el("div", "remote-host-detail", t("settings.remote.hostDetail", { status: online ? t("settings.agents.status.connected") : t("settings.agents.status.disconnected"), time: pairedAt })));
-    const revoke = button(t("settings.remote.revoke"), async () => {
-      if (!window.confirm(t("settings.remote.revokeConfirm", { host: host.displayName }))) return;
-      try {
-        await api.revokeRemoteHost(host.hostId);
-        state.remotePairing = null;
-        await loadRemoteHosts();
-        renderPage();
-        showToast(t("settings.remote.revoked"));
-      } catch (error) {
-        showToast(error?.message || t("settings.remote.revokeFailed"), true);
-      }
-    }, "danger");
-    card.append(content, revoke);
-    list.append(card);
-  }
-  if ((remote.hosts || []).length === 0) {
-    list.append(el("div", "setting-description", t("settings.remote.empty")));
-  }
-  node.append(list);
-  return node;
+  main.append(row(t("settings.remote.pairing.title"), t("settings.remote.pairing.description"), tokenArea));
+  root.append(main);
+  root.append(remotePendingSection());
+  return root;
 }
 
 function agentsPage() {
@@ -866,7 +1038,6 @@ function agentsPage() {
   );
   hooks.append(tools);
   root.append(hooks);
-  root.append(remoteHostsSection());
   return root;
 }
 
@@ -1326,7 +1497,7 @@ function aboutPage() {
   return root;
 }
 
-const PAGES = { general: generalPage, agents: agentsPage, appearance: appearancePage, sound: soundPage, "mcp": mcpPage, about: aboutPage };
+const PAGES = { general: generalPage, agents: agentsPage, remote: remotePage, appearance: appearancePage, sound: soundPage, "mcp": mcpPage, about: aboutPage };
 
 function renderPage() {
   const content = document.querySelector("#content");
@@ -1360,6 +1531,10 @@ async function start() {
     if (state.activeTab === "agents") {
       refreshAgents().catch(error => showToast(error.message, true));
       loadRemoteHosts(true).catch(error => showToast(error.message, true));
+    }
+    if (state.activeTab === "remote") {
+      loadRemoteHosts(true).catch(error => showToast(error.message, true));
+      loadRemoteSsh().catch(() => {});
     }
     if (state.activeTab === "mcp") loadAgentControlStatus(true).catch(() => {});
   }));
