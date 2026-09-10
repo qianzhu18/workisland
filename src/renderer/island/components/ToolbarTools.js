@@ -143,6 +143,7 @@ export function ToolbarTools({ modules, active, onSelect, onOrder, order = [], h
     finish(true);
   };
   const activate = tool => {
+    if (tool.disabled) return;
     if (tool.action) tool.action(); else onSelect(tool.id);
     setMenu(false);
   };
@@ -161,6 +162,7 @@ export function ToolbarTools({ modules, active, onSelect, onOrder, order = [], h
   const basicButton = (tool, labelled = false) => React.createElement('button', {
     type: 'button', className: 'panel-btn toolbar-tool' + (tool.id === 'pet' ? ' panel-pet-button' : '') + (active === tool.id ? ' is-active' : ''),
     'aria-label': tool.label, title: tool.label, 'aria-pressed': tool.action ? undefined : active === tool.id,
+    'aria-disabled': tool.disabled,
     onClick: () => activate(tool)
   }, tool.icon, labelled && React.createElement('span', null, tool.label));
 
