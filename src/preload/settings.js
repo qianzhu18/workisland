@@ -30,6 +30,9 @@ electron.contextBridge.exposeInMainWorld("settingsApi", {
   getRemoteHostsState: () => electron.ipcRenderer.invoke(ipc.IPC.REMOTE_HOSTS_GET_STATE),
   createRemotePairingToken: () => electron.ipcRenderer.invoke(ipc.IPC.REMOTE_HOSTS_CREATE_TOKEN),
   revokeRemoteHost: (hostId) => electron.ipcRenderer.invoke(ipc.IPC.REMOTE_HOSTS_REVOKE, { hostId }),
+  scanRemoteSshConfig: () => electron.ipcRenderer.invoke(ipc.IPC.REMOTE_HOSTS_SCAN_SSH_CONFIG),
+  inviteRemoteHost: (payload) => electron.ipcRenderer.invoke(ipc.IPC.REMOTE_HOSTS_INVITE, payload),
+  startRemoteTunnel: (hostId) => electron.ipcRenderer.invoke(ipc.IPC.REMOTE_HOSTS_START_TUNNEL, { hostId }),
   // 插件元信息：renderer 缓存供 AgentToolBadge 等做 label/badgeColor 兜底。
   getPluginAgentMeta: () => electron.ipcRenderer.invoke(ipc.IPC.PLUGIN_AGENT_META),
   onSettingsChanged: (cb) => {

@@ -15,8 +15,8 @@ const {
 test("pairing token is single-use (D2)", () => {
   const manager = createPairingTokenManager();
   const { token } = manager.createToken();
-  assert.equal(manager.consume(token), true, "first consume must succeed");
-  assert.equal(manager.consume(token), false, "second consume must fail — 一次性");
+  assert.equal(manager.consume(token).ok, true, "first consume must succeed");
+  assert.equal(manager.consume(token).ok, false, "second consume must fail — 一次性");
 });
 
 test("pairing token expires after TTL (D2)", () => {
@@ -24,14 +24,22 @@ test("pairing token expires after TTL (D2)", () => {
   const manager = createPairingTokenManager({ now: () => clock });
   const { token } = manager.createToken();
   clock += 10 * 60 * 1000 + 1;
-  assert.equal(manager.consume(token), false, "expired token must be rejected");
+  assert.equal(manager.consume(token).ok, false, "expired token must be rejected");
 });
 
 test("pairing token unknown value is rejected", () => {
   const manager = createPairingTokenManager();
-  assert.equal(manager.consume(""), false);
-  assert.equal(manager.consume("forged-token"), false);
-  assert.equal(manager.consume(undefined), false);
+  assert.equal(manager.consume("").ok, false);
+  assert.equal(manager.consume("forged-token").ok, false);
+  assert.equal(manager.consume(undefined).ok, false);
+});
+
+test("pairing token carries invite meta through consume", () => {
+  const manager = createPairingTokenManager();
+  const { token } = manager.createToken({ inviteHostId: "h-uuid-1234" });
+  const consumed = manager.consume(token);
+  assert.equal(consumed.ok, true);
+  assert.equal(consumed.meta.inviteHostId, "h-uuid-1234");
 });
 
 test("validatePairRequest accepts UUID hostId and sanitizes displayName", () => {
