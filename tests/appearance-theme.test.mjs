@@ -110,6 +110,9 @@ test("islandAppearanceToBackgroundCss compiles each kind", () => {
     islandAppearanceToBackgroundCss({ kind: "solid", color: "#0b1e3a", opacity: 0.5 }),
     "rgba(11,30,58,0.5)"
   );
+  const glass = islandAppearanceToBackgroundCss({ kind: "glass", color: "#dbeafe", opacity: 0.2 });
+  assert.match(glass, /linear-gradient/);
+  assert.match(glass, /rgba\(219,234,254,0\.2\)/);
   assert.equal(
     islandAppearanceToBackgroundCss({ kind: "gradient", color: "#1f1330", color2: "#0b0716", angle: 135, opacity: 1 }),
     "linear-gradient(135deg, rgba(31,19,48,1), rgba(11,7,22,1))"

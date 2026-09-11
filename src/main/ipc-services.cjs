@@ -175,14 +175,18 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
     const sourcePath = result.filePaths[0];
     const appearanceService = coordinator.appearanceService;
     if (!appearanceService) throw new Error("appearance service unavailable");
-    const installed = appearanceService.installBackgroundImage(sourcePath);
-    return {
-      imageRef: installed.imageRef,
-      width: installed.width,
-      height: installed.height,
-      bytes: installed.bytes,
-      dataUrl: appearanceService.getBackgroundImageDataUrl(installed.imageRef)
-    };
+    return appearanceService.readBackgroundImagePreview(sourcePath);
+  }
+  function installCroppedIslandBackground(coordinator, dataUrl) {
+    if (typeof dataUrl !== "string" || !dataUrl.startsWith("data:image/png;base64,") || dataUrl.length > 12 * 1024 * 1024) {
+      throw new Error("Invalid cropped background image data");
+    }
+    const image = electron.nativeImage.createFromDataURL(dataUrl);
+    if (image.isEmpty()) throw new Error("Unable to decode cropped background image");
+    const png = image.toPNG();
+    const installed = coordinator.appearanceService?.installBackgroundImageBuffer(png, ".png");
+    if (!installed) throw new Error("appearance service unavailable");
+    return { ...installed, dataUrl: coordinator.appearanceService.getBackgroundImageDataUrl(installed.imageRef) };
   }
   function trackedOn(channel, handler) {
     electron.ipcMain.on(channel, handler);
@@ -240,6 +244,9 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
     });
     electron.ipcMain.handle(IPC.APPEARANCE_SELECT_BACKGROUND_IMAGE, (event) => {
       return selectIslandBackgroundImage(coordinator, electron.BrowserWindow.fromWebContents(event.sender) ?? void 0);
+    });
+    electron.ipcMain.handle(IPC.APPEARANCE_INSTALL_BACKGROUND_IMAGE, (_event, { dataUrl } = {}) => {
+      return installCroppedIslandBackground(coordinator, dataUrl);
     });
     electron.ipcMain.handle(IPC.SETTINGS_GET_CODEX_PETS, () => {
       const bundled = Object.values(BUILT_IN_CODEX_PETS).map(({ spriteFile, ...pet }) => pet);

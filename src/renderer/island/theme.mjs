@@ -70,7 +70,11 @@ export function islandBackgroundCss(appearance, imageDataUrl) {
     const first = hexToRgb(theme.color);
     if (first) {
       const firstColor = `rgba(${first.r},${first.g},${first.b},${opacity})`;
-      if (theme.kind === "glass" || theme.kind === "solid") return firstColor;
+      if (theme.kind === "glass") {
+        const softOpacity = Math.round(opacity * 68) / 100;
+        return `linear-gradient(145deg, rgba(255,255,255,0.12), ${firstColor} 46%, rgba(${first.r},${first.g},${first.b},${softOpacity}))`;
+      }
+      if (theme.kind === "solid") return firstColor;
       const second = hexToRgb(theme.color2);
       if (second) {
         const secondColor = `rgba(${second.r},${second.g},${second.b},${opacity})`;

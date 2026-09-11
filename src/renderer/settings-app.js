@@ -8,6 +8,7 @@ import {
   withAppearanceColor,
   withAppearanceOpacity
 } from "./shared/appearance-settings-model.mjs";
+import { coverCrop } from "./shared/background-crop.mjs";
 
 const api = window.settingsApi;
 
@@ -1293,14 +1294,100 @@ async function chooseIslandBackgroundImage() {
   try {
     const selected = await api.selectIslandBackgroundImage();
     if (!selected) return;
-    state.appearanceImagePreview = selected.dataUrl || null;
-    state.appearanceImagePreviewRef = selected.imageRef;
-    await save({ islandAppearance: { kind: "image", imageRef: selected.imageRef, imageDim: 0.4 } });
-    renderPage();
+    await showIslandBackgroundCropper(selected);
   } catch (error) {
     state.appearanceError = error?.message || t("settings.appearance.background.image.error");
     renderPage();
   }
+}
+
+function showIslandBackgroundCropper(selected) {
+  return new Promise((resolve) => {
+    const overlay = el("div", "appearance-crop-overlay");
+    const card = el("div", "appearance-crop-card");
+    const heading = el("div", "appearance-crop-heading");
+    heading.append(el("h3", "", t("settings.appearance.background.crop.title")), el("p", "", t("settings.appearance.background.crop.description")));
+    const stage = el("div", "appearance-crop-stage");
+    const canvas = document.createElement("canvas");
+    canvas.width = 1480;
+    canvas.height = 600;
+    canvas.setAttribute("aria-label", t("settings.appearance.background.crop.preview"));
+    const sample = el("div", "appearance-crop-sample");
+    sample.append(el("strong", "", "WorkIsland"), el("span", "", t("settings.appearance.background.crop.sample")));
+    stage.append(canvas, sample);
+    const zoom = document.createElement("input");
+    zoom.type = "range"; zoom.min = "1"; zoom.max = "3"; zoom.step = "0.05"; zoom.value = "1";
+    zoom.setAttribute("aria-label", t("settings.appearance.background.crop.zoom"));
+    const zoomOut = button("−", () => setZoom(Number(zoom.value) - 0.1), "appearance-crop-zoom-button");
+    zoomOut.setAttribute("aria-label", `${t("settings.appearance.background.crop.zoom")} −`);
+    const zoomIn = button("+", () => setZoom(Number(zoom.value) + 0.1), "appearance-crop-zoom-button");
+    zoomIn.setAttribute("aria-label", `${t("settings.appearance.background.crop.zoom")} +`);
+    const zoomValue = el("span", "range-value", "100%");
+    const zoomControl = el("div", "appearance-crop-zoom");
+    zoomControl.append(el("span", "", t("settings.appearance.background.crop.zoom")), zoomOut, zoom, zoomIn, zoomValue);
+    const actions = el("div", "appearance-crop-actions");
+    const cancel = button(t("common.cancel"), () => close(false));
+    const apply = button(t("settings.appearance.background.crop.apply"), async () => {
+      apply.disabled = true;
+      try {
+        const installed = await api.installCroppedIslandBackground(canvas.toDataURL("image/png"));
+        state.appearanceImagePreview = installed.dataUrl;
+        state.appearanceImagePreviewRef = installed.imageRef;
+        await save({ islandAppearance: { kind: "image", imageRef: installed.imageRef, imageDim: 0.35 } });
+        close(true);
+        renderPage();
+      } catch (error) {
+        apply.disabled = false;
+        showToast(error?.message || t("settings.appearance.background.image.error"), true);
+      }
+    }, "primary");
+    actions.append(cancel, apply);
+    card.append(heading, stage, zoomControl, actions);
+    overlay.append(card);
+    document.body.append(overlay);
+
+    const image = new Image();
+    let panX = 0;
+    let panY = 0;
+    let drag = null;
+    const draw = () => {
+      const crop = coverCrop(image, canvas, Number(zoom.value), panX, panY);
+      const context = canvas.getContext("2d");
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, canvas.width, canvas.height);
+    };
+    const setZoom = (value) => {
+      zoom.value = String(Math.min(Number(zoom.max), Math.max(Number(zoom.min), value)));
+      zoomValue.textContent = `${Math.round(Number(zoom.value) * 100)}%`;
+      draw();
+    };
+    const close = (applied) => {
+      overlay.remove();
+      resolve(applied);
+    };
+    zoom.addEventListener("input", () => {
+      setZoom(Number(zoom.value));
+    });
+    canvas.addEventListener("pointerdown", (event) => {
+      drag = { x: event.clientX, y: event.clientY, panX, panY };
+      canvas.setPointerCapture(event.pointerId);
+      canvas.classList.add("is-dragging");
+    });
+    canvas.addEventListener("pointermove", (event) => {
+      if (!drag) return;
+      panX = Math.min(1, Math.max(-1, drag.panX - (event.clientX - drag.x) / 180));
+      panY = Math.min(1, Math.max(-1, drag.panY - (event.clientY - drag.y) / 120));
+      draw();
+    });
+    const endDrag = () => { drag = null; canvas.classList.remove("is-dragging"); };
+    canvas.addEventListener("pointerup", endDrag);
+    canvas.addEventListener("pointercancel", endDrag);
+    overlay.addEventListener("keydown", (event) => { if (event.key === "Escape") close(false); });
+    image.onload = draw;
+    image.onerror = () => close(false);
+    image.src = selected.dataUrl;
+    cancel.focus();
+  });
 }
 
 async function loadIslandBackgroundPreview(imageRef) {

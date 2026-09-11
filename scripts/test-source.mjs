@@ -64,8 +64,8 @@ const {
 // Issue #110 replaces the two legacy locale channels with get-state,
 // set-preference, and did-change so all windows update live (165 -> 166).
 // SSH 远程设置页 adds remote-hosts:scan-ssh-config / invite / start-tunnel (166 -> 169, 2026-09).
-// Issue #148 adds the managed background-image picker (169 -> 170).
-assert.equal(Object.keys(IPC).length, 170, "IPC contract changed; review both main and preload consumers");
+// Issue #148 adds the managed background-image picker and cropped-image installer (169 -> 171).
+assert.equal(Object.keys(IPC).length, 171, "IPC contract changed; review both main and preload consumers");
 assert.equal(listProductCapabilities({ platform: "darwin" }).length, 15, "MCP product catalog must stay explicit");
 assert.equal(diagnoseMcpSubject("performance-details-not-visible", { settings: {} }).subject, "performance-details-not-visible");
 assert.equal(IPC.APP_UPDATE_DOWNLOAD, "app:update-download");

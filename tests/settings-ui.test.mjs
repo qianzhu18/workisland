@@ -26,6 +26,13 @@ test("appearance settings present glass, solid, and image as contextual material
   assert.match(source, /classList\.add\("appearance-material-card"/);
   assert.match(source, /selectIslandBackgroundImage/);
   assert.match(source, /getIslandBackgroundImage/);
+  assert.match(source, /showIslandBackgroundCropper/);
+  assert.match(source, /installCroppedIslandBackground/);
+  assert.match(source, /canvas\.toDataURL\("image\/png"\)/);
+  assert.match(source, /canvas\.height = 600/);
+  assert.match(css, /aspect-ratio:740\/300/);
+  assert.match(css, /max-height:calc\(100vh - 28px\)/);
+  assert.match(source, /appearance-crop-zoom-button/);
   assert.match(source, /imageDim/);
   assert.match(source, /opacity\.min = "0"/);
   assert.match(source, /await save\(\{ islandAppearance:/);
@@ -36,6 +43,8 @@ test("appearance material cards and previews have polished interaction states", 
   assert.match(css, /\.appearance-materials\s*\{/);
   assert.match(css, /\.appearance-material-card\.is-active/);
   assert.match(css, /\.appearance-image-preview/);
+  assert.match(css, /\.appearance-crop-overlay/);
+  assert.match(css, /\.appearance-crop-stage/);
   assert.match(css, /:focus-visible/);
 });
 

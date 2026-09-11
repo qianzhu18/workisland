@@ -202,7 +202,10 @@ function islandAppearanceToBackgroundCss(appearance, imageDataUrl) {
     const parsed = parseColorString(normalized.color);
     if (parsed) {
       const first = `rgba(${parsed.r},${parsed.g},${parsed.b},${normalized.opacity ?? 1})`;
-      if (normalized.kind === "glass" || normalized.kind === "solid") return first;
+      if (normalized.kind === "glass") {
+        return `linear-gradient(145deg, rgba(255,255,255,0.12), ${first} 46%, rgba(${parsed.r},${parsed.g},${parsed.b},${round2((normalized.opacity ?? 1) * 0.68)}))`;
+      }
+      if (normalized.kind === "solid") return first;
       const second = parseColorString(normalized.color2);
       if (second) {
         const secondColor = `rgba(${second.r},${second.g},${second.b},${normalized.opacity ?? 1})`;

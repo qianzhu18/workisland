@@ -85,7 +85,8 @@ test("applyIslandAppearance updates background and adaptive profile atomically",
   };
   try {
     await applyIslandAppearance({ kind: "glass", color: "#dbeafe", opacity: 0.2 });
-    assert.equal(values.get("--island-bg"), "rgba(219,234,254,0.2)");
+    assert.match(values.get("--island-bg"), /linear-gradient/);
+    assert.match(values.get("--island-bg"), /rgba\(219,234,254,0\.2\)/);
     assert.equal(values.get("--island-backdrop"), "blur(24px) saturate(1.18)");
     assert.deepEqual(document.documentElement.dataset, {
       islandTone: "glass",

@@ -6,6 +6,7 @@ import { test } from "node:test";
 const require = createRequire(import.meta.url);
 const { IPC } = require("../src/shared/ipc.cjs");
 const css = readFileSync(new URL("../src/renderer/island/app.css", import.meta.url), "utf8");
+const app = readFileSync(new URL("../src/renderer/island/app.js", import.meta.url), "utf8");
 const panelCss = readFileSync(new URL("../src/renderer/island/components/IslandPanel.css", import.meta.url), "utf8");
 
 test("Island preload exposes narrow media and performance contracts", () => {
@@ -76,4 +77,9 @@ test("custom Island backgrounds use semantic foreground tokens and a hollow perf
   assert.match(css, /\.pill-label\s*\{[^}]*var\(--island-fg-primary\)/s);
   assert.match(panelCss, /\.token-burn-count-value\s*\{[^}]*var\(--island-fg-primary\)/s);
   assert.match(panelCss, /\.token-usage-label\s*\{[^}]*var\(--island-fg-secondary\)/s);
+  assert.match(css, /\[data-island-material="glass"\][\s\S]*repeating-linear-gradient/);
+  assert.match(css, /\.island-background-image/);
+  assert.match(app, /appearanceImageDataUrl/);
+  assert.match(app, /appearanceBackgroundFrameStyle/);
+  assert.match(app, /className: "island-background-image"/);
 });
