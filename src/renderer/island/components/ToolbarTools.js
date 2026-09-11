@@ -1,6 +1,6 @@
 import { R as React } from '../../vendor/react-runtime.js';
 import { t } from '../../shared/i18n.js';
-import { insertTool, moveToolbarTool, TOOL_SLOT, toolbarSlots, toolbarDropTarget, visibleToolbarOrder, placeToolbarTools } from './toolbar-model.mjs';
+import { insertTool, moveToolbarTool, TOOL_SLOT, toolbarActivationTarget, toolbarSlots, toolbarDropTarget, visibleToolbarOrder, placeToolbarTools } from './toolbar-model.mjs';
 
 export function ToolbarTools({ modules, active, onSelect, onOrder, order = [], hiddenModules = [], moduleSides = {}, moduleSlots = {},
   homeIcon, settingsIcon, onSettings, extras = [], leading, notchWidth = 0, notchHeight = 32 }) {
@@ -144,7 +144,7 @@ export function ToolbarTools({ modules, active, onSelect, onOrder, order = [], h
   };
   const activate = tool => {
     if (tool.disabled) return;
-    if (tool.action) tool.action(); else onSelect(tool.id);
+    if (tool.action) tool.action(); else onSelect(toolbarActivationTarget(active, tool.id));
     setMenu(false);
   };
   const promote = tool => {
@@ -159,12 +159,18 @@ export function ToolbarTools({ modules, active, onSelect, onOrder, order = [], h
       { ...moduleSlots, ...Object.fromEntries([...placements].map(([id, slot]) => [id, slot.key])) });
     setMenu(false);
   };
-  const basicButton = (tool, labelled = false) => React.createElement('button', {
+  const basicButton = (tool, labelled = false) => {
+    const returnsHome = !tool.action && active === tool.id;
+    const label = active === tool.id ? t('toolbar.agentHome') : tool.label;
+    const icon = active === tool.id ? homeIcon : tool.icon;
+    return React.createElement('button', {
     type: 'button', className: 'panel-btn toolbar-tool' + (tool.id === 'pet' ? ' panel-pet-button' : '') + (active === tool.id ? ' is-active' : ''),
-    'aria-label': tool.label, title: tool.label, 'aria-pressed': tool.action ? undefined : active === tool.id,
+    'aria-label': label, title: label, 'aria-pressed': tool.action ? undefined : active === tool.id,
     'aria-disabled': tool.disabled,
     onClick: () => activate(tool)
-  }, tool.icon, labelled && React.createElement('span', null, tool.label));
+    }, React.createElement('span', { className: 'toolbar-tool-icon' + (returnsHome ? ' is-home' : '') }, icon),
+      labelled && React.createElement('span', null, returnsHome ? label : tool.label));
+  };
 
   const positions = new Map();
   const slots = all.map(tool => {
@@ -189,8 +195,6 @@ export function ToolbarTools({ modules, active, onSelect, onOrder, order = [], h
     },
       React.createElement('div', { ref: leadingRef, className: 'usage-row-agents toolbar-leading', style: { maxWidth: layout.cameraLeft } }, leading),
       React.createElement('div', { className: 'toolbar-camera-space', 'aria-hidden': true, style: { left: layout.cameraLeft, width: notchWidth } }),
-      React.createElement('button', { type: 'button', className: 'panel-btn toolbar-tool toolbar-home' + (active === 'agent' ? ' is-active' : ''),
-        style: { left: layout.home }, title: t('toolbar.agentHome'), 'aria-label': t('toolbar.agentHome'), 'aria-pressed': active === 'agent', onClick: () => onSelect('agent') }, homeIcon),
       ...slots,
       drag && layout.slots.map((slot, index) => ![...placements.values()].some(position => position.index === index) && React.createElement('div', {
         key: 'empty-' + index, className: 'toolbar-empty-slot', style: { left: slot.x }, 'aria-hidden': true

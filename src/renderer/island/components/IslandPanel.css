@@ -60,9 +60,11 @@
 .toolbar-camera-space { position: absolute; top: 0; height: 100%; pointer-events: none; }
 .toolbar-tools { position: relative; width: 100%; min-width: 0; height: 32px; }
 .toolbar-leading { position: absolute; left: 0; top: 0; height: 32px; width: max-content; overflow: hidden; }
-.toolbar-home, .toolbar-settings, .toolbar-more { position: absolute; top: 0; }
+.toolbar-settings, .toolbar-more { position: absolute; top: 0; }
 .toolbar-tools .toolbar-tool, .toolbar-slot { width: 32px; height: 30px; flex: 0 0 32px; box-sizing: border-box; }
 .toolbar-tools .toolbar-tool { justify-content: center; padding: 6px; }
+.toolbar-tool-icon { display: grid; place-items: center; transition: transform 160ms ease, opacity 160ms ease; }
+.toolbar-tool-icon.is-home { transform: scale(.92); }
 .toolbar-slot { touch-action: none; user-select: none; }
 .toolbar-tools.is-sorting { cursor: grabbing; }
 .toolbar-slot > * { max-width: 32px; }
