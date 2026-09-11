@@ -51,4 +51,10 @@ class CodeBuddyAdapter extends ClaudeCompatibleWorkAgentAdapter {
   }
 }
 
-module.exports = { ZCodeAdapter, WorkBuddyAdapter, CodeBuddyAdapter };
+class QoderAdapter extends ClaudeCompatibleWorkAgentAdapter {
+  constructor() {
+    super("qoder", "Qoder");
+  }
+}
+
+module.exports = { ZCodeAdapter, WorkBuddyAdapter, CodeBuddyAdapter, QoderAdapter };

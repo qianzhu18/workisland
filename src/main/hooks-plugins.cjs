@@ -36,7 +36,8 @@ function getOpenCodeConfigPathCandidates(homeDir) {
 function getOpenCodePluginRef(homeDir) {
   return `file://${getOpenCodePluginInstallPath(homeDir)}`;
 }
-function buildOpenCodePluginContent(socketPath) {
+// source/fallbackTerminalApp 供换壳的 OpenCode 系产品复用（如 DuMate 的 dumate-opencode）。
+function buildOpenCodePluginContent(socketPath, { source = "opencode", fallbackTerminalApp = "OpenCode" } = {}) {
   return String.raw`// flux-opencode-plugin version: ${OPENCODE_PLUGIN_VERSION}
 // Orca plugin for OpenCode.
 // Bridges OpenCode events to the Orca app via Unix socket.
@@ -153,7 +154,7 @@ function collectTokensAsync(sessionId, realSid) {
     const remoteContext = _sshClient || _hostname
       ? { hostname: _hostname, username: _username, ipAddrs: _ipAddrs, sshClient: _sshClient }
       : undefined;
-    return sendToSocket({ type: "reportTokenUsage", source: "opencode", sessionId, tokenUsage, remoteContext });
+    return sendToSocket({ type: "reportTokenUsage", source: ${JSON.stringify(source)}, sessionId, tokenUsage, remoteContext });
   }
 
   return new Promise((resolve) => {
@@ -222,6 +223,7 @@ const ENV_KEYS = [
 function recognizedTerminalApp(command) {
   const low = command.toLowerCase();
   if (low.includes("/opencode.app/") || low.includes("/opencode desktop.app/")) return "OpenCode";
+  if (low.includes("/dumate.app/")) return "DuMate";
   if (low.includes("/claude.app/")) return "Claude";
   if (low.includes("/codex.app/") || low.includes("/codex desktop.app/")) return "Codex";
   if (low.includes("/cmux.app/contents/macos/cmux")) return "cmux";
@@ -293,7 +295,7 @@ function detectTerminalApp() {
   const term = env.TERM_PROGRAM;
   if (term === "vscode") return detectTerminalAppFromProcessTree() || "VS Code";
   if (term) return TERM_PROGRAM_CANONICAL[term.toLowerCase()] || term;
-  return detectTerminalAppFromProcessTree() || "OpenCode";
+  return detectTerminalAppFromProcessTree() || ${JSON.stringify(fallbackTerminalApp)};
 }
 
 function terminalFields() {
@@ -320,7 +322,7 @@ function terminalFields() {
 function makePayload(hookEventName, sessionID, cwd, extra = {}) {
   const payload = {
     hook_event_name: hookEventName,
-    session_id: "opencode-" + sessionID,
+    session_id: ${JSON.stringify(source + "-")} + sessionID,
     cwd: cwd || ".",
     ...terminalFields(),
     ...extra,
@@ -331,7 +333,7 @@ function makePayload(hookEventName, sessionID, cwd, extra = {}) {
   if (_sshClient) payload._sshClient = _sshClient;
   return {
     type: "processHook",
-    source: "opencode",
+    source: ${JSON.stringify(source)},
     payload,
   };
 }
@@ -2565,5 +2567,8 @@ module.exports = {
   SaraPluginManager,
   KimiHookManager,
   GeminiHookManager,
-  CopilotCliHookManager
+  CopilotCliHookManager,
+  buildOpenCodePluginContent,
+  OPENCODE_PLUGIN_VERSION,
+  OPENCODE_PLUGIN_VERSION_MARKER
 };

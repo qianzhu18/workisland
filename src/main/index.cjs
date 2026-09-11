@@ -253,7 +253,9 @@ const SOURCE_TO_TERMINAL_APP = {
   "trae-cn": "Trae CN",
   zcode: "ZCode",
   workbuddy: "WorkBuddy",
-  codebuddy: "CodeBuddy CN"
+  codebuddy: "CodeBuddy CN",
+  qoder: "Qoder",
+  dumate: "DuMate"
 };
 const GENERIC_VSCODE_APPS = /* @__PURE__ */ new Set([
   "vs code",

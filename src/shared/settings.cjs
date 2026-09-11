@@ -11,6 +11,13 @@ const DEFAULT_HOOK_TOGGLES = {
   zcode: true,
   workbuddy: true,
   codebuddy: true,
+  // Qoder CLI（千问办公 / 独立 Qoder IDE 共用 ~/.qoder/settings.json）的
+  // Claude-compatible Hook 已按二进制事件表验证（issue #158），但尚未收到
+  // 真实任务事件；连接入口在设置页，等首个事件后再视为已验证。
+  qoder: false,
+  // DuMate 内嵌 OpenCode 插件通道已实测可在 dumate-opencode 中自动加载
+  //（issue #158）；写入其用户级配置目录前保持 opt-in，等真实事件确认。
+  dumate: false,
   kimi: true,
   hermes: true,
   gemini: true,
