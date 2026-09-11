@@ -126,16 +126,16 @@ test("unknown controller state answers UNAVAILABLE instead of hanging", async ()
   assert.equal(error.code, "UNAVAILABLE");
 });
 
-test("appearance controller bright colors are darkened and reported", async () => {
+test("appearance controller preserves bright colors for adaptive foregrounds", async () => {
   const { controller, saved } = createFixtureController();
   const { bridge, readResponses } = createBridgeWithClient(controller);
   bridge.handleCommand("client-1", { type: "setAppearance", appearance: { kind: "solid", color: "#FFFFFF" } });
   await waitFor(() => readResponses().length > 0);
   const result = lastResponse(readResponses());
   assert.equal(result.type, "result");
-  assert.notEqual(result.data.appearance.color, "#ffffff");
-  assert.equal(result.data.warnings.length, 1);
-  assert.notEqual(saved[0].islandAppearance.color, "#ffffff");
+  assert.equal(result.data.appearance.color, "#ffffff");
+  assert.deepEqual(result.data.warnings, []);
+  assert.equal(saved[0].islandAppearance.color, "#ffffff");
 });
 
 function waitFor(predicate, timeoutMs = 2000) {

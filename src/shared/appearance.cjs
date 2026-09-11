@@ -23,8 +23,8 @@ const MIN_IMAGE_DIM = 0.2;
 const MAX_IMAGE_DIM = 0.85;
 const DEFAULT_IMAGE_DIM = 0.35;
 const DEFAULT_GRADIENT_ANGLE = 135;
-// Relative luminance threshold (WCAG-style sRGB luminance). Backgrounds above
-// this get darkened so the always-light island text keeps contrast.
+// Retained for API compatibility and standalone color-analysis callers. The
+// normalizer no longer darkens user colors; the renderer chooses foregrounds.
 const MAX_BACKGROUND_LUMINANCE = 0.45;
 
 const DEFAULT_ISLAND_APPEARANCE = Object.freeze({ kind: "default" });
@@ -96,10 +96,7 @@ function toHex(color) {
   return `#${hex(color.r)}${hex(color.g)}${hex(color.b)}`;
 }
 
-/**
- * Readability guardrail: keep the background dark enough for the island's
- * fixed light text. Returns the (possibly darkened) color plus a warning.
- */
+/** Legacy helper retained for callers that explicitly request darkening. */
 function enforceReadableColor(input, label) {
   const darkened = darkenToLuminance(input, MAX_BACKGROUND_LUMINANCE);
   if (darkened !== input) {
@@ -131,7 +128,7 @@ function normalizeColorField(input, label) {
  *
  * Returns { appearance, warnings }:
  *   appearance — a fresh plain object with only whitelisted fields;
- *   warnings   — human-readable strings for feedback (e.g. auto-darkening).
+ *   warnings   — human-readable normalization feedback (currently empty).
  */
 function normalizeIslandAppearance(input) {
   if (input === undefined || input === null) {

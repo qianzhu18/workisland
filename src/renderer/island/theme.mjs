@@ -2,10 +2,10 @@
 //
 // The main process normalizes and persists islandAppearance (see
 // src/shared/appearance.cjs for the authoritative validation, including the
-// readability darkening guardrail). This module only compiles the already-
-// normalized shape into the CSS custom property consumed by .island, and
-// loads managed background images through IPC as data URLs (the island CSP
-// only allows data:/blob: image sources).
+// readability validation). This module compiles the already-
+// normalized shape into background CSS plus an adaptive foreground profile,
+// and loads managed background images through IPC as data URLs (the island
+// CSP only allows data:/blob: image sources).
 
 const DEFAULT_IMAGE_DIM = 0.35;
 
