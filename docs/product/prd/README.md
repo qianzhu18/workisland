@@ -16,5 +16,6 @@
 - [PRD-009: v3.1.0 Workstation Release](./PRD-009-v3.1.0-Workstation-Release.md)
 - [PRD-010: Windows MVP](./PRD-010-WINDOWS-MVP.md)
 - [PRD-011: v3.2.0 macOS Template & Appearance Release](./PRD-011-v3.2.0-macOS-Template-Appearance-Release.md)
+- [PRD-019: 会话搜索与开发记录中枢](./PRD-019-会话搜索与开发记录中枢.md)（issue #115 搜索 / #116 SSH+tmux 远程）
 
 编号只递增不复用。Feature PRD 的批准意味着可以拆 Issue，不意味着所有任务都必须在同一版本交付。
