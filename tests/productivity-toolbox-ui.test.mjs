@@ -6,9 +6,12 @@ const read = (name) => readFileSync(new URL(`../src/renderer/island/components/$
 
 test("productivity modules live in the compact top action row", () => {
   const source = read("IslandPanel.js") + read("ToolbarTools.js");
-  for (const label of ["toolbar.agentHome", "toolbox.shelf", "toolbox.clipboard", "toolbox.terminal"]) assert.match(source, new RegExp(label.replaceAll(".", "\\.")));
+  for (const label of ["toolbox.shelf", "toolbox.clipboard", "toolbox.terminal"]) assert.match(source, new RegExp(label.replaceAll(".", "\\.")));
   assert.match(source, /toolbar-tool/);
   assert.match(source, /aria-pressed/);
+  assert.match(source, /toolbarActivationTarget\(active, tool\.id\)/);
+  assert.match(source, /active === tool\.id \? t\('toolbar\.agentHome'\) : tool\.label/);
+  assert.doesNotMatch(source, /toolbar-home/);
   assert.doesNotMatch(source, /ToolboxSwitcher/);
   assert.doesNotMatch(source, /pillFirstRow\.tokenCount[\s\S]*TokenUsage/);
   assert.match(source, /function ShelfToolIcon/);

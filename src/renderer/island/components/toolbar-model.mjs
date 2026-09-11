@@ -14,6 +14,10 @@ export function insertTool(order, source, index) {
   return next;
 }
 
+export function toolbarActivationTarget(active, selected) {
+  return active === selected ? 'agent' : selected;
+}
+
 // All coordinates are relative to the toolbar's content box. The two banks
 // share one reading order, but no slot intersects the physical camera.
 export function toolbarSlots(width, notchWidth, leadingWidth) {
@@ -26,7 +30,7 @@ export function toolbarSlots(width, notchWidth, leadingWidth) {
   const leftStart = Math.min(cameraLeft, Math.max(0, leadingWidth) + (leadingWidth ? 8 : 0));
   const slots = [];
   for (let x = leftStart; x + TOOL_SLOT <= cameraLeft; x += TOOL_SLOT) slots.push({ x, bank: 'left' });
-  for (let x = cameraRight + TOOL_SLOT; x + TOOL_SLOT <= width - 2 * TOOL_SLOT; x += TOOL_SLOT) slots.push({ x, bank: 'right' });
+  for (let x = cameraRight; x + TOOL_SLOT <= width - 2 * TOOL_SLOT; x += TOOL_SLOT) slots.push({ x, bank: 'right' });
   const right = slots.filter(slot => slot.bank === 'right');
   const slack = right.length ? width - 2 * TOOL_SLOT - right.at(-1).x - TOOL_SLOT : 0;
   const counts = { left: 0, right: 0 };
@@ -34,7 +38,7 @@ export function toolbarSlots(width, notchWidth, leadingWidth) {
     if (slot.bank === 'right') slot.x += slack;
     slot.key = slot.bank + ':' + counts[slot.bank]++;
   }
-  return { slots, cameraLeft, cameraRight, home: cameraRight, more: width - 2 * TOOL_SLOT, settings: width - TOOL_SLOT };
+  return { slots, cameraLeft, cameraRight, more: width - 2 * TOOL_SLOT, settings: width - TOOL_SLOT };
 }
 
 export function toolbarDropTarget(layout, x, y, height) {

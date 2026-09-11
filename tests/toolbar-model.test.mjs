@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { toolbarCapacity, insertTool, toolbarSlots, toolbarDropTarget, visibleToolbarOrder, placeToolbarTools, moveToolbarTool, TOOL_CAMERA_MARGIN } from '../src/renderer/island/components/toolbar-model.mjs';
-test('overflow reserves home, settings and more without consuming camera space', () => {
+import { toolbarActivationTarget, toolbarCapacity, insertTool, toolbarSlots, toolbarDropTarget, visibleToolbarOrder, placeToolbarTools, moveToolbarTool, TOOL_CAMERA_MARGIN } from '../src/renderer/island/components/toolbar-model.mjs';
+test('overflow reserves settings and more without consuming camera space', () => {
   assert.equal(toolbarCapacity(256, 6), 6);
   assert.equal(toolbarCapacity(224, 6), 4);
   assert.equal(toolbarCapacity(96, 6), 0);
@@ -10,11 +10,11 @@ test('overflow reserves home, settings and more without consuming camera space',
 test('balances real spare space around the camera without covering quota', () => {
   const layout = toolbarSlots(640, 200, 92);
   assert.deepEqual(layout.slots.filter(s => s.bank === 'left').map(s => s.x), [100,132,164]);
-  // #151 刘海禁区两侧各外扩 TOOL_CAMERA_MARGIN：home 从 420 移到 428。
-  assert.equal(layout.home, 420 + TOOL_CAMERA_MARGIN);
+  assert.equal(Object.hasOwn(layout, 'home'), false);
+  assert.equal(layout.slots.filter(s => s.bank === 'right').length, 4);
   for (const slot of layout.slots) {
     assert.ok(slot.x >= 100);
-    assert.ok(slot.x + 32 <= layout.cameraLeft || slot.x >= layout.cameraRight + 32);
+    assert.ok(slot.x + 32 <= layout.cameraLeft || slot.x >= layout.cameraRight);
     assert.ok(slot.x + 32 <= layout.more);
   }
   assert.equal(toolbarDropTarget(layout, 300, 15, 32), null);
@@ -49,11 +49,17 @@ test('#151 every slot keeps the camera margin from the physical notch edges', ()
         assert.ok(slot.x + 32 <= layout.cameraLeft, 'left slot ends inside camera margin');
         if (notch > 0) assert.ok(notchLeft - (slot.x + 32) >= TOOL_CAMERA_MARGIN - 1e-9, 'left slot too close to the notch');
       } else {
-        assert.ok(slot.x >= layout.cameraRight + 32 - 1e-9, 'right slot starts inside camera margin');
+        assert.ok(slot.x >= layout.cameraRight - 1e-9, 'right slot starts inside camera margin');
         if (notch > 0) assert.ok(slot.x - notchRight >= TOOL_CAMERA_MARGIN - 1e-9, 'right slot too close to the notch');
       }
     }
   }
+});
+
+test('selecting the active utility returns to Agent home without a dedicated home slot', () => {
+  assert.equal(toolbarActivationTarget('terminal', 'terminal'), 'agent');
+  assert.equal(toolbarActivationTarget('terminal', 'clipboard'), 'clipboard');
+  assert.equal(toolbarActivationTarget('agent', 'terminal'), 'terminal');
 });
 
 test('#151 narrow notch panel keeps zero slots and a full-margin camera zone', () => {

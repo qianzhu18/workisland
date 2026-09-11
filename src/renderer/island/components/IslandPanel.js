@@ -128,12 +128,6 @@ function ClearSessionsToolIcon() {
     React.createElement("path", { d: "M3.2 5.2h11.6M6.1 5.2V3.7h5.8v1.5M4.7 5.2l.7 9.1h7.2l.7-9.1M7.2 7.8v4M10.8 7.8v4" })
   );
 }
-function AgentHomeIcon() {
-  return React.createElement(ToolIconFrame, null,
-    React.createElement("path", { d: "m3 8 6-5 6 5v6.5H3Z" }),
-    React.createElement("path", { d: "M7 14.5v-4h4v4" })
-  );
-}
 const TokenBurnFire = ({ tokenCount }) => {
   const iconSrc = reactExports.useMemo(() => {
     return getFireIconByTokenCount(tokenCount);
@@ -352,7 +346,7 @@ function AgentUsageRow({
       leading: React.createElement(React.Fragment, null, showUsageQuota ? quotaCells : null,
         pillFirstRow.upgradeButton && (hasUpdate || hasActiveUpdateFlow(updateState)) && React.createElement(UpdateStatusButton, { updateState, hasUpdate, onDownload: onUpdateDownload, onInstall: onUpdateInstall, onOpenRelease })),
       onSelect: onToolboxModuleChange, onOrder: onToolboxModuleReorder,
-      homeIcon: React.createElement(AgentHomeIcon), settingsIcon: React.createElement('img', { src: settingIcon, alt: '' }),
+      settingsIcon: React.createElement('img', { src: settingIcon, alt: '' }),
       onSettings: () => onOpenSettings('display'), extras: [
         ...(clearSessionsEnabled ? [{ id: 'clear-sessions', label: t('session.clear'), icon: React.createElement(ClearSessionsToolIcon),
           disabled: visibleSessionIds.length === 0, action: () => window.islandBridge?.deleteSessions?.(visibleSessionIds) }] : []),
