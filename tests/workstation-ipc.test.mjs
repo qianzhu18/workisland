@@ -5,6 +5,8 @@ import { test } from "node:test";
 
 const require = createRequire(import.meta.url);
 const { IPC } = require("../src/shared/ipc.cjs");
+const css = readFileSync(new URL("../src/renderer/island/app.css", import.meta.url), "utf8");
+const panelCss = readFileSync(new URL("../src/renderer/island/components/IslandPanel.css", import.meta.url), "utf8");
 
 test("Island preload exposes narrow media and performance contracts", () => {
   const preload = readFileSync(new URL("../src/preload/island.js", import.meta.url), "utf8");
@@ -49,10 +51,29 @@ test("Island preload exposes narrow media and performance contracts", () => {
   assert.match(lyricsPanel, /lyrics-line is-active/);
   assert.match(lyricsPanel, /4000/);
   assert.match(lyricsPanel, /"aria-hidden": mode === "compact"/);
-  const css = readFileSync(new URL("../src/renderer/island/app.css", import.meta.url), "utf8");
   assert.match(css, /workspace-content\.has-media\s*\{[^}]*grid-template-columns:\s*300px minmax\(0,\s*1fr\)/s);
   assert.match(css, /\.media-rail\s*\{[^}]*grid-template-rows:\s*auto minmax\(0,\s*1fr\)/s);
   assert.match(css, /\.lyrics-panel\s*\{[^}]*position:\s*absolute[^}]*bottom:/s);
   assert.match(css, /performance-process-list[^}]*overflow-y:\s*auto/s);
   assert.match(css, /\.performance-process-status\s*\{/);
+});
+
+test("custom Island backgrounds use semantic foreground tokens and a hollow performance gauge", () => {
+  for (const token of [
+    "--island-fg-primary",
+    "--island-fg-secondary",
+    "--island-fg-tertiary",
+    "--island-control-fill",
+    "--island-control-border",
+    "--island-content-shadow",
+    "--island-surface-shadow"
+  ]) assert.match(css, new RegExp(token));
+  assert.match(css, /\[data-island-tone="dark"\]/);
+  assert.match(css, /\[data-island-tone="glass"\]/);
+  assert.match(css, /\.performance-gauge\s*\{[^}]*-webkit-mask:\s*radial-gradient/s);
+  assert.doesNotMatch(css, /\.performance-gauge::after\s*\{/);
+  assert.match(css, /\.performance-mini\s*\{[^}]*var\(--island-fg-secondary\)/s);
+  assert.match(css, /\.pill-label\s*\{[^}]*var\(--island-fg-primary\)/s);
+  assert.match(panelCss, /\.token-burn-count-value\s*\{[^}]*var\(--island-fg-primary\)/s);
+  assert.match(panelCss, /\.token-usage-label\s*\{[^}]*var\(--island-fg-secondary\)/s);
 });
