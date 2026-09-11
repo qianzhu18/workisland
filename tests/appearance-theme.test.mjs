@@ -8,6 +8,7 @@ import { join } from "node:path";
 const require = createRequire(import.meta.url);
 const {
   DEFAULT_ISLAND_APPEARANCE,
+  MIN_OPACITY,
   AppearanceValidationError,
   parseColorString,
   relativeLuminance,
@@ -56,19 +57,26 @@ test("normalizeIslandAppearance normalizes solid themes", () => {
   assert.deepEqual(warnings, []);
 });
 
-test("normalizeIslandAppearance darkens overly bright colors with a warning", () => {
+test("normalizeIslandAppearance preserves bright colors for adaptive foregrounds", () => {
   const { appearance, warnings } = normalizeIslandAppearance({ kind: "solid", color: "#FFFFFF" });
-  assert.notEqual(appearance.color, "#ffffff");
-  assert.ok(relativeLuminance(parseColorString(appearance.color)) <= 0.45 + 1e-6);
-  assert.equal(warnings.length, 1);
-  assert.ok(warnings[0].includes("压暗"));
+  assert.equal(appearance.color, "#ffffff");
+  assert.deepEqual(warnings, []);
 });
 
-test("normalizeIslandAppearance clamps opacity and folds color alpha", () => {
+test("normalizeIslandAppearance allows a fully transparent color background", () => {
+  assert.equal(MIN_OPACITY, 0);
   const clamped = normalizeIslandAppearance({ kind: "solid", color: "#101010", opacity: 0.01 });
-  assert.equal(clamped.appearance.opacity, 0.15);
+  assert.equal(clamped.appearance.opacity, 0.01);
+  const transparent = normalizeIslandAppearance({ kind: "solid", color: "#ffffff", opacity: 0 });
+  assert.deepEqual(transparent.appearance, { kind: "solid", color: "#ffffff", opacity: 0 });
   const folded = normalizeIslandAppearance({ kind: "solid", color: "rgba(16,16,16,0.5)" });
   assert.equal(folded.appearance.opacity, 0.5);
+});
+
+test("normalizeIslandAppearance supports tinted frosted glass", () => {
+  const { appearance, warnings } = normalizeIslandAppearance({ kind: "glass", color: "#dbeafe", opacity: 0.22 });
+  assert.deepEqual(appearance, { kind: "glass", color: "#dbeafe", opacity: 0.22 });
+  assert.deepEqual(warnings, []);
 });
 
 test("normalizeIslandAppearance gradient requires both colors and clamps angle", () => {
