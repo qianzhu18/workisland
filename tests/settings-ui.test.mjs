@@ -18,6 +18,27 @@ test("Settings initializes localization and offers a live system language prefer
   assert.match(source, /t\("settings\.general\.language\.title"\)/);
 });
 
+test("appearance settings present glass, solid, and image as contextual materials", () => {
+  assert.match(source, /appearance-settings-model\.mjs/);
+  for (const material of ["glass", "solid", "image"]) {
+    assert.match(source, new RegExp(`settings\\.appearance\\.background\\.material\\.${material}\\.title`));
+  }
+  assert.match(source, /classList\.add\("appearance-material-card"/);
+  assert.match(source, /selectIslandBackgroundImage/);
+  assert.match(source, /getIslandBackgroundImage/);
+  assert.match(source, /imageDim/);
+  assert.match(source, /opacity\.min = "0"/);
+  assert.match(source, /await save\(\{ islandAppearance:/);
+  assert.match(source, /await save\(\{ islandAppearance:[\s\S]{0,300}renderPage\(\)/);
+});
+
+test("appearance material cards and previews have polished interaction states", () => {
+  assert.match(css, /\.appearance-materials\s*\{/);
+  assert.match(css, /\.appearance-material-card\.is-active/);
+  assert.match(css, /\.appearance-image-preview/);
+  assert.match(css, /:focus-visible/);
+});
+
 test("Agent descriptions wrap instead of truncating long guidance", () => {
   const rule = css.match(/\.agent-detail\s*\{([^}]*)\}/)?.[1] || "";
   assert.match(rule, /white-space:\s*normal/);

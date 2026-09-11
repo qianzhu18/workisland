@@ -49,6 +49,7 @@ test("productivity services expose narrow Island IPC contracts", () => {
 test("settings exposes a managed Island background image picker", () => {
   assert.equal(typeof IPC.APPEARANCE_SELECT_BACKGROUND_IMAGE, "string");
   assert.match(settingsPreload, /selectIslandBackgroundImage/);
+  assert.match(settingsPreload, /getIslandBackgroundImage/);
   assert.match(settingsPreload, /IPC\.APPEARANCE_SELECT_BACKGROUND_IMAGE/);
   assert.match(handlers, /APPEARANCE_SELECT_BACKGROUND_IMAGE/);
   assert.match(handlers, /installBackgroundImage\(sourcePath\)/);

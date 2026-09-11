@@ -18,6 +18,7 @@ electron.contextBridge.exposeInMainWorld("settingsApi", {
   getShelfShareProviders: () => electron.ipcRenderer.invoke(ipc.IPC.SHELF_GET_SHARE_PROVIDERS),
   selectDirectory: () => electron.ipcRenderer.invoke(ipc.IPC.SETTINGS_SELECT_DIRECTORY),
   selectIslandBackgroundImage: () => electron.ipcRenderer.invoke(ipc.IPC.APPEARANCE_SELECT_BACKGROUND_IMAGE),
+  getIslandBackgroundImage: (imageRef) => electron.ipcRenderer.invoke(ipc.IPC.APPEARANCE_GET_BACKGROUND_IMAGE, imageRef),
   getHookStatus: () => electron.ipcRenderer.invoke(ipc.IPC.SETTINGS_GET_HOOK_STATUS),
   copyImageToClipboard: (rect) => electron.ipcRenderer.invoke(ipc.IPC.SETTINGS_COPY_IMAGE_TO_CLIPBOARD, { rect }),
   copyImageDataUrlToClipboard: (dataUrl) => electron.ipcRenderer.invoke(ipc.IPC.SETTINGS_COPY_IMAGE_DATA_URL_TO_CLIPBOARD, { dataUrl }),

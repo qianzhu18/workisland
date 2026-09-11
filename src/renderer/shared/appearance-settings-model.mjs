@@ -24,6 +24,9 @@ export function appearanceForMaterial(appearance, material) {
     return { kind: "image", imageRef: "", imageDim: 0.35 };
   }
   if (material === "glass") {
+    if (!appearance?.kind || appearance.kind === "default" || appearance.kind === "image") {
+      return { kind: "glass", color: "#dbeafe", opacity: 0.18 };
+    }
     const current = colorState(appearance, "glass");
     return { ...current, kind: "glass" };
   }

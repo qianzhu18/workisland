@@ -40,6 +40,11 @@ test("material transitions preserve useful values without leaking incompatible f
     color: "#000000",
     opacity: 1
   });
+  assert.deepEqual(appearanceForMaterial({ kind: "default" }, "glass"), {
+    kind: "glass",
+    color: "#dbeafe",
+    opacity: 0.18
+  });
 });
 
 test("color and opacity edits retain the selected color material", () => {
