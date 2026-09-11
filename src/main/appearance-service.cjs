@@ -52,11 +52,7 @@ function createAppearanceService({ getUserDataPath }) {
     }
   }
 
-  /**
-   * 安装一张背景图：校验扩展名、大小、可解码尺寸，复制进管理目录并
-   * 返回 { imageRef, width, height }。同名（哈希）重复安装是幂等的。
-   */
-  function installBackgroundImage(sourcePath) {
+  function readBackgroundImageFile(sourcePath) {
     if (typeof sourcePath !== "string" || sourcePath.trim().length === 0) {
       throw new Error("缺少背景图文件路径");
     }
@@ -80,14 +76,48 @@ function createAppearanceService({ getUserDataPath }) {
     if (!dimensions || dimensions.width < 8 || dimensions.height < 8) {
       throw new Error("无法解析背景图尺寸（可能不是有效图片）");
     }
+    return { buf, ext, ...dimensions, bytes: buf.length };
+  }
+
+  /**
+   * 安装一张背景图：校验扩展名、大小、可解码尺寸，复制进管理目录并
+   * 返回 { imageRef, width, height }。同名（哈希）重复安装是幂等的。
+   */
+  function installBackgroundImage(sourcePath) {
+    const { buf, ext } = readBackgroundImageFile(sourcePath);
+    return installBackgroundImageBuffer(buf, ext);
+  }
+
+  function readBackgroundImagePreview(sourcePath) {
+    const { buf, ext, width, height, bytes } = readBackgroundImageFile(sourcePath);
+    return {
+      width,
+      height,
+      bytes,
+      dataUrl: `data:${mimeForExtension(ext)};base64,${buf.toString("base64")}`
+    };
+  }
+
+  function installBackgroundImageBuffer(buf, extension = ".png") {
+    const ext = String(extension).toLowerCase();
+    if (!Buffer.isBuffer(buf) || !ALLOWED_BACKGROUND_EXTENSIONS.has(ext)) {
+      throw new Error("背景图数据无效");
+    }
+    if (buf.length > MAX_BACKGROUND_IMAGE_BYTES) {
+      throw new Error(`背景图超过 8 MB 上限（当前 ${(buf.length / 1024 / 1024).toFixed(1)} MB）`);
+    }
+    const dimensions = readImageDimensions(buf, ext);
+    if (!dimensions || dimensions.width < 8 || dimensions.height < 8) {
+      throw new Error("无法解析背景图尺寸（可能不是有效图片）");
+    }
     ensureBackgroundsDir();
     const hash = crypto.createHash("sha256").update(buf).digest("hex").slice(0, 16);
     const imageRef = `bg-${hash}${ext}`;
     const target = resolveBackgroundRef(imageRef);
     if (!fs.existsSync(target)) {
-      fs.copyFileSync(resolved, target);
+      fs.writeFileSync(target, buf);
     }
-    return { imageRef, width: dimensions.width, height: dimensions.height, bytes: stat.size };
+    return { imageRef, width: dimensions.width, height: dimensions.height, bytes: buf.length };
   }
 
   /**
@@ -137,6 +167,8 @@ function createAppearanceService({ getUserDataPath }) {
   return {
     getBackgroundsDir,
     installBackgroundImage,
+    installBackgroundImageBuffer,
+    readBackgroundImagePreview,
     getBackgroundImageDataUrl,
     deleteBackgroundImage,
     listBackgroundImages

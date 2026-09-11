@@ -2,6 +2,13 @@
 
 import { getLanguagePreference, getLocale, initializeI18n, onLocaleChange, setLanguagePreference, t } from "./shared/i18n.js";
 import { localizedRuntimeText } from "./shared/localized-runtime-text.mjs";
+import {
+  appearanceForMaterial,
+  materialForAppearance,
+  withAppearanceColor,
+  withAppearanceOpacity
+} from "./shared/appearance-settings-model.mjs";
+import { coverCrop } from "./shared/background-crop.mjs";
 
 const api = window.settingsApi;
 
@@ -37,7 +44,7 @@ const AGENT_ICON_URLS = Object.freeze({
   "plugin:pi": "../assets/brands/pi.svg"
 });
 const VERIFY_ON_REAL_EVENT_AGENT_IDS = new Set(["dsh", "trae"]);
-const state = { settings: null, statuses: new Map(), doctorSummary: null, displays: [], codexPets: [], templates: { active: null, templates: [] }, shareProviders: [], activeTab: "general", busy: new Set(), expandedSettingDetails: new Set(), latestUpdate: null, updateState: null, onUpdateStateUi: null, telemetryStatus: null, agentControl: null, agentControlManual: null, commandDraft: { name: "", command: "" }, remoteHosts: null, remotePairing: null, remoteSshConfig: null, remoteFilter: "", remoteManualOpen: false, remoteInvites: {} };
+const state = { settings: null, statuses: new Map(), doctorSummary: null, displays: [], codexPets: [], templates: { active: null, templates: [] }, shareProviders: [], activeTab: "general", busy: new Set(), expandedSettingDetails: new Set(), latestUpdate: null, updateState: null, onUpdateStateUi: null, telemetryStatus: null, agentControl: null, agentControlManual: null, commandDraft: { name: "", command: "" }, remoteHosts: null, remotePairing: null, remoteSshConfig: null, remoteFilter: "", remoteManualOpen: false, remoteInvites: {}, appearanceImagePreview: null, appearanceImagePreviewRef: "", appearanceError: "" };
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -1258,23 +1265,205 @@ const ISLAND_APPEARANCE_PRESETS = [
   { id: "frost", labelKey: "settings.appearance.background.preset.graphite", value: { kind: "solid", color: "#0E0F13", opacity: 0.72 } }
 ];
 
+const ISLAND_APPEARANCE_MATERIALS = [
+  { id: "glass", titleKey: "settings.appearance.background.material.glass.title", descriptionKey: "settings.appearance.background.material.glass.description" },
+  { id: "solid", titleKey: "settings.appearance.background.material.solid.title", descriptionKey: "settings.appearance.background.material.solid.description" },
+  { id: "image", titleKey: "settings.appearance.background.material.image.title", descriptionKey: "settings.appearance.background.material.image.description" }
+];
+
+function appearanceMaterialCard(entry, active, action) {
+  const { id } = entry;
+  const card = document.createElement("button");
+  card.type = "button";
+  card.className = `appearance-material-card${active ? " is-active" : ""}`;
+  card.classList.add("appearance-material-card");
+  card.setAttribute("aria-pressed", String(active));
+  card.addEventListener("click", action);
+  const visual = el("span", `appearance-material-visual is-${id}`);
+  const copy = el("span", "appearance-material-copy");
+  copy.append(
+    el("strong", "", t(entry.titleKey)),
+    el("span", "", t(entry.descriptionKey))
+  );
+  card.append(visual, copy);
+  return card;
+}
+
+async function chooseIslandBackgroundImage() {
+  state.appearanceError = "";
+  try {
+    const selected = await api.selectIslandBackgroundImage();
+    if (!selected) return;
+    await showIslandBackgroundCropper(selected);
+  } catch (error) {
+    state.appearanceError = error?.message || t("settings.appearance.background.image.error");
+    renderPage();
+  }
+}
+
+function showIslandBackgroundCropper(selected) {
+  return new Promise((resolve) => {
+    const overlay = el("div", "appearance-crop-overlay");
+    const card = el("div", "appearance-crop-card");
+    const heading = el("div", "appearance-crop-heading");
+    heading.append(el("h3", "", t("settings.appearance.background.crop.title")), el("p", "", t("settings.appearance.background.crop.description")));
+    const stage = el("div", "appearance-crop-stage");
+    const canvas = document.createElement("canvas");
+    canvas.width = 1480;
+    canvas.height = 600;
+    canvas.setAttribute("aria-label", t("settings.appearance.background.crop.preview"));
+    const sample = el("div", "appearance-crop-sample");
+    sample.append(el("strong", "", "WorkIsland"), el("span", "", t("settings.appearance.background.crop.sample")));
+    stage.append(canvas, sample);
+    const zoom = document.createElement("input");
+    zoom.type = "range"; zoom.min = "1"; zoom.max = "3"; zoom.step = "0.05"; zoom.value = "1";
+    zoom.setAttribute("aria-label", t("settings.appearance.background.crop.zoom"));
+    const zoomOut = button("−", () => setZoom(Number(zoom.value) - 0.1), "appearance-crop-zoom-button");
+    zoomOut.setAttribute("aria-label", `${t("settings.appearance.background.crop.zoom")} −`);
+    const zoomIn = button("+", () => setZoom(Number(zoom.value) + 0.1), "appearance-crop-zoom-button");
+    zoomIn.setAttribute("aria-label", `${t("settings.appearance.background.crop.zoom")} +`);
+    const zoomValue = el("span", "range-value", "100%");
+    const zoomControl = el("div", "appearance-crop-zoom");
+    zoomControl.append(el("span", "", t("settings.appearance.background.crop.zoom")), zoomOut, zoom, zoomIn, zoomValue);
+    const actions = el("div", "appearance-crop-actions");
+    const cancel = button(t("common.cancel"), () => close(false));
+    const apply = button(t("settings.appearance.background.crop.apply"), async () => {
+      apply.disabled = true;
+      try {
+        const installed = await api.installCroppedIslandBackground(canvas.toDataURL("image/png"));
+        state.appearanceImagePreview = installed.dataUrl;
+        state.appearanceImagePreviewRef = installed.imageRef;
+        await save({ islandAppearance: { kind: "image", imageRef: installed.imageRef, imageDim: 0.35 } });
+        close(true);
+        renderPage();
+      } catch (error) {
+        apply.disabled = false;
+        showToast(error?.message || t("settings.appearance.background.image.error"), true);
+      }
+    }, "primary");
+    actions.append(cancel, apply);
+    card.append(heading, stage, zoomControl, actions);
+    overlay.append(card);
+    document.body.append(overlay);
+
+    const image = new Image();
+    let panX = 0;
+    let panY = 0;
+    let drag = null;
+    const draw = () => {
+      const crop = coverCrop(image, canvas, Number(zoom.value), panX, panY);
+      const context = canvas.getContext("2d");
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, canvas.width, canvas.height);
+    };
+    const setZoom = (value) => {
+      zoom.value = String(Math.min(Number(zoom.max), Math.max(Number(zoom.min), value)));
+      zoomValue.textContent = `${Math.round(Number(zoom.value) * 100)}%`;
+      draw();
+    };
+    const close = (applied) => {
+      overlay.remove();
+      resolve(applied);
+    };
+    zoom.addEventListener("input", () => {
+      setZoom(Number(zoom.value));
+    });
+    canvas.addEventListener("pointerdown", (event) => {
+      drag = { x: event.clientX, y: event.clientY, panX, panY };
+      canvas.setPointerCapture(event.pointerId);
+      canvas.classList.add("is-dragging");
+    });
+    canvas.addEventListener("pointermove", (event) => {
+      if (!drag) return;
+      panX = Math.min(1, Math.max(-1, drag.panX - (event.clientX - drag.x) / 180));
+      panY = Math.min(1, Math.max(-1, drag.panY - (event.clientY - drag.y) / 120));
+      draw();
+    });
+    const endDrag = () => { drag = null; canvas.classList.remove("is-dragging"); };
+    canvas.addEventListener("pointerup", endDrag);
+    canvas.addEventListener("pointercancel", endDrag);
+    overlay.addEventListener("keydown", (event) => { if (event.key === "Escape") close(false); });
+    image.onload = draw;
+    image.onerror = () => close(false);
+    image.src = selected.dataUrl;
+    cancel.focus();
+  });
+}
+
+async function loadIslandBackgroundPreview(imageRef) {
+  state.appearanceImagePreviewRef = imageRef;
+  try {
+    state.appearanceImagePreview = await api.getIslandBackgroundImage(imageRef);
+  } catch {
+    state.appearanceImagePreview = null;
+  }
+  if (state.activeTab === "appearance" && state.settings?.islandAppearance?.imageRef === imageRef) renderPage();
+}
+
 function islandBackgroundSection() {
   const island = section(t("settings.appearance.background.sectionTitle"), t("settings.appearance.background.description"));
   const current = state.settings.islandAppearance || { kind: "default" };
+  const material = materialForAppearance(current);
+  const materials = el("div", "appearance-materials");
+  for (const entry of ISLAND_APPEARANCE_MATERIALS) {
+    const { id } = entry;
+    materials.append(appearanceMaterialCard(entry, material === id, async () => {
+      if (id === "image") {
+        if (current.kind !== "image") await chooseIslandBackgroundImage();
+        return;
+      }
+      if (material === id && current.kind !== "default" && current.kind !== "gradient") return;
+      await save({ islandAppearance: appearanceForMaterial(current, id) });
+      renderPage();
+    }));
+  }
+  island.append(materials);
+
+  if (material === "image") {
+    if (current.imageRef && state.appearanceImagePreviewRef !== current.imageRef) {
+      void loadIslandBackgroundPreview(current.imageRef);
+    }
+    const imageControl = el("div", "appearance-image-control");
+    const preview = el("div", "appearance-image-preview");
+    preview.setAttribute("role", "img");
+    preview.setAttribute("aria-label", t("settings.appearance.background.image.preview"));
+    if (state.appearanceImagePreview) preview.style.backgroundImage = `url("${state.appearanceImagePreview}")`;
+    else preview.classList.add("is-empty");
+    imageControl.append(preview, button(t("settings.appearance.background.image.choose"), chooseIslandBackgroundImage));
+    const dim = document.createElement("input");
+    dim.type = "range"; dim.min = "0.2"; dim.max = "0.85"; dim.step = "0.05";
+    dim.value = String(current.imageDim ?? 0.4);
+    dim.setAttribute("aria-label", t("settings.appearance.background.image.dim.title"));
+    const dimValue = el("span", "range-value", `${Math.round(Number(dim.value) * 100)}%`);
+    dim.addEventListener("input", () => dimValue.textContent = `${Math.round(Number(dim.value) * 100)}%`);
+    dim.addEventListener("change", () => save({ islandAppearance: { ...current, imageDim: Number(dim.value) } }));
+    const dimControl = el("div", "range-control"); dimControl.append(dim, dimValue);
+    island.append(
+      row(t("settings.appearance.background.image.title"), t("settings.appearance.background.image.description"), imageControl),
+      row(t("settings.appearance.background.image.dim.title"), t("settings.appearance.background.image.dim.description"), dimControl)
+    );
+    if (state.appearanceError) island.append(el("p", "appearance-inline-error", state.appearanceError));
+    island.append(row(t("settings.appearance.background.restore.title"), t("settings.appearance.background.restore.description"), button(t("settings.appearance.background.restore.action"), async () => { await save({ islandAppearance: { kind: "default" } }); renderPage(); }, "secondary")));
+    return island;
+  }
+
   const matchingPreset = ISLAND_APPEARANCE_PRESETS.find(
     preset => JSON.stringify(preset.value) === JSON.stringify(current)
   );
   const presetOptions = ISLAND_APPEARANCE_PRESETS.map(preset => [preset.id, t(preset.labelKey)]);
   if (!matchingPreset) {
-    const kindLabel = t(`settings.appearance.background.kind.${current.kind === "gradient" ? "gradient" : current.kind === "image" ? "image" : "solid"}`);
+    const kindLabel = t(`settings.appearance.background.kind.${current.kind === "gradient" ? "gradient" : current.kind === "glass" ? "glass" : current.kind === "image" ? "image" : "solid"}`);
     presetOptions.push(["__custom__", t("settings.appearance.background.customCurrent", { kind: kindLabel })]);
   }
   const presetSelect = select(
     matchingPreset ? matchingPreset.id : "__custom__",
     presetOptions,
-    value => {
+    async value => {
       const preset = ISLAND_APPEARANCE_PRESETS.find(entry => entry.id === value);
-      if (preset) save({ islandAppearance: preset.value });
+      if (preset) {
+        await save({ islandAppearance: preset.value });
+        renderPage();
+      }
     },
     t("settings.appearance.background.presetLabel")
   );
@@ -1283,29 +1472,23 @@ function islandBackgroundSection() {
   color.className = "color-input";
   color.value = /^#[0-9a-fA-F]{6}$/.test(current.color || "") ? current.color : "#000000";
   color.setAttribute("aria-label", t("settings.appearance.background.colorLabel"));
-  color.addEventListener("change", () => save({
-    islandAppearance: { kind: "solid", color: color.value, opacity: current.kind === "image" ? 1 : (current.opacity ?? 1) }
-  }));
+  color.addEventListener("change", async () => {
+    await save({ islandAppearance: withAppearanceColor(current, color.value) });
+    renderPage();
+  });
   const opacity = document.createElement("input");
-  opacity.type = "range"; opacity.min = "0.15"; opacity.max = "1"; opacity.step = "0.05";
-  opacity.value = String(current.kind === "image" ? 1 : (current.opacity ?? 1));
-  opacity.disabled = current.kind === "image" || current.kind === "default";
+  opacity.type = "range"; opacity.min = "0"; opacity.max = "1"; opacity.step = "0.05";
+  opacity.value = String(current.opacity ?? 1);
+  opacity.setAttribute("aria-label", t("settings.appearance.background.opacity.title"));
   const opacityValue = el("span", "range-value", `${Math.round(Number(opacity.value) * 100)}%`);
   opacity.addEventListener("input", () => opacityValue.textContent = `${Math.round(Number(opacity.value) * 100)}%`);
-  opacity.addEventListener("change", () => save({
-    islandAppearance: {
-      kind: current.kind === "gradient" ? "gradient" : "solid",
-      color: current.color || "#000000",
-      ...(current.kind === "gradient" ? { color2: current.color2 || "#000000", angle: current.angle ?? 135 } : {}),
-      opacity: Number(opacity.value)
-    }
-  }));
+  opacity.addEventListener("change", () => save({ islandAppearance: withAppearanceOpacity(current, Number(opacity.value)) }));
   const opacityControl = el("div", "range-control"); opacityControl.append(opacity, opacityValue);
   island.append(
-    row(t("settings.appearance.background.preset.title"), t("settings.appearance.background.preset.description"), presetSelect),
-    row(t("settings.appearance.background.color.title"), t("settings.appearance.background.color.description"), color),
+    ...(material === "solid" ? [row(t("settings.appearance.background.preset.title"), t("settings.appearance.background.preset.description"), presetSelect)] : []),
+    row(t("settings.appearance.background.color.title"), t(material === "glass" ? "settings.appearance.background.color.glassDescription" : "settings.appearance.background.color.description"), color),
     row(t("settings.appearance.background.opacity.title"), t("settings.appearance.background.opacity.description"), opacityControl),
-    row(t("settings.appearance.background.restore.title"), t("settings.appearance.background.restore.description"), button(t("settings.appearance.background.restore.action"), () => save({ islandAppearance: { kind: "default" } }), "secondary"))
+    row(t("settings.appearance.background.restore.title"), t("settings.appearance.background.restore.description"), button(t("settings.appearance.background.restore.action"), async () => { await save({ islandAppearance: { kind: "default" } }); renderPage(); }, "secondary"))
   );
   return island;
 }

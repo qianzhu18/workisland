@@ -3,9 +3,25 @@ import assert from "node:assert/strict";
 
 // theme.mjs is authored renderer ESM with zero imports, so it loads directly
 // under node — same trick the pet model tests use.
-const { islandBackgroundCss, resolveIslandBackground, DEFAULT_ISLAND_APPEARANCE } = await import(
+const { applyIslandAppearance, islandAppearanceProfile, islandBackgroundCss, resolveIslandBackground, DEFAULT_ISLAND_APPEARANCE } = await import(
   "../src/renderer/island/theme.mjs"
 );
+
+test("islandAppearanceProfile chooses light, dark, and glass foregrounds", () => {
+  assert.deepEqual(islandAppearanceProfile({ kind: "solid", color: "#05070a", opacity: 1 }), {
+    tone: "light", material: "solid", transparent: false, backdrop: "none"
+  });
+  assert.deepEqual(islandAppearanceProfile({ kind: "solid", color: "#ffffff", opacity: 1 }), {
+    tone: "dark", material: "solid", transparent: false, backdrop: "none"
+  });
+  assert.equal(islandAppearanceProfile({ kind: "solid", color: "#ffffff", opacity: 0.5 }).tone, "glass");
+  assert.equal(islandAppearanceProfile({ kind: "gradient", color: "#ffffff", color2: "#05070a", opacity: 1 }).tone, "glass");
+  assert.equal(islandAppearanceProfile({ kind: "image", imageRef: "bg.png", imageDim: 0.4 }).tone, "glass");
+  assert.deepEqual(islandAppearanceProfile({ kind: "glass", color: "#dbeafe", opacity: 0.2 }), {
+    tone: "glass", material: "glass", transparent: false, backdrop: "blur(24px) saturate(1.18)"
+  });
+  assert.equal(islandAppearanceProfile({ kind: "solid", color: "#000000", opacity: 0 }).transparent, true);
+});
 
 test("islandBackgroundCss mirrors the main-process compiler", () => {
   assert.equal(islandBackgroundCss(undefined), "#000");
@@ -53,4 +69,40 @@ test("resolveIslandBackground fetches images and survives getter failures", asyn
 
 test("DEFAULT_ISLAND_APPEARANCE stays frozen default", () => {
   assert.deepEqual(DEFAULT_ISLAND_APPEARANCE, { kind: "default" });
+});
+
+test("applyIslandAppearance updates background and adaptive profile atomically", async () => {
+  const values = new Map();
+  const previousDocument = globalThis.document;
+  globalThis.document = {
+    documentElement: {
+      dataset: {},
+      style: {
+        setProperty: (name, value) => values.set(name, value),
+        removeProperty: (name) => values.delete(name)
+      }
+    }
+  };
+  try {
+    await applyIslandAppearance({ kind: "glass", color: "#dbeafe", opacity: 0.2 });
+    assert.match(values.get("--island-bg"), /linear-gradient/);
+    assert.match(values.get("--island-bg"), /rgba\(219,234,254,0\.2\)/);
+    assert.equal(values.get("--island-backdrop"), "blur(24px) saturate(1.18)");
+    assert.deepEqual(document.documentElement.dataset, {
+      islandTone: "glass",
+      islandMaterial: "glass",
+      islandTransparent: "false"
+    });
+
+    await applyIslandAppearance({ kind: "default" });
+    assert.equal(values.has("--island-bg"), false);
+    assert.equal(values.has("--island-backdrop"), false);
+    assert.deepEqual(document.documentElement.dataset, {
+      islandTone: "light",
+      islandMaterial: "default",
+      islandTransparent: "false"
+    });
+  } finally {
+    globalThis.document = previousDocument;
+  }
 });

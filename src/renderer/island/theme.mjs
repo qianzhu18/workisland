@@ -2,10 +2,10 @@
 //
 // The main process normalizes and persists islandAppearance (see
 // src/shared/appearance.cjs for the authoritative validation, including the
-// readability darkening guardrail). This module only compiles the already-
-// normalized shape into the CSS custom property consumed by .island, and
-// loads managed background images through IPC as data URLs (the island CSP
-// only allows data:/blob: image sources).
+// readability validation). This module compiles the already-
+// normalized shape into background CSS plus an adaptive foreground profile,
+// and loads managed background images through IPC as data URLs (the island
+// CSP only allows data:/blob: image sources).
 
 const DEFAULT_IMAGE_DIM = 0.35;
 
@@ -22,6 +22,40 @@ function hexToRgb(hex) {
   };
 }
 
+function relativeLuminance(color) {
+  const channel = (value) => {
+    const srgb = value / 255;
+    return srgb <= 0.03928 ? srgb / 12.92 : ((srgb + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * channel(color.r) + 0.7152 * channel(color.g) + 0.0722 * channel(color.b);
+}
+
+export function islandAppearanceProfile(appearance) {
+  const theme = appearance?.kind ? appearance : DEFAULT_ISLAND_APPEARANCE;
+  const material = theme.kind === "default" ? "default" : theme.kind;
+  const opacity = theme.opacity ?? 1;
+  if (theme.kind === "glass") {
+    return { tone: "glass", material, transparent: false, backdrop: "blur(24px) saturate(1.18)" };
+  }
+  if (theme.kind === "image") {
+    return { tone: "glass", material, transparent: false, backdrop: "none" };
+  }
+  if ((theme.kind === "solid" || theme.kind === "gradient") && opacity < 0.58) {
+    return { tone: "glass", material, transparent: opacity === 0, backdrop: "none" };
+  }
+  if (theme.kind === "solid" || theme.kind === "gradient") {
+    const first = hexToRgb(theme.color);
+    const second = theme.kind === "gradient" ? hexToRgb(theme.color2) : first;
+    if (first && second) {
+      const firstIsLight = relativeLuminance(first) > 0.45;
+      const secondIsLight = relativeLuminance(second) > 0.45;
+      const tone = firstIsLight === secondIsLight ? (firstIsLight ? "dark" : "light") : "glass";
+      return { tone, material, transparent: false, backdrop: "none" };
+    }
+  }
+  return { tone: "light", material: "default", transparent: false, backdrop: "none" };
+}
+
 export function islandBackgroundCss(appearance, imageDataUrl) {
   const theme = appearance?.kind ? appearance : DEFAULT_ISLAND_APPEARANCE;
   if (theme.kind === "image") {
@@ -31,11 +65,15 @@ export function islandBackgroundCss(appearance, imageDataUrl) {
       ? `${dimLayer}, url("${imageDataUrl}") center / cover no-repeat`
       : `${dimLayer}, #000`;
   }
-  if (theme.kind === "solid" || theme.kind === "gradient") {
+  if (theme.kind === "glass" || theme.kind === "solid" || theme.kind === "gradient") {
     const opacity = theme.opacity ?? 1;
     const first = hexToRgb(theme.color);
     if (first) {
       const firstColor = `rgba(${first.r},${first.g},${first.b},${opacity})`;
+      if (theme.kind === "glass") {
+        const softOpacity = Math.round(opacity * 68) / 100;
+        return `linear-gradient(145deg, rgba(255,255,255,0.12), ${firstColor} 46%, rgba(${first.r},${first.g},${first.b},${softOpacity}))`;
+      }
       if (theme.kind === "solid") return firstColor;
       const second = hexToRgb(theme.color2);
       if (second) {
@@ -69,13 +107,21 @@ export async function resolveIslandBackground(appearance, getImageDataUrl) {
  * kind "default" restores the classic opaque black island.
  */
 export async function applyIslandAppearance(appearance, getImageDataUrl) {
-  const rootStyle = document.documentElement.style;
+  const root = document.documentElement;
+  const rootStyle = root.style;
   const theme = appearance?.kind && appearance.kind !== "default" ? appearance : null;
+  const profile = islandAppearanceProfile(theme);
+  root.dataset.islandTone = profile.tone;
+  root.dataset.islandMaterial = profile.material;
+  root.dataset.islandTransparent = String(profile.transparent);
   if (!theme) {
     rootStyle.removeProperty("--island-bg");
+    rootStyle.removeProperty("--island-backdrop");
     return "#000";
   }
   const css = await resolveIslandBackground(theme, getImageDataUrl);
   rootStyle.setProperty("--island-bg", css);
+  if (profile.backdrop === "none") rootStyle.removeProperty("--island-backdrop");
+  else rootStyle.setProperty("--island-backdrop", profile.backdrop);
   return css;
 }

@@ -46,6 +46,42 @@ body {
 /* 与 Trae 参考一致：卡片顶栏比内容区更深一层，全岛统一 */
 html {
   --island-card-header-bg: rgba(221, 230, 244, 0.04);
+  --island-fg-primary: rgba(255,255,255,.92);
+  --island-fg-secondary: rgba(255,255,255,.66);
+  --island-fg-tertiary: rgba(255,255,255,.46);
+  --island-fg-quaternary: rgba(255,255,255,.28);
+  --island-control-fill: rgba(255,255,255,.08);
+  --island-control-fill-hover: rgba(255,255,255,.15);
+  --island-control-border: rgba(255,255,255,.12);
+  --island-track: rgba(255,255,255,.15);
+  --island-content-shadow: none;
+  --island-surface-shadow: drop-shadow(0 0 0 1px rgba(255,255,255,.1));
+  --island-surface-shadow-open: drop-shadow(0 8px 8px rgba(0,0,0,.35));
+  --island-glass-highlight: rgba(255,255,255,.08);
+}
+
+html[data-island-tone="dark"] {
+  --island-card-header-bg: rgba(7,15,25,.055);
+  --island-fg-primary: rgba(7,13,23,.92);
+  --island-fg-secondary: rgba(7,13,23,.68);
+  --island-fg-tertiary: rgba(7,13,23,.5);
+  --island-fg-quaternary: rgba(7,13,23,.32);
+  --island-control-fill: rgba(7,13,23,.08);
+  --island-control-fill-hover: rgba(7,13,23,.14);
+  --island-control-border: rgba(7,13,23,.14);
+  --island-track: rgba(7,13,23,.16);
+  --island-surface-shadow: drop-shadow(0 0 0 1px rgba(7,13,23,.14));
+  --island-surface-shadow-open: drop-shadow(0 8px 10px rgba(7,13,23,.2));
+  --island-glass-highlight: rgba(255,255,255,.32);
+}
+
+html[data-island-tone="glass"] {
+  --island-content-shadow: 0 1px 2px rgba(0,0,0,.92), 0 0 5px rgba(0,0,0,.58);
+  --island-control-fill: rgba(8,12,18,.28);
+  --island-control-fill-hover: rgba(8,12,18,.4);
+  --island-control-border: rgba(255,255,255,.2);
+  --island-surface-shadow: drop-shadow(0 1px 1px rgba(0,0,0,.22)) drop-shadow(0 0 0 1px rgba(255,255,255,.14));
+  --island-glass-highlight: rgba(255,255,255,.22);
 }
 
 body {
@@ -67,13 +103,16 @@ body {
  * automatically follows the island shape during clip-path animation.
  * Adjust blur/spread/color to taste. */
 .island-pop-wrapper {
-  filter: drop-shadow(0 0 0 1px rgba(255, 255, 255, 0.1));
+  filter: var(--island-surface-shadow);
   transition: filter 0.3s ease-out;
 }
 
 .island-pop-wrapper.is-open {
-  filter: drop-shadow(0 8px 8px rgba(0, 0, 0, 0.35)) drop-shadow(0 0 0 rgba(0, 0, 0, 0.23));
+  filter: var(--island-surface-shadow-open);
 }
+
+html[data-island-transparent="true"] .island-pop-wrapper,
+html[data-island-transparent="true"] .island-pop-wrapper.is-open { filter: none; }
 
 /* ── Island — the morphing black shape ────────────────────────────────────── */
 .island {
@@ -82,9 +121,29 @@ body {
   /* --island-bg is set by the appearance theme (AI customization API);
    * absent variable keeps the classic opaque black island. */
   background: var(--island-bg, #000);
+  color: var(--island-fg-primary);
+  text-shadow: var(--island-content-shadow);
+  backdrop-filter: var(--island-backdrop, none);
+  -webkit-backdrop-filter: var(--island-backdrop, none);
+  box-shadow: inset 0 1px 0 var(--island-glass-highlight);
   pointer-events: auto;
   will-change: clip-path;
 }
+
+.island-background-image,
+.island-background-scrim { position:absolute; z-index:0; pointer-events:none; }
+.island-background-image { background-position:center; background-repeat:no-repeat; background-size:cover; }
+
+html[data-island-material="glass"] .island {
+  border-top: 1px solid rgba(255,255,255,.42);
+  background-image:
+    radial-gradient(ellipse at 18% -20%, rgba(255,255,255,.58), transparent 44%),
+    repeating-linear-gradient(118deg, rgba(255,255,255,.035) 0 1px, rgba(0,0,0,.018) 1px 3px),
+    var(--island-bg);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.34), inset 0 0 0 1px rgba(255,255,255,.1);
+}
+
+html[data-island-material="solid"] .island { border-top-color:transparent; }
 
 .island.is-opening {
   transition: clip-path 0.26s cubic-bezier(0.32, 0.02, 0.2, 1);
@@ -114,6 +173,7 @@ body {
 .island-pill-layer,
 .island-panel-layer {
   position: absolute;
+  z-index: 1;
   top: 0;
   left: 50%;
   transform: translateX(-50%);
@@ -156,7 +216,7 @@ body {
   flex: 1;
   font-size: 12px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--island-fg-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -190,7 +250,7 @@ body {
 .pill-notch-media .pill-right { width: 28px; height: 28px; justify-content: center; }
 .pill-notch-media .pill-icon-img { animation: media-pill-art-enter 460ms cubic-bezier(.22,1,.36,1) both; }
 .media-wave { width: 18px; height: 16px; display: flex; align-items: center; justify-content: center; gap: 2px; }
-.media-wave-bar { width: 2px; height: 5px; display: block; border-radius: 99px; background: rgba(255,255,255,.88); transform-origin: center; }
+.media-wave-bar { width: 2px; height: 5px; display: block; border-radius: 99px; background: var(--island-fg-primary); transform-origin: center; }
 .pill-media-playing .media-wave-bar { animation: media-wave-playing 780ms ease-in-out infinite alternate; }
 .pill-media-playing .media-wave-bar:nth-child(2) { animation-delay: -520ms; }
 .pill-media-playing .media-wave-bar:nth-child(3) { animation-delay: -260ms; }
@@ -206,8 +266,8 @@ body {
   flex-shrink: 0;
   border: 0;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
+  background: var(--island-control-fill);
+  color: var(--island-fg-primary);
   font-size: 14px;
   line-height: 1;
   cursor: pointer;
@@ -241,7 +301,7 @@ body {
 }
 
 .panel-btn.panel-pet-button:hover {
-  background: rgba(255, 255, 255, 0.18);
+  background: var(--island-control-fill-hover);
   transform: scale(1.06);
 }
 
@@ -288,7 +348,7 @@ body {
 .pill-count {
   font-size: 12px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--island-fg-primary);
   letter-spacing: -0.2px;
 }
 
@@ -317,7 +377,7 @@ body {
 .panel-title {
   font-size: 13px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--island-fg-primary);
   letter-spacing: -0.2px;
 }
 
@@ -332,7 +392,7 @@ body {
   border: none;
   display: flex;
   align-items: center;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--island-fg-secondary);
   cursor: pointer;
   border-radius: 6px;
   transition:
@@ -346,13 +406,13 @@ body {
   -webkit-user-drag: none;
 }
 .panel-btn:hover {
-  color: rgba(255, 255, 255, 0.85);
-  background: rgba(255, 255, 255, 0.08);
+  color: var(--island-fg-primary);
+  background: var(--island-control-fill);
 }
 
 .panel-divider {
   height: 1px;
-  background: rgba(255, 255, 255, 0.07);
+  background: var(--island-control-border);
   margin: 0 18px;
   flex-shrink: 0;
 }
@@ -396,7 +456,7 @@ body {
 
 .session-list-empty-text {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--island-fg-primary);
 }
 .session-row-container {
   display: flex;
@@ -423,7 +483,7 @@ body {
     sans-serif;
   font-size: 12px;
   font-weight: 400;
-  color: #d1d3db;
+  color: var(--island-fg-secondary);
   line-height: 16px;
   overflow-wrap: break-word;
 }
@@ -456,7 +516,7 @@ body {
 }
 
 .island-markdown li::marker {
-  color: #d1d3db;
+  color: var(--island-fg-secondary);
 }
 
 .island-markdown code {
@@ -486,7 +546,7 @@ body {
 
 .island-markdown strong {
   font-weight: 600;
-  color: #ffffff;
+  color: var(--island-fg-primary);
 }
 
 .island-markdown a {
@@ -502,7 +562,7 @@ body {
 .island-markdown h6 {
   margin: 4px 0 2px;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--island-fg-primary);
   line-height: 1.3;
 }
 
@@ -536,12 +596,12 @@ body {
 
 .island-markdown th {
   font-weight: 600;
-  color: #ffffff;
+  color: var(--island-fg-primary);
   background: rgba(224, 230, 242, 0.08);
 }
 
 .island-markdown td {
-  color: #d1d3db;
+  color: var(--island-fg-secondary);
 }
 /* ── Workstation: system media + agent workspace ───────────────────────── */
 .workspace-content {
@@ -857,12 +917,11 @@ body {
 /* ── Performance popover ───────────────────────────────────────────────── */
 .performance-control { position: relative; -webkit-app-region: no-drag; }
 .performance-button { min-width: 44px; height: 26px; padding: 4px 6px; gap: 5px; }
-.performance-gauge { --load: 0%; width: 15px; height: 15px; border-radius: 50%; background: conic-gradient(#78dfae var(--load), rgba(255,255,255,.15) 0); position: relative; }
-.performance-gauge::after { content: ""; position: absolute; inset: 3px; border-radius: 50%; background: #0b0c0f; }
-.performance-button.is-warning .performance-gauge { background: conic-gradient(#f1bd63 var(--load), rgba(255,255,255,.15) 0); }
-.performance-button.is-critical .performance-gauge { background: conic-gradient(#ff6f76 var(--load), rgba(255,255,255,.15) 0); }
-.performance-button.is-pinned { background: rgba(255,255,255,.11); }
-.performance-mini { color: rgba(255,255,255,.66); font-size: 10px; font-variant-numeric: tabular-nums; }
+.performance-gauge { --load: 0%; --performance-accent: #78dfae; width: 15px; height: 15px; border-radius: 50%; background: conic-gradient(var(--performance-accent) var(--load), var(--island-track) 0); position: relative; -webkit-mask: radial-gradient(circle, transparent 0 42%, #000 46% 100%); mask: radial-gradient(circle, transparent 0 42%, #000 46% 100%); }
+.performance-button.is-warning .performance-gauge { --performance-accent: #f1bd63; }
+.performance-button.is-critical .performance-gauge { --performance-accent: #ff6f76; }
+.performance-button.is-pinned { background: var(--island-control-fill); }
+.performance-mini { color: var(--island-fg-secondary); font-size: 10px; font-variant-numeric: tabular-nums; }
 .performance-popover { position: fixed; z-index: 10000; width: 292px; max-height: calc(100vh - 24px); padding: 14px; overflow: hidden; pointer-events: auto; -webkit-app-region: no-drag; color: rgba(255,255,255,.84); background: rgba(24,25,30,.96); border: 1px solid rgba(255,255,255,.12); border-radius: 16px; box-shadow: 0 18px 56px rgba(0,0,0,.5); backdrop-filter: blur(28px) saturate(1.2); animation: performance-popover-in 180ms cubic-bezier(.22,1,.36,1) both; }
 .performance-popover::before { content: ""; position: absolute; left: 0; right: 0; top: -10px; height: 12px; }
 .performance-popover-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }

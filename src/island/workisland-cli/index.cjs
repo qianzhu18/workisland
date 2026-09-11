@@ -364,7 +364,7 @@ const FALLBACK_MANUAL = `# WorkIsland AI 自定义接口(内嵌简版)
   workisland-cli pet list / pet set <sprite> / pet install <file>
   workisland-cli validate <file>                         # 校验精灵图几何
 
-主题 JSON: {kind: default|solid|gradient|image, color, color2, angle, opacity, imageRef, imageDim}
+主题 JSON: {kind: default|glass|solid|gradient|image, color, color2, angle, opacity, imageRef, imageDim}
 精灵图协议: Codex V2 1536x2288(8列x11行,cell 192x208) 或 Orca v1 1024x896(8列x7行,cell 128x128)
 仓库完整文档: docs/AI-CUSTOMIZATION.md
 `;

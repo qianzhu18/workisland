@@ -4,28 +4,27 @@
 // repository, and (mirrored in ESM form) the island renderer.
 //
 // Security/readability model:
-//   - The island's text palette is permanently light, so any customization is
-//     normalized to stay dark enough to read (MAX_BACKGROUND_LUMINANCE).
-//     Overly bright colors are auto-darkened and reported back as a warning
-//     instead of being rejected — agents and users get a working theme either
-//     way. Image backgrounds always carry a dim overlay for the same reason.
+//   - User colors are preserved. The renderer derives an adaptive foreground
+//     profile from the normalized appearance instead of mutating user intent.
+//     Image backgrounds still carry a dim overlay because their pixel content
+//     is unknown to the settings contract.
 //   - imageRef is a bare filename resolved inside the app's managed
 //     island-backgrounds directory; path traversal never reaches disk.
 
-const APPEARANCE_KINDS = /* @__PURE__ */ new Set(["default", "solid", "gradient", "image"]);
+const APPEARANCE_KINDS = /* @__PURE__ */ new Set(["default", "glass", "solid", "gradient", "image"]);
 const COLOR_STRING_MAX_LENGTH = 64;
 const IMAGE_REF_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const HEX_COLOR_PATTERN = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
 const RGBA_COLOR_PATTERN = /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*(?:,\s*(0|1|0?\.\d{1,4})\s*)?\)$/;
 
-const MIN_OPACITY = 0.15;
+const MIN_OPACITY = 0;
 const MAX_OPACITY = 1;
 const MIN_IMAGE_DIM = 0.2;
 const MAX_IMAGE_DIM = 0.85;
 const DEFAULT_IMAGE_DIM = 0.35;
 const DEFAULT_GRADIENT_ANGLE = 135;
-// Relative luminance threshold (WCAG-style sRGB luminance). Backgrounds above
-// this get darkened so the always-light island text keeps contrast.
+// Retained for API compatibility and standalone color-analysis callers. The
+// normalizer no longer darkens user colors; the renderer chooses foregrounds.
 const MAX_BACKGROUND_LUMINANCE = 0.45;
 
 const DEFAULT_ISLAND_APPEARANCE = Object.freeze({ kind: "default" });
@@ -97,10 +96,7 @@ function toHex(color) {
   return `#${hex(color.r)}${hex(color.g)}${hex(color.b)}`;
 }
 
-/**
- * Readability guardrail: keep the background dark enough for the island's
- * fixed light text. Returns the (possibly darkened) color plus a warning.
- */
+/** Legacy helper retained for callers that explicitly request darkening. */
 function enforceReadableColor(input, label) {
   const darkened = darkenToLuminance(input, MAX_BACKGROUND_LUMINANCE);
   if (darkened !== input) {
@@ -112,16 +108,14 @@ function enforceReadableColor(input, label) {
   return { color: darkened, warning: "" };
 }
 
-function normalizeColorField(input, label, warnings) {
+function normalizeColorField(input, label) {
   const parsed = parseColorString(input);
   if (!parsed) {
     throw new AppearanceValidationError(
       `${label} 不是有效的颜色值（支持 #rgb / #rrggbb / #rrggbbaa / rgb() / rgba()）: ${String(input).slice(0, 80)}`
     );
   }
-  const enforced = enforceReadableColor(parsed, label);
-  if (enforced.warning) warnings.push(enforced.warning);
-  return enforced.color;
+  return parsed;
 }
 
 /**
@@ -134,7 +128,7 @@ function normalizeColorField(input, label, warnings) {
  *
  * Returns { appearance, warnings }:
  *   appearance — a fresh plain object with only whitelisted fields;
- *   warnings   — human-readable strings for feedback (e.g. auto-darkening).
+ *   warnings   — human-readable normalization feedback (currently empty).
  */
 function normalizeIslandAppearance(input) {
   if (input === undefined || input === null) {
@@ -145,7 +139,7 @@ function normalizeIslandAppearance(input) {
   }
   const kind = input.kind ?? "default";
   if (!APPEARANCE_KINDS.has(kind)) {
-    throw new AppearanceValidationError(`未知的背景类型: ${String(kind).slice(0, 40)}（可选 default | solid | gradient | image）`);
+    throw new AppearanceValidationError(`未知的背景类型: ${String(kind).slice(0, 40)}（可选 default | glass | solid | gradient | image）`);
   }
   if (kind === "default") {
     return { appearance: { kind: "default" }, warnings: [] };
@@ -168,7 +162,7 @@ function normalizeIslandAppearance(input) {
     };
   }
 
-  const color = normalizeColorField(input.color, "color", warnings);
+  const color = normalizeColorField(input.color, "color");
   const baseOpacity = Math.min(opacity, color.a);
   const appearance = {
     kind,
@@ -176,7 +170,7 @@ function normalizeIslandAppearance(input) {
     opacity: round2(baseOpacity)
   };
   if (kind === "gradient") {
-    const color2 = normalizeColorField(input.color2, "color2", warnings);
+    const color2 = normalizeColorField(input.color2, "color2");
     appearance.color2 = toHex(color2);
     appearance.opacity = round2(Math.min(baseOpacity, color2.a));
     appearance.angle = Math.round(clampNumber(input.angle, 0, 360, DEFAULT_GRADIENT_ANGLE));
@@ -204,10 +198,13 @@ function islandAppearanceToBackgroundCss(appearance, imageDataUrl) {
     }
     return `${dimLayer}, #000`;
   }
-  if (normalized.kind === "solid" || normalized.kind === "gradient") {
+  if (normalized.kind === "glass" || normalized.kind === "solid" || normalized.kind === "gradient") {
     const parsed = parseColorString(normalized.color);
     if (parsed) {
       const first = `rgba(${parsed.r},${parsed.g},${parsed.b},${normalized.opacity ?? 1})`;
+      if (normalized.kind === "glass") {
+        return `linear-gradient(145deg, rgba(255,255,255,0.12), ${first} 46%, rgba(${parsed.r},${parsed.g},${parsed.b},${round2((normalized.opacity ?? 1) * 0.68)}))`;
+      }
       if (normalized.kind === "solid") return first;
       const second = parseColorString(normalized.color2);
       if (second) {

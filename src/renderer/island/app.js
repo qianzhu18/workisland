@@ -192,6 +192,7 @@ function IslandApp() {
   const [terminalSavedCommands, setTerminalSavedCommands] = reactExports.useState(DEFAULT_SETTINGS.terminalSavedCommands);
   const [toolboxReopenMode, setToolboxReopenMode] = reactExports.useState(DEFAULT_SETTINGS.toolboxReopenMode);
   const [islandAppearance, setIslandAppearance] = reactExports.useState(DEFAULT_SETTINGS.islandAppearance);
+  const [appearanceImageDataUrl, setAppearanceImageDataUrl] = reactExports.useState(null);
   const [appearanceTemplate, setAppearanceTemplate] = reactExports.useState(DEFAULT_SETTINGS.appearanceTemplate);
   const [requestedToolboxModule, setRequestedToolboxModule] = reactExports.useState(null);
   const [pillFileDragActive, setPillFileDragActive] = reactExports.useState(false);
@@ -316,10 +317,16 @@ function IslandApp() {
     // AI customization surface: island background theme (solid / gradient /
     // managed image). Failures fall back to the classic black inside
     // applyIslandAppearance, so a broken image never blanks the island.
-    void applyIslandAppearance(
-      islandAppearance,
-      (imageRef) => window.islandBridge?.getIslandBackgroundImage?.(imageRef)
-    ).catch(() => {});
+    let cancelled = false;
+    void applyIslandAppearance(islandAppearance).catch(() => {});
+    if (islandAppearance?.kind === "image") {
+      window.islandBridge?.getIslandBackgroundImage?.(islandAppearance.imageRef).then((dataUrl) => {
+        if (!cancelled) setAppearanceImageDataUrl(typeof dataUrl === "string" ? dataUrl : null);
+      }).catch(() => { if (!cancelled) setAppearanceImageDataUrl(null); });
+    } else {
+      setAppearanceImageDataUrl(null);
+    }
+    return () => { cancelled = true; };
   }, [islandAppearance]);
   reactExports.useEffect(() => {
     // Active template's five status SVGs (PRD-018 §7.4). The main process
@@ -720,6 +727,13 @@ function IslandApp() {
   });
   const clipPath = mounted ? isOpen ? openedShape.clipPath : closedShape.clipPath : closedShape.clipPath;
   const transition = mounted ? transitionClass : "";
+  const appearanceBackgroundShape = isOpen ? openedShape : closedShape;
+  const appearanceBackgroundFrameStyle = {
+    left: appearanceBackgroundShape.left,
+    top: 0,
+    width: appearanceBackgroundShape.outerWidth,
+    height: isOpen ? actualPanelH : notchH
+  };
   const handleMouseEnter = reactExports.useCallback((e) => {
     if (mouseLeaveCloseTimer.current) {
       clearTimeout(mouseLeaveCloseTimer.current);
@@ -971,6 +985,16 @@ function IslandApp() {
         onMouseEnter: handleMouseEnter,
         onMouseLeave: handleMouseLeave
       },
+      appearanceImageDataUrl && /* @__PURE__ */ React.createElement("div", {
+        className: "island-background-image",
+        "aria-hidden": "true",
+        style: { ...appearanceBackgroundFrameStyle, backgroundImage: `url("${appearanceImageDataUrl}")` }
+      }),
+      appearanceImageDataUrl && /* @__PURE__ */ React.createElement("div", {
+        className: "island-background-scrim",
+        "aria-hidden": "true",
+        style: { ...appearanceBackgroundFrameStyle, backgroundColor: `rgba(0,0,0,${islandAppearance.imageDim ?? 0.35})` }
+      }),
       /* @__PURE__ */ React.createElement(
         "div",
         {

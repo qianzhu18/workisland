@@ -54,7 +54,7 @@ WorkIsland 是一款本地优先的 macOS Agent 任务监控器(灵动岛 + 桌�
 | 切换桌宠 | 按标识切换,运行中实时换图 |
 | 校验精灵图 | 返回几何检测结果,支撑"生成 → 校验 → 重试"闭环 |
 
-**边界(不可绕过)**:状态色(运行蓝/待审批橙/完成绿等)与面板交互热区不属于本接口;过亮的背景会被自动压暗(见 §4.3);所有操作仅在本机 Unix socket 上进行,无任何网络端口。
+**边界(不可绕过)**:状态色(运行蓝/待审批橙/完成绿等)与面板交互热区不属于本接口;前景色与可读性保护由 WorkIsland 自动适配;所有操作仅在本机 Unix socket 上进行,无任何网络端口。
 
 ## 2. 前置条件与 CLI 定位
 
@@ -97,8 +97,11 @@ node <repo>/src/island/workisland-cli/index.cjs appearance get
 # 读取当前外观(含可用背景图列表)
 workisland-cli appearance get
 
-# 设置纯色(透明度可选 0.15–1,默认 1)
+# 设置纯色(透明度可选 0–1,默认 1；0 为背景完全透明)
 workisland-cli appearance set --json '{"kind":"solid","color":"#0B1E3A","opacity":1}'
+
+# 设置带冰蓝染色的磨砂玻璃
+workisland-cli appearance set --json '{"kind":"glass","color":"#DBEAFE","opacity":0.18}'
 
 # 设置双色渐变(angle 0–360,默认 135)
 workisland-cli appearance set --json '{"kind":"gradient","color":"#1F1330","color2":"#0B0716","angle":135,"opacity":1}'
@@ -117,7 +120,7 @@ cat theme.json | workisland-cli appearance set
 workisland-cli appearance reset
 ```
 
-`set` 成功返回归一化后的主题与警告(如自动压暗提示):
+`set` 成功返回归一化后的主题与警告:
 
 ```json
 {
@@ -182,11 +185,11 @@ workisland-cli validate /path/to/sprite.webp
 
 | 字段 | 类型 | 适用 kind | 说明 |
 | --- | --- | --- | --- |
-| `kind` | `"default" \| "solid" \| "gradient" \| "image"` | 全部 | 背景类型,必填 |
-| `color` | string | solid, gradient | 主色。`#rgb` `#rrggbb` `#rrggbbaa` `rgb()` `rgba()` |
+| `kind` | `"default" \| "glass" \| "solid" \| "gradient" \| "image"` | 全部 | 背景类型,必填 |
+| `color` | string | glass, solid, gradient | 主色或玻璃染色。`#rgb` `#rrggbb` `#rrggbbaa` `rgb()` `rgba()` |
 | `color2` | string | gradient | 渐变第二色,格式同 `color` |
 | `angle` | number | gradient | 渐变角度 0–360,默认 135 |
-| `opacity` | number | solid, gradient | 整体不透明度 0.15–1,默认 1。颜色自带 alpha 时取两者较小值 |
+| `opacity` | number | glass, solid, gradient | 整体不透明度 0–1,默认 1。颜色自带 alpha 时取两者较小值 |
 | `imageRef` | string | image | 已安装背景图的文件名(来自 `appearance get`),不允许路径 |
 | `imageDim` | number | image | 压暗遮罩 0.2–0.85,默认 0.35(保证浅色文字可读) |
 
@@ -198,7 +201,7 @@ workisland-cli validate /path/to/sprite.webp
 
 ### 4.3 可读性守卫(重要)
 
-岛内文字永远为浅色系。若你的 `color`/`color2` 亮度(WCAG 相对亮度)超过 0.45,服务端会**自动压暗到阈值内**并在 `warnings` 里说明原值与实际值。这不是报错——主题会生效;但若你要精确控制观感,请直接选用足够深的颜色(参考:所有 `#0A`–`#3F` 开头的深色均不会触发压暗)。背景图模式靠 `imageDim` 遮罩保证可读性,最小 0.2。
+WorkIsland 会保留调用方提供的 `color`/`color2`，再根据背景亮度与透明度自动选择深色、浅色或玻璃保护前景。颜色背景的 `opacity` 支持 `0`（完全透明）到 `1`；透明度只影响背景，不影响文字、图标和交互。背景图模式继续通过 `imageDim` 遮罩提高复杂图片上的可读性，最小值为 0.2。
 
 ## 5. 桌宠精灵图规格
 
