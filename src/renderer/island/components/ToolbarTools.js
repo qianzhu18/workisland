@@ -3,7 +3,7 @@ import { t } from '../../shared/i18n.js';
 import { insertTool, moveToolbarTool, TOOL_SLOT, toolbarActivationTarget, toolbarSlots, toolbarDropTarget, visibleToolbarOrder, placeToolbarTools } from './toolbar-model.mjs';
 
 export function ToolbarTools({ modules, active, onSelect, onOrder, order = [], hiddenModules = [], moduleSides = {}, moduleSlots = {},
-  settingsIcon, onSettings, extras = [], leading, notchWidth = 0, notchHeight = 32 }) {
+  homeIcon, settingsIcon, onSettings, extras = [], leading, notchWidth = 0, notchHeight = 32 }) {
   const root = React.useRef(null);
   const leadingRef = React.useRef(null);
   const dragRef = React.useRef(null);
@@ -160,13 +160,16 @@ export function ToolbarTools({ modules, active, onSelect, onOrder, order = [], h
     setMenu(false);
   };
   const basicButton = (tool, labelled = false) => {
-    const label = !tool.action && active === tool.id ? t('toolbar.agentHome') : tool.label;
+    const returnsHome = !tool.action && active === tool.id;
+    const label = active === tool.id ? t('toolbar.agentHome') : tool.label;
+    const icon = active === tool.id ? homeIcon : tool.icon;
     return React.createElement('button', {
     type: 'button', className: 'panel-btn toolbar-tool' + (tool.id === 'pet' ? ' panel-pet-button' : '') + (active === tool.id ? ' is-active' : ''),
     'aria-label': label, title: label, 'aria-pressed': tool.action ? undefined : active === tool.id,
     'aria-disabled': tool.disabled,
     onClick: () => activate(tool)
-    }, tool.icon, labelled && React.createElement('span', null, tool.label));
+    }, React.createElement('span', { className: 'toolbar-tool-icon' + (returnsHome ? ' is-home' : '') }, icon),
+      labelled && React.createElement('span', null, returnsHome ? label : tool.label));
   };
 
   const positions = new Map();

@@ -11,6 +11,8 @@ test("productivity modules live in the compact top action row", () => {
   assert.match(source, /aria-pressed/);
   assert.match(source, /toolbarActivationTarget\(active, tool\.id\)/);
   assert.match(source, /active === tool\.id \? t\('toolbar\.agentHome'\) : tool\.label/);
+  assert.match(source, /active === tool\.id \? homeIcon : tool\.icon/);
+  assert.match(source, /function AgentHomeIcon/);
   assert.doesNotMatch(source, /toolbar-home/);
   assert.doesNotMatch(source, /ToolboxSwitcher/);
   assert.doesNotMatch(source, /pillFirstRow\.tokenCount[\s\S]*TokenUsage/);

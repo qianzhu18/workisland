@@ -32,6 +32,7 @@
 - [x] Start right-bank slots at the already-expanded camera safety boundary.
 - [x] Remove the fixed Home control and its icon plumbing.
 - [x] Toggle an active selectable tool back to Agent Home.
+- [x] Reuse the active tool's slot for a contextual Home icon and label.
 - [x] Keep action-only tools, More, Settings, and drag persistence unchanged.
 
 ### Task 3: Verify and deliver
