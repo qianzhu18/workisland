@@ -165,6 +165,25 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
     });
     return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
   }
+  async function selectIslandBackgroundImage(coordinator, parentWindow) {
+    const result = await electron.dialog.showOpenDialog(parentWindow, {
+      title: i18n.t("dialog.backgroundImage.title"),
+      properties: ["openFile"],
+      filters: [{ name: i18n.t("dialog.filter.images"), extensions: ["png", "jpg", "jpeg", "webp"] }]
+    });
+    if (result.canceled || result.filePaths.length === 0) return null;
+    const sourcePath = result.filePaths[0];
+    const appearanceService = coordinator.appearanceService;
+    if (!appearanceService) throw new Error("appearance service unavailable");
+    const installed = appearanceService.installBackgroundImage(sourcePath);
+    return {
+      imageRef: installed.imageRef,
+      width: installed.width,
+      height: installed.height,
+      bytes: installed.bytes,
+      dataUrl: appearanceService.getBackgroundImageDataUrl(installed.imageRef)
+    };
+  }
   function trackedOn(channel, handler) {
     electron.ipcMain.on(channel, handler);
   }
@@ -218,6 +237,9 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
     });
     electron.ipcMain.handle(IPC.SETTINGS_SELECT_DIRECTORY, (event) => {
       return selectDirectory(electron.BrowserWindow.fromWebContents(event.sender) ?? void 0);
+    });
+    electron.ipcMain.handle(IPC.APPEARANCE_SELECT_BACKGROUND_IMAGE, (event) => {
+      return selectIslandBackgroundImage(coordinator, electron.BrowserWindow.fromWebContents(event.sender) ?? void 0);
     });
     electron.ipcMain.handle(IPC.SETTINGS_GET_CODEX_PETS, () => {
       const bundled = Object.values(BUILT_IN_CODEX_PETS).map(({ spriteFile, ...pet }) => pet);

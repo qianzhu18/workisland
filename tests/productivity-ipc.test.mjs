@@ -14,6 +14,7 @@ const windowSource = readFileSync(new URL("../src/main/windows.cjs", import.meta
 const islandSource = readFileSync(new URL("../src/renderer/island/app.js", import.meta.url), "utf8");
 const nativeSource = readFileSync(new URL("../native/panel-fix/src/panel_fix.mm", import.meta.url), "utf8");
 const preloadSource = preload;
+const settingsPreload = readFileSync(new URL("../src/preload/settings.js", import.meta.url), "utf8");
 
 test("productivity services expose narrow Island IPC contracts", () => {
   for (const key of [
@@ -43,6 +44,16 @@ test("productivity services expose narrow Island IPC contracts", () => {
   assert.match(handlers, /TERMINAL_INPUT/);
   assert.match(mainIndex, /IPC\.TERMINAL_INTERACTIVE_CHANGED/);
   assert.match(mainIndex, /shortcutService\.setTerminalInteractive\(Boolean\(interactive\)\)/);
+});
+
+test("settings exposes a managed Island background image picker", () => {
+  assert.equal(typeof IPC.APPEARANCE_SELECT_BACKGROUND_IMAGE, "string");
+  assert.match(settingsPreload, /selectIslandBackgroundImage/);
+  assert.match(settingsPreload, /IPC\.APPEARANCE_SELECT_BACKGROUND_IMAGE/);
+  assert.match(handlers, /APPEARANCE_SELECT_BACKGROUND_IMAGE/);
+  assert.match(handlers, /installBackgroundImage\(sourcePath\)/);
+  assert.match(handlers, /getBackgroundImageDataUrl\(installed\.imageRef\)/);
+  assert.match(handlers, /extensions:\s*\["png",\s*"jpg",\s*"jpeg",\s*"webp"\]/);
 });
 
 test("macOS native bridge provides stable Finder artwork and selectable quick sharing", () => {
