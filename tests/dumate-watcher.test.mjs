@@ -61,6 +61,14 @@ test("new sandbox session log emits start, idle emits completion, content never 
     // 已收卡不再重复
     watcher.scan();
     assert.equal(events.length, 2);
+
+    // 历史会话（出现即已闲置）静默归档，不弹卡
+    writeFileSync(join(fx.sandboxDir, "ses_old000000009.log"), "INFO service=sandbox.entry sandbox starting");
+    const past = clock - 60_000;
+    utimesSync(join(fx.sandboxDir, "ses_old000000009.log"), new Date(past), new Date(past));
+    watcher.scan();
+    assert.equal(events.length, 2, "historical idle session must be silent");
+    assert.equal(watcher.hasSession("old000000009"), true);
     watcher.stop();
   } finally {
     fx.cleanup();
