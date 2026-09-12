@@ -32,7 +32,7 @@ const AGENT_ICON_URLS = Object.freeze({
   workbuddy: "../assets/brands/codebuddy.svg",
   codebuddy: "../assets/brands/codebuddy.svg",
   qoder: "../assets/brands/qoder.svg",
-  dumate: "../assets/brands/dumate.svg",
+  dumate: "../assets/brands/dumate.png",
   opencode: "../assets/brands/opencode.svg",
   sara: "../assets/brands/sara.svg",
   kimi: "../assets/brands/kimi.svg",
