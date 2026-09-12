@@ -11,7 +11,7 @@ const EXPECTED_AGENT_ICONS = Object.freeze({
   claude: "claude.svg",
   codex: "codex.png",
   qoder: "qoder.svg",
-  dumate: "dumate.svg",
+  dumate: "dumate.png",
   coco: "trae.svg",
   cursor: "cursor.svg",
   trae: "trae.svg",
