@@ -1,0 +1,47 @@
+name: sync-delivery-status-to-feishu
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  sync:
+    # A merge is evidence that code landed, not evidence that device/user
+    # acceptance is complete. The script therefore moves a mapped task only to
+    # “待验收”. It never closes an issue, marks a release complete, or creates
+    # a Feishu task.
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    env:
+      FEISHU_APP_ID: ${{ secrets.FEISHU_APP_ID }}
+      FEISHU_APP_SECRET: ${{ secrets.FEISHU_APP_SECRET }}
+      FEISHU_BASE_TOKEN: ${{ secrets.FEISHU_BASE_TOKEN }}
+      FEISHU_TASK_TABLE_ID: ${{ secrets.FEISHU_TASK_TABLE_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check optional Feishu configuration
+        id: configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          required=(FEISHU_APP_ID FEISHU_APP_SECRET FEISHU_BASE_TOKEN FEISHU_TASK_TABLE_ID)
+          missing=()
+          for name in "${required[@]}"; do
+            if [ -z "${!name:-}" ]; then missing+=("$name"); fi
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Feishu delivery sync is not configured; no status was written. Missing: ${missing[*]}"
+            exit 0
+          fi
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+      - name: Sync merged delivery PR to Feishu
+        if: steps.configuration.outputs.ready == 'true'
+        run: npm run sync:feishu

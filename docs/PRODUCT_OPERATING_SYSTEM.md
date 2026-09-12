@@ -110,6 +110,15 @@ Tag `v*` 的创建权限只交给发布维护者。Beta Tag 必须生成 GitHub 
 | 每月 | Roadmap 校准：停止无证据方向，确认下一 Epic |
 | 每个版本后 | 24 小时和 7 天发布复盘，结论回流 Backlog |
 
-## 9. 完成定义
+## 9. GitHub → 飞书交付同步
+
+GitHub 是代码、PR、Issue 和发布证据的唯一执行事实源；飞书 Base 是认领、排期和验收可视化面。状态只允许从 GitHub 单向回写到飞书，避免两个客户端或两张看板分别手工改出冲突。
+
+- 合并 PR 后，`.github/workflows/feishu-delivery-sync.yml` 会查找任务标题或验收标准中显式引用的 `#PR号`，把该任务更新为“待验收”。合入不是完成：真实设备、隐私或用户验收仍需人工回填。
+- 未匹配的 PR、未配置凭证或没有飞书编辑权限时，工作流只输出 notice，不会失败、不会新建任务、也不会扩大版本范围。
+- 每个 v1.5 任务必须在飞书任务标题或验收标准中保留 GitHub Issue/PR 编号，确保可定位；新增任务先在 GitHub 建 Issue，再建飞书任务卡。
+- 首次启用前，在 GitHub Actions secrets 配置 `FEISHU_APP_ID`、`FEISHU_APP_SECRET`、`FEISHU_BASE_TOKEN` 和 `FEISHU_TASK_TABLE_ID`；并给该飞书应用编辑 `Workisland项目管理甘特图` 中“✅ 任务”表的权限。仓库不保存任何凭证或 Base token。
+
+## 10. 完成定义
 
 一个 Task 只有同时满足以下条件才能关闭：父 PRD/Issue 已链接，范围与非目标明确，代码和文档已合并，自动检查通过，必要的真实设备验证已留证，用户可见变化已进入手册/Release Notes，发布与回滚影响已记录。
