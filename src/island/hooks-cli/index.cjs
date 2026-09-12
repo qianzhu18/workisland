@@ -49,6 +49,12 @@ function isAgentRuntimeApp(value) {
 const HOST_APP_MATCHERS = Object.freeze([
   ["/codebuddy cn.app/", "CodeBuddy CN"],
   ["/workbuddy.app/", "WorkBuddy"],
+  // 千问办公内嵌 qoderclicn、DuMate 内嵌 dumate-opencode：按父进程链识别宿主
+  //（issue #158）。"/qwenworkcn.app/" 必须放在 "/qoder.app/" 之前吗？两者路径
+  // 互不包含，顺序无关，但保持与 terminal-navigation 的口径一致。
+  ["/qwenworkcn.app/", "QwenWorkCN"],
+  ["/qoder.app/", "Qoder"],
+  ["/dumate.app/", "DuMate"],
   ["/trae solo.app/", "TraeWork"],
   ["/trae cn.app/", "Trae CN"],
   ["/trae.app/", "Trae"],

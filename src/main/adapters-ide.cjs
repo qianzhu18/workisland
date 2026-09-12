@@ -2568,10 +2568,16 @@ class CopilotCliAdapter {
     return eventName === "preToolUse";
   }
 }
+// DuMate（百度搭子）内嵌 dumate-opencode：事件形状与 OpenCode 完全一致，
+// 仅 source/session 前缀不同（见 hooks-dumate.cjs），直接继承复用归一化逻辑。
+class DumateAdapter extends OpenCodeAdapter {
+  agentId = "dumate";
+}
 module.exports = {
   CocoAdapter,
   CursorAdapter,
   OpenCodeAdapter,
+  DumateAdapter,
   SaraAdapter,
   TraeHookAdapter,
   KimiAdapter,

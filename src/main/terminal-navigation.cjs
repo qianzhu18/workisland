@@ -225,7 +225,13 @@ function createTerminalNavigation({
     zcode: "dev.zcode.app",
     workbuddy: "com.workbuddy.workbuddy",
     codebuddy: "com.tencent.codebuddycn",
-    "codebuddy cn": "com.tencent.codebuddycn"
+    "codebuddy cn": "com.tencent.codebuddycn",
+    // Qoder CLI 的宿主可能是独立 Qoder IDE，也可能是千问办公（QwenWorkCN）
+    // 内嵌的 qoderclicn（两者共用 ~/.qoder/settings.json，issue #158）。
+    qoder: "com.qoder.ide",
+    qoderide: "com.qoder.ide",
+    qwenworkcn: "cn.qwenwork.desktop.mac",
+    dumate: "com.baidu.qianfan.desktop"
   };
   function getSessionBundleIds(session) {
     const ids = [];
@@ -286,6 +292,12 @@ function createTerminalNavigation({
         break;
       case "codebuddy":
         if (!hasHostTarget) ids.push("com.tencent.codebuddycn");
+        break;
+      case "qoder":
+        if (!hasHostTarget) ids.push("com.qoder.ide", "cn.qwenwork.desktop.mac");
+        break;
+      case "dumate":
+        if (!hasHostTarget) ids.push("com.baidu.qianfan.desktop");
         break;
       default:
         if (!hasHostTarget && isPluginAgentTool(session.tool)) {

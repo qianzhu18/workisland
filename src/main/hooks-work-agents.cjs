@@ -181,6 +181,13 @@ function getCodeBuddyConfigPath(homeDir = os.homedir()) {
   return path.join(homeDir, ".codebuddy", "settings.json");
 }
 
+// 千问办公（QwenWorkCN）内置的 qoderclicn 与独立 Qoder IDE 共享 ~/.qoder/settings.json，
+// 二进制内置全部 Claude Code 事件名与 hooks schema，并有官方 `hooks migrate --from-claude`
+// 子命令（详见 issue #158 验证记录）。
+function getQoderConfigPath(homeDir = os.homedir()) {
+  return path.join(homeDir, ".qoder", "settings.json");
+}
+
 function isZCodeInstalled(homeDir = os.homedir()) {
   return fs.existsSync("/Applications/ZCode.app")
     || fs.existsSync(path.join(homeDir, "Applications", "ZCode.app"))
@@ -197,6 +204,14 @@ function isCodeBuddyInstalled(homeDir = os.homedir()) {
   return fs.existsSync("/Applications/CodeBuddy CN.app")
     || fs.existsSync(path.join(homeDir, "Applications", "CodeBuddy CN.app"))
     || fs.existsSync(path.join(homeDir, ".codebuddy"));
+}
+
+function isQoderInstalled(homeDir = os.homedir()) {
+  return fs.existsSync("/Applications/Qoder.app")
+    || fs.existsSync(path.join(homeDir, "Applications", "Qoder.app"))
+    || fs.existsSync("/Applications/QwenWorkCN.app")
+    || fs.existsSync(path.join(homeDir, "Applications", "QwenWorkCN.app"))
+    || fs.existsSync(path.join(homeDir, ".qoder"));
 }
 
 class ZCodeHookManager {
@@ -429,17 +444,30 @@ class CodeBuddyHookManager extends ClaudeCompatibleWorkAgentHookManager {
   }
 }
 
+class QoderHookManager extends ClaudeCompatibleWorkAgentHookManager {
+  constructor() {
+    super({
+      agentId: "qoder",
+      label: "Qoder",
+      getConfigPath: getQoderConfigPath,
+      isInstalled: isQoderInstalled
+    });
+  }
+}
+
 module.exports = {
   ZCODE_EVENTS,
   WORKBUDDY_EVENTS,
   ZCodeHookManager,
   WorkBuddyHookManager,
   CodeBuddyHookManager,
+  QoderHookManager,
   getZCodeConfigPath,
   getZCodeWorkspaceConfigPath,
   findZCodeProjectRoot,
   getWorkBuddyConfigPath,
   getCodeBuddyConfigPath,
+  getQoderConfigPath,
   mergeHookGroups,
   removeHookGroups,
   verifyHookGroups,

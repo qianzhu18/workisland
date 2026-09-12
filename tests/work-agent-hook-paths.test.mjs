@@ -15,8 +15,10 @@ Module._load = function(request, parent, isMain) {
 const {
   getWorkBuddyConfigPath,
   getCodeBuddyConfigPath,
+  getQoderConfigPath,
   WorkBuddyHookManager,
-  CodeBuddyHookManager
+  CodeBuddyHookManager,
+  QoderHookManager
 } = require("../src/main/hooks-work-agents.cjs");
 Module._load = originalLoad;
 
@@ -25,4 +27,9 @@ test("WorkBuddy and CodeBuddy use separate config files and hook sources", () =>
   assert.equal(getCodeBuddyConfigPath("/tmp/home"), path.join("/tmp/home", ".codebuddy", "settings.json"));
   assert.equal(new WorkBuddyHookManager().agentId, "workbuddy");
   assert.equal(new CodeBuddyHookManager().agentId, "codebuddy");
+});
+
+test("Qoder (QwenWorkCN) uses ~/.qoder/settings.json with its own hook source", () => {
+  assert.equal(getQoderConfigPath("/tmp/home"), path.join("/tmp/home", ".qoder", "settings.json"));
+  assert.equal(new QoderHookManager().agentId, "qoder");
 });

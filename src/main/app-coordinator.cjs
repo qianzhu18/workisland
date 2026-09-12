@@ -21,7 +21,8 @@ const { CocoHookManager, CursorHookManager, TraeHookManager } = require("./hooks
 const { OpenCodePluginManager, SaraPluginManager, KimiHookManager, GeminiHookManager, CopilotCliHookManager } = require("./hooks-plugins.cjs");
 const { HermesHookManager, AidenHookManager, TraexCliHookManager } = require("./hooks-extended.cjs");
 const { PluginHookManager, DeepSeekHarnessHookManager } = require("./hooks-custom.cjs");
-const { ZCodeHookManager, WorkBuddyHookManager, CodeBuddyHookManager } = require("./hooks-work-agents.cjs");
+const { ZCodeHookManager, WorkBuddyHookManager, CodeBuddyHookManager, QoderHookManager } = require("./hooks-work-agents.cjs");
+const { DuMateHookManager } = require("./hooks-dumate.cjs");
 const { initSoundDirs, playSoundEvent } = require("./sound-service.cjs");
 const { createAgentSoundDeduplicator, resolveCodexTranscriptSoundEvent } = require("./agent-sound-policy.cjs");
 const { pushBarkNotification } = require("./bark-push.cjs");
@@ -365,6 +366,8 @@ function createAppCoordinatorClass({
         ["zcode", new ZCodeHookManager()],
         ["workbuddy", new WorkBuddyHookManager()],
         ["codebuddy", new CodeBuddyHookManager()],
+        ["qoder", new QoderHookManager()],
+        ["dumate", new DuMateHookManager()],
         ["opencode", new OpenCodePluginManager()],
         ["sara", new SaraPluginManager()],
         ["kimi", new KimiHookManager()],
