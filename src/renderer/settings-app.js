@@ -1034,7 +1034,15 @@ function agentsPage() {
     hooks.append(summary);
   }
   const grid = el("div", "agent-list");
-  for (const report of state.statuses.values()) grid.append(agentCard(report));
+  // 在用优先：已验证连接 / 已安装的 Agent 浮到最上面，一眼看到「我在用哪些」；
+  // 各档内部保持目录顺序（Array.sort 稳定排序）。
+  const tierOf = (report) => {
+    if (report?.connectionState === "verified" || report?.diagnosis?.status === "ok") return 0;
+    if (report?.installed) return 1;
+    return 2;
+  };
+  const sortedReports = [...state.statuses.values()].sort((a, b) => tierOf(a) - tierOf(b));
+  for (const report of sortedReports) grid.append(agentCard(report));
   hooks.append(grid);
   const tools = el("div", "section-actions");
   tools.append(

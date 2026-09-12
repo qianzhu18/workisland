@@ -6,10 +6,13 @@
 
 ## [1.5.0] - 2026-09-10
 
-「远程与随手清理」版本：SSH 远程升级为独立设置页并由 WorkIsland 主动管理隧道，会话清理进岛工具栏，并修复刘海屏工具栏遮挡。
+「远程、随手清理与办公 Agent」版本：SSH 远程升级为独立设置页并由 WorkIsland 主动管理隧道，会话清理进岛工具栏，办公 Agent（千问办公 / DuMate）上岛并可被跨会话搜索，同时修复刘海屏工具栏遮挡。
 
 ### Added
 
+- **会话搜索索引器（M1）**（#115/#120）：本地增量索引五家 Agent 的历史会话用户提问与项目路径——Claude Code、Codex、ZCode、千问办公（Qoder CLI）、OpenCode/DuMate（含百度搭子内嵌运行时）；纯本地 SQLite 索引，不上传任何内容；跨端搜索 UI 与 ⌘K 跳转在下一版本接线。
+
+- **办公 Agent 上岛**（#158/#159）：千问办公（Qoder CLI，含千问办公内置 qoderclicn）与 DuMate（百度搭子）接入会话状态、审批与完成提醒；设置页 Agents 列表将办公 Agent 提前排到前列，并按「在用优先」浮动排序（已验证连接的 Agent 永远在最上面）。
 - **SSH 远程独立设置页**（#150，issue #116）：设置新增「SSH 远程」页——从 `~/.ssh/config` 发现主机（筛选/重新扫描/一键添加）、手动添加表单、主机接入与隧道状态、复制接入命令、重连隧道与撤销。隧道改由 WorkIsland 从 Mac 主动 `ssh -R` 建立并守护（指数退避重连），**Mac 不再需要开启「远程登录」**；observe-only 边界不变：只回传运行状态，不回传提示词、代码或路径。接入指南升级 v1.1（docs/REMOTE_ONBOARDING.md）。
 - **会话清理进工具栏**（#147/#149，issue #139）：岛工具栏新增「清理会话」操作，一键结束全部可见会话卡片；设置提供显示开关。
 
@@ -18,7 +21,7 @@
 - **刘海屏工具栏遮挡**（#152，issue #151）：工具栏刘海禁区两侧各加 8px 安全边距——13/14 寸 MacBook 原生屏上边缘图标（如清理会话）不再被刘海物理遮挡；外接屏与无刘海屏行为不变。
 - **应用内更新传输韧性**（#154）：GitHub Release 大文件下载遇到短暂断网或 CDN 波动时，最多重试三次；流中断后从已写入字节续传，CDN 忽略或拒绝断点时安全地从头下载。每次下载仍须通过 SHA-256 校验才允许安装，不再直接向用户显示底层 `fetch failed`。
 
-> **English summary:** Dedicated "SSH Remote" settings page (#150) — discover hosts from `~/.ssh/config` with filtering and one-click add, WorkIsland-managed reverse tunnels (no Mac Remote Login required), copyable setup commands and per-host tunnel status, observe-only boundaries unchanged; session cleanup moves into the island toolbar with a settings toggle (#147/#149); 8px camera-zone safety margin so toolbar icons are no longer occluded by the notch on 13"/14" MacBook displays (#152); interrupted GitHub Release downloads retry and resume with HTTP Range while retaining SHA-256 verification (#154).
+> **English summary:** Session search indexer M1 (#115/#120) incrementally indexes user prompts and project paths across five agents — Claude Code, Codex, ZCode, Qoder CLI (千问办公) and OpenCode/DuMate — fully local, nothing uploaded; office agents Qoder CLI and DuMate come to the Island with session status, approvals and completion alerts (#158/#159), promoted to the top of the Settings agents list which now floats in-use agents first. Dedicated "SSH Remote" settings page (#150) — discover hosts from `~/.ssh/config` with filtering and one-click add, WorkIsland-managed reverse tunnels (no Mac Remote Login required), copyable setup commands and per-host tunnel status, observe-only boundaries unchanged; session cleanup moves into the island toolbar with a settings toggle (#147/#149); 8px camera-zone safety margin so toolbar icons are no longer occluded by the notch on 13"/14" MacBook displays (#152); interrupted GitHub Release downloads retry and resume with HTTP Range while retaining SHA-256 verification (#154).
 
 ## [1.4.0] - 2026-09-07
 

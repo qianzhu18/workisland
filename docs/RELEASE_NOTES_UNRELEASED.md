@@ -2,7 +2,7 @@
 
 状态：`release-candidate — 范围冻结；Tag 推送后由 GitHub Actions 签名公证并创建正式 Release`
 
-本版主题「远程与随手清理」：SSH 远程升级为独立设置页并由 WorkIsland 主动管理反向隧道，会话清理进岛工具栏，修复刘海屏工具栏遮挡。完整历史见仓库根目录的 [`CHANGELOG.md`](../CHANGELOG.md)。
+本版主题「远程、随手清理与办公 Agent」：SSH 远程升级为独立设置页并由 WorkIsland 主动管理反向隧道，会话清理进岛工具栏，千问办公与 DuMate 两个办公 Agent 上岛且历史会话可被本地索引（跨会话搜索地基就位），修复刘海屏工具栏遮挡。完整历史见仓库根目录的 [`CHANGELOG.md`](../CHANGELOG.md)。
 
 ## 中文说明（tag 时粘贴到 Release 页前半）
 
@@ -12,6 +12,11 @@
 - **隧道由 WorkIsland 守护**：添加主机后 WorkIsland 从 Mac 主动 `ssh -R` 建立反向隧道并自动重连——**Mac 不再需要开启「远程登录」**。
 - **接入三步走**：复制接入命令 → 第 1 步 Mac 终端拷脚本 → 第 2 步在远程主机执行配对与 hook 安装（可整段交给远程机器上的 AI 助手，指南见 [REMOTE_ONBOARDING.md](./REMOTE_ONBOARDING.md)）。
 - **observe-only 边界不变**：只回传运行状态（运行中 / 等待审批 / 完成 / 失败），不回传提示词、代码或路径；一次性配对令牌、按主机分组、随时撤销；tmux attach 等交互式能力属二期另裁。
+
+### 办公 Agent 上岛 + 跨会话搜索地基
+
+- **千问办公（Qoder CLI）与 DuMate（百度搭子）接入**（#158/#159）：会话状态、审批与完成提醒实时上岛；设置页 Agents 列表办公 Agent 提前显示，并按「在用优先」浮动排序——已验证连接的 Agent 永远在最上面。
+- **会话搜索索引器 M1**（#115/#120）：本地增量索引五家 Agent（Claude Code / Codex / ZCode / 千问办公 / OpenCode-DuMate）的历史会话用户提问与项目路径；数据全部留在本机，为下一版本的搜索 UI 与 ⌘K 跳转打好地基。
 
 ### 随手清理
 
@@ -23,7 +28,7 @@
 
 ### English Summary
 
-Dedicated "SSH Remote" settings page (#150) — discover hosts from `~/.ssh/config` with filtering and one-click add; WorkIsland-managed reverse tunnels remove the macOS Remote Login requirement; copyable setup commands hand the remote steps to the remote machine's AI assistant; observe-only boundaries unchanged. Session cleanup moves into the island toolbar with a settings toggle (#147/#149). An 8px camera-zone safety margin stops the notch from occluding toolbar icons on 13"/14" MacBook displays (#152).
+Dedicated "SSH Remote" settings page (#150) — discover hosts from `~/.ssh/config` with filtering and one-click add; WorkIsland-managed reverse tunnels remove the macOS Remote Login requirement; copyable setup commands hand the remote steps to the remote machine's AI assistant; observe-only boundaries unchanged. Session cleanup moves into the island toolbar with a settings toggle (#147/#149). Office agents Qoder CLI (千问办公) and DuMate join the Island with session status and alerts, promoted to the top of the settings list with in-use-first ordering (#158/#159); the session search indexer (M1, #115/#120) now incrementally indexes user prompts across five agents, fully local. An 8px camera-zone safety margin stops the notch from occluding toolbar icons on 13"/14" MacBook displays (#152).
 
 ## What's Changed
 

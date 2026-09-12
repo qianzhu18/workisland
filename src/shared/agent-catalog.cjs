@@ -7,6 +7,12 @@ const CORE_AGENT_DESCRIPTORS = Object.freeze([
   descriptor("codex", "Codex", "#8EA1FF", "本地 Hook 与 transcript 双通道，支持完成检测、审批和会话回源。", {
     completion: "native", approval: "bridge", question: "observe", jump: "session", approvalConfigurable: true
   }),
+  descriptor("qoder", "Qoder CLI（千问办公）", "#6E5ACF", "Qoder CLI Claude-compatible Hook，写 ~/.qoder/settings.json；千问办公（QwenWorkCN）内置的 qoderclicn 与独立 Qoder IDE 共用该配置，连接后收到真实任务事件才算验证。", {
+    completion: "native", approval: "bridge", question: "bridge", jump: "app"
+  }),
+  descriptor("dumate", "DuMate（百度搭子）", "#2932E1", "DuMate 内嵌 OpenCode 运行时，插件写入其用户级配置目录后自动加载（多账号多目录），支持会话状态、工具活动与完成提醒。", {
+    completion: "native", approval: "bridge", question: "bridge", jump: "app"
+  }),
   descriptor("coco", "Coco", "#7C83FD", "TRAE CLI Hook，支持工具状态、审批和提问。", {
     completion: "native", approval: "bridge", question: "bridge", jump: "workspace", approvalConfigurable: true
   }),
@@ -23,12 +29,6 @@ const CORE_AGENT_DESCRIPTORS = Object.freeze([
     completion: "native", approval: "bridge", question: "bridge", jump: "app"
   }),
   descriptor("codebuddy", "CodeBuddy（国内版）", "#2F80ED", "CodeBuddy 国内版 Claude-compatible Hook，独立连接 ~/.codebuddy/settings.json，支持完整会话生命周期、Island 审批和应用跳转。", {
-    completion: "native", approval: "bridge", question: "bridge", jump: "app"
-  }),
-  descriptor("qoder", "Qoder CLI（千问办公）", "#6E5ACF", "Qoder CLI Claude-compatible Hook，写 ~/.qoder/settings.json；千问办公（QwenWorkCN）内置的 qoderclicn 与独立 Qoder IDE 共用该配置，连接后收到真实任务事件才算验证。", {
-    completion: "native", approval: "bridge", question: "bridge", jump: "app"
-  }),
-  descriptor("dumate", "DuMate（百度搭子）", "#2932E1", "DuMate 内嵌 OpenCode 运行时，插件写入其用户级配置目录后自动加载（多账号多目录），支持会话状态、工具活动与完成提醒。", {
     completion: "native", approval: "bridge", question: "bridge", jump: "app"
   }),
   descriptor("opencode", "OpenCode", "#6E64D8", "本地插件接入，支持会话、工具、权限和问题交互。", {
