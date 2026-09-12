@@ -81,6 +81,7 @@ function createDuMateWatcher({
   }
 
   function scan() {
+    const currentTime = now();
     for (const sandboxDir of listAccountSandboxDirs(homeDir)) {
       let files;
       try {
@@ -109,19 +110,25 @@ function createDuMateWatcher({
         } catch {
           // 读头失败不阻塞会话出现
         }
+        // 已闲置的历史会话（WorkIsland 关闭期间跑完的）静默归档，不弹卡；
+        // 只播报此刻仍在运行的新会话。
+        const alreadyIdle = currentTime - stat.mtimeMs >= idleCompleteMs;
         sessions.set(sessionId, {
           logPath,
           projectPath,
           lastMtimeMs: stat.mtimeMs,
           started: true,
-          completed: false
+          completed: alreadyIdle
         });
-        emit("sessionStarted", sessionId, projectPath);
-        logger.info?.("[DuMateWatcher]", `session started: ${sessionId} (${projectPath || "unknown dir"})`);
+        if (alreadyIdle) {
+          logger.debug?.("[DuMateWatcher]", `historical session archived silently: ${sessionId}`);
+        } else {
+          emit("sessionStarted", sessionId, projectPath);
+          logger.info?.("[DuMateWatcher]", `session started: ${sessionId} (${projectPath || "unknown dir"})`);
+        }
       }
     }
 
-    const currentTime = now();
     for (const [sessionId, session] of sessions) {
       if (session.completed) continue;
       let mtimeMs = session.lastMtimeMs;
