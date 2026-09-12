@@ -217,6 +217,18 @@ const ZCODE_SESSIONS_SQL = [
 const ZCODE_MESSAGES_SQL = (sessionList) =>
   `SELECT session_id, data FROM message WHERE session_id IN (${sessionList.join(",")})`;
 
+const OPENCODE_SESSIONS_SQL = [
+  "SELECT id, REPLACE(REPLACE(title, char(124), '/'), char(10), ' '),",
+  "       REPLACE(directory, char(124), '/'),",
+  "       time_created, time_updated",
+  "FROM session ORDER BY time_updated DESC"
+].join(" ");
+
+// 用户提问正文在 part 表（type:"text" 分片），且只取 role:"user" 消息的分片。
+const OPENCODE_PARTS_SQL = (sessionList) =>
+  `SELECT p.session_id, p.data FROM part p JOIN message m ON m.id = p.message_id ` +
+  `WHERE p.session_id IN (${sessionList.join(",")}) AND p.data LIKE '%"type":"text"%' AND m.data LIKE '%"role":"user"%'`;
+
 function createSessionSearchService({
   homeDir = os.homedir(),
   indexDir,
@@ -229,6 +241,10 @@ function createSessionSearchService({
   const claudeRoot = path.join(homeDir, ".claude", "projects");
   const codexRoot = path.join(homeDir, ".codex", "sessions");
   const zcodeDbPath = path.join(homeDir, ".zcode", "cli", "db", "db.sqlite");
+  // 千问办公（Qoder CLI）：~/.qoder/projects/<项目>/transcript/*.jsonl
+  const qoderRoot = path.join(homeDir, ".qoder", "projects");
+  // OpenCode / DuMate（百度搭子内嵌 OpenCode 运行时）：共享默认 XDG 数据目录
+  const opencodeDbPath = path.join(homeDir, ".local", "share", "opencode", "opencode.db");
   const indexPath = path.join(indexDir, INDEX_FILE_NAME);
 
   const state = {
@@ -239,6 +255,7 @@ function createSessionSearchService({
     records: new Map(), // key -> record
     fileCursors: new Map(), // transcriptPath -> { mtimeMs, size, key, source }
     zcodeMessageCursor: 0,
+    opencodeMessageCursor: 0,
     stats: { claude: 0, codex: 0, zcode: 0 }
   };
 
@@ -261,18 +278,27 @@ function createSessionSearchService({
     state.records.set(key, { ...record, updatedAt });
   }
 
-  async function writeIndex() {
-    const payload = {
-      version: INDEX_FORMAT_VERSION,
-      savedAt: new Date().toISOString(),
-      records: [...state.records.values()],
-      fileCursors: [...state.fileCursors.entries()],
-      zcodeMessageCursor: state.zcodeMessageCursor
-    };
-    await fsp.mkdir(indexDir, { recursive: true });
-    const tmpPath = `${indexPath}.tmp`;
-    await fsp.writeFile(tmpPath, JSON.stringify(payload));
-    await fsp.rename(tmpPath, indexPath);
+  // 写盘串行化：防抖写入与 persistNow 并发时共享同一个 .tmp 路径，
+  // Windows 上并发 rename 会 EPERM/ENOENT——排队执行，绝不重叠。
+  let writingChain = Promise.resolve();
+
+  function writeIndex() {
+    const run = writingChain.then(async () => {
+      const payload = {
+        version: INDEX_FORMAT_VERSION,
+        savedAt: new Date().toISOString(),
+        records: [...state.records.values()],
+        fileCursors: [...state.fileCursors.entries()],
+        zcodeMessageCursor: state.zcodeMessageCursor,
+        opencodeMessageCursor: state.opencodeMessageCursor
+      };
+      await fsp.mkdir(indexDir, { recursive: true });
+      const tmpPath = `${indexPath}.${process.pid}-${Date.now()}.tmp`;
+      await fsp.writeFile(tmpPath, JSON.stringify(payload));
+      await fsp.rename(tmpPath, indexPath);
+    });
+    writingChain = run.catch(() => {});
+    return run;
   }
 
   function schedulePersist() {
@@ -297,7 +323,11 @@ function createSessionSearchService({
     let raw;
     try {
       raw = await fsp.readFile(indexPath, "utf-8");
-    } catch {
+    } catch (err) {
+      // 首次启动没有索引文件属正常；其他读失败留痕，避免冷启动恢复被静默吞掉
+      if (err && err.code !== "ENOENT") {
+        logger.warn?.("[SessionSearch] index read failed, starting empty:", err.message);
+      }
       return;
     }
     try {
@@ -310,6 +340,7 @@ function createSessionSearchService({
         if (filePath && cursor) state.fileCursors.set(filePath, cursor);
       }
       state.zcodeMessageCursor = Number(parsed.zcodeMessageCursor) || 0;
+      state.opencodeMessageCursor = Number(parsed.opencodeMessageCursor) || 0;
     } catch (err) {
       logger.warn?.("[SessionSearch] index load failed, rebuilding:", err && err.message);
     }
@@ -350,6 +381,19 @@ function createSessionSearchService({
           }
           for (const file of files) {
             if (file.isFile() && file.name.endsWith(".jsonl")) candidateFiles.push(path.join(projectDir, file.name));
+          }
+        } else if (source === "qoder") {
+          // qoder：一级项目目录 → transcript/ → 文件
+          if (!dirEntry.isDirectory()) continue;
+          const transcriptDir = path.join(root, dirEntry.name, "transcript");
+          let files;
+          try {
+            files = await fsp.readdir(transcriptDir, { withFileTypes: true });
+          } catch {
+            continue;
+          }
+          for (const file of files) {
+            if (file.isFile() && file.name.endsWith(".jsonl")) candidateFiles.push(path.join(transcriptDir, file.name));
           }
         } else {
           // codex：YYYY/MM/DD 三层日期目录 → 文件
@@ -508,16 +552,84 @@ function createSessionSearchService({
     return { files: sessionRows.length, rescanned: changedRows.length };
   }
 
+  async function scanOpencodeSource() {
+    if (!fs.existsSync(opencodeDbPath)) return { files: 0, rescanned: 0, unavailable: true };
+    let sessionsStdout;
+    try {
+      sessionsStdout = await runSqlite(opencodeDbPath, OPENCODE_SESSIONS_SQL);
+    } catch (err) {
+      logger.debug?.("[SessionSearch] opencode scan unavailable:", err && err.message);
+      return { files: 0, rescanned: 0, unavailable: true };
+    }
+
+    // 全量会话清单每轮都拉：顺带完成「db 里已删除会话」的对账
+    const sessionRows = parseSqliteRows(sessionsStdout, 5);
+    const staleKeys = new Set();
+    for (const [id] of sessionRows) {
+      if (id) staleKeys.add(`opencode:${id}`);
+    }
+    for (const [key, record] of state.records) {
+      if (record.tool === "opencode" && !staleKeys.has(key)) state.records.delete(key);
+    }
+
+    // 只对新增/有更新的会话重新抽取用户提问分片
+    const changedRows = sessionRows.filter((row) => {
+      const id = row[0];
+      const timeUpdated = Number(row[4]) || 0;
+      const key = `opencode:${id}`;
+      return !!id && (!state.records.has(key) || timeUpdated > state.opencodeMessageCursor);
+    });
+    if (!changedRows.length) return { files: sessionRows.length, rescanned: 0 };
+
+    let maxUpdated = state.opencodeMessageCursor;
+    for (const row of changedRows) {
+      const [id, title, directory, timeCreated, timeUpdated] = row;
+      const updatedAt = Number(timeUpdated) || Number(timeCreated) || 0;
+      if (updatedAt > maxUpdated) maxUpdated = updatedAt;
+      const record = {
+        key: `opencode:${id}`,
+        tool: "opencode",
+        id,
+        projectPath: directory || "",
+        title: clampText(title, 200),
+        text: "",
+        updatedAt,
+        transcriptPath: ""
+      };
+      try {
+        const quoted = `'${id.replace(/'/g, "''")}'`;
+        const partsStdout = await runSqlite(opencodeDbPath, OPENCODE_PARTS_SQL([quoted]));
+        const texts = [];
+        for (const [, dataJson] of parseSqliteRows(partsStdout, 2)) {
+          const text = opencodeUserTextFromData(dataJson);
+          if (text) texts.push(text);
+          if (texts.join("\n").length >= SESSION_TEXT_CAP) break;
+        }
+        record.text = clampText(texts.join("\n"));
+      } catch (err) {
+        logger.debug?.("[SessionSearch] opencode part extract failed:", err && err.message);
+      }
+      upsertRecord(record);
+      await new Promise((resolve) => setImmediate(resolve));
+    }
+    state.opencodeMessageCursor = maxUpdated;
+    return { files: sessionRows.length, rescanned: changedRows.length };
+  }
+
   function refreshStats() {
     let claude = 0;
     let codex = 0;
     let zcode = 0;
+    let qoder = 0;
+    let opencode = 0;
     for (const record of state.records.values()) {
       if (record.tool === "claude") claude += 1;
       else if (record.tool === "codex") codex += 1;
       else if (record.tool === "zcode") zcode += 1;
+      else if (record.tool === "qoder") qoder += 1;
+      else if (record.tool === "opencode") opencode += 1;
     }
-    state.stats = { claude, codex, zcode };
+    state.stats = { claude, codex, zcode, qoder, opencode };
   }
 
   async function scan({ reason = "manual" } = {}) {
@@ -544,6 +656,22 @@ function createSessionSearchService({
       } catch (err) {
         logger.warn?.("[SessionSearch] codex scan failed:", err && err.message);
         summary.codex = { error: String(err && err.message) };
+      }
+      try {
+        summary.qoder = await scanJsonlSource({
+          source: "qoder",
+          roots: [qoderRoot],
+          parseTranscript: parseQoderTranscript
+        });
+      } catch (err) {
+        logger.warn?.("[SessionSearch] qoder scan failed:", err && err.message);
+        summary.qoder = { error: String(err && err.message) };
+      }
+      try {
+        summary.opencode = await scanOpencodeSource();
+      } catch (err) {
+        logger.warn?.("[SessionSearch] opencode scan failed:", err && err.message);
+        summary.opencode = { error: String(err && err.message) };
       }
       try {
         summary.zcode = await scanZcodeSource();
@@ -671,13 +799,65 @@ function createSessionSearchService({
   return { start, dispose, scan, search, getState, persistNow, indexPath };
 }
 
+// 千问办公（Qoder CLI）：session_meta 与 user 行的 id/cwd 在顶层（非 payload）。
+function parseQoderTranscript(lines) {
+  let projectPath = "";
+  let id = "";
+  let updatedAtMs = 0;
+  const texts = [];
+  for (const line of lines) {
+    if (!line) continue;
+    let entry;
+    try {
+      entry = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    if (!entry || typeof entry !== "object") continue;
+    const type = entry.type;
+    if (type === "session_meta") {
+      if (!id && typeof entry.sessionId === "string") id = entry.sessionId;
+      if (!projectPath && typeof entry.cwd === "string" && entry.cwd) projectPath = entry.cwd;
+      const ts = toTimestampMs(entry.timestamp);
+      if (ts > updatedAtMs) updatedAtMs = ts;
+      continue;
+    }
+    if (type !== "user") continue;
+    const ts = toTimestampMs(entry.timestamp);
+    if (ts > updatedAtMs) updatedAtMs = ts;
+    const text = clampText(textFromClaudeContent(entry.message && entry.message.content), SESSION_TEXT_CAP);
+    if (text) texts.push(text);
+    if (texts.join("\n").length >= SESSION_TEXT_CAP) break;
+  }
+  return {
+    id,
+    projectPath,
+    title: "",
+    text: texts.join("\n"),
+    updatedAt: updatedAtMs
+  };
+}
+
+// OpenCode / DuMate：用户提问正文存放在 part 表的 {"type":"text","text":...} 分片。
+function opencodeUserTextFromData(dataJson) {
+  try {
+    const parsed = JSON.parse(dataJson);
+    if (parsed && parsed.type === "text" && typeof parsed.text === "string") return parsed.text;
+  } catch {
+    // 非 JSON 分片直接忽略
+  }
+  return "";
+}
+
 module.exports = {
   INDEX_FORMAT_VERSION,
   createSessionSearchService,
   parseClaudeTranscript,
   parseCodexTranscript,
+  parseQoderTranscript,
   parseSqliteRows,
   zcodeUserTextFromData,
+  opencodeUserTextFromData,
   textFromClaudeContent,
   isCodexNoise
 };

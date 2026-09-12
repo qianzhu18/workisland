@@ -305,6 +305,9 @@ test("scan is incremental: unchanged files skipped, changes and deletions reconc
     runSqlite: makeZcodeRunSqlite({ sessions: zcodeSessions, messagesBySession: fx.zcodeMessages })
   });
   await reopened.start();
+  // start() 的启动扫描是后台任务，这里显式再扫一轮并等待完成，保证断言
+  // 与事件循环时序无关（Windows CI 上曾出现恢复断言与后台扫描竞速）。
+  await reopened.scan();
   assert.ok(reopened.getState().total >= 1, "reopened service should restore records from disk");
   reopened.dispose();
   await service.dispose();
@@ -326,4 +329,74 @@ test("malformed transcript lines are tolerated and capped text keeps index bound
   const parsed = parseClaudeTranscript(noisyLines);
   assert.equal(parsed.id, "cap-1");
   assert.ok(parsed.text.length <= 20_000, "text should be capped at SESSION_TEXT_CAP");
+});
+
+test("qoder and opencode (DuMate) sessions are indexed, searchable and reconciled", async () => {
+  const fx = await makeFixtureHome();
+  // opencode provider 有 existsSync 守卫：先落一个空的 opencode.db 占位
+  await fsp.mkdir(path.join(fx.homeDir, ".local", "share", "opencode"), { recursive: true });
+  await fsp.writeFile(path.join(fx.homeDir, ".local", "share", "opencode", "opencode.db"), "");
+  const qoderTranscriptDir = path.join(fx.homeDir, ".qoder", "projects", "-Users-mac-qoder-demo", "transcript");
+  await fsp.mkdir(qoderTranscriptDir, { recursive: true });
+  const qoderFile = path.join(qoderTranscriptDir, "task-q1.session.execution.jsonl");
+  await fsp.writeFile(qoderFile, [
+    JSON.stringify({
+      type: "session_meta",
+      sessionId: "task-q1.session.execution",
+      timestamp: "2026-09-01T08:00:00.000Z",
+      cwd: "/Users/mac/qoder-demo"
+    }),
+    JSON.stringify({
+      type: "user",
+      sessionId: "task-q1.session.execution",
+      timestamp: "2026-09-01T08:01:00.000Z",
+      cwd: "/Users/mac/qoder-demo",
+      message: { role: "user", content: "帮我起一版千问运营文案火烈鸟" }
+    })
+  ].join("\n"));
+
+  let opencodeSessions = [
+    ["ses_du1", "DuMate 搭子任务", "/Users/mac/dumate-demo", "1768700000000", "1768800000000"]
+  ];
+  const opencodeParts = { ses_du1: '{"type":"text","text":"整理百度搭子的独角兽运营素材"}' };
+  const zcodeStub = makeZcodeRunSqlite({ sessions: fx.zcodeSessions, messagesBySession: fx.zcodeMessages });
+  const runSqlite = async (dbPath, sql) => {
+    if (dbPath.endsWith("opencode.db")) {
+      if (sql.includes("FROM session")) return opencodeSessions.map((row) => row.join("|")).join("\n");
+      if (sql.includes("FROM part")) {
+        const lines = [];
+        for (const [sessionId, dataJson] of Object.entries(opencodeParts)) {
+          if (sql.includes(`'${sessionId}'`)) lines.push(`${sessionId}|${dataJson}`);
+        }
+        return lines.join("\n");
+      }
+      throw new Error(`unexpected opencode sql: ${sql}`);
+    }
+    return zcodeStub(dbPath, sql);
+  };
+
+  const service = createSessionSearchService({
+    homeDir: fx.homeDir,
+    indexDir: fx.indexDir,
+    watch: false,
+    persistDebounceMs: 10,
+    runSqlite
+  });
+  await service.scan();
+  assert.equal(service.search("火烈鸟").length, 1, "qoder 用户提问应可命中");
+  assert.equal(service.search("独角兽运营素材").length, 1, "opencode/DuMate 分片正文应可命中");
+  assert.equal(service.getState().stats.qoder, 1);
+  assert.equal(service.getState().stats.opencode, 1);
+
+  // qoder 文件删除 → 记录与游标一并清掉
+  await fsp.rm(qoderFile);
+  await service.scan();
+  assert.equal(service.search("火烈鸟").length, 0);
+
+  // opencode 会话从 db 消失 → 对账清除
+  opencodeSessions = [];
+  await service.scan();
+  assert.equal(service.search("独角兽运营素材").length, 0);
+  assert.equal(service.getState().stats.opencode, 0);
+  await service.dispose();
 });
