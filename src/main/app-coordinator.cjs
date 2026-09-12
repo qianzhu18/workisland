@@ -42,6 +42,7 @@ const { ClipboardHistoryService } = require("./clipboard-history-service.cjs");
 const { RemoteBridgeServer } = require("./remote-bridge-server.cjs");
 const { createRemoteHostStore } = require("./remote-host-store.cjs");
 const { createRemoteTunnelManager } = require("./remote-tunnel-manager.cjs");
+const { createDuMateWatcher, getQianfanXdgRoot } = require("./dumate-watcher.cjs");
 const { scanSshConfig, formatSshTarget } = require("./ssh-config.cjs");
 const crypto = require("node:crypto");
 const { TerminalService } = require("./terminal-service.cjs");
@@ -322,6 +323,15 @@ function createAppCoordinatorClass({
       this.remoteTunnels = createRemoteTunnelManager({
         getLocalPort: () => this.getSettings()?.remoteAccess?.port ?? 7878
       });
+      // DuMate 触发通道：dumate-opencode 定制构建不加载第三方插件（探测实测），
+      // 改为观测沙箱日志文件——新 ses_*.log 出现即会话开始，闲置即收卡。
+      if (fs.existsSync(getQianfanXdgRoot())) {
+        this.dumateWatcher = createDuMateWatcher({
+          onEvent: (event) => {
+            this.bridge.emit("agentEvent", event);
+          }
+        });
+      }
       // AI customization commands (workisland-cli) share the settings
       // pipeline: updateSettings persists once and broadcasts to the island,
       // settings, and pet windows.
@@ -543,6 +553,7 @@ function createAppCoordinatorClass({
         this.playAgentSound(eventId, context?.sessionId, context?.timestamp);
       });
       this.bridge.start();
+      this.dumateWatcher?.start();
       this.syncRemoteBridge();
       this.quotaService.start();
       this.processMonitor.start();
@@ -892,6 +903,7 @@ function createAppCoordinatorClass({
     }
     stop() {
       log.info("[AppCoordinator] stopping local services...");
+      this.dumateWatcher?.stop();
       this.remoteTunnels?.stopAll();
       this.remoteBridge.stop();
       this.bridge.stop();
