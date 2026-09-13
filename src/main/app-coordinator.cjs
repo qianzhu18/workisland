@@ -328,11 +328,16 @@ function createAppCoordinatorClass({
       // DuMate 触发通道：dumate-opencode 定制构建不加载第三方插件（探测实测），
       // 改为观测沙箱日志文件——新 ses_*.log 出现即会话开始，闲置即收卡。
       if (fs.existsSync(getQianfanXdgRoot())) {
+        log.info("[Watchers] qianfan xdg root found — dumate watcher armed");
         this.dumateWatcher = createDuMateWatcher({
+          logger: log,
           onEvent: (event) => {
+            log.info("[Watchers] dumate event:", event.type, event.sessionId);
             this.bridge.emit("agentEvent", event);
           }
         });
+      } else {
+        log.warn("[Watchers] qianfan xdg root missing — dumate watcher NOT armed");
       }
       // PRD-019 M2：五家 Agent 会话搜索索引（~/.flux/session-search），
       // 开机增量扫描，供岛上 ⌘K 搜索历史会话。
@@ -342,11 +347,16 @@ function createAppCoordinatorClass({
       // 千问办公触发通道：QwenWorkCN 内嵌会话不执行用户级 hooks（实测），
       // 改为观测 ~/.qoder/projects 的 transcript 文件。
       if (fs.existsSync(getQoderProjectsRoot())) {
+        log.info("[Watchers] qoder projects root found — qoder watcher armed");
         this.qoderWatcher = createQoderWatcher({
+          logger: log,
           onEvent: (event) => {
+            log.info("[Watchers] qoder event:", event.type, event.sessionId);
             this.bridge.emit("agentEvent", event);
           }
         });
+      } else {
+        log.warn("[Watchers] qoder projects root missing — qoder watcher NOT armed");
       }
       // AI customization commands (workisland-cli) share the settings
       // pipeline: updateSettings persists once and broadcasts to the island,
@@ -571,6 +581,7 @@ function createAppCoordinatorClass({
       this.bridge.start();
       this.dumateWatcher?.start();
       this.qoderWatcher?.start();
+      log.info("[Watchers] started: dumate=%s qoder=%s", !!this.dumateWatcher, !!this.qoderWatcher);
       void this.sessionSearch.start();
       this.syncRemoteBridge();
       this.quotaService.start();
