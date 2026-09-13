@@ -25,6 +25,7 @@ function parseInitialNotchInfo() {
 }
 const initialNotchInfo = parseInitialNotchInfo();
 electron.contextBridge.exposeInMainWorld("islandBridge", {
+  searchSessions: (query) => electron.ipcRenderer.invoke(ipc.IPC.SESSION_SEARCH_QUERY, { query }),
   // ── Synchronous initial data (injected via additionalArguments) ──────────
   __initialNotchInfo: initialNotchInfo,
   // ── Main → renderer ────────────────────────────────────────────────────────

@@ -161,6 +161,7 @@ const IPC = Object.freeze({
   REMOTE_HOSTS_GET_STATE: "remote-hosts:get-state",
   REMOTE_HOSTS_CREATE_TOKEN: "remote-hosts:create-token",
   REMOTE_HOSTS_REVOKE: "remote-hosts:revoke",
+  SESSION_SEARCH_QUERY: "session-search:query",
   REMOTE_HOSTS_SCAN_SSH_CONFIG: "remote-hosts:scan-ssh-config",
   REMOTE_HOSTS_INVITE: "remote-hosts:invite",
   REMOTE_HOSTS_START_TUNNEL: "remote-hosts:start-tunnel",

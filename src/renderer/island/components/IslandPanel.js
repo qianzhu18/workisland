@@ -10,6 +10,7 @@ import { PerformancePopover } from "./PerformancePopover.js";
 import { UpdateStatusButton, hasActiveUpdateFlow } from "./UpdatePopover.js";
 import { ShelfPanel } from "./ShelfPanel.js";
 import { ClipboardPanel } from "./ClipboardPanel.js";
+import { SessionSearchPane, SessionSearchResults } from "./SessionSearchPane.js";
 import { TerminalPanel } from "./TerminalPanel.js";
 import { UsagePanel } from "./UsagePanel.js";
 import { SettingsChangeCard } from "./SettingsChangeCard.js";
@@ -1451,6 +1452,8 @@ function IslandPanel({
   onOpenRelease
 }) {
   const [followUpSessionId, setFollowUpSessionId] = React.useState(null);
+  // PRD-019 M2：跨 Agent 历史会话搜索（⌘K 唤起，结果卡点击复制恢复命令）
+  const [searchQuery, setSearchQuery] = React.useState("");
   const [activeModule, setActiveModule] = React.useState("agent");
   const statusIcons = useIslandStatusIcons();
   const [moduleOrder, setModuleOrder] = React.useState([]);
@@ -1582,7 +1585,7 @@ function IslandPanel({
       onUpdateInstall,
       onOpenRelease
     }
-  ), /* @__PURE__ */ React.createElement("div", { className: "panel-divider" }), activeModule === "shelf" && /* @__PURE__ */ React.createElement(ShelfPanel), activeModule === "clipboard" && /* @__PURE__ */ React.createElement(ClipboardPanel), terminalEnabled && /* @__PURE__ */ React.createElement(TerminalPanel, { active: activeModule === "terminal", panelOpen, savedCommands: terminalSavedCommands, onOpenSettings: () => onOpenSettings("general"), onFullChange: onTerminalFullChange }), activeModule === "usage" && /* @__PURE__ */ React.createElement(UsagePanel), /* @__PURE__ */ React.createElement("div", { className: `workspace-content${mediaEnabled && mediaState?.active && mediaState?.title ? " has-media" : ""}${activeModule === "agent" ? "" : " is-hidden"}` }, mediaEnabled && mediaState?.active && mediaState?.title && /* @__PURE__ */ React.createElement(MediaCard, { media: mediaState, lyrics: lyricsState }), /* @__PURE__ */ React.createElement("div", { className: "workspace-agent-pane" }, /* @__PURE__ */ React.createElement("div", { className: "session-list", ref: sessionListRef }, visibleSessions.length === 0 ? (hasConnectedAgent === false ? /* @__PURE__ */ React.createElement(SessionEmptyOnboarding, { onOpenSettings }) : /* @__PURE__ */ React.createElement("div", { className: "session-list-empty" }, /* @__PURE__ */ React.createElement(
+  ), /* @__PURE__ */ React.createElement("div", { className: "panel-divider" }), activeModule === "shelf" && /* @__PURE__ */ React.createElement(ShelfPanel), activeModule === "clipboard" && /* @__PURE__ */ React.createElement(ClipboardPanel), terminalEnabled && /* @__PURE__ */ React.createElement(TerminalPanel, { active: activeModule === "terminal", panelOpen, savedCommands: terminalSavedCommands, onOpenSettings: () => onOpenSettings("general"), onFullChange: onTerminalFullChange }), activeModule === "usage" && /* @__PURE__ */ React.createElement(UsagePanel), /* @__PURE__ */ React.createElement("div", { className: `workspace-content${mediaEnabled && mediaState?.active && mediaState?.title ? " has-media" : ""}${activeModule === "agent" ? "" : " is-hidden"}` }, mediaEnabled && mediaState?.active && mediaState?.title && /* @__PURE__ */ React.createElement(MediaCard, { media: mediaState, lyrics: lyricsState }), /* @__PURE__ */ React.createElement("div", { className: "workspace-agent-pane" }, /* @__PURE__ */ React.createElement(SessionSearchPane, { query: searchQuery, onQueryChange: setSearchQuery }), searchQuery ? /* @__PURE__ */ React.createElement(SessionSearchResults, { query: searchQuery }) : null, /* @__PURE__ */ React.createElement("div", { className: `session-list${searchQuery ? " is-hidden" : ""}`, ref: sessionListRef }, visibleSessions.length === 0 ? (hasConnectedAgent === false ? /* @__PURE__ */ React.createElement(SessionEmptyOnboarding, { onOpenSettings }) : /* @__PURE__ */ React.createElement("div", { className: "session-list-empty" }, /* @__PURE__ */ React.createElement(
     "img",
     {
       className: "session-list-empty-icon",
