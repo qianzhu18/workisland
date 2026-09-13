@@ -106,6 +106,9 @@ const DEFAULT_SETTINGS = {
     events: { ...DEFAULT_SOUND_EVENTS },
     autoDetectProbing: false
   },
+  islandPlacement: "notch",
+  // 贴边状态：edge 为所贴的边，offset 是沿边位置的 0-1 比例（跨分辨率仍成立）。
+  islandDock: { edge: "right", offset: 0.25 },
   hoverToOpen: true,
   autoCollapseDelayMs: 4e3,
   hideWhenFullscreen: true,

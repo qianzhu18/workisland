@@ -422,6 +422,7 @@ function generalPage() {
   const behavior = section(t("settings.general.behavior.sectionTitle"), t("settings.general.behavior.description"));
   behavior.append(
     row(t("settings.general.behavior.launchAtLogin.title"), t("settings.general.behavior.launchAtLogin.description"), toggle(state.settings.launchAtLogin, v => save({ launchAtLogin: v }), t("settings.general.behavior.launchAtLogin.title"))),
+    row(t("settings.general.behavior.dock.title"), t("settings.general.behavior.dock.description"), toggle(state.settings.islandPlacement === "docked", v => save({ islandPlacement: v ? "docked" : "notch" }), t("settings.general.behavior.dock.title"))),
     row(t("settings.general.behavior.hover.title"), t("settings.general.behavior.hover.description"), toggle(state.settings.hoverToOpen, v => save({ hoverToOpen: v }), t("settings.general.behavior.hover.title"))),
     row(t("settings.general.behavior.blur.title"), t("settings.general.behavior.blur.description"), toggle(state.settings.autoCollapseOnMouseLeave, v => save({ autoCollapseOnMouseLeave: v }), t("settings.general.behavior.blur.title"))),
     row(

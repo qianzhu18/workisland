@@ -336,6 +336,8 @@
   "settings.general.behavior.displayMode.minimal": "Minimal",
   "settings.general.behavior.displayMode.persistent": "Persistent (Default)",
   "settings.general.behavior.displayMode.title": "Island Display Mode",
+  "settings.general.behavior.dock.description": "Leaves the notch and becomes a draggable edge bar: it shrinks to a square while you drag, and snaps to the nearest edge (top/left/right) on release. Left and right docks are vertical bars that expand into tall panels; the top dock is a horizontal bar. Off by default.",
+  "settings.general.behavior.dock.title": "Dock mode",
   "settings.general.behavior.fullscreen.description": "Hide the Island when a full-screen app is on the current display.",
   "settings.general.behavior.fullscreen.title": "Hide in Full Screen",
   "settings.general.behavior.hover.description": "Expand the panel when the pointer rests on the Island.",

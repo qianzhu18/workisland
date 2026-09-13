@@ -65,7 +65,9 @@ const {
 // set-preference, and did-change so all windows update live (165 -> 166).
 // SSH 远程设置页 adds remote-hosts:scan-ssh-config / invite / start-tunnel (166 -> 169, 2026-09).
 // Issue #148 adds the managed background-image picker and cropped-image installer (169 -> 171).
-assert.equal(Object.keys(IPC).length, 171, "IPC contract changed; review both main and preload consumers");
+// 贴边（dock）可选附件重新引入 island:drag-start / drag-end / placement /
+// get-placement 四个通道（171 -> 175）—— 与 #28 当初移除的是同一组。
+assert.equal(Object.keys(IPC).length, 175, "IPC contract changed; review both main and preload consumers");
 assert.equal(listProductCapabilities({ platform: "darwin" }).length, 15, "MCP product catalog must stay explicit");
 assert.equal(diagnoseMcpSubject("performance-details-not-visible", { settings: {} }).subject, "performance-details-not-visible");
 assert.equal(IPC.APP_UPDATE_DOWNLOAD, "app:update-download");

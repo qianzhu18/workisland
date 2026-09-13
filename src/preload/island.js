@@ -225,6 +225,18 @@ electron.contextBridge.exposeInMainWorld("islandBridge", {
   surfaceDismissed() {
     electron.ipcRenderer.send(ipc.IPC.ISLAND_SURFACE_DISMISSED);
   },
+  dragStart() {
+    electron.ipcRenderer.send(ipc.IPC.ISLAND_DRAG_START);
+  },
+  dragEnd() {
+    electron.ipcRenderer.send(ipc.IPC.ISLAND_DRAG_END);
+  },
+  getPlacement() {
+    return electron.ipcRenderer.invoke(ipc.IPC.ISLAND_GET_PLACEMENT);
+  },
+  onPlacement(cb) {
+    electron.ipcRenderer.on(ipc.IPC.ISLAND_PLACEMENT, (_e, payload) => cb(payload));
+  },
   dragToPet(screenX, screenY) {
     electron.ipcRenderer.send(ipc.IPC.ISLAND_DRAG_TO_PET, { screenX, screenY });
   },
