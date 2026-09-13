@@ -43,6 +43,7 @@ const { RemoteBridgeServer } = require("./remote-bridge-server.cjs");
 const { createRemoteHostStore } = require("./remote-host-store.cjs");
 const { createRemoteTunnelManager } = require("./remote-tunnel-manager.cjs");
 const { createDuMateWatcher, getQianfanXdgRoot } = require("./dumate-watcher.cjs");
+const { createQoderWatcher, getQoderProjectsRoot } = require("./qoder-watcher.cjs");
 const { scanSshConfig, formatSshTarget } = require("./ssh-config.cjs");
 const crypto = require("node:crypto");
 const { TerminalService } = require("./terminal-service.cjs");
@@ -332,6 +333,15 @@ function createAppCoordinatorClass({
           }
         });
       }
+      // 千问办公触发通道：QwenWorkCN 内嵌会话不执行用户级 hooks（实测），
+      // 改为观测 ~/.qoder/projects 的 transcript 文件。
+      if (fs.existsSync(getQoderProjectsRoot())) {
+        this.qoderWatcher = createQoderWatcher({
+          onEvent: (event) => {
+            this.bridge.emit("agentEvent", event);
+          }
+        });
+      }
       // AI customization commands (workisland-cli) share the settings
       // pipeline: updateSettings persists once and broadcasts to the island,
       // settings, and pet windows.
@@ -554,6 +564,7 @@ function createAppCoordinatorClass({
       });
       this.bridge.start();
       this.dumateWatcher?.start();
+      this.qoderWatcher?.start();
       this.syncRemoteBridge();
       this.quotaService.start();
       this.processMonitor.start();
@@ -904,6 +915,7 @@ function createAppCoordinatorClass({
     stop() {
       log.info("[AppCoordinator] stopping local services...");
       this.dumateWatcher?.stop();
+      this.qoderWatcher?.stop();
       this.remoteTunnels?.stopAll();
       this.remoteBridge.stop();
       this.bridge.stop();
