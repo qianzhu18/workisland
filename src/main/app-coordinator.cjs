@@ -44,6 +44,7 @@ const { createRemoteHostStore } = require("./remote-host-store.cjs");
 const { createRemoteTunnelManager } = require("./remote-tunnel-manager.cjs");
 const { createDuMateWatcher, getQianfanXdgRoot } = require("./dumate-watcher.cjs");
 const { createQoderWatcher, getQoderProjectsRoot } = require("./qoder-watcher.cjs");
+const { createSessionSearchService } = require("./session-search-service.cjs");
 const { scanSshConfig, formatSshTarget } = require("./ssh-config.cjs");
 const crypto = require("node:crypto");
 const { TerminalService } = require("./terminal-service.cjs");
@@ -333,6 +334,11 @@ function createAppCoordinatorClass({
           }
         });
       }
+      // PRD-019 M2：五家 Agent 会话搜索索引（~/.flux/session-search），
+      // 开机增量扫描，供岛上 ⌘K 搜索历史会话。
+      this.sessionSearch = createSessionSearchService({
+        indexDir: path.join(os.homedir(), ".flux", "session-search")
+      });
       // 千问办公触发通道：QwenWorkCN 内嵌会话不执行用户级 hooks（实测），
       // 改为观测 ~/.qoder/projects 的 transcript 文件。
       if (fs.existsSync(getQoderProjectsRoot())) {
@@ -565,6 +571,7 @@ function createAppCoordinatorClass({
       this.bridge.start();
       this.dumateWatcher?.start();
       this.qoderWatcher?.start();
+      void this.sessionSearch.start();
       this.syncRemoteBridge();
       this.quotaService.start();
       this.processMonitor.start();
@@ -916,6 +923,7 @@ function createAppCoordinatorClass({
       log.info("[AppCoordinator] stopping local services...");
       this.dumateWatcher?.stop();
       this.qoderWatcher?.stop();
+      this.sessionSearch.dispose();
       this.remoteTunnels?.stopAll();
       this.remoteBridge.stop();
       this.bridge.stop();
@@ -1170,6 +1178,10 @@ function createAppCoordinatorClass({
       this.remoteTunnels.startTunnel({ hostId, sshTarget });
       const token = this.remoteBridge.createPairingToken({ inviteHostId: hostId });
       return { host: record, token: token.token, expiresAt: token.expiresAt, scriptPath: this.getRemoteScriptPath() };
+    }
+    /** PRD-019 M2：跨 Agent 历史会话搜索（空格分隔多关键词）。 */
+    searchSessions(query) {
+      return this.sessionSearch.search(String(query || ""), { limit: 20 });
     }
     startRemoteTunnel(hostId) {
       const host = this.remoteHostStore.listHosts().find((h) => h.hostId === hostId);

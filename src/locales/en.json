@@ -852,5 +852,13 @@
   "settings.remote.manualSave": "Add",
   "settings.remote.manualCancel": "Cancel",
   "settings.remote.inviteFailed": "Failed to add host",
-  "settings.remote.setupCommands": "# 1) Run in the Mac terminal: copy the setup script to the remote host\nscp '{scriptPath}' {target}:~/workisland-remote.cjs\n\n# 2) Run on the remote host (or hand the whole block to its AI assistant)\nnode ~/workisland-remote.cjs pair {token}\nnode ~/workisland-remote.cjs install-hooks\n\n# 3) Run a real task afterwards — the host shows up on the Island"
+  "settings.remote.setupCommands": "# 1) Run in the Mac terminal: copy the setup script to the remote host\nscp '{scriptPath}' {target}:~/workisland-remote.cjs\n\n# 2) Run on the remote host (or hand the whole block to its AI assistant)\nnode ~/workisland-remote.cjs pair {token}\nnode ~/workisland-remote.cjs install-hooks\n\n# 3) Run a real task afterwards — the host shows up on the Island",
+  "island.search.placeholder": "Search past sessions (⌘K)",
+  "island.search.clear": "Clear search",
+  "island.search.searching": "Searching…",
+  "island.search.noResults": "No matching past sessions",
+  "island.search.copyResume": "Click to copy resume command",
+  "island.search.copyPath": "Click to copy project path",
+  "island.search.copied": "Copied",
+  "agent.qoder.label": "Qoder CLI"
 }

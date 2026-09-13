@@ -276,6 +276,9 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
       if (typeof hostId !== "string" || hostId.length === 0) return false;
       return coordinator.revokeRemoteHost(hostId);
     });
+    electron.ipcMain.handle(IPC.SESSION_SEARCH_QUERY, (_event, { query } = {}) => {
+      return coordinator.searchSessions(typeof query === "string" ? query : "");
+    });
     electron.ipcMain.handle(IPC.REMOTE_HOSTS_SCAN_SSH_CONFIG, () => {
       return coordinator.scanRemoteSshConfig();
     });

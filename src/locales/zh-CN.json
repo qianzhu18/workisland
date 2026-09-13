@@ -852,5 +852,13 @@
   "settings.remote.manualSave": "添加",
   "settings.remote.manualCancel": "取消",
   "settings.remote.inviteFailed": "添加主机失败",
-  "settings.remote.setupCommands": "# 1) Mac 终端执行：把接入脚本拷到远程主机\nscp '{scriptPath}' {target}:~/workisland-remote.cjs\n\n# 2) 远程主机上执行（可整段交给远程 AI 助手）\nnode ~/workisland-remote.cjs pair {token}\nnode ~/workisland-remote.cjs install-hooks\n\n# 3) 完成后跑一条真实任务，岛上即出现该主机的会话状态"
+  "settings.remote.setupCommands": "# 1) Mac 终端执行：把接入脚本拷到远程主机\nscp '{scriptPath}' {target}:~/workisland-remote.cjs\n\n# 2) 远程主机上执行（可整段交给远程 AI 助手）\nnode ~/workisland-remote.cjs pair {token}\nnode ~/workisland-remote.cjs install-hooks\n\n# 3) 完成后跑一条真实任务，岛上即出现该主机的会话状态",
+  "island.search.placeholder": "搜索历史会话（⌘K）",
+  "island.search.clear": "清空搜索",
+  "island.search.searching": "搜索中…",
+  "island.search.noResults": "没有匹配的历史会话",
+  "island.search.copyResume": "点击复制恢复命令",
+  "island.search.copyPath": "点击复制项目路径",
+  "island.search.copied": "已复制",
+  "agent.qoder.label": "千问办公"
 }
