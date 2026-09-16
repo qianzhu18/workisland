@@ -336,6 +336,8 @@
   "settings.general.behavior.displayMode.minimal": "极简",
   "settings.general.behavior.displayMode.persistent": "常驻（默认）",
   "settings.general.behavior.displayMode.title": "Island 显示模式",
+  "settings.general.behavior.dock.description": "脱离顶部刘海，变成可拖动的贴边条：拖动时收成小方块，松手吸附到最近的边（上/左/右）。贴左右时是竖条、展开为竖长面板；贴顶部时是横条。默认关闭。",
+  "settings.general.behavior.dock.title": "贴边模式",
   "settings.general.behavior.fullscreen.description": "全屏应用位于当前屏幕时隐藏 Island。",
   "settings.general.behavior.fullscreen.title": "全屏时隐藏",
   "settings.general.behavior.hover.description": "鼠标停留在 Island 上时展开面板。",

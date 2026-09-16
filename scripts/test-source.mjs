@@ -65,8 +65,9 @@ const {
 // set-preference, and did-change so all windows update live (165 -> 166).
 // SSH 远程设置页 adds remote-hosts:scan-ssh-config / invite / start-tunnel (166 -> 169, 2026-09).
 // Issue #148 adds the managed background-image picker and cropped-image installer (169 -> 171).
-// PRD-019 M2 adds session-search:query for island cross-agent search (171 -> 172, 2026-09).
-assert.equal(Object.keys(IPC).length, 172, "IPC contract changed; review both main and preload consumers");
+// PRD-019 M2 adds session-search:query (171 -> 172); PR #36 re-adds four
+// island:dock* channels for the opt-in dock addon (172 -> 176).
+assert.equal(Object.keys(IPC).length, 176, "IPC contract changed; review both main and preload consumers");
 assert.equal(listProductCapabilities({ platform: "darwin" }).length, 15, "MCP product catalog must stay explicit");
 assert.equal(diagnoseMcpSubject("performance-details-not-visible", { settings: {} }).subject, "performance-details-not-visible");
 assert.equal(IPC.APP_UPDATE_DOWNLOAD, "app:update-download");

@@ -97,8 +97,9 @@ function setQuitting(value) {
   isQuitting = value;
 }
 const { createWindowClasses } = require("./windows.cjs");
+const { createDockableIslandWindow, attachIslandDock } = require("./island-dock.cjs");
 const {
-  IslandWindow,
+  IslandWindow: BaseIslandWindow,
   PetPanelWindow,
   PetWindow,
   SettingsWindow,
@@ -117,6 +118,9 @@ const {
   isVisibleInIsland,
   getIsQuitting: () => isQuitting
 });
+// 贴边落位是 IslandWindow 的可选附件：islandPlacement 为 notch（默认）时每个覆写
+// 都原样转给基类，刘海路径的行为与未接附件时完全一致。
+const IslandWindow = createDockableIslandWindow(BaseIslandWindow, { electron, IPC, log, fixPanel });
 function throttle(func, wait, options = {}) {
   let leading = true;
   let trailing = true;
@@ -917,6 +921,7 @@ async function runIslandApp() {
     }
   };
   let islandWindow;
+  let islandDock = null;
   let statusTray = null;
   let rendererCrashCount = 0;
   const MAX_RENDERER_RETRIES = 2;
@@ -932,6 +937,7 @@ async function runIslandApp() {
           browserWindow.webContents.send(IPC.ISLAND_WINDOW_BLUR);
         }
       });
+      islandDock = attachIslandDock(iw, coordinator, log);
       coordinator.setIslandWindow(iw.browserWindow);
       coordinator.setIslandWin(iw);
       coordinator.setDisplayManager(displayManager);
@@ -1215,6 +1221,7 @@ async function runIslandApp() {
   coordinator.setOnSettingsChange((settings) => {
     displayManager?.setPreference(settings.displayPreference, settings.displayPreferenceLabel);
     shortcutService.setConfig(settings.shortcuts);
+    islandDock?.applySettings(settings);
   });
   coordinator.setOnApprovalStateChange((hasPending) => {
     if (hasPending) shortcutService.armApproval();

@@ -1,0 +1,197 @@
+/* ── dock（贴边）落位 —— IslandApp 的可选附件样式 ───────────────────────────
+ * 只在 .island.is-docked（及其形态类 is-dock-{top|left|right} / is-dock-{strip|panel|dragging}）
+ * 下生效；刘海模式（默认）不会命中这里任何一条规则。由 island.html 单独引入。
+ *
+ * 贴边态下窗口尺寸已经紧贴可见形状，所以形状一律用 clip-path：
+ * 窗口和绘制形状同源，不会出现「窗口缩了但裁切没跟上」的条状残影。 */
+
+.island.is-docked {
+  background: #000;
+  border-radius: 0;
+}
+
+/* 拖动中的小方块没有贴边关系，用普通圆角 */
+.island.is-dock-dragging {
+  clip-path: none !important;
+  border-radius: 14px;
+}
+
+/* 阴影只朝屏幕内侧投，不能往贴边那一侧糊。
+ * 四周均匀的大模糊阴影会在黑色形状外糊出一圈暗晕，浅色背景下看起来就像
+ * 四角都是圆的、而且和屏幕边缘之间还有条缝 —— 贴边那侧必须是干净的直边。 */
+.island.is-dock-dragging {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+/* 拖动中的小方块 */
+.island.is-dock-dragging {
+  border-radius: 14px;
+}
+
+
+
+
+
+/* ── 收起态条形的内容排布 ─────────────────────────────────────────────────
+ * 条的尺寸等于刘海胶囊（厚度 = 胶囊高度，长度 = 胶囊宽度），由主进程下发、
+ * JSX 内联给出；这里只管内容怎么摆。
+ *
+ * 条里一律不显示文字：宽度就那么点，截断的标题只是噪音，头像 + 数量 + 状态点
+ * 已经够用。两个方向完全镜像。 */
+
+/* 顶条：内容完全沿用刘海胶囊的排版（头像 + 标题 + 数量），一个字都不改 ——
+ * 从刘海切到贴边时只是位置变了，内容不该跟着变。这里只额外给状态点留出位置。
+ * 胶囊层贴的是形状的平直本体（两端弧线已由 JSX 内缩让开），所以 .pill 自身的
+ * 左右内边距保持上游的 10px 不动。 */
+.island.is-dock-top.is-dock-strip .pill {
+  padding-right: 24px;
+}
+
+/* 竖条：把同一排内容旋转 90°，起止留白与顶条镜像。 */
+.island.is-dock-left.is-dock-strip .pill,
+.island.is-dock-right.is-dock-strip .pill {
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  padding: 12px 0 26px;
+  gap: 6px;
+}
+
+.island.is-dock-left.is-dock-strip .pill-label,
+.island.is-dock-right.is-dock-strip .pill-label {
+  display: none;
+}
+
+.island.is-dock-left.is-dock-strip .pill-right,
+.island.is-dock-right.is-dock-strip .pill-right {
+  margin-left: 0;
+}
+
+/* 拖动中的小方块同样只显示头像 */
+.island.is-dock-dragging .pill {
+  justify-content: center;
+  padding: 0;
+  gap: 0;
+}
+
+.island.is-dock-dragging .pill-label,
+.island.is-dock-dragging .pill-right {
+  display: none;
+}
+
+/* ── 侧边窄幅面板排版 ──────────────────────────────────────────────────────
+ * 面板层占满 380 宽的窗口，内部按窄幅重排。会话行自身已有 min-width:0 +
+ * ellipsis，会自适应；需要动的是那些按 680+ 宽度设计的横向排布。 */
+
+/* 顶栏：配额格子和按钮组允许换行，行高放开 */
+/* 侧边面板兜底：内容永远不越出窗口（黑形状会盖住整窗高度时被裁切在形状内）。
+ * 用纯 CSS 而不是内联 height + React 状态：panelLayerRef 的 ResizeObserver
+ * 就挂在这个元素上，任何经 React 的高度反馈都有成环风险（实测会 #185 爆栈）。 */
+.island-panel-layer.is-side-dock {
+  max-height: 100%;
+  overflow: hidden;
+  /* 上下各让开一个自由端圆角（DOCK_CONVEX_R = 14）。
+   * 侧边面板的形状本体从 y=14 才开始 —— 自由端两个角是 14pt 圆角 —— 而面板
+   * 内容默认从 y=0 排起，顶栏那一行会被形状的上边缘削掉半截字。
+   * 内容整体下移一个圆角后正好落在本体内；面板跨度按内容高度 +16 计算，
+   * 这里多出的 28pt 会一并算进去，底部同样不会被削。 */
+  padding-top: 14px;
+  padding-bottom: 14px;
+}
+
+.island-panel-layer.is-side-dock .usage-row {
+  flex-wrap: wrap;
+  /* 左右各让开 20px：贴边侧顶端有 14px 的内凹弧线，12px 内边距会让
+   * 顶栏最外侧的按钮被弧线削掉一角 */
+  padding: 2px 20px 8px;
+  row-gap: 4px;
+  min-height: 0 !important;
+  height: auto;
+}
+
+.island-panel-layer.is-side-dock .usage-row-agents {
+  flex-basis: 100%;
+  overflow-x: auto;
+}
+
+.island-panel-layer.is-side-dock .usage-row-actions {
+  margin-left: auto;
+}
+
+/* 会话行：标题与元信息改为上下两行，不再左右争宽度 */
+.island-panel-layer.is-side-dock .session-headline {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.island-panel-layer.is-side-dock .session-meta {
+  margin-left: 0;
+}
+
+/* 提示语与活动行给窄幅多留点行数 */
+.island-panel-layer.is-side-dock .session-prompt,
+.island-panel-layer.is-side-dock .session-activity {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* 审批按钮组窄幅下允许换行 */
+.island-panel-layer.is-side-dock .approval-actions {
+  flex-wrap: wrap;
+}
+
+
+/* ── 竖条状态点 ───────────────────────────────────────────────────────────
+ * 相位配色与面板一致：running 蓝 / completed 绿 / 待批准橙 / 待回答黄。
+ * 挂在胶囊层内、头像下方；待处理相位加呼吸提醒。 */
+.dock-status-dot {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #5c564b;
+  pointer-events: none;
+}
+
+.dock-status-dot.is-running {
+  background: #6E9FFF;
+}
+
+.dock-status-dot.is-completed {
+  background: var(--isl-ok);
+}
+
+.dock-status-dot.is-waitingForApproval {
+  background: #FF9F0A;
+}
+
+.dock-status-dot.is-waitingForAnswer {
+  background: #FFD60A;
+}
+
+/* 顶条的状态点靠右垂直居中（竖条则是底部水平居中） */
+.dock-status-dot.dock-dot-top {
+  left: auto;
+  right: 10px;
+  bottom: auto;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* 呼吸只动透明度：transform 由各方位的定位持有，动画不能覆盖它 */
+@keyframes dock-dot-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.dock-status-dot.is-waitingForApproval,
+.dock-status-dot.is-waitingForAnswer {
+  animation: dock-dot-pulse 1.2s ease-in-out infinite;
+}
