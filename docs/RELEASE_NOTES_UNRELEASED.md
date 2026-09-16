@@ -1,3 +1,23 @@
+# WorkIsland v1.5.1 Release Notes（发布候选）
+
+状态：`release-candidate — 范围冻结；Tag 推送后由 GitHub Actions 签名公证并创建正式 Release`
+
+## 中文说明（tag 时粘贴到 Release 页前半）
+
+### 修复
+
+- **岛悬浮窗不可见（P0，v1.5.0 回归）**：会话搜索 UI 的一个具名导入与渲染层模块实际导出不匹配，ESM 加载即抛 SyntaxError，island 渲染层 React 永不挂载——悬浮窗窗口存在但内容全透明。本版一行修复并实机验证。
+
+### English Summary
+
+Emergency fix for a v1.5.0 regression: a bad named import in the island renderer crashed the module graph on load (SyntaxError), leaving the floating island window fully transparent. One-line fix, verified on device.
+
+## What's Changed
+
+（tag 时由 GitHub「Generate release notes」自动生成后填充）
+
+---
+
 # WorkIsland v1.5.0 Release Notes（发布候选）
 
 状态：`release-candidate — 范围冻结；Tag 推送后由 GitHub Actions 签名公证并创建正式 Release`
