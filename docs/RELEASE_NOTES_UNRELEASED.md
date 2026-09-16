@@ -22,13 +22,17 @@
 
 - **会话清理进工具栏**（#147/#149，issue #139）：岛工具栏一键清理全部可见会话卡片，设置提供显示开关。
 
+### 贴边停靠回归（社区贡献）
+
+- **dock 可选附件**（#36，by @skye46126-dotcom）：岛支持贴边停靠（默认关闭，设置开启）；停靠形态不再占用刘海/灵动岛区域，历史冲突（#44）随之解决。
+
 ### 修复
 
 - **刘海屏工具栏遮挡**（#152，issue #151）：工具栏刘海禁区两侧各加 8px 安全边距，13/14 寸 MacBook 原生屏上边缘图标不再被刘海物理遮挡；外接屏与无刘海屏行为不变。
 
 ### English Summary
 
-Dedicated "SSH Remote" settings page (#150) — discover hosts from `~/.ssh/config` with filtering and one-click add; WorkIsland-managed reverse tunnels remove the macOS Remote Login requirement; copyable setup commands hand the remote steps to the remote machine's AI assistant; observe-only boundaries unchanged. Session cleanup moves into the island toolbar with a settings toggle (#147/#149). Office agents Qoder CLI (千问办公) and DuMate join the Island with session status and alerts, promoted to the top of the settings list with in-use-first ordering (#158/#159); the session search indexer (M1, #115/#120) now incrementally indexes user prompts across five agents, fully local. An 8px camera-zone safety margin stops the notch from occluding toolbar icons on 13"/14" MacBook displays (#152).
+Dedicated "SSH Remote" settings page (#150) — discover hosts from `~/.ssh/config` with filtering and one-click add; WorkIsland-managed reverse tunnels remove the macOS Remote Login requirement; copyable setup commands hand the remote steps to the remote machine's AI assistant; observe-only boundaries unchanged. Session cleanup moves into the island toolbar with a settings toggle (#147/#149). Office agents Qoder CLI (千问办公) and DuMate join the Island with session status and alerts, promoted to the top of the settings list with in-use-first ordering (#158/#159); the session search indexer (M1, #115/#120) now incrementally indexes user prompts across five agents, fully local. An 8px camera-zone safety margin stops the notch from occluding toolbar icons on 13"/14" MacBook displays (#152). The opt-in dock attachment mode returns via community PR #36 (off by default, never covering the notch — resolving #44); connecting an agent now always enables its event toggle (#169).
 
 ## What's Changed
 
