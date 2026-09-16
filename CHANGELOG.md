@@ -4,6 +4,16 @@
 
 > **版本体系重置（2026-09-02）**：公开版本号统一归位——内测期整理为 `v0.1.0 – v0.10.0`（原 `v0.2.x` 系列与初版 `v0.1.0` 重排，各版本说明注明原版本号）；`v3.0.0 / v3.1.0 / v3.2.0` 分别平移为 `v1.0.0 / v1.1.0 / v1.2.0`；`v3.2.0-rc.1` 与整条 `v1.0.0-alpha`（Windows 试验线）已删除，Windows 支持暂停维护、欢迎社区贡献者主导适配。
 
+## [1.5.1] - 2026-09-16
+
+紧急修复版本：修复 v1.5.0 中岛悬浮窗完全不可见的 P0 渲染层启动崩溃。
+
+### Fixed
+
+- **岛悬浮窗不可见（P0）**：v1.5.0 的会话搜索 UI 引入了与渲染层模块实际导出不匹配的具名导入，ESM 模块图加载即抛 SyntaxError，island 的 React 永不挂载——窗口存在但内容全透明，用户视角为悬浮窗彻底消失。一行修复，本机截屏与控制台日志实锤验证。
+
+> **English summary:** Emergency fix — v1.5.0's session search UI used a named import that does not exist in the island renderer module graph, throwing a SyntaxError on load so React never mounted and the floating island rendered fully transparent (appeared missing). One-line fix, verified on device.
+
 ## [1.5.0] - 2026-09-10
 
 「远程、随手清理与办公 Agent」版本：SSH 远程升级为独立设置页并由 WorkIsland 主动管理隧道，会话清理进岛工具栏，办公 Agent（千问办公 / DuMate）上岛并可被跨会话搜索，同时修复刘海屏工具栏遮挡。
