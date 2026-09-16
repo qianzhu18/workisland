@@ -16,6 +16,7 @@
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
+const { execFile } = require("node:child_process");
 
 const SCAN_INTERVAL_MS = 20 * 1000;
 const IDLE_COMPLETE_MS = 150 * 1000;
@@ -23,6 +24,40 @@ const HEAD_PARSE_LIMIT = 16 * 1024;
 
 function getQoderProjectsRoot(homeDir = os.homedir()) {
   return path.join(homeDir, ".qoder", "projects");
+}
+
+/**
+ * QwenWorkCN 桌面版的真实会话库（2026-09-16 实测：其内嵌会话不写
+ * ~/.qoder/projects，统一落在这里的 chats 表）。
+ */
+function getQwenWorkChatsDb(homeDir = os.homedir()) {
+  return path.join(homeDir, "Library", "Application Support", "QwenWorkCN", "data", "agents.db");
+}
+
+const QWC_CHATS_SQL = [
+  "SELECT id, REPLACE(REPLACE(name, char(124), '/'), char(10), ' '),",
+  "       REPLACE(worktree_path, char(124), '/'),",
+  "       created_at, updated_at",
+  "FROM chats ORDER BY updated_at DESC"
+].join(" ");
+
+function defaultRunSqliteQuery(dbPath, sql) {
+  return new Promise((resolve) => {
+    execFile("sqlite3", [dbPath, sql], { timeout: 5000, maxBuffer: 16 * 1024 * 1024 }, (error, stdout) => {
+      resolve(error ? null : String(stdout ?? ""));
+    });
+  });
+}
+
+function parseRows(stdout, columnCount) {
+  const rows = [];
+  for (const line of String(stdout ?? "").split("\n")) {
+    if (!line) continue;
+    const fields = line.split("|");
+    if (fields.length < columnCount) continue;
+    rows.push([...fields.slice(0, columnCount - 1), fields.slice(columnCount - 1).join("|")]);
+  }
+  return rows;
 }
 
 function listTranscriptDirs(homeDir = os.homedir()) {
@@ -70,19 +105,23 @@ function createQoderWatcher({
   onEvent = () => {},
   scanIntervalMs = SCAN_INTERVAL_MS,
   idleCompleteMs = IDLE_COMPLETE_MS,
-  now = Date.now
+  now = Date.now,
+  runSqliteQuery = defaultRunSqliteQuery
 } = {}) {
   let timer = null;
   // transcriptId → { filePath, projectPath, lastMtimeMs, completed }
   const sessions = /* @__PURE__ */ new Map();
+  // QwenWorkCN chats：chatId → { sessionId, projectPath, updatedAt, completed }
+  const qwcChats = /* @__PURE__ */ new Map();
+  let qwcBusy = false;
 
-  function emit(type, sessionId, projectPath) {
+  function emit(type, sessionId, projectPath, titleOverride) {
     onEvent({
       type,
       sessionId: `qoder-${sessionId}`,
       tool: "qoder",
       timestamp: now(),
-      title: `Qoder · ${shortCode(sessionId)}`,
+      title: titleOverride ? `Qoder · ${titleOverride}` : `Qoder · ${shortCode(sessionId)}`,
       projectPath: projectPath || "",
       detectionSource: "qoder-transcript"
     });
@@ -152,6 +191,57 @@ function createQoderWatcher({
         logger.info?.("[QoderWatcher]", "session idle-complete");
       }
     }
+
+    void scanQwenWorkChats(currentTime);
+  }
+
+  /**
+   * QwenWorkCN chats 表扫描：新 chat 或 updated_at 刷新 → running；
+   * updated_at 闲置 → completed。表很小（每轮全量），顺带完成删除对账。
+   */
+  async function scanQwenWorkChats(currentTime) {
+    const dbPath = getQwenWorkChatsDb(homeDir);
+    if (!fs.existsSync(dbPath) || qwcBusy) return;
+    qwcBusy = true;
+    try {
+      const stdout = await runSqliteQuery(dbPath, QWC_CHATS_SQL);
+      if (stdout === null) return;
+      const rows = parseRows(stdout, 5);
+      const liveKeys = new Set();
+      for (const [id, name, worktreePath, createdAt, updatedAt] of rows) {
+        if (!id) continue;
+        liveKeys.add(id);
+        const updatedAtMs = (Number(updatedAt) || Number(createdAt) || 0) * 1000;
+        const prev = qwcChats.get(id);
+        if (!prev) {
+          const alreadyIdle = currentTime - updatedAtMs >= idleCompleteMs;
+          qwcChats.set(id, { sessionId: `qwc-${id}`, projectPath: worktreePath || "", updatedAt: updatedAtMs, completed: alreadyIdle });
+          if (!alreadyIdle) {
+            emit("sessionStarted", `qwc-${id}`, worktreePath || "", name || "");
+            logger.info?.("[QoderWatcher]", `qwenworkcn chat started: ${id}`);
+          } else {
+            logger.debug?.("[QoderWatcher]", `qwenworkcn historical chat archived: ${id}`);
+          }
+        } else if (updatedAtMs > prev.updatedAt) {
+          prev.updatedAt = updatedAtMs;
+          prev.completed = false;
+          prev.projectPath = worktreePath || prev.projectPath;
+        }
+      }
+      for (const [key, chat] of qwcChats) {
+        if (!liveKeys.has(key)) {
+          qwcChats.delete(key);
+          continue;
+        }
+        if (!chat.completed && currentTime - chat.updatedAt >= idleCompleteMs) {
+          chat.completed = true;
+          emit("sessionCompleted", chat.sessionId, chat.projectPath);
+          logger.info?.("[QoderWatcher]", `qwenworkcn chat idle-complete: ${key}`);
+        }
+      }
+    } finally {
+      qwcBusy = false;
+    }
   }
 
   return {
@@ -178,6 +268,7 @@ function createQoderWatcher({
 module.exports = {
   createQoderWatcher,
   getQoderProjectsRoot,
+  getQwenWorkChatsDb,
   listTranscriptDirs,
   parseMetaFromHead,
   SCAN_INTERVAL_MS,
