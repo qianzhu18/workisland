@@ -7,6 +7,7 @@ import { I as IslandPanel, setIslandStatusAssets as setIslandPanelStatusAssets }
 import { enabledToolboxModules, resolveToolboxReopenModule } from "./components/productivity-toolbox-model.mjs";
 import { isVisibleInIsland } from "./session-model.mjs";
 import { resolveFocusLossPresentation, shouldCollapseOnFocusLoss } from "./focus-policy.mjs";
+import { u as useIslandDock, D as DockStatusDot } from "./dock/use-island-dock.js";
 import { applyIslandAppearance } from "./theme.mjs";
 const useSessionStore = create((set) => ({
   sessions: [],
@@ -727,6 +728,8 @@ function IslandApp() {
   });
   const clipPath = mounted ? isOpen ? openedShape.clipPath : closedShape.clipPath : closedShape.clipPath;
   const transition = mounted ? transitionClass : "";
+  // 贴边落位（可选附件）：落位是 notch 时下面每个表达式都退回原样。
+  const dock = useIslandDock({ mounted, isOpen, transitionClass, actualPanelH, panelHeight, pillWidth, notchH, hoverOpenTimer, requestCollapse: useSessionStore.getState().requestCollapse });
   const appearanceBackgroundShape = isOpen ? openedShape : closedShape;
   const appearanceBackgroundFrameStyle = {
     left: appearanceBackgroundShape.left,
@@ -980,8 +983,8 @@ function IslandApp() {
     /* @__PURE__ */ React.createElement(
       "div",
       {
-        className: `island ${transition}`,
-        style: { clipPath },
+        className: `island ${transition}${dock.islandClass}`,
+        style: { clipPath: dock.active ? dock.clipPath : clipPath },
         onMouseEnter: handleMouseEnter,
         onMouseLeave: handleMouseLeave
       },
@@ -999,8 +1002,9 @@ function IslandApp() {
         "div",
         {
           className: `island-pill-layer${isOpen ? " is-hidden" : ""}${pillFileDragActive ? " is-file-drop-target" : ""}`,
-          style: { width: pillWidth, height: notchH }
+          style: dock.pillLayerStyle ?? { width: pillWidth, height: notchH }
         },
+        /* @__PURE__ */ React.createElement(DockStatusDot, { dock, phase }),
         /* @__PURE__ */ React.createElement(
           IslandPill,
           {
@@ -1023,8 +1027,8 @@ function IslandApp() {
         "div",
         {
           ref: panelLayerRef,
-          className: `island-panel-layer${isOpen ? "" : " is-hidden"}`,
-          style: { width: panelWidth }
+          className: `island-panel-layer${isOpen ? "" : " is-hidden"}${dock.panelLayerClass}`,
+          style: dock.panelLayerStyle ?? { width: panelWidth }
         },
         /* @__PURE__ */ React.createElement(
           IslandPanel,
