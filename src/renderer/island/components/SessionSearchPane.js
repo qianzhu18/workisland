@@ -1,6 +1,6 @@
 import { R as React } from "../../vendor/react-runtime.js";
 import { t } from "../../shared/i18n.js";
-import { AGENT_TOOL_LABELS } from "../../shared/settings.js";
+import { A as AGENT_TOOL_LABELS } from "../../shared/settings.js";
 import { buildResumeCommand, buildFallbackCopyText } from "./search-jump.mjs";
 
 function toolLabel(tool) {
