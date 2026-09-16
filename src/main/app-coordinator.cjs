@@ -1743,6 +1743,12 @@ function createAppCoordinatorClass({
       try {
         await manager.install(options);
         log.info(`[AppCoordinator] installHook(${agentId}) success`);
+        // 连接即启用：安装成功隐含「接收该 Agent 事件」的用户意图。
+        // 否则历史遗留的显式 false（如 uninstallAllHooks 写入）会让
+        // 新装的 Agent 永远静默（实测案例：qoder/dumate 卡在 false）。
+        if (this.settings.hookToggles?.[agentId] !== true) {
+          this.updateSettings({ hookToggles: { ...this.settings.hookToggles, [agentId]: true } });
+        }
         return { success: true };
       } catch (err) {
         const e = err;
