@@ -87,7 +87,7 @@ jobs:
             '/src/renderer/island/assets/brands/codebuddy.svg',
             '/src/renderer/island/assets/brands/copilot.svg',
             '/src/renderer/island/assets/brands/cursor.svg',
-            '/src/renderer/island/assets/brands/dumate.svg',
+            '/src/renderer/island/assets/brands/dumate.png',
             '/src/renderer/island/assets/brands/gemini.svg',
             '/src/renderer/island/assets/brands/hermes.svg',
             '/src/renderer/island/assets/brands/kimi.svg',
