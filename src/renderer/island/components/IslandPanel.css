@@ -1871,3 +1871,5 @@
 .session-search-result-snippet { font-size:11px; color:rgba(255,255,255,0.6); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .session-search-result-path { font-size:11px; color:rgba(255,255,255,0.42); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .session-list.is-hidden { display:none; }
+
+.session-search-result.is-resumable { border-left: 2px solid rgba(110,231,183,0.55); }
