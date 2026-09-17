@@ -596,6 +596,33 @@ const TOOL_JUMP_HANDLERS = {
         : "http://127.0.0.1:3080/";
       await electron.shell.openExternal(url);
     }
+  },
+  // 桌面客户端类 Agent：跳转 = 激活客户端（未运行则拉起）。
+  // 之前缺 zcode 条目 → 搜索/会话卡跳转静默失败（jumpToSession 查表无 handler 直接返回）。
+  zcode: {
+    toolName: "zcode",
+    defaultApp: "ZCode",
+    jump: async () => focusAgentClientByTool("zcode")
+  },
+  qoder: {
+    toolName: "qoder",
+    defaultApp: "QwenWorkCN",
+    jump: async () => focusAgentClientByTool("qoder")
+  },
+  dumate: {
+    toolName: "dumate",
+    defaultApp: "DuMate",
+    jump: async () => focusAgentClientByTool("dumate")
+  },
+  workbuddy: {
+    toolName: "workbuddy",
+    defaultApp: "WorkBuddy",
+    jump: async () => focusAgentClientByTool("workbuddy")
+  },
+  codebuddy: {
+    toolName: "codebuddy",
+    defaultApp: "CodeBuddy",
+    jump: async () => focusAgentClientByTool("codebuddy")
   }
 };
 const { createAppCoordinatorClass } = require("./app-coordinator.cjs");
