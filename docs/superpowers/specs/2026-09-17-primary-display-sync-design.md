@@ -1,0 +1,30 @@
+# 主显示器偏好运行时同步
+
+## 问题
+
+当用户将 Island 的显示器偏好从“跟随活跃屏幕”切换为“主显示器”时，设置会持久化，但当前运行的 Island 窗口可能仍停留在 Sidecar 扩展屏。
+
+## 目标
+
+保存 `primary` 后，DisplayManager 必须立即解析 macOS 主显示器并通知 IslandWindow 重定位；后续屏幕拓扑刷新不得将该窗口重新移动到非主屏。
+
+## 方案
+
+实测回归已确认：原生 `isMain` 来自 `NSScreen.mainScreen`，表示应用键盘焦点屏，不能代表系统主屏。DisplayManager 优先采用该标志，导致设置窗口在 Sidecar 时 `auto` 和 `primary` 解析成同一目标，因此没有移动事件。设置同步回调本身正常。统一通过 `electron.screen.getPrimaryDisplay().id` 构造目标的 `isMain` 标志，同时修正设置页枚举与断开屏幕回退。无需强制重复移动窗口。
+
+1. 用 DisplayManager 的单元测试覆盖 `auto` 到 `primary` 的切换，断言它立刻发出主屏目标。
+2. 查明当前实现中设置更新与 DisplayManager 生命周期的断点，并只修复该断点。
+3. 用现有窗口移动合同测试或新增最小测试，确认主屏目标会传到 IslandWindow。
+4. 打包 macOS arm64 应用，保留当前安装版备份并安装测试构建。
+
+## 非目标
+
+- 不改 macOS 的主显示器定义。
+- 不改 Dock 贴边模式或“跟随活跃屏幕”语义。
+- 不迁移用户既有设置。
+
+## 验收
+
+- 自动测试先失败、修复后通过。
+- 全量 `npm run check` 通过。
+- 已安装应用版本与构建产物一致；用户可在 Sidecar 连通时手动验证主屏落位。
