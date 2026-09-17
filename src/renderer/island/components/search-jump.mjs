@@ -16,3 +16,13 @@ export function buildFallbackCopyText(result) {
   if (!result) return "";
   return String(result.projectPath || "");
 }
+
+/**
+ * 结果卡点击行为：claude/codex 且岛内终端可用 → 直接在终端恢复对话；
+ * 其余退回复制（项目路径/恢复命令文本）。
+ */
+export function searchResultAction(result, terminalEnabled) {
+  const resume = buildResumeCommand(result);
+  if (resume && terminalEnabled) return { type: "terminal", command: resume };
+  return { type: "copy", text: resume || buildFallbackCopyText(result) };
+}

@@ -862,5 +862,6 @@
   "island.search.copyResume": "Click to copy resume command",
   "island.search.copyPath": "Click to copy project path",
   "island.search.copied": "Copied",
-  "agent.qoder.label": "Qoder CLI"
+  "agent.qoder.label": "Qoder CLI",
+  "island.search.openTerminal": "Click to resume in the island terminal"
 }

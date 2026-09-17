@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { buildResumeCommand, buildFallbackCopyText } from "../src/renderer/island/components/search-jump.mjs";
+import { buildResumeCommand, buildFallbackCopyText, searchResultAction } from "../src/renderer/island/components/search-jump.mjs";
 
 test("claude/codex results build resume commands; others fall back to project path", () => {
   assert.equal(
@@ -21,4 +21,16 @@ test("quotes inside project paths are escaped", () => {
     buildResumeCommand({ tool: "claude", id: "a", projectPath: '/Users/mac/my "proj"' }),
     'cd "/Users/mac/my \\"proj\\"" && claude --resume a'
   );
+});
+
+test("searchResultAction routes claude/codex to terminal when enabled, others to copy", () => {
+  const claude = { tool: "claude", id: "a1", projectPath: "/p" };
+  const zcode = { tool: "zcode", id: "z1", projectPath: "/z" };
+  assert.deepEqual(
+    searchResultAction(claude, true),
+    { type: "terminal", command: 'cd "/p" && claude --resume a1' }
+  );
+  assert.equal(searchResultAction(claude, false).type, "copy");
+  assert.equal(searchResultAction(zcode, true).type, "copy");
+  assert.equal(searchResultAction(zcode, true).text, "/z");
 });
