@@ -2001,6 +2001,34 @@ function createTerminalNavigation({
   function escapeAppleScript(value) {
     return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, '" & return & "').replace(/\r/g, "");
   }
+  // PRD-019 搜索跳转：按 Agent 工具激活对应客户端（open -b，未运行则拉起）。
+  // 客户端内的具体会话选择暂无公开深链，聚焦客户端为第一落点。
+  async function focusAgentClientByTool(tool) {
+    const map = {
+      zcode: ["dev.zcode.app"],
+      qoder: ["com.qoder.ide", "cn.qwenwork.desktop.mac"],
+      qoderide: ["com.qoder.ide", "cn.qwenwork.desktop.mac"],
+      qwenworkcn: ["cn.qwenwork.desktop.mac"],
+      dumate: ["com.baidu.qianfan.desktop"],
+      opencode: ["com.opencode.app", "com.opencode.desktop", "ai.opencode.desktop"],
+      workbuddy: ["com.workbuddy.workbuddy"],
+      codebuddy: ["com.tencent.codebuddycn"],
+      cursor: [CURSOR_BUNDLE_ID],
+      codex: [CODEX_APP_BUNDLE_ID],
+      claude: [CLAUDE_DESKTOP_BUNDLE_ID]
+    };
+    const ids = map[String(tool || "").toLowerCase()] ?? [];
+    for (const id of ids) {
+      try {
+        await activateMacAppByBundle(id);
+        return true;
+      } catch (err) {
+        log?.warn?.("[TerminalJumpService] focus client failed:", id, err?.message ?? err);
+      }
+    }
+    return false;
+  }
+
   return {
     getSessionBundleIds,
     jumpToTarget,
@@ -2011,7 +2039,8 @@ function createTerminalNavigation({
     jumpCodexAgentSession,
     jumpClaudeAgentSession,
     jumpOpenCodeAgentSession,
-    jumpTraeAgentSession
+    jumpTraeAgentSession,
+    focusAgentClientByTool
   };
 }
 

@@ -31,6 +31,14 @@ test("searchResultAction routes claude/codex to terminal when enabled, others to
     { type: "terminal", command: 'cd "/p" && claude --resume a1' }
   );
   assert.equal(searchResultAction(claude, false).type, "copy");
-  assert.equal(searchResultAction(zcode, true).type, "copy");
-  assert.equal(searchResultAction(zcode, true).text, "/z");
+  assert.equal(searchResultAction(zcode, true).type, "client");
+});
+
+test("searchResultAction routes client tools to client activation; opencode resumes in terminal", () => {
+  assert.deepEqual(searchResultAction({ tool: "zcode", id: "z1", projectPath: "/z" }, true), { type: "client" });
+  assert.deepEqual(searchResultAction({ tool: "qoder", id: "q1", projectPath: "/q" }, true), { type: "client" });
+  assert.deepEqual(searchResultAction({ tool: "dumate", id: "d1", projectPath: "/d" }, true), { type: "client" });
+  const action = searchResultAction({ tool: "opencode", id: "oc1", projectPath: "/o" }, true);
+  assert.equal(action.type, "terminal");
+  assert.equal(action.command, 'cd "/o" && opencode -s oc1');
 });
