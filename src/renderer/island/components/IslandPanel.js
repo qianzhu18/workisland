@@ -1480,7 +1480,7 @@ function IslandPanel({
       return;
     }
     if (CLIENT_TOOLS.has(result.tool)) {
-      window.islandBridge?.openAgentClient?.(result.tool)?.catch?.(() => {});
+      window.islandBridge?.openAgentClient?.(result.tool, result.projectPath)?.catch?.(() => {});
       return;
     }
     const resume = buildResumeCommand(result);
