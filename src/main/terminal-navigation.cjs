@@ -2003,7 +2003,7 @@ function createTerminalNavigation({
   }
   // PRD-019 搜索跳转：按 Agent 工具激活对应客户端（open -b，未运行则拉起）。
   // 客户端内的具体会话选择暂无公开深链，聚焦客户端为第一落点。
-  async function focusAgentClientByTool(tool) {
+  async function focusAgentClientByTool(tool, { openUrl = "" } = {}) {
     const map = {
       zcode: ["dev.zcode.app"],
       qoder: ["com.qoder.ide", "cn.qwenwork.desktop.mac"],
@@ -2018,15 +2018,26 @@ function createTerminalNavigation({
       claude: [CLAUDE_DESKTOP_BUNDLE_ID]
     };
     const ids = map[String(tool || "").toLowerCase()] ?? [];
+    let activated = false;
     for (const id of ids) {
       try {
         await activateMacAppByBundle(id);
-        return true;
+        activated = true;
+        break;
       } catch (err) {
         log?.warn?.("[TerminalJumpService] focus client failed:", id, err?.message ?? err);
       }
     }
-    return false;
+    // ZCode 支持 zcode://workspace/open?path= 深链：激活后顺势打开
+    // 会话所在的工作区（比只把 App 调到前台更接近"回到原对话位置"）。
+    if (activated && openUrl) {
+      try {
+        await execFileAsync$6("open", [openUrl], { timeout: 5e3 });
+      } catch (err) {
+        log?.warn?.("[TerminalJumpService] open deep link failed:", openUrl, err?.message ?? err);
+      }
+    }
+    return activated;
   }
 
   return {

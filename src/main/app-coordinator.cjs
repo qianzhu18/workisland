@@ -1195,9 +1195,13 @@ function createAppCoordinatorClass({
     searchSessions(query) {
       return this.sessionSearch.search(String(query || ""), { limit: 20 });
     }
-    /** PRD-019 M2：按工具激活对应客户端（未运行则拉起）。 */
-    focusAgentClient(tool) {
-      return focusAgentClientByTool(String(tool || ""));
+    /** PRD-019 M2：按工具激活对应客户端（未运行则拉起）。
+     *  zcode 附带会话所在工作区的 workspace 深链（zcode://workspace/open）。 */
+    focusAgentClient(tool, projectPath = "") {
+      const openUrl = String(tool || "").toLowerCase() === "zcode" && projectPath
+        ? `zcode://workspace/open?path=${encodeURIComponent(projectPath)}`
+        : "";
+      return focusAgentClientByTool(String(tool || ""), { openUrl });
     }
     startRemoteTunnel(hostId) {
       const host = this.remoteHostStore.listHosts().find((h) => h.hostId === hostId);
