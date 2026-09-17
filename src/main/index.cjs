@@ -517,7 +517,8 @@ const {
   jumpCodexAgentSession,
   jumpClaudeAgentSession,
   jumpOpenCodeAgentSession,
-  jumpTraeAgentSession
+  jumpTraeAgentSession,
+  focusAgentClientByTool
 } = createTerminalNavigation({
   isPluginAgentTool,
   PLUGIN_BY_TOOL
@@ -609,6 +610,7 @@ const AppCoordinator = createAppCoordinatorClass({
   adapterRegistry,
   adapterAgentIds: new Set(adapterRegistry.keys()),
   TOOL_JUMP_HANDLERS,
+  focusAgentClientByTool,
   createInitialState,
   apply,
   getVisibleSessions,

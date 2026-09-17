@@ -279,6 +279,9 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
     electron.ipcMain.handle(IPC.SESSION_SEARCH_QUERY, (_event, { query } = {}) => {
       return coordinator.searchSessions(typeof query === "string" ? query : "");
     });
+    electron.ipcMain.handle(IPC.SESSION_SEARCH_OPEN_CLIENT, (_event, { tool } = {}) => {
+      return coordinator.focusAgentClient(typeof tool === "string" ? tool : "");
+    });
     electron.ipcMain.handle(IPC.REMOTE_HOSTS_SCAN_SSH_CONFIG, () => {
       return coordinator.scanRemoteSshConfig();
     });

@@ -98,6 +98,7 @@ function createAppCoordinatorClass({
   adapterRegistry,
   adapterAgentIds,
   TOOL_JUMP_HANDLERS,
+  focusAgentClientByTool,
   createInitialState,
   apply,
   getVisibleSessions,
@@ -1193,6 +1194,10 @@ function createAppCoordinatorClass({
     /** PRD-019 M2：跨 Agent 历史会话搜索（空格分隔多关键词）。 */
     searchSessions(query) {
       return this.sessionSearch.search(String(query || ""), { limit: 20 });
+    }
+    /** PRD-019 M2：按工具激活对应客户端（未运行则拉起）。 */
+    focusAgentClient(tool) {
+      return focusAgentClientByTool(String(tool || ""));
     }
     startRemoteTunnel(hostId) {
       const host = this.remoteHostStore.listHosts().find((h) => h.hostId === hostId);

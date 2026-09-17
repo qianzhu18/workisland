@@ -863,5 +863,6 @@
   "island.search.copyPath": "点击复制项目路径",
   "island.search.copied": "已复制",
   "agent.qoder.label": "千问办公",
-  "island.search.openTerminal": "点击在岛内终端恢复对话"
+  "island.search.openTerminal": "点击在岛内终端恢复对话",
+  "island.search.openClient": "点击打开对应客户端"
 }

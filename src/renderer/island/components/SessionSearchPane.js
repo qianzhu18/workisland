@@ -1,7 +1,7 @@
 import { R as React } from "../../vendor/react-runtime.js";
 import { t } from "../../shared/i18n.js";
 import { A as AGENT_TOOL_LABELS } from "../../shared/settings.js";
-import { buildResumeCommand, buildFallbackCopyText, searchResultAction } from "./search-jump.mjs";
+import { buildResumeCommand, buildFallbackCopyText, searchResultAction, CLIENT_TOOLS } from "./search-jump.mjs";
 
 function toolLabel(tool) {
   if (tool === "qoder") return t("agent.qoder.label");
@@ -51,7 +51,7 @@ export function SessionSearchPane({ query, onQueryChange }) {
   );
 }
 
-export function SessionSearchResults({ query, onRunInTerminal, terminalEnabled = false }) {
+export function SessionSearchResults({ query, onRunInTerminal, onOpenClient, terminalEnabled = false }) {
   const [state, setState] = React.useState({ loading: true, results: [] });
   React.useEffect(() => {
     let alive = true;
@@ -85,6 +85,11 @@ export function SessionSearchResults({ query, onRunInTerminal, terminalEnabled =
       onRunInTerminal(result, action.command);
       return;
     }
+    if (action.type === "client" && onOpenClient) {
+      event.stopPropagation();
+      onOpenClient(result);
+      return;
+    }
     copy(event, result);
   };
 
@@ -101,16 +106,17 @@ export function SessionSearchResults({ query, onRunInTerminal, terminalEnabled =
       const key = result.tool + ":" + result.id;
       const resume = buildResumeCommand(result);
       const inTerminal = resume && terminalEnabled;
+      const toClient = CLIENT_TOOLS.has(result.tool);
       return React.createElement("div", {
         key,
         className: "session-search-result" + (inTerminal ? " is-resumable" : ""),
         onClick: (event) => activate(event, result),
-        title: t(inTerminal ? "island.search.openTerminal" : resume ? "island.search.copyResume" : "island.search.copyPath")
+        title: t(toClient ? "island.search.openClient" : inTerminal ? "island.search.openTerminal" : resume ? "island.search.copyResume" : "island.search.copyPath")
       },
         React.createElement("div", { className: "session-search-result-head" },
           React.createElement("span", { className: "session-search-result-tool" }, toolLabel(result.tool)),
           React.createElement("span", { className: "session-search-result-time" }, formatUpdatedAt(result.updatedAt)),
-          React.createElement("span", { className: "session-search-result-copy" }, state.copiedId === key ? "✓" : inTerminal ? "↵" : "⧉")
+          React.createElement("span", { className: "session-search-result-copy" }, state.copiedId === key ? "✓" : inTerminal ? "↵" : toClient ? "⇱" : "⧉")
         ),
         React.createElement("div", { className: "session-search-result-title" }, result.title || result.id),
         result.snippet && React.createElement("div", { className: "session-search-result-snippet" }, result.snippet),

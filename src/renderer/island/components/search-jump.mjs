@@ -9,8 +9,12 @@ export function buildResumeCommand(result) {
   const id = String(result.id);
   if (result.tool === "claude") return `cd "${project}" && claude --resume ${id}`;
   if (result.tool === "codex") return `cd "${project}" && codex resume ${id}`;
+  if (result.tool === "opencode") return `cd "${project}" && opencode -s ${id}`;
   return null;
 }
+
+/** 这些 Agent 的会话在各自的桌面客户端里：点击直接激活客户端（未运行则拉起）。 */
+export const CLIENT_TOOLS = new Set(["zcode", "qoder", "dumate", "workbuddy", "codebuddy"]);
 
 export function buildFallbackCopyText(result) {
   if (!result) return "";
@@ -22,6 +26,7 @@ export function buildFallbackCopyText(result) {
  * 其余退回复制（项目路径/恢复命令文本）。
  */
 export function searchResultAction(result, terminalEnabled) {
+  if (CLIENT_TOOLS.has(result?.tool)) return { type: "client" };
   const resume = buildResumeCommand(result);
   if (resume && terminalEnabled) return { type: "terminal", command: resume };
   return { type: "copy", text: resume || buildFallbackCopyText(result) };
