@@ -1,7 +1,7 @@
 import { R as React } from "../../vendor/react-runtime.js";
 import { t } from "../../shared/i18n.js";
 import { A as AGENT_TOOL_LABELS } from "../../shared/settings.js";
-import { buildResumeCommand, buildFallbackCopyText, searchResultAction, CLIENT_TOOLS } from "./search-jump.mjs";
+import { buildResumeCommand, CLIENT_TOOLS } from "./search-jump.mjs";
 
 function toolLabel(tool) {
   if (tool === "qoder") return t("agent.qoder.label");
@@ -51,7 +51,7 @@ export function SessionSearchPane({ query, onQueryChange }) {
   );
 }
 
-export function SessionSearchResults({ query, onRunInTerminal, onOpenClient, terminalEnabled = false }) {
+export function SessionSearchResults({ query, onActivate }) {
   const [state, setState] = React.useState({ loading: true, results: [] });
   React.useEffect(() => {
     let alive = true;
@@ -67,30 +67,11 @@ export function SessionSearchResults({ query, onRunInTerminal, onOpenClient, ter
     return () => { alive = false; clearTimeout(timer); };
   }, [query]);
 
-  const copy = async (event, result) => {
-    event.stopPropagation();
-    const text = buildResumeCommand(result) || buildFallbackCopyText(result);
-    if (!text) return;
-    try {
-      await navigator.clipboard.writeText(text);
-      setState((prev) => ({ ...prev, copiedId: result.tool + ":" + result.id }));
-      setTimeout(() => setState((prev) => ({ ...prev, copiedId: null })), 1500);
-    } catch {}
-  };
-
+  // 点击统一交给 onActivate：IslandPanel 按「活会话精确跳回 → 客户端激活 →
+  // 岛内终端恢复 → 复制」的优先级路由（PRD-019 回源跳转）。
   const activate = (event, result) => {
-    const action = searchResultAction(result, terminalEnabled);
-    if (action.type === "terminal" && onRunInTerminal) {
-      event.stopPropagation();
-      onRunInTerminal(result, action.command);
-      return;
-    }
-    if (action.type === "client" && onOpenClient) {
-      event.stopPropagation();
-      onOpenClient(result);
-      return;
-    }
-    copy(event, result);
+    event.stopPropagation();
+    onActivate?.(result);
   };
 
   if (state.loading) {
@@ -105,7 +86,7 @@ export function SessionSearchResults({ query, onRunInTerminal, onOpenClient, ter
     state.results.map((result) => {
       const key = result.tool + ":" + result.id;
       const resume = buildResumeCommand(result);
-      const inTerminal = resume && terminalEnabled;
+      const inTerminal = resume;
       const toClient = CLIENT_TOOLS.has(result.tool);
       return React.createElement("div", {
         key,
