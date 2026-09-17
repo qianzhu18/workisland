@@ -10,6 +10,8 @@
 
 ## 方案
 
+实测回归已确认：原生 `isMain` 来自 `NSScreen.mainScreen`，表示应用键盘焦点屏，不能代表系统主屏。DisplayManager 优先采用该标志，导致设置窗口在 Sidecar 时 `auto` 和 `primary` 解析成同一目标，因此没有移动事件。设置同步回调本身正常。统一通过 `electron.screen.getPrimaryDisplay().id` 构造目标的 `isMain` 标志，同时修正设置页枚举与断开屏幕回退。无需强制重复移动窗口。
+
 1. 用 DisplayManager 的单元测试覆盖 `auto` 到 `primary` 的切换，断言它立刻发出主屏目标。
 2. 查明当前实现中设置更新与 DisplayManager 生命周期的断点，并只修复该断点。
 3. 用现有窗口移动合同测试或新增最小测试，确认主屏目标会传到 IslandWindow。

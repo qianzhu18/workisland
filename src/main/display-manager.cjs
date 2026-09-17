@@ -19,22 +19,25 @@ function createDisplayManagerClass({
   function getAllDisplayTargets() {
     const rawScreens = getAllScreensInfo();
     const displays = electron.screen.getAllDisplays();
-    const externalCount = displays.filter((d, i) => {
+    // NSScreen.mainScreen follows this app's key window, not the macOS
+    // primary display. Use Electron's system primary ID for every consumer.
+    const primaryId = electron.screen.getPrimaryDisplay().id;
+    const externalCount = displays.filter((d) => {
       const raw = rawScreens.find((s) => s.cgDisplayId === d.id);
-      return !raw?.localizedName && !(raw?.isMain ?? i === 0);
+      return !raw?.localizedName && d.id !== primaryId;
     }).length;
     return displays.map((display, index) => {
       const raw = rawScreens.find((s) => s.cgDisplayId === display.id);
       const screenInfo = {
         displayId: String(display.id),
-        label: buildLabel(raw?.localizedName, raw?.isMain ?? false, raw?.hasNotch ?? false, index, externalCount),
+        label: buildLabel(raw?.localizedName, display.id === primaryId, raw?.hasNotch ?? false, index, externalCount),
         hasNotch: raw?.hasNotch ?? false,
         notchHeight: raw?.notchHeight ?? 0,
         notchWidth: raw?.notchWidth ?? 0,
         screenWidth: display.bounds.width,
         screenHeight: display.bounds.height,
         scaleFactor: display.scaleFactor,
-        isMain: raw?.isMain ?? index === 0,
+        isMain: display.id === primaryId,
         menuBarHeight: raw?.menuBarHeight ?? 0
       };
       return { display, screenInfo };
