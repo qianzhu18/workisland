@@ -2015,7 +2015,16 @@ function createTerminalNavigation({
       codebuddy: ["com.tencent.codebuddycn"],
       cursor: [CURSOR_BUNDLE_ID],
       codex: [CODEX_APP_BUNDLE_ID],
-      claude: [CLAUDE_DESKTOP_BUNDLE_ID]
+      claude: [CLAUDE_DESKTOP_BUNDLE_ID],
+      iterm2: ["com.googlecode.iterm2"],
+      iterm: ["com.googlecode.iterm2"],
+      terminal: ["com.apple.Terminal"],
+      apple_terminal: ["com.apple.Terminal"],
+      "vs code": [VSCODE_BUNDLE_ID],
+      vscode: [VSCODE_BUNDLE_ID],
+      warp: ["dev.warp.Warp-Stable"],
+      ghostty: ["com.mitchellh.ghostty"],
+      kaku: ["fun.tw93.kaku"]
     };
     const ids = map[String(tool || "").toLowerCase()] ?? [];
     let activated = false;
