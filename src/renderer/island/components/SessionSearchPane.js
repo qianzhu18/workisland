@@ -1,7 +1,7 @@
 import { R as React } from "../../vendor/react-runtime.js";
 import { t } from "../../shared/i18n.js";
 import { A as AGENT_TOOL_LABELS } from "../../shared/settings.js";
-import { buildResumeCommand, CLIENT_TOOLS } from "./search-jump.mjs";
+import { CLIENT_TOOLS } from "./search-jump.mjs";
 
 function toolLabel(tool) {
   if (tool === "qoder") return t("agent.qoder.label");
@@ -90,14 +90,14 @@ export function SessionSearchResults({ query, onActivate }) {
       const toClient = CLIENT_TOOLS.has(result.tool);
       return React.createElement("div", {
         key,
-        className: "session-search-result" + (inTerminal ? " is-resumable" : ""),
+        className: "session-search-result" + (toClient ? " is-resumable" : ""),
         onClick: (event) => activate(event, result),
         title: t(toClient ? "island.search.openClient" : inTerminal ? "island.search.openTerminal" : resume ? "island.search.copyResume" : "island.search.copyPath")
       },
         React.createElement("div", { className: "session-search-result-head" },
           React.createElement("span", { className: "session-search-result-tool" }, toolLabel(result.tool)),
           React.createElement("span", { className: "session-search-result-time" }, formatUpdatedAt(result.updatedAt)),
-          React.createElement("span", { className: "session-search-result-copy" }, state.copiedId === key ? "✓" : inTerminal ? "↵" : toClient ? "⇱" : "⧉")
+          React.createElement("span", { className: "session-search-result-copy" }, toClient ? "⇱" : "→")
         ),
         React.createElement("div", { className: "session-search-result-title" }, result.title || result.id),
         result.snippet && React.createElement("div", { className: "session-search-result-snippet" }, result.snippet),

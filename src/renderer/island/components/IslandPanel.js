@@ -11,7 +11,7 @@ import { UpdateStatusButton, hasActiveUpdateFlow } from "./UpdatePopover.js";
 import { ShelfPanel } from "./ShelfPanel.js";
 import { ClipboardPanel } from "./ClipboardPanel.js";
 import { SessionSearchPane, SessionSearchResults } from "./SessionSearchPane.js";
-import { buildResumeCommand, CLIENT_TOOLS } from "./search-jump.mjs";
+import { CLIENT_TOOLS } from "./search-jump.mjs";
 import { TerminalPanel } from "./TerminalPanel.js";
 import { UsagePanel } from "./UsagePanel.js";
 import { SettingsChangeCard } from "./SettingsChangeCard.js";
@@ -1456,23 +1456,11 @@ function IslandPanel({
   // PRD-019 M2：跨 Agent 历史会话搜索（⌘K 唤起，结果卡点击复制恢复命令）
   const [searchQuery, setSearchQuery] = React.useState("");
   // PRD-019 M2：搜索结果点击 → 切到岛内终端，在项目目录自动执行恢复命令
-  const runResumeInIslandTerminal = (result, resume) => {
-    if (!window.islandBridge?.startTerminal || !window.islandBridge?.sendTerminalInput) return;
-    setActiveModule("terminal");
-    Promise.resolve(window.islandBridge.startTerminal({ cwd: result.projectPath })).catch(() => {});
-    // 终端冷启动时 PTY 可能未就绪（input 返回 false），带退避重试投递
-    const tryInput = (attempt) => {
-      window.islandBridge.sendTerminalInput(`${resume}\r`).then((sent) => {
-        if (!sent && attempt < 10) setTimeout(() => tryInput(attempt + 1), 250);
-      }).catch(() => {});
-    };
-    setTimeout(() => tryInput(0), 250);
-  };
-  // PRD-019 回源跳转优先级：
+  // PRD-019 回源跳转：与日常会话卡点击完全同款——直接跳转，不开快捷终端、不代敲命令。
   // ① 结果命中岛内现存会话 → 精确跳回原对话位置（原终端 tab/pane/客户端）；
   // ② 客户端类 Agent（zcode/千问/DuMate 等）→ 激活对应客户端；
-  // ③ claude/codex/opencode 历史会话 → 岛内终端自动恢复（原进程已不存在，无原位可回）；
-  // ④ 兜底复制。
+  // ③ 历史会话 → 跳到该 Agent 日常使用的宿主终端 App（取同工具现存活会话正在用的）；
+  // ④ 兜底复制项目路径。
   const handleSearchActivate = (result) => {
     const live = (sessions || []).find((s) => s.id === result.sessionId || s.id === result.id);
     if (live) {
@@ -1483,12 +1471,13 @@ function IslandPanel({
       window.islandBridge?.openAgentClient?.(result.tool, result.projectPath)?.catch?.(() => {});
       return;
     }
-    const resume = buildResumeCommand(result);
-    if (resume && terminalEnabled) {
-      runResumeInIslandTerminal(result, resume);
+    const hostApp = (sessions || []).filter((s) => s.tool === result.tool)
+      .map((s) => s.jumpTarget?.app).find(Boolean);
+    if (hostApp) {
+      window.islandBridge?.openAgentClient?.(hostApp)?.catch?.(() => {});
       return;
     }
-    const text = resume || result.projectPath || "";
+    const text = result.projectPath || "";
     if (text) navigator.clipboard?.writeText(text).catch?.(() => {});
   };
   const [activeModule, setActiveModule] = React.useState("agent");

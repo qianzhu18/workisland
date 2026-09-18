@@ -864,5 +864,6 @@
   "island.search.copied": "已复制",
   "agent.qoder.label": "千问办公",
   "island.search.openTerminal": "点击在岛内终端恢复对话",
-  "island.search.openClient": "点击打开对应客户端"
+  "island.search.openClient": "点击打开对应客户端",
+  "island.search.jumpBack": "点击跳回原对话位置"
 }
