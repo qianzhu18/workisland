@@ -114,6 +114,7 @@ const IPC = Object.freeze({
   PET_TOGGLE: "pet:toggle",
 
   APPEARANCE_GET_BACKGROUND_IMAGE: "appearance:get-background-image",
+  APPEARANCE_GET_RECENT_BACKGROUND_IMAGE: "appearance:get-recent-background-image",
   APPEARANCE_SELECT_BACKGROUND_IMAGE: "appearance:select-background-image",
   APPEARANCE_INSTALL_BACKGROUND_IMAGE: "appearance:install-background-image",
 

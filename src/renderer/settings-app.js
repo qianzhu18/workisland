@@ -5,6 +5,7 @@ import { localizedRuntimeText } from "./shared/localized-runtime-text.mjs";
 import {
   appearanceForMaterial,
   materialForAppearance,
+  rememberedImageAppearance,
   withAppearanceColor,
   withAppearanceOpacity
 } from "./shared/appearance-settings-model.mjs";
@@ -1277,26 +1278,18 @@ const ISLAND_APPEARANCE_PRESETS = [
 ];
 
 const ISLAND_APPEARANCE_MATERIALS = [
-  { id: "glass", titleKey: "settings.appearance.background.material.glass.title", descriptionKey: "settings.appearance.background.material.glass.description" },
   { id: "solid", titleKey: "settings.appearance.background.material.solid.title", descriptionKey: "settings.appearance.background.material.solid.description" },
   { id: "image", titleKey: "settings.appearance.background.material.image.title", descriptionKey: "settings.appearance.background.material.image.description" }
 ];
 
 function appearanceMaterialCard(entry, active, action) {
-  const { id } = entry;
   const card = document.createElement("button");
   card.type = "button";
   card.className = `appearance-material-card${active ? " is-active" : ""}`;
   card.classList.add("appearance-material-card");
   card.setAttribute("aria-pressed", String(active));
   card.addEventListener("click", action);
-  const visual = el("span", `appearance-material-visual is-${id}`);
-  const copy = el("span", "appearance-material-copy");
-  copy.append(
-    el("strong", "", t(entry.titleKey)),
-    el("span", "", t(entry.descriptionKey))
-  );
-  card.append(visual, copy);
+  card.textContent = t(entry.titleKey);
   return card;
 }
 
@@ -1344,7 +1337,8 @@ function showIslandBackgroundCropper(selected) {
         const installed = await api.installCroppedIslandBackground(canvas.toDataURL("image/png"));
         state.appearanceImagePreview = installed.dataUrl;
         state.appearanceImagePreviewRef = installed.imageRef;
-        await save({ islandAppearance: { kind: "image", imageRef: installed.imageRef, imageDim: 0.35 } });
+        const imageAppearance = { kind: "image", imageRef: installed.imageRef, imageDim: 0.35 };
+        await save({ islandAppearance: imageAppearance, lastIslandImageAppearance: imageAppearance });
         close(true);
         renderPage();
       } catch (error) {
@@ -1412,7 +1406,13 @@ async function loadIslandBackgroundPreview(imageRef) {
 }
 
 function islandBackgroundSection() {
-  const island = section(t("settings.appearance.background.sectionTitle"), t("settings.appearance.background.description"));
+  const island = section(t("settings.appearance.background.sectionTitle"));
+  island.classList.add("appearance-background-section");
+  const reset = button(t("settings.appearance.background.restore.action"), async () => {
+    await save({ islandAppearance: { kind: "default" } });
+    renderPage();
+  }, "appearance-reset");
+  island.firstElementChild.append(reset);
   const current = state.settings.islandAppearance || { kind: "default" };
   const material = materialForAppearance(current);
   const materials = el("div", "appearance-materials");
@@ -1420,7 +1420,26 @@ function islandBackgroundSection() {
     const { id } = entry;
     materials.append(appearanceMaterialCard(entry, material === id, async () => {
       if (id === "image") {
-        if (current.kind !== "image") await chooseIslandBackgroundImage();
+        if (current.kind === "image") return;
+        let remembered = rememberedImageAppearance(state.settings);
+        if (!remembered) {
+          try {
+            const recent = await api.getRecentIslandBackgroundImage?.();
+            if (recent?.imageRef) {
+              remembered = { kind: "image", imageRef: recent.imageRef, imageDim: 0.35 };
+              state.appearanceImagePreview = recent.dataUrl || null;
+              state.appearanceImagePreviewRef = recent.imageRef;
+            }
+          } catch {
+            // A missing legacy image is equivalent to having no remembered image.
+          }
+        }
+        if (remembered) {
+          await save({ islandAppearance: remembered, lastIslandImageAppearance: remembered });
+          renderPage();
+        } else {
+          await chooseIslandBackgroundImage();
+        }
         return;
       }
       if (material === id && current.kind !== "default" && current.kind !== "gradient") return;
@@ -1447,14 +1466,16 @@ function islandBackgroundSection() {
     dim.setAttribute("aria-label", t("settings.appearance.background.image.dim.title"));
     const dimValue = el("span", "range-value", `${Math.round(Number(dim.value) * 100)}%`);
     dim.addEventListener("input", () => dimValue.textContent = `${Math.round(Number(dim.value) * 100)}%`);
-    dim.addEventListener("change", () => save({ islandAppearance: { ...current, imageDim: Number(dim.value) } }));
+    dim.addEventListener("change", () => {
+      const imageAppearance = { ...current, imageDim: Number(dim.value) };
+      return save({ islandAppearance: imageAppearance, lastIslandImageAppearance: imageAppearance });
+    });
     const dimControl = el("div", "range-control"); dimControl.append(dim, dimValue);
     island.append(
       row(t("settings.appearance.background.image.title"), t("settings.appearance.background.image.description"), imageControl),
       row(t("settings.appearance.background.image.dim.title"), t("settings.appearance.background.image.dim.description"), dimControl)
     );
     if (state.appearanceError) island.append(el("p", "appearance-inline-error", state.appearanceError));
-    island.append(row(t("settings.appearance.background.restore.title"), t("settings.appearance.background.restore.description"), button(t("settings.appearance.background.restore.action"), async () => { await save({ islandAppearance: { kind: "default" } }); renderPage(); }, "secondary")));
     return island;
   }
 
@@ -1463,7 +1484,7 @@ function islandBackgroundSection() {
   );
   const presetOptions = ISLAND_APPEARANCE_PRESETS.map(preset => [preset.id, t(preset.labelKey)]);
   if (!matchingPreset) {
-    const kindLabel = t(`settings.appearance.background.kind.${current.kind === "gradient" ? "gradient" : current.kind === "glass" ? "glass" : current.kind === "image" ? "image" : "solid"}`);
+    const kindLabel = t(`settings.appearance.background.kind.${current.kind === "gradient" ? "gradient" : current.kind === "image" ? "image" : "solid"}`);
     presetOptions.push(["__custom__", t("settings.appearance.background.customCurrent", { kind: kindLabel })]);
   }
   const presetSelect = select(
@@ -1495,11 +1516,12 @@ function islandBackgroundSection() {
   opacity.addEventListener("input", () => opacityValue.textContent = `${Math.round(Number(opacity.value) * 100)}%`);
   opacity.addEventListener("change", () => save({ islandAppearance: withAppearanceOpacity(current, Number(opacity.value)) }));
   const opacityControl = el("div", "range-control"); opacityControl.append(opacity, opacityValue);
+  const colorControl = el("div", "inline-controls");
+  if (material === "solid") colorControl.append(presetSelect);
+  colorControl.append(color);
   island.append(
-    ...(material === "solid" ? [row(t("settings.appearance.background.preset.title"), t("settings.appearance.background.preset.description"), presetSelect)] : []),
-    row(t("settings.appearance.background.color.title"), t(material === "glass" ? "settings.appearance.background.color.glassDescription" : "settings.appearance.background.color.description"), color),
-    row(t("settings.appearance.background.opacity.title"), t("settings.appearance.background.opacity.description"), opacityControl),
-    row(t("settings.appearance.background.restore.title"), t("settings.appearance.background.restore.description"), button(t("settings.appearance.background.restore.action"), async () => { await save({ islandAppearance: { kind: "default" } }); renderPage(); }, "secondary"))
+    row(t("settings.appearance.background.color.title"), "", colorControl),
+    row(t("settings.appearance.background.opacity.title"), "", opacityControl)
   );
   return island;
 }

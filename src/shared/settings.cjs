@@ -193,6 +193,7 @@ const DEFAULT_SETTINGS = {
   // classic opaque black island; see src/shared/appearance.cjs for the
   // validated shape of the other kinds.
   islandAppearance: { ...DEFAULT_ISLAND_APPEARANCE },
+  lastIslandImageAppearance: null,
   // Active appearance template (PRD-018). New and historical installs both
   // resolve to the official 小宇 builtin package; the migration deliberately
   // leaves islandAppearance / petSprite untouched so previously chosen
@@ -282,9 +283,19 @@ function mergeSettings(parsed = {}) {
   // manual edits) falls back to the default instead of breaking startup.
   try {
     const { appearance } = normalizeIslandAppearance(parsed.islandAppearance);
-    merged.islandAppearance = appearance;
+    merged.islandAppearance = appearance.kind === "glass"
+      ? { ...appearance, kind: "solid" }
+      : appearance;
   } catch {
     merged.islandAppearance = { ...DEFAULT_ISLAND_APPEARANCE };
+  }
+  const imageMemoryCandidate = parsed.lastIslandImageAppearance ??
+    (merged.islandAppearance.kind === "image" ? merged.islandAppearance : null);
+  try {
+    const { appearance } = normalizeIslandAppearance(imageMemoryCandidate);
+    merged.lastIslandImageAppearance = appearance.kind === "image" ? appearance : null;
+  } catch {
+    merged.lastIslandImageAppearance = null;
   }
 
   // Template selection / overrides (PRD-018). Invalid persisted shapes reset

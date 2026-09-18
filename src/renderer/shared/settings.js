@@ -155,6 +155,7 @@ const DEFAULT_SETTINGS = {
   petScale: 1,
   petSprite: "codex:qianxue",
   islandAppearance: { kind: "default" },
+  lastIslandImageAppearance: null,
   appearanceTemplate: { id: "builtin:workisland-xiaoyu", version: "1.0.0" },
   appearanceOverrides: {},
   hapticFeedback: true,

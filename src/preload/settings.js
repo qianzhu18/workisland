@@ -20,6 +20,7 @@ electron.contextBridge.exposeInMainWorld("settingsApi", {
   selectIslandBackgroundImage: () => electron.ipcRenderer.invoke(ipc.IPC.APPEARANCE_SELECT_BACKGROUND_IMAGE),
   installCroppedIslandBackground: (dataUrl) => electron.ipcRenderer.invoke(ipc.IPC.APPEARANCE_INSTALL_BACKGROUND_IMAGE, { dataUrl }),
   getIslandBackgroundImage: (imageRef) => electron.ipcRenderer.invoke(ipc.IPC.APPEARANCE_GET_BACKGROUND_IMAGE, imageRef),
+  getRecentIslandBackgroundImage: () => electron.ipcRenderer.invoke(ipc.IPC.APPEARANCE_GET_RECENT_BACKGROUND_IMAGE),
   getHookStatus: () => electron.ipcRenderer.invoke(ipc.IPC.SETTINGS_GET_HOOK_STATUS),
   copyImageToClipboard: (rect) => electron.ipcRenderer.invoke(ipc.IPC.SETTINGS_COPY_IMAGE_TO_CLIPBOARD, { rect }),
   copyImageDataUrlToClipboard: (dataUrl) => electron.ipcRenderer.invoke(ipc.IPC.SETTINGS_COPY_IMAGE_DATA_URL_TO_CLIPBOARD, { dataUrl }),

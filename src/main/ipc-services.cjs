@@ -563,6 +563,9 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
       // background image to a data URL (island CSP only allows data:/blob:).
       return coordinator.appearanceService?.getBackgroundImageDataUrl(imageRef) ?? null;
     });
+    electron.ipcMain.handle(IPC.APPEARANCE_GET_RECENT_BACKGROUND_IMAGE, () => {
+      return coordinator.appearanceService?.getMostRecentBackgroundImage() ?? null;
+    });
     electron.ipcMain.handle(IPC.TEMPLATE_GET_ACTIVE_STATUS_ASSETS, () => {
       // Active template's five status SVGs as validated data URLs; the main
       // process owns the builtin fallback so a broken package never blanks
