@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -43,6 +43,23 @@ test("readBackgroundImagePreview validates without installing the original", () 
     assert.equal(preview.height, 600);
     assert.match(preview.dataUrl, /^data:image\/png;base64,/);
     assert.equal(existsSync(join(root, "island-backgrounds")), false);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("getMostRecentBackgroundImage restores the newest managed image for legacy settings", () => {
+  const root = mkdtempSync(join(tmpdir(), "wi-appearance-recent-"));
+  try {
+    const service = createAppearanceService({ getUserDataPath: () => root });
+    const older = service.installBackgroundImageBuffer(Buffer.concat([pngHeader(1480, 600), Buffer.from([1])]), ".png");
+    const newer = service.installBackgroundImageBuffer(Buffer.concat([pngHeader(1480, 600), Buffer.from([2])]), ".png");
+    utimesSync(join(root, "island-backgrounds", older.imageRef), new Date(1000), new Date(1000));
+    utimesSync(join(root, "island-backgrounds", newer.imageRef), new Date(2000), new Date(2000));
+
+    const recent = service.getMostRecentBackgroundImage();
+    assert.equal(recent.imageRef, newer.imageRef);
+    assert.match(recent.dataUrl, /^data:image\/png;base64,/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

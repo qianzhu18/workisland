@@ -18,11 +18,16 @@ test("Settings initializes localization and offers a live system language prefer
   assert.match(source, /t\("settings\.general\.language\.title"\)/);
 });
 
-test("appearance settings present glass, solid, and image as contextual materials", () => {
+test("appearance settings present only solid and remembered image materials", () => {
   assert.match(source, /appearance-settings-model\.mjs/);
-  for (const material of ["glass", "solid", "image"]) {
+  for (const material of ["solid", "image"]) {
     assert.match(source, new RegExp(`settings\\.appearance\\.background\\.material\\.${material}\\.title`));
   }
+  const materialEntries = source.match(/const ISLAND_APPEARANCE_MATERIALS = \[([\s\S]*?)\n\];/)?.[1] || "";
+  assert.doesNotMatch(materialEntries, /material\.glass\.title/);
+  assert.match(source, /rememberedImageAppearance\(state\.settings\)/);
+  assert.match(source, /if \(remembered\)[\s\S]{0,240}lastIslandImageAppearance: remembered/);
+  assert.match(source, /getRecentIslandBackgroundImage/);
   assert.match(source, /classList\.add\("appearance-material-card"/);
   assert.match(source, /selectIslandBackgroundImage/);
   assert.match(source, /getIslandBackgroundImage/);
@@ -39,9 +44,13 @@ test("appearance settings present glass, solid, and image as contextual material
   assert.match(source, /await save\(\{ islandAppearance:[\s\S]{0,300}renderPage\(\)/);
 });
 
-test("appearance material cards and previews have polished interaction states", () => {
+test("appearance materials use a compact text selector without decorative thumbnails", () => {
   assert.match(css, /\.appearance-materials\s*\{/);
   assert.match(css, /\.appearance-material-card\.is-active/);
+  assert.match(css, /\.appearance-background-section \.setting-row/);
+  assert.match(source, /appearance-reset/);
+  assert.doesNotMatch(source, /appearance-material-visual/);
+  assert.doesNotMatch(css, /\.appearance-material-visual/);
   assert.match(css, /\.appearance-image-preview/);
   assert.match(css, /\.appearance-crop-overlay/);
   assert.match(css, /\.appearance-crop-stage/);

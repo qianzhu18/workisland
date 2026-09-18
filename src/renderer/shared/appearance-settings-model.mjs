@@ -4,7 +4,7 @@ function colorState(appearance, fallbackKind = "solid") {
   const current = appearance && typeof appearance === "object" ? appearance : { kind: "default" };
   if (COLOR_MATERIALS.has(current.kind)) {
     return {
-      kind: current.kind === "gradient" ? fallbackKind : current.kind,
+      kind: current.kind === "solid" ? "solid" : fallbackKind,
       color: current.color || "#000000",
       opacity: current.opacity ?? 1
     };
@@ -14,7 +14,6 @@ function colorState(appearance, fallbackKind = "solid") {
 
 export function materialForAppearance(appearance) {
   if (appearance?.kind === "image") return "image";
-  if (appearance?.kind === "glass") return "glass";
   return "solid";
 }
 
@@ -23,23 +22,28 @@ export function appearanceForMaterial(appearance, material) {
     if (appearance?.kind === "image") return { ...appearance };
     return { kind: "image", imageRef: "", imageDim: 0.35 };
   }
-  if (material === "glass") {
-    if (!appearance?.kind || appearance.kind === "default" || appearance.kind === "image") {
-      return { kind: "glass", color: "#dbeafe", opacity: 0.18 };
-    }
-    const current = colorState(appearance, "glass");
-    return { ...current, kind: "glass" };
-  }
   const current = colorState(appearance, "solid");
   return { ...current, kind: "solid" };
 }
 
+export function rememberedImageAppearance(settings) {
+  const remembered = settings?.lastIslandImageAppearance;
+  if (remembered?.kind === "image" && typeof remembered.imageRef === "string" && remembered.imageRef.length > 0) {
+    return { ...remembered };
+  }
+  const active = settings?.islandAppearance;
+  if (active?.kind === "image" && typeof active.imageRef === "string" && active.imageRef.length > 0) {
+    return { ...active };
+  }
+  return null;
+}
+
 export function withAppearanceColor(appearance, color) {
-  const current = colorState(appearance, appearance?.kind === "glass" ? "glass" : "solid");
+  const current = colorState(appearance, "solid");
   return { ...current, color };
 }
 
 export function withAppearanceOpacity(appearance, opacity) {
-  const current = colorState(appearance, appearance?.kind === "glass" ? "glass" : "solid");
+  const current = colorState(appearance, "solid");
   return { ...current, opacity };
 }

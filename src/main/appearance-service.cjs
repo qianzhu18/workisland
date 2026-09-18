@@ -164,6 +164,26 @@ function createAppearanceService({ getUserDataPath }) {
       .filter(Boolean);
   }
 
+  function getMostRecentBackgroundImage() {
+    const dir = getBackgroundsDir();
+    if (!fs.existsSync(dir)) return null;
+    const recent = fs.readdirSync(dir, { withFileTypes: true })
+      .filter((entry) => entry.isFile() && ALLOWED_BACKGROUND_EXTENSIONS.has(path.extname(entry.name).toLowerCase()))
+      .flatMap((entry) => {
+        try {
+          return [{ imageRef: entry.name, modifiedAt: fs.statSync(path.join(dir, entry.name)).mtimeMs }];
+        } catch {
+          return [];
+        }
+      })
+      .sort((a, b) => b.modifiedAt - a.modifiedAt)[0];
+    if (!recent) return null;
+    return {
+      imageRef: recent.imageRef,
+      dataUrl: getBackgroundImageDataUrl(recent.imageRef)
+    };
+  }
+
   return {
     getBackgroundsDir,
     installBackgroundImage,
@@ -171,7 +191,8 @@ function createAppearanceService({ getUserDataPath }) {
     readBackgroundImagePreview,
     getBackgroundImageDataUrl,
     deleteBackgroundImage,
-    listBackgroundImages
+    listBackgroundImages,
+    getMostRecentBackgroundImage
   };
 }
 

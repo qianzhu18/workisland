@@ -68,7 +68,8 @@ const {
 // PRD-019 M2 adds session-search:query (171 -> 172); PR #36 re-adds four
 // island:dock* channels for the opt-in dock addon (172 -> 176).
 // Search jump v2 adds session-search:open-client (176 -> 177, 2026-09).
-assert.equal(Object.keys(IPC).length, 177, "IPC contract changed; review both main and preload consumers");
+// Remembered background migration adds appearance:get-recent-background-image (177 -> 178, 2026-09).
+assert.equal(Object.keys(IPC).length, 178, "IPC contract changed; review both main and preload consumers");
 assert.equal(listProductCapabilities({ platform: "darwin" }).length, 15, "MCP product catalog must stay explicit");
 assert.equal(diagnoseMcpSubject("performance-details-not-visible", { settings: {} }).subject, "performance-details-not-visible");
 assert.equal(IPC.APP_UPDATE_DOWNLOAD, "app:update-download");
@@ -77,6 +78,7 @@ assert.equal(IPC.APP_UPDATE_STATE, "app:update-state");
 assert.equal(new Set(Object.values(IPC)).size, Object.keys(IPC).length, "IPC channels must be unique");
 assert.ok(Object.isFrozen(IPC), "IPC contract must be immutable");
 assert.equal(IPC.APPEARANCE_GET_BACKGROUND_IMAGE, "appearance:get-background-image");
+assert.equal(IPC.APPEARANCE_GET_RECENT_BACKGROUND_IMAGE, "appearance:get-recent-background-image");
 assert.equal(IPC.TEMPLATE_GET_ACTIVE_STATUS_ASSETS, "template:get-active-status-assets");
 assert.equal(IPC.TEMPLATE_LIST, "template:list");
 assert.equal(IPC.PET_DRAG_TO_ISLAND, "pet:drag-to-island");

@@ -1334,9 +1334,23 @@ function createAppCoordinatorClass({
         try {
           const { appearance } = normalizeIslandAppearance(partial.islandAppearance);
           partial = { ...partial, islandAppearance: appearance };
+          if (appearance.kind === "image") {
+            partial.lastIslandImageAppearance = appearance;
+          }
         } catch (err) {
           log.warn("[AppCoordinator] rejected invalid islandAppearance:", err.message);
           const { islandAppearance, ...rest } = partial;
+          partial = rest;
+        }
+      }
+      if (partial && Object.prototype.hasOwnProperty.call(partial, "lastIslandImageAppearance")) {
+        try {
+          const { appearance } = normalizeIslandAppearance(partial.lastIslandImageAppearance);
+          if (appearance.kind !== "image") throw new Error("lastIslandImageAppearance must be an image");
+          partial = { ...partial, lastIslandImageAppearance: appearance };
+        } catch (err) {
+          log.warn("[AppCoordinator] rejected invalid lastIslandImageAppearance:", err.message);
+          const { lastIslandImageAppearance, ...rest } = partial;
           partial = rest;
         }
       }

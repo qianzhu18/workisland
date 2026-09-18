@@ -111,7 +111,7 @@ test("islandAppearanceToBackgroundCss compiles each kind", () => {
     "rgba(11,30,58,0.5)"
   );
   const glass = islandAppearanceToBackgroundCss({ kind: "glass", color: "#dbeafe", opacity: 0.2 });
-  assert.match(glass, /linear-gradient/);
+  assert.equal(glass, "rgba(219,234,254,0.2)");
   assert.match(glass, /rgba\(219,234,254,0\.2\)/);
   assert.equal(
     islandAppearanceToBackgroundCss({ kind: "gradient", color: "#1f1330", color2: "#0b0716", angle: 135, opacity: 1 }),
@@ -133,6 +133,35 @@ test("mergeSettings persists normalized appearance and falls back on corruption"
   assert.deepEqual(broken.islandAppearance, { ...DEFAULT_ISLAND_APPEARANCE });
   const fresh = mergeSettings({});
   assert.deepEqual(fresh.islandAppearance, { kind: "default" });
+  assert.deepEqual(mergeSettings({
+    islandAppearance: { kind: "glass", color: "#5385c6", opacity: 0.55 }
+  }).islandAppearance, {
+    kind: "solid",
+    color: "#5385c6",
+    opacity: 0.55
+  });
+});
+
+test("mergeSettings keeps the last valid image independently of the active background", () => {
+  const activeImage = mergeSettings({
+    islandAppearance: { kind: "image", imageRef: "bg-current.png", imageDim: 0.45 }
+  });
+  assert.deepEqual(activeImage.lastIslandImageAppearance, {
+    kind: "image",
+    imageRef: "bg-current.png",
+    imageDim: 0.45
+  });
+
+  const activeSolid = mergeSettings({
+    islandAppearance: { kind: "solid", color: "#123456", opacity: 1 },
+    lastIslandImageAppearance: { kind: "image", imageRef: "bg-remembered.png", imageDim: 0.65 }
+  });
+  assert.deepEqual(activeSolid.lastIslandImageAppearance, {
+    kind: "image",
+    imageRef: "bg-remembered.png",
+    imageDim: 0.65
+  });
+  assert.equal(mergeSettings({ lastIslandImageAppearance: { kind: "solid" } }).lastIslandImageAppearance, null);
 });
 
 // ── 精灵图几何 ────────────────────────────────────────────────────────────────

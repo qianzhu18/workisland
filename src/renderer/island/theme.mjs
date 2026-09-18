@@ -71,8 +71,7 @@ export function islandBackgroundCss(appearance, imageDataUrl) {
     if (first) {
       const firstColor = `rgba(${first.r},${first.g},${first.b},${opacity})`;
       if (theme.kind === "glass") {
-        const softOpacity = Math.round(opacity * 68) / 100;
-        return `linear-gradient(145deg, rgba(255,255,255,0.12), ${firstColor} 46%, rgba(${first.r},${first.g},${first.b},${softOpacity}))`;
+        return firstColor;
       }
       if (theme.kind === "solid") return firstColor;
       const second = hexToRgb(theme.color2);
