@@ -19,6 +19,7 @@ require.cache[electronId] = {
   exports: { app: { getPath: () => dir }, ipcMain: { on() {}, handle() {}, removeListener() {}, removeHandler() {} } }
 };
 
+const fsPromises = require("node:fs/promises");
 const { parseClaudeTokens, parseCodexTokens } = require("../src/main/adapters-extended.cjs");
 const write = (name, lines) => {
   const file = join(dir, name);
@@ -64,6 +65,19 @@ test("claude token parser returns null for an empty or unreadable transcript", a
   assert.equal(await parseClaudeTokens(join(dir, "does-not-exist.jsonl")), null);
 });
 
+test("claude token parser streams JSONL without reading the whole file", async (t) => {
+  const file = write("claude-streamed.jsonl", [
+    { type: "assistant", requestId: "r1", message: { model: "claude-x", usage: { input_tokens: 12, output_tokens: 4 } } },
+    "{ unfinished"
+  ]);
+  const originalReadFile = fsPromises.readFile;
+  fsPromises.readFile = async () => { throw new Error("whole-file reads are forbidden"); };
+  t.after(() => { fsPromises.readFile = originalReadFile; });
+
+  const result = await parseClaudeTokens(file);
+  assert.equal(result?.totalTokens, 16);
+});
+
 // ── Codex rollout ────────────────────────────────────────────────────────────
 test("codex token parser takes the last cumulative total and splits cached input out", async () => {
   const file = write("codex.jsonl", [
@@ -83,6 +97,23 @@ test("codex token parser takes the last cumulative total and splits cached input
 test("codex token parser returns null when the rollout carries no token_count", async () => {
   const file = write("codex-none.jsonl", [{ payload: { type: "thread_settings_applied", thread_settings: { model: "gpt-x" } } }]);
   assert.equal(await parseCodexTokens(file), null);
+});
+
+test("codex token parser streams JSONL without reading the whole file", async (t) => {
+  const file = write("codex-streamed.jsonl", [
+    { payload: { type: "thread_settings_applied", thread_settings: { model: "gpt-x" } } },
+    { payload: { type: "token_count", info: { total_token_usage: { input_tokens: 30, cached_input_tokens: 10, output_tokens: 5 } } } },
+    "{ unfinished"
+  ]);
+  const originalReadFile = fsPromises.readFile;
+  fsPromises.readFile = async () => { throw new Error("whole-file reads are forbidden"); };
+  t.after(() => { fsPromises.readFile = originalReadFile; });
+
+  const result = await parseCodexTokens(file);
+  assert.deepEqual(
+    { input: result?.inputTokens, cacheRead: result?.cacheReadTokens, output: result?.outputTokens, model: result?.model },
+    { input: 20, cacheRead: 10, output: 5, model: "gpt-x" }
+  );
 });
 
 // ── 重启基线（applyBaselineDiff 回落 getTokenTotals）─────────────────────────
