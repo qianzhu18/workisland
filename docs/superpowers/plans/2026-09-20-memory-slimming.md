@@ -228,7 +228,90 @@ git add tests/token-capture.test.mjs src/main/adapters-extended.cjs src/main/app
 git commit -m "perf(tokens): serialize startup backfill"
 ```
 
-### Task 3: Full verification and packaged A/B
+### Task 3: Stream historical-session search indexing
+
+**Files:**
+- Modify: `tests/session-search-service.test.mjs`
+- Modify: `src/main/session-search-service.cjs:15-160,360-468,803-842`
+
+- [ ] **Step 1: Write a failing service-level test**
+
+Create the existing fixture home, replace `fsp.readFile` only for `.jsonl` paths with an error, run `service.scan()`, and assert Claude/Codex results remain searchable. The old scanner catches the read errors and indexes nothing, so the assertions fail without crashing the suite.
+
+```js
+test("JSONL session indexing streams transcript files", async (t) => {
+  const fx = await makeFixtureHome();
+  const originalReadFile = fsp.readFile;
+  fsp.readFile = async (filePath, ...args) => {
+    if (String(filePath).endsWith(".jsonl")) throw new Error("whole-file transcript reads are forbidden");
+    return originalReadFile(filePath, ...args);
+  };
+  t.after(() => { fsp.readFile = originalReadFile; });
+
+  const service = createSessionSearchService({
+    homeDir: fx.homeDir,
+    indexDir: fx.indexDir,
+    watch: false,
+    runSqlite: makeZcodeRunSqlite({ sessions: fx.zcodeSessions, messagesBySession: fx.zcodeMessages })
+  });
+  t.after(() => service.dispose());
+
+  await service.scan();
+  assert.equal(service.search("飞书表格")[0]?.tool, "claude");
+  assert.equal(service.search("小红书技能")[0]?.tool, "codex");
+});
+```
+
+- [ ] **Step 2: Run the focused test and verify RED**
+
+```bash
+node --test --test-name-pattern='indexing streams transcript' tests/session-search-service.test.mjs
+```
+
+Expected: assertion failure because the old `readFile + split` scanner skips both JSONL files.
+
+- [ ] **Step 3: Introduce reusable line accumulators**
+
+Add `node:readline`. Refactor each exported array parser to use a small accumulator with `push(line)`, `done`, and `result()`; preserve the existing entry-selection, noise filtering, timestamp, title, ID, path, and 20,000-character cap rules. The existing `parseClaudeTranscript`, `parseCodexTranscript`, and `parseQoderTranscript` remain synchronous wrappers for their current callers and tests.
+
+Add the async file path:
+
+```js
+async function parseTranscriptFile(filePath, createParser) {
+  const input = fs.createReadStream(filePath, { encoding: "utf8" });
+  const lines = readline.createInterface({ input, crlfDelay: Infinity });
+  const parser = createParser();
+  try {
+    for await (const line of lines) {
+      if (parser.push(line)) break;
+    }
+    return parser.result();
+  } finally {
+    lines.close();
+    input.destroy();
+  }
+}
+```
+
+Change `scanJsonlSource` to accept `createParser`, call `parseTranscriptFile`, and pass the Claude/Codex/Qoder factories from `scan()`.
+
+- [ ] **Step 4: Verify search behavior and repository checks**
+
+```bash
+node --test tests/session-search-service.test.mjs
+npm run check
+```
+
+Expected: all search tests and all repository checks pass; fixture search results and persisted index behavior remain unchanged.
+
+- [ ] **Step 5: Commit independently**
+
+```bash
+git add tests/session-search-service.test.mjs src/main/session-search-service.cjs
+git commit -m "perf(search): stream transcript indexing"
+```
+
+### Task 4: Full verification and packaged A/B
 
 **Files:**
 - Read: `docs/superpowers/specs/2026-09-20-memory-slimming-design.md`
