@@ -27,7 +27,7 @@ const { initSoundDirs, playSoundEvent } = require("./sound-service.cjs");
 const { createAgentSoundDeduplicator, resolveCodexTranscriptSoundEvent } = require("./agent-sound-policy.cjs");
 const { pushBarkNotification } = require("./bark-push.cjs");
 const { shouldSuppressLocalAlert } = require("./quiet-hours.cjs");
-const { reportTokenUsage, getHermesCumulativeTokens, diffHermesCumulativeTokens, collectAndReportTokens } = require("./adapters-extended.cjs");
+const { reportTokenUsage, getHermesCumulativeTokens, diffHermesCumulativeTokens, collectAndReportTokens, runTokenBackfill } = require("./adapters-extended.cjs");
 const { UsageDiscoveryService } = require("./usage-discovery.cjs");
 const { getAgentDescriptor, validateAgentWiring } = require("../shared/agent-catalog.cjs");
 const { diagnoseReport } = require("../shared/agent-doctor.cjs");
@@ -666,11 +666,9 @@ function createAppCoordinatorClass({
         // applyBaselineDiff 用累计值差分，重复回填不会重复计数。
         setTimeout(() => {
           const tracked = this.codexTranscriptWatcher?.listTracked() ?? [];
-          for (const file of tracked) {
-            collectAndReportTokens("codex", file.sessionId, file.path).catch((err) => {
-              log.warn("[AppCoordinator] codex token backfill failed:", err?.message ?? err);
-            });
-          }
+          void runTokenBackfill(tracked, collectAndReportTokens, (err) => {
+            log.warn("[AppCoordinator] codex token backfill failed:", err?.message ?? err);
+          });
           if (tracked.length) log.info("[AppCoordinator] codex token backfill: %d file(s)", tracked.length);
         }, 5e3);
       } catch (err) {

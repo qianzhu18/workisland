@@ -20,7 +20,7 @@ require.cache[electronId] = {
 };
 
 const fsPromises = require("node:fs/promises");
-const { parseClaudeTokens, parseCodexTokens } = require("../src/main/adapters-extended.cjs");
+const { parseClaudeTokens, parseCodexTokens, runTokenBackfill } = require("../src/main/adapters-extended.cjs");
 const write = (name, lines) => {
   const file = join(dir, name);
   writeFileSync(file, lines.map((l) => (typeof l === "string" ? l : JSON.stringify(l))).join("\n"));
@@ -114,6 +114,46 @@ test("codex token parser streams JSONL without reading the whole file", async (t
     { input: result?.inputTokens, cacheRead: result?.cacheReadTokens, output: result?.outputTokens, model: result?.model },
     { input: 20, cacheRead: 10, output: 5, model: "gpt-x" }
   );
+});
+
+test("startup token backfill processes one transcript at a time", async () => {
+  assert.equal(typeof runTokenBackfill, "function", "runTokenBackfill must be exported");
+  let active = 0;
+  let maxActive = 0;
+  const order = [];
+  const files = [
+    { sessionId: "s1", path: "/tmp/one" },
+    { sessionId: "s2", path: "/tmp/two" },
+    { sessionId: "s3", path: "/tmp/three" }
+  ];
+
+  await runTokenBackfill(files, async (_tool, sessionId) => {
+    active += 1;
+    maxActive = Math.max(maxActive, active);
+    await new Promise((resolve) => setImmediate(resolve));
+    order.push(sessionId);
+    active -= 1;
+  });
+
+  assert.equal(maxActive, 1);
+  assert.deepEqual(order, ["s1", "s2", "s3"]);
+});
+
+test("startup token backfill continues after one transcript fails", async () => {
+  const completed = [];
+  const errors = [];
+  await assert.doesNotReject(
+    runTokenBackfill(
+      [{ sessionId: "bad", path: "/tmp/bad" }, { sessionId: "good", path: "/tmp/good" }],
+      async (_tool, sessionId) => {
+        if (sessionId === "bad") throw new Error("broken transcript");
+        completed.push(sessionId);
+      },
+      (error, file) => errors.push([error.message, file.sessionId])
+    )
+  );
+  assert.deepEqual(completed, ["good"]);
+  assert.deepEqual(errors, [["broken transcript", "bad"]]);
 });
 
 // ── 重启基线（applyBaselineDiff 回落 getTokenTotals）─────────────────────────

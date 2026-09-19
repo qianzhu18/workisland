@@ -317,6 +317,15 @@ async function parseCodexTokens(transcriptPath) {
     isEstimated: false
   };
 }
+async function runTokenBackfill(files, collect = collectAndReportTokens, onError = () => {}) {
+  for (const file of files) {
+    try {
+      await collect("codex", file.sessionId, file.path);
+    } catch (error) {
+      onError(error, file);
+    }
+  }
+}
 async function collectAndReportTokens(tool, sessionId, transcriptPath) {
   try {
     const dedupeKey = `${tool}:${sessionId}`;
@@ -2549,6 +2558,7 @@ function parseTraexPermissionMode(value) {
 }
 module.exports = {
   collectAndReportTokens,
+  runTokenBackfill,
   parseClaudeTokens,
   parseCodexTokens,
   GeminiAdapter,
