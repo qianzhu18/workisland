@@ -76,6 +76,25 @@ async function connectClient(t, socketPath) {
   return { client, getStderr: () => stderr };
 }
 
+function processIsAlive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    if (error?.code === "ESRCH") return false;
+    throw error;
+  }
+}
+
+async function waitForProcessExit(pid, timeoutMs = 2_500) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (!processIsAlive(pid)) return true;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  return !processIsAlive(pid);
+}
+
 test("package exposes the WorkIsland MCP stdio server", () => {
   assert.equal(packageJson.bin?.["workisland-mcp"], "src/island/workisland-mcp/index.mjs");
 });
@@ -108,6 +127,30 @@ test("MCP lists the exact safe tool surface and forwards every tool", async (t) 
   }
   assert.equal(getStderr(), "");
   assert.equal(fake.requests.every((request) => request.client.name === "Codex test"), true);
+});
+
+test("50 MCP client disconnects leave no WorkIsland MCP child processes", async (t) => {
+  const fake = await createFakeWorkIsland(t);
+  const observedPids = [];
+
+  for (let iteration = 0; iteration < 50; iteration += 1) {
+    const transport = new StdioClientTransport({
+      command: process.execPath,
+      args: [serverPath],
+      env: { ...process.env, FLUX_SOCKET_PATH: fake.socketPath, WORKISLAND_MCP_CLIENT: "Lifecycle test" },
+      stderr: "pipe"
+    });
+    const client = new Client({ name: "workisland-mcp-lifecycle-test", version: "1.0.0" });
+    await client.connect(transport);
+    assert.deepEqual((await client.listTools()).tools.map((tool) => tool.name).sort(), EXPECTED_TOOLS);
+    const pid = transport.pid;
+    assert.equal(Number.isInteger(pid) && pid > 0, true);
+    observedPids.push(pid);
+    await client.close();
+    assert.equal(await waitForProcessExit(pid), true, `MCP child ${pid} survived client close`);
+  }
+
+  assert.equal(observedPids.length, 50);
 });
 
 test("MCP returns an actionable tool error when WorkIsland is unavailable", async (t) => {

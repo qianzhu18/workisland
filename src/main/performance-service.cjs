@@ -124,6 +124,9 @@ class PerformanceService extends EventEmitter {
     osApi = os,
     execFile = execFileDefault,
     intervalMs = 2e3,
+    backgroundIntervalMs = 10e3,
+    setIntervalFn = setInterval,
+    clearIntervalFn = clearInterval,
     platform = process.platform,
     env = process.env,
     currentUid = typeof process.getuid === "function" ? process.getuid() : -1,
@@ -135,6 +138,9 @@ class PerformanceService extends EventEmitter {
     this.osApi = osApi;
     this.execFile = execFile;
     this.intervalMs = intervalMs;
+    this.backgroundIntervalMs = Math.max(intervalMs, backgroundIntervalMs);
+    this.setIntervalFn = setIntervalFn;
+    this.clearIntervalFn = clearIntervalFn;
     this.platform = platform;
     this.env = { ...env };
     this.currentUid = currentUid;
@@ -144,6 +150,7 @@ class PerformanceService extends EventEmitter {
     this.enabled = true;
     this.detailsVisible = false;
     this.detailsRequestId = 0;
+    this.running = false;
     this.timer = null;
     this.previousCpus = osApi.cpus();
     this.previousWindowsProcesses = new Map();
@@ -158,14 +165,24 @@ class PerformanceService extends EventEmitter {
   }
 
   start() {
-    if (!this.enabled || this.timer) return;
+    if (!this.enabled || this.running) return;
+    this.running = true;
     void this.sample();
-    this.timer = setInterval(() => void this.sample(), this.intervalMs);
+    this.scheduleTimer();
+  }
+
+  scheduleTimer() {
+    if (this.timer) this.clearIntervalFn(this.timer);
+    this.timer = null;
+    if (!this.running || !this.enabled) return;
+    const delay = this.detailsVisible ? this.intervalMs : this.backgroundIntervalMs;
+    this.timer = this.setIntervalFn(() => void this.sample(), delay);
     this.timer.unref?.();
   }
 
   stop() {
-    if (this.timer) clearInterval(this.timer);
+    this.running = false;
+    if (this.timer) this.clearIntervalFn(this.timer);
     this.timer = null;
   }
 
@@ -188,6 +205,7 @@ class PerformanceService extends EventEmitter {
     };
     this.emit("update", this.state);
     if (this.detailsVisible) void this.sample();
+    if (this.running) this.scheduleTimer();
   }
 
   getSnapshot() { return this.state; }

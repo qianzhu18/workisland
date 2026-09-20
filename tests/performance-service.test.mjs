@@ -53,6 +53,43 @@ function processActionService({ command = "/Applications/Safari.app/Contents/Mac
   return { service, signals, refreshed: () => refreshed };
 }
 
+test("performance sampling uses a slow hidden cadence and a fast visible cadence", () => {
+  const scheduled = [];
+  const cleared = [];
+  let nextTimerId = 1;
+  let samples = 0;
+  const service = new PerformanceService({
+    intervalMs: 2_000,
+    backgroundIntervalMs: 10_000,
+    setIntervalFn(callback, delay) {
+      const timer = { id: nextTimerId++, callback, delay, unref() {} };
+      scheduled.push(timer);
+      return timer;
+    },
+    clearIntervalFn(timer) {
+      cleared.push(timer.id);
+    }
+  });
+  service.sample = async () => { samples += 1; };
+
+  service.start();
+  assert.equal(samples, 1);
+  assert.equal(scheduled.at(-1).delay, 10_000);
+
+  service.setDetailsVisible(true);
+  assert.equal(samples, 2, "opening details samples immediately");
+  assert.deepEqual(cleared, [1]);
+  assert.equal(scheduled.at(-1).delay, 2_000);
+
+  service.setDetailsVisible(false);
+  assert.equal(samples, 2, "hiding details does not force an extra sample");
+  assert.deepEqual(cleared, [1, 2]);
+  assert.equal(scheduled.at(-1).delay, 10_000);
+
+  service.stop();
+  assert.deepEqual(cleared, [1, 2, 3]);
+});
+
 test("performance service sends TERM and KILL only to the sampled owned process", async () => {
   const command = "/Applications/Safari.app/Contents/MacOS/Safari";
   const sampled = parseProcessRows(`321 501 50.0 2.0 4096 ${command}`, { currentUid: 501 })[0];

@@ -70,6 +70,10 @@
       "output": "release"
     },
     "asar": true,
+    "electronLanguages": [
+      "en",
+      "zh_CN"
+    ],
     "npmRebuild": false,
     "asarUnpack": [
       "resources/bin/panel_fix.node",
@@ -77,7 +81,8 @@
     ],
     "files": [
       "src/**/*",
-      "resources/**/*",
+      "resources/icon.png",
+      "resources/bin/panel_fix.node",
       "package.json",
       "LICENSE",
       "NOTICE",
