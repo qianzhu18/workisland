@@ -1,6 +1,6 @@
 # WorkIsland 第一阶段内存瘦身设计
 
-日期：2026-09-20  
+日期：2026-09-20
 关联 Issue：[#185](https://github.com/qianzhu18/workisland/issues/185)
 
 ## 目标
