@@ -8,6 +8,10 @@ const pkg = JSON.parse(fs.readFileSync(new URL("package.json", root), "utf8"));
 test("the packaged app contains executable CLI and MCP entrypoints", () => {
   assert.equal(pkg.build.asar, true);
   assert.ok(pkg.build.files.includes("src/**/*"));
+  assert.deepEqual(pkg.build.electronLanguages, ["en", "zh_CN"]);
+  assert.equal(pkg.build.files.includes("resources/**/*"), false);
+  assert.equal(pkg.build.files.includes("resources/icon.png"), true);
+  assert.equal(pkg.build.files.includes("resources/bin/panel_fix.node"), true);
   assert.equal(pkg.bin.workisland, "src/island/workisland-cli/index.cjs");
   assert.equal(pkg.bin["workisland-mcp"], "src/island/workisland-mcp/index.mjs");
   for (const entry of Object.values(pkg.bin)) {
@@ -19,6 +23,27 @@ test("the packaged app contains executable CLI and MCP entrypoints", () => {
   }
   assert.match(pkg.dependencies["@modelcontextprotocol/server"], /^\^2/);
   assert.match(pkg.dependencies.zod, /^\^4/);
+});
+
+test("runtime resources stay outside app.asar without losing packaged features", () => {
+  const packagedResources = new Set(pkg.build.extraResources.map((entry) => entry.from));
+  for (const required of [
+    "resources/sounds",
+    "resources/pet-sprites",
+    "resources/templates",
+    "resources/skills",
+    "resources/bin/flux-hooks",
+    "resources/bin/workisland-cli",
+    "docs/AI-CUSTOMIZATION.md",
+    "resources/mediaremote-adapter",
+    "resources/scripts/collect-logs.sh",
+    "resources/scripts/collect-logs.ps1",
+    "resources/scripts/media-session.ps1",
+    "resources/dsh-workisland-bridge",
+    "resources/remote"
+  ]) {
+    assert.equal(packagedResources.has(required), true, `missing packaged runtime resource: ${required}`);
+  }
 });
 
 test("the MCP adapter cannot bypass the local main-process policy boundary", () => {
