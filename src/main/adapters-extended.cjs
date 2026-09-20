@@ -5,6 +5,7 @@ const path = require("node:path");
 const os = require("node:os");
 const crypto = require("node:crypto");
 const child_process = require("node:child_process");
+const readline = require("node:readline");
 const promises = require("node:fs/promises");
 const log = require("electron-log");
 const fs__namespace = fs;
@@ -227,19 +228,24 @@ function reportTokenUsage(tool, sessionId, result, remote) {
   );
   getStatsService().recordToken(tool, sessionId, result.inputTokens, result.outputTokens, result.cacheReadTokens ?? 0, result.cacheCreationTokens ?? 0, remote, result.model);
 }
+async function* readJsonLines(filePath) {
+  const input = fs.createReadStream(filePath, { encoding: "utf8" });
+  const lines = readline.createInterface({ input, crlfDelay: Infinity });
+  for await (const line of lines) {
+    if (!line) continue;
+    try {
+      yield JSON.parse(line);
+    } catch {
+      // Transcript files may be observed while their final line is still being written.
+    }
+  }
+}
 /**
  * 从 Claude Code transcript 累加 token 用量。
  * 每条 assistant 消息带 message.usage（input/output/cache_read/cache_creation），
  * 全量累加得到会话累计值，交给 applyBaselineDiff 转成增量再入账。
  */
 async function parseClaudeTokens(transcriptPath) {
-  let content;
-  try {
-    content = await promises.readFile(transcriptPath, "utf-8");
-  } catch (err) {
-    log.warn("[claudeTokens] readFile failed for %s:", transcriptPath, err);
-    return null;
-  }
   let input = 0;
   let output = 0;
   let cacheRead = 0;
@@ -247,26 +253,24 @@ async function parseClaudeTokens(transcriptPath) {
   let model;
   // 同一次请求可能因流式写入出现多条记录，按 requestId 去重。
   const seenRequestIds = new Set();
-  for (const line of content.split("\n")) {
-    if (!line) continue;
-    let item;
-    try {
-      item = JSON.parse(line);
-    } catch {
-      continue;
+  try {
+    for await (const item of readJsonLines(transcriptPath)) {
+      const u = item?.message?.usage;
+      if (item?.type !== "assistant" || !u) continue;
+      const requestId = item.requestId ?? item.message?.request_id ?? u.request_id;
+      if (requestId) {
+        if (seenRequestIds.has(requestId)) continue;
+        seenRequestIds.add(requestId);
+      }
+      input += u.input_tokens ?? 0;
+      output += u.output_tokens ?? 0;
+      cacheRead += u.cache_read_input_tokens ?? 0;
+      cacheCreation += u.cache_creation_input_tokens ?? 0;
+      if (item.message.model) model = item.message.model;
     }
-    const u = item?.message?.usage;
-    if (item?.type !== "assistant" || !u) continue;
-    const requestId = item.requestId ?? item.message?.request_id ?? u.request_id;
-    if (requestId) {
-      if (seenRequestIds.has(requestId)) continue;
-      seenRequestIds.add(requestId);
-    }
-    input += u.input_tokens ?? 0;
-    output += u.output_tokens ?? 0;
-    cacheRead += u.cache_read_input_tokens ?? 0;
-    cacheCreation += u.cache_creation_input_tokens ?? 0;
-    if (item.message.model) model = item.message.model;
+  } catch (err) {
+    log.warn("[claudeTokens] stream failed for %s:", transcriptPath, err);
+    return null;
   }
   if (input === 0 && output === 0) return null;
   return {
@@ -285,27 +289,18 @@ async function parseClaudeTokens(transcriptPath) {
  * input_tokens 含缓存部分，拆开与其他工具的口径对齐。
  */
 async function parseCodexTokens(transcriptPath) {
-  let content;
-  try {
-    content = await promises.readFile(transcriptPath, "utf-8");
-  } catch (err) {
-    log.warn("[codexTokens] readFile failed for %s:", transcriptPath, err);
-    return null;
-  }
   let usage = null;
   let model;
-  for (const line of content.split("\n")) {
-    if (!line) continue;
-    let item;
-    try {
-      item = JSON.parse(line);
-    } catch {
-      continue;
+  try {
+    for await (const item of readJsonLines(transcriptPath)) {
+      const p = item?.payload;
+      if (!p) continue;
+      if (p.type === "token_count" && p.info?.total_token_usage) usage = p.info.total_token_usage;
+      if (p.type === "thread_settings_applied" && p.thread_settings?.model) model = p.thread_settings.model;
     }
-    const p = item?.payload;
-    if (!p) continue;
-    if (p.type === "token_count" && p.info?.total_token_usage) usage = p.info.total_token_usage;
-    if (p.type === "thread_settings_applied" && p.thread_settings?.model) model = p.thread_settings.model;
+  } catch (err) {
+    log.warn("[codexTokens] stream failed for %s:", transcriptPath, err);
+    return null;
   }
   if (!usage) return null;
   const cached = usage.cached_input_tokens ?? 0;
@@ -321,6 +316,15 @@ async function parseCodexTokens(transcriptPath) {
     model,
     isEstimated: false
   };
+}
+async function runTokenBackfill(files, collect = collectAndReportTokens, onError = () => {}) {
+  for (const file of files) {
+    try {
+      await collect("codex", file.sessionId, file.path);
+    } catch (error) {
+      onError(error, file);
+    }
+  }
 }
 async function collectAndReportTokens(tool, sessionId, transcriptPath) {
   try {
@@ -2554,6 +2558,7 @@ function parseTraexPermissionMode(value) {
 }
 module.exports = {
   collectAndReportTokens,
+  runTokenBackfill,
   parseClaudeTokens,
   parseCodexTokens,
   GeminiAdapter,

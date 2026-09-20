@@ -1,6 +1,19 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { buildResumeCommand, buildFallbackCopyText, searchResultAction } from "../src/renderer/island/components/search-jump.mjs";
+
+const searchPaneSource = readFileSync(
+  new URL("../src/renderer/island/components/SessionSearchPane.js", import.meta.url),
+  "utf8"
+);
+
+test("search results import the resume-command helper they call while rendering", () => {
+  assert.match(
+    searchPaneSource,
+    /import\s*\{[^}]*\bbuildResumeCommand\b[^}]*\}\s*from\s*["']\.\/search-jump\.mjs["']/
+  );
+});
 
 test("claude/codex results build resume commands; others fall back to project path", () => {
   assert.equal(

@@ -196,6 +196,28 @@ async function makeFixtureHome() {
   return { homeDir, indexDir, claudeDir, codexDir, zcodeSessions, zcodeMessages };
 }
 
+test("JSONL session indexing streams transcript files", async (t) => {
+  const fx = await makeFixtureHome();
+  const originalReadFile = fsp.readFile;
+  fsp.readFile = async (filePath, ...args) => {
+    if (String(filePath).endsWith(".jsonl")) throw new Error("whole-file transcript reads are forbidden");
+    return originalReadFile(filePath, ...args);
+  };
+  t.after(() => { fsp.readFile = originalReadFile; });
+
+  const service = createSessionSearchService({
+    homeDir: fx.homeDir,
+    indexDir: fx.indexDir,
+    watch: false,
+    runSqlite: makeZcodeRunSqlite({ sessions: fx.zcodeSessions, messagesBySession: fx.zcodeMessages })
+  });
+  t.after(() => service.dispose());
+
+  await service.scan();
+  assert.equal(service.search("飞书表格")[0]?.tool, "claude");
+  assert.equal(service.search("小红书技能")[0]?.tool, "codex");
+});
+
 test("service indexes three sources and answers fuzzy multi-keyword search", async () => {
   const fx = await makeFixtureHome();
   const service = createSessionSearchService({
