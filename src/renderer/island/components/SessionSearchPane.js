@@ -1,7 +1,7 @@
 import { R as React } from "../../vendor/react-runtime.js";
 import { t } from "../../shared/i18n.js";
 import { A as AGENT_TOOL_LABELS } from "../../shared/settings.js";
-import { CLIENT_TOOLS } from "./search-jump.mjs";
+import { buildResumeCommand, CLIENT_TOOLS } from "./search-jump.mjs";
 
 function toolLabel(tool) {
   if (tool === "qoder") return t("agent.qoder.label");
