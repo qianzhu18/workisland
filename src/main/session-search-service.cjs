@@ -17,6 +17,7 @@ const fs = require("node:fs");
 const fsp = fs.promises;
 const os = require("node:os");
 const path = require("node:path");
+const readline = require("node:readline");
 const util = require("node:util");
 const childProcess = require("node:child_process");
 
@@ -62,46 +63,85 @@ function textFromClaudeContent(content) {
   return parts.join("\n");
 }
 
-function parseClaudeTranscript(lines) {
+function parseJsonLine(line) {
+  if (!line) return null;
+  try {
+    const entry = JSON.parse(line);
+    return entry && typeof entry === "object" ? entry : null;
+  } catch {
+    return null;
+  }
+}
+
+function parseTranscriptLines(lines, createParser) {
+  const parser = createParser();
+  for (const line of lines) {
+    if (parser.push(line)) break;
+  }
+  return parser.result();
+}
+
+async function parseTranscriptFile(filePath, createParser) {
+  const input = fs.createReadStream(filePath, { encoding: "utf8" });
+  const lines = readline.createInterface({ input, crlfDelay: Infinity });
+  const parser = createParser();
+  try {
+    for await (const line of lines) {
+      if (parser.push(line)) break;
+    }
+    return parser.result();
+  } finally {
+    lines.close();
+    input.destroy();
+  }
+}
+
+function createClaudeTranscriptParser() {
   let projectPath = "";
   let title = "";
   let updatedAtMs = 0;
   const texts = [];
+  let textLength = 0;
   let sessionId = "";
-  for (const line of lines) {
-    if (!line) continue;
-    let entry;
-    try {
-      entry = JSON.parse(line);
-    } catch {
-      continue;
-    }
-    if (!entry || typeof entry !== "object") continue;
-    if (!sessionId && typeof entry.sessionId === "string") sessionId = entry.sessionId;
-    const type = entry.type;
-    if (type === "ai-title") {
-      if (typeof entry.aiTitle === "string" && entry.aiTitle) title = entry.aiTitle;
-      continue;
-    }
-    if (type === "summary") {
-      if (!title && typeof entry.summary === "string") title = entry.summary;
-      continue;
-    }
-    if (type !== "user" || entry.isMeta) continue;
-    if (!projectPath && typeof entry.cwd === "string" && entry.cwd) projectPath = entry.cwd;
-    const ts = toTimestampMs(entry.timestamp);
-    if (ts > updatedAtMs) updatedAtMs = ts;
-    const text = clampText(textFromClaudeContent(entry.message && entry.message.content), SESSION_TEXT_CAP);
-    if (text) texts.push(text);
-    if (texts.join("\n").length >= SESSION_TEXT_CAP) break;
-  }
   return {
-    id: sessionId,
-    projectPath,
-    title: clampText(title, 200),
-    text: clampText(texts.join("\n")),
-    updatedAt: updatedAtMs
+    push(line) {
+      const entry = parseJsonLine(line);
+      if (!entry) return false;
+      if (!sessionId && typeof entry.sessionId === "string") sessionId = entry.sessionId;
+      const type = entry.type;
+      if (type === "ai-title") {
+        if (typeof entry.aiTitle === "string" && entry.aiTitle) title = entry.aiTitle;
+        return false;
+      }
+      if (type === "summary") {
+        if (!title && typeof entry.summary === "string") title = entry.summary;
+        return false;
+      }
+      if (type !== "user" || entry.isMeta) return false;
+      if (!projectPath && typeof entry.cwd === "string" && entry.cwd) projectPath = entry.cwd;
+      const ts = toTimestampMs(entry.timestamp);
+      if (ts > updatedAtMs) updatedAtMs = ts;
+      const text = clampText(textFromClaudeContent(entry.message && entry.message.content), SESSION_TEXT_CAP);
+      if (text) {
+        textLength += (texts.length ? 1 : 0) + text.length;
+        texts.push(text);
+      }
+      return textLength >= SESSION_TEXT_CAP;
+    },
+    result() {
+      return {
+        id: sessionId,
+        projectPath,
+        title: clampText(title, 200),
+        text: clampText(texts.join("\n")),
+        updatedAt: updatedAtMs
+      };
+    }
   };
+}
+
+function parseClaudeTranscript(lines) {
+  return parseTranscriptLines(lines, createClaudeTranscriptParser);
 }
 
 // ── codex：rollout 文件（session_meta + event_msg/response_item）────────────
@@ -120,52 +160,60 @@ function textFromCodexContentItems(items) {
   return parts.join("\n");
 }
 
-function parseCodexTranscript(lines) {
+function createCodexTranscriptParser() {
   let projectPath = "";
   let id = "";
   let updatedAtMs = 0;
   const texts = [];
-  for (const line of lines) {
-    if (!line) continue;
-    let entry;
-    try {
-      entry = JSON.parse(line);
-    } catch {
-      continue;
-    }
-    if (!entry || typeof entry !== "object") continue;
-    const type = entry.type;
-    const payload = entry.payload && typeof entry.payload === "object" ? entry.payload : {};
-    if (type === "session_meta") {
-      if (!id && typeof payload.id === "string") id = payload.id;
-      if (!projectPath && typeof payload.cwd === "string") projectPath = payload.cwd;
-      const ts = toTimestampMs(payload.timestamp);
-      if (ts > updatedAtMs) updatedAtMs = ts;
-      continue;
-    }
-    if (type === "event_msg" && payload.type === "user_message") {
-      const raw = typeof payload.message === "string" ? payload.message : typeof payload.text === "string" ? payload.text : "";
-      if (raw && !isCodexNoise(raw)) {
-        texts.push(clampText(raw, SESSION_TEXT_CAP));
-        const ts = toTimestampMs(entry.timestamp);
-        if (ts > updatedAtMs) updatedAtMs = ts;
-      }
-      continue;
-    }
-    // 老格式兜底：response_item 里的 user message（content 为 input_text 数组）
-    if (type === "response_item" && payload.type === "message" && payload.role === "user") {
-      const raw = clampText(textFromCodexContentItems(payload.content), SESSION_TEXT_CAP);
-      if (raw && !isCodexNoise(raw)) texts.push(raw);
-    }
-    if (texts.join("\n").length >= SESSION_TEXT_CAP) break;
-  }
+  let textLength = 0;
   return {
-    id,
-    projectPath,
-    title: "",
-    text: clampText(texts.join("\n")),
-    updatedAt: updatedAtMs
+    push(line) {
+      const entry = parseJsonLine(line);
+      if (!entry) return false;
+      const type = entry.type;
+      const payload = entry.payload && typeof entry.payload === "object" ? entry.payload : {};
+      if (type === "session_meta") {
+        if (!id && typeof payload.id === "string") id = payload.id;
+        if (!projectPath && typeof payload.cwd === "string") projectPath = payload.cwd;
+        const ts = toTimestampMs(payload.timestamp);
+        if (ts > updatedAtMs) updatedAtMs = ts;
+        return false;
+      }
+      if (type === "event_msg" && payload.type === "user_message") {
+        const raw = typeof payload.message === "string" ? payload.message : typeof payload.text === "string" ? payload.text : "";
+        if (raw && !isCodexNoise(raw)) {
+          const text = clampText(raw, SESSION_TEXT_CAP);
+          textLength += (texts.length ? 1 : 0) + text.length;
+          texts.push(text);
+          const ts = toTimestampMs(entry.timestamp);
+          if (ts > updatedAtMs) updatedAtMs = ts;
+        }
+        return textLength >= SESSION_TEXT_CAP;
+      }
+      // 老格式兜底：response_item 里的 user message（content 为 input_text 数组）
+      if (type === "response_item" && payload.type === "message" && payload.role === "user") {
+        const raw = clampText(textFromCodexContentItems(payload.content), SESSION_TEXT_CAP);
+        if (raw && !isCodexNoise(raw)) {
+          textLength += (texts.length ? 1 : 0) + raw.length;
+          texts.push(raw);
+        }
+      }
+      return textLength >= SESSION_TEXT_CAP;
+    },
+    result() {
+      return {
+        id,
+        projectPath,
+        title: "",
+        text: clampText(texts.join("\n")),
+        updatedAt: updatedAtMs
+      };
+    }
   };
+}
+
+function parseCodexTranscript(lines) {
+  return parseTranscriptLines(lines, createCodexTranscriptParser);
 }
 
 // ── zcode：sqlite3 列表模式行解析 + message.data JSON 抽取 ──────────────────
@@ -357,7 +405,7 @@ function createSessionSearchService({
   }
 
   // 通用 JSONL 文件扫描：cursor 未变跳过，变了就整文件重解析并 upsert
-  async function scanJsonlSource({ source, roots, parseTranscript }) {
+  async function scanJsonlSource({ source, roots, createParser }) {
     let seenPaths = new Set();
     let scanned = 0;
     const candidateFiles = [];
@@ -446,13 +494,12 @@ function createSessionSearchService({
     }
 
     for (const { filePath, stat } of changedFiles) {
-      let content;
+      let parsed;
       try {
-        content = await fsp.readFile(filePath, "utf-8");
+        parsed = await parseTranscriptFile(filePath, createParser);
       } catch {
         continue;
       }
-      const parsed = parseTranscript(content.split("\n"));
       const key = recordKeyForFile(source, filePath, parsed);
       if (parsed.text || parsed.title || parsed.projectPath) {
         upsertRecord({
@@ -641,7 +688,7 @@ function createSessionSearchService({
         summary.claude = await scanJsonlSource({
           source: "claude",
           roots: [claudeRoot],
-          parseTranscript: parseClaudeTranscript
+          createParser: createClaudeTranscriptParser
         });
       } catch (err) {
         logger.warn?.("[SessionSearch] claude scan failed:", err && err.message);
@@ -651,7 +698,7 @@ function createSessionSearchService({
         summary.codex = await scanJsonlSource({
           source: "codex",
           roots: [codexRoot],
-          parseTranscript: parseCodexTranscript
+          createParser: createCodexTranscriptParser
         });
       } catch (err) {
         logger.warn?.("[SessionSearch] codex scan failed:", err && err.message);
@@ -661,7 +708,7 @@ function createSessionSearchService({
         summary.qoder = await scanJsonlSource({
           source: "qoder",
           roots: [qoderRoot],
-          parseTranscript: parseQoderTranscript
+          createParser: createQoderTranscriptParser
         });
       } catch (err) {
         logger.warn?.("[SessionSearch] qoder scan failed:", err && err.message);
@@ -800,42 +847,48 @@ function createSessionSearchService({
 }
 
 // 千问办公（Qoder CLI）：session_meta 与 user 行的 id/cwd 在顶层（非 payload）。
-function parseQoderTranscript(lines) {
+function createQoderTranscriptParser() {
   let projectPath = "";
   let id = "";
   let updatedAtMs = 0;
   const texts = [];
-  for (const line of lines) {
-    if (!line) continue;
-    let entry;
-    try {
-      entry = JSON.parse(line);
-    } catch {
-      continue;
-    }
-    if (!entry || typeof entry !== "object") continue;
-    const type = entry.type;
-    if (type === "session_meta") {
-      if (!id && typeof entry.sessionId === "string") id = entry.sessionId;
-      if (!projectPath && typeof entry.cwd === "string" && entry.cwd) projectPath = entry.cwd;
+  let textLength = 0;
+  return {
+    push(line) {
+      const entry = parseJsonLine(line);
+      if (!entry) return false;
+      const type = entry.type;
+      if (type === "session_meta") {
+        if (!id && typeof entry.sessionId === "string") id = entry.sessionId;
+        if (!projectPath && typeof entry.cwd === "string" && entry.cwd) projectPath = entry.cwd;
+        const ts = toTimestampMs(entry.timestamp);
+        if (ts > updatedAtMs) updatedAtMs = ts;
+        return false;
+      }
+      if (type !== "user") return false;
       const ts = toTimestampMs(entry.timestamp);
       if (ts > updatedAtMs) updatedAtMs = ts;
-      continue;
+      const text = clampText(textFromClaudeContent(entry.message && entry.message.content), SESSION_TEXT_CAP);
+      if (text) {
+        textLength += (texts.length ? 1 : 0) + text.length;
+        texts.push(text);
+      }
+      return textLength >= SESSION_TEXT_CAP;
+    },
+    result() {
+      return {
+        id,
+        projectPath,
+        title: "",
+        text: texts.join("\n"),
+        updatedAt: updatedAtMs
+      };
     }
-    if (type !== "user") continue;
-    const ts = toTimestampMs(entry.timestamp);
-    if (ts > updatedAtMs) updatedAtMs = ts;
-    const text = clampText(textFromClaudeContent(entry.message && entry.message.content), SESSION_TEXT_CAP);
-    if (text) texts.push(text);
-    if (texts.join("\n").length >= SESSION_TEXT_CAP) break;
-  }
-  return {
-    id,
-    projectPath,
-    title: "",
-    text: texts.join("\n"),
-    updatedAt: updatedAtMs
   };
+}
+
+function parseQoderTranscript(lines) {
+  return parseTranscriptLines(lines, createQoderTranscriptParser);
 }
 
 // OpenCode / DuMate：用户提问正文存放在 part 表的 {"type":"text","text":...} 分片。
