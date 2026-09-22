@@ -54,11 +54,17 @@ const CODEX_REQUEST_HEADING = /^#{1,6}\s*My request for Codex:\s*$/im;
  * @property {boolean} turnRunning        最近一次 turn 是否还在跑
  * @property {string=} activeTurnId
  * @property {boolean} lastTurnCompleted
+ * @property {Buffer=} pendingLineBytes
  */
 
 class CodexTranscriptWatcher extends EventEmitter {
-  constructor() {
+  constructor(options = {}) {
     super();
+    this.fs = options.fsModule || fs;
+    this.incrementChunkBytes = Math.max(
+      1,
+      Number(options.incrementChunkBytes) || 256 * 1024
+    );
     /** @type {Map<string, TrackedFile>} */
     this.files = new Map();
     /** @type {ReturnType<typeof setInterval> | null} */
@@ -226,9 +232,10 @@ class CodexTranscriptWatcher extends EventEmitter {
   }
 
   readIncrement(file) {
+    const fileSystem = this.fs;
     let stat;
     try {
-      stat = fs.statSync(file.path);
+      stat = fileSystem.statSync(file.path);
     } catch {
       return;
     }
@@ -236,23 +243,47 @@ class CodexTranscriptWatcher extends EventEmitter {
     if (stat.size < file.lastReadSize) {
       // 文件被截断（兜底）
       file.lastReadSize = 0;
+      file.pendingLineBytes = Buffer.alloc(0);
     }
-    const fd = fs.openSync(file.path, "r");
+    const fd = fileSystem.openSync(file.path, "r");
     try {
-      const len = stat.size - file.lastReadSize;
-      const buf = Buffer.alloc(len);
-      fs.readSync(fd, buf, 0, len, file.lastReadSize);
-      file.lastReadSize = stat.size;
-      const text = buf.toString("utf8");
-      const lines = text.split("\n");
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (!line) continue;
-        if (!line.startsWith("{")) continue;
-        this.processLine(file, line);
+      let position = file.lastReadSize;
+      let pending = Buffer.isBuffer(file.pendingLineBytes)
+        ? file.pendingLineBytes
+        : Buffer.alloc(0);
+      while (position < stat.size) {
+        const length = Math.min(this.incrementChunkBytes, stat.size - position);
+        const chunk = Buffer.allocUnsafe(length);
+        const bytesRead = fileSystem.readSync(
+          fd,
+          chunk,
+          0,
+          length,
+          position
+        );
+        if (bytesRead <= 0) break;
+        position += bytesRead;
+        file.lastReadSize = position;
+
+        const bytes = pending.length > 0
+          ? Buffer.concat([pending, chunk.subarray(0, bytesRead)])
+          : chunk.subarray(0, bytesRead);
+        let lineStart = 0;
+        let newlineAt = bytes.indexOf(0x0a, lineStart);
+        while (newlineAt !== -1) {
+          const line = bytes
+            .subarray(lineStart, newlineAt)
+            .toString("utf8")
+            .trim();
+          if (line.startsWith("{")) this.processLine(file, line);
+          lineStart = newlineAt + 1;
+          newlineAt = bytes.indexOf(0x0a, lineStart);
+        }
+        pending = Buffer.from(bytes.subarray(lineStart));
       }
+      file.pendingLineBytes = pending;
     } finally {
-      fs.closeSync(fd);
+      fileSystem.closeSync(fd);
     }
   }
 
