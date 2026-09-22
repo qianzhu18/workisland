@@ -330,9 +330,6 @@ async function runTokenBackfill(files, collect = collectAndReportTokens, onError
 }
 function collectAndReportTokens(tool, sessionId, transcriptPath) {
   const dedupeKey = `${tool}:${sessionId}`;
-  if (tokenCollectionFlights.has(dedupeKey)) {
-    log.debug("[TokenCollector] 合并进行中的采集 %s", dedupeKey);
-  }
   return tokenCollectionFlights.run(dedupeKey, () =>
     collectAndReportTokensOnce(tool, sessionId, transcriptPath)
   );
