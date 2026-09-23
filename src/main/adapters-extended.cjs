@@ -8,6 +8,7 @@ const child_process = require("node:child_process");
 const readline = require("node:readline");
 const promises = require("node:fs/promises");
 const log = require("electron-log");
+const { KeyedSingleFlight } = require("./keyed-single-flight.cjs");
 const fs__namespace = fs;
 const path__namespace = path;
 const { i18n } = require("./i18n.cjs");
@@ -147,6 +148,7 @@ function diffHermesCumulativeTokens(cumulative, accounted) {
 const { getStatsService } = require("./stats-service.cjs");
 const lastReportedAt = /* @__PURE__ */ new Map();
 const accountedTokens = /* @__PURE__ */ new Map();
+const tokenCollectionFlights = new KeyedSingleFlight();
 function applyBaselineDiff(dedupeKey, cumulative) {
   let baseline = accountedTokens.get(dedupeKey);
   if (!baseline) {
@@ -326,7 +328,13 @@ async function runTokenBackfill(files, collect = collectAndReportTokens, onError
     }
   }
 }
-async function collectAndReportTokens(tool, sessionId, transcriptPath) {
+function collectAndReportTokens(tool, sessionId, transcriptPath) {
+  const dedupeKey = `${tool}:${sessionId}`;
+  return tokenCollectionFlights.run(dedupeKey, () =>
+    collectAndReportTokensOnce(tool, sessionId, transcriptPath)
+  );
+}
+async function collectAndReportTokensOnce(tool, sessionId, transcriptPath) {
   try {
     const dedupeKey = `${tool}:${sessionId}`;
     const now = Date.now();

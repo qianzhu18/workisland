@@ -116,6 +116,27 @@ test("codex token parser streams JSONL without reading the whole file", async (t
   );
 });
 
+test("100 concurrent collections of one session open its transcript once", async (t) => {
+  const file = write("codex-single-flight.jsonl", [
+    { payload: { type: "token_count", info: { total_token_usage: { input_tokens: 30, cached_input_tokens: 10, output_tokens: 5 } } } }
+  ]);
+  const fs = require("node:fs");
+  const originalCreateReadStream = fs.createReadStream;
+  let readCount = 0;
+  fs.createReadStream = (...args) => {
+    readCount += 1;
+    return originalCreateReadStream(...args);
+  };
+  t.after(() => { fs.createReadStream = originalCreateReadStream; });
+
+  const { collectAndReportTokens } = require("../src/main/adapters-extended.cjs");
+  await Promise.all(Array.from({ length: 100 }, () =>
+    collectAndReportTokens("codex", "single-flight-s1", file)
+  ));
+
+  assert.equal(readCount, 1);
+});
+
 test("startup token backfill processes one transcript at a time", async () => {
   assert.equal(typeof runTokenBackfill, "function", "runTokenBackfill must be exported");
   let active = 0;
