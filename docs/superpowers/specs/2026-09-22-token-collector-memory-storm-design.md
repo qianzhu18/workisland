@@ -1,6 +1,6 @@
 # Token 采集并发风暴与长期内存修复设计
 
-日期：2026-09-22  
+日期：2026-09-22
 分支：`codex/fix-token-collector-memory-storm`
 
 ## 问题与证据
