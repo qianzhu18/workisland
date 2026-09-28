@@ -33,6 +33,7 @@
     "package:mac:intel": "npm run build:assets && WORKISLAND_NATIVE_ARCH=x86_64 npm run build:native && npm run check && electron-builder --mac dmg --x64 --publish never",
     "package:win": "npm run build:assets && npm run check && electron-builder --win nsis portable --x64 --publish never",
     "release:check": "node ./scripts/release-check.mjs",
+    "sync:feishu": "node ./scripts/sync-feishu-delivery.mjs",
     "check": "npm run build:renderer && node ./scripts/check-i18n.mjs && node ./scripts/check.mjs && node ./scripts/test-source.mjs && npm run test:unit",
     "test:unit": "node --test tests/*.test.mjs",
     "smoke:hook": "node ./scripts/smoke-hook.mjs",
