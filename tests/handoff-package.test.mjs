@@ -16,7 +16,9 @@ const {
   extractCodexConversation,
   claudeEntryToMessage,
   codexEntryToMessage,
+  stripCodexFilesMentionedBlock,
   zcodeConversationFromDb,
+  parseJsonLines,
   readUtf8Windows
 } = require("../src/main/handoff-package.cjs");
 
@@ -102,20 +104,109 @@ test("readUtf8Windows returns whole content for small files, head+tail for large
   assert.ok(smallResult.head.includes("小文件"));
   assert.equal(smallResult.head, smallResult.tail);
 
-  const bigLine = JSON.stringify({ type: "user", message: { role: "user", content: "x".repeat(200) } });
-  const bigContent = Array.from({ length: 4000 }, (_, i) => JSON.stringify({ type: "user", message: { role: "user", content: `行${i}-${"y".repeat(100)}` } })).join("\n");
+  // 大于 head+tail 窗口之和（128KB + 2MB）才走窗口分支
+  const bigContent = Array.from({ length: 4200 }, (_, i) => JSON.stringify({ type: "user", message: { role: "user", content: `行${i}-${"y".repeat(600)}` } })).join("\n");
   const big = path.join(path.dirname(small), "big.jsonl");
   fs.writeFileSync(big, bigContent, "utf-8");
   const bigResult = readUtf8Windows(big);
   assert.ok(bigResult.head.includes("行0-"));
-  assert.ok(!bigResult.head.includes("行3999-"));
-  assert.ok(bigResult.tail.includes("行3999-"));
+  assert.ok(!bigResult.head.includes("行4199-"));
+  assert.ok(bigResult.tail.includes("行4199-"));
   assert.ok(!bigResult.tail.includes("行0-"));
   // 半行必须被丢弃：两端窗口内的每一行都应是合法 JSON
   for (const line of bigResult.tail.split("\n").filter(Boolean)) {
     assert.doesNotThrow(() => JSON.parse(line));
   }
   assert.equal(readUtf8Windows(path.join(path.dirname(small), "nope.jsonl")), null);
+});
+
+test("codex tail survives giant base64 lines near the end of the file", () => {
+  // 实机复现：codex 0.158 用户消息内嵌截图 base64（单行 ~470KB），compacted 历史行 ~1.9MB。
+  // 尾部窗口必须罩得住巨行，窗口内真正的 user/assistant 小行要能被解析出来。
+  const giantUser = JSON.stringify({
+    type: "response_item",
+    payload: {
+      type: "message",
+      role: "user",
+      content: [
+        { type: "input_text", text: "# Files mentioned by the user:\n\n## shot.png: /tmp/shot.png\n" },
+        { type: "input_image", image_url: `data:image/png;base64,${"A".repeat(400_000)}` },
+        { type: "input_text", text: "第 7 个视频卡在查询已有视频，帮我查根因" }
+      ]
+    }
+  });
+  const giantCompacted = JSON.stringify({ type: "compacted", payload: { message: "", replacement_history: [{ data: "B".repeat(1_800_000) }] } });
+  const smallUser = JSON.stringify({
+    type: "response_item",
+    payload: { type: "message", role: "user", content: [{ type: "input_text", text: "改成直接跳转" }] }
+  });
+  const smallAssistant = JSON.stringify({
+    type: "response_item",
+    payload: { type: "message", role: "assistant", content: [{ type: "output_text", text: "已修复，测试通过" }] }
+  });
+  const filler = Array.from({ length: 200 }, (_, i) => JSON.stringify({ type: "token_usage_record", payload: { ordinal: i } })).join("\n");
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "handoff-giant-"));
+  const file = path.join(dir, "rollout.jsonl");
+  fs.writeFileSync(file, [filler, giantCompacted, giantUser, smallUser, smallAssistant].join("\n"), "utf-8");
+
+  const windows = readUtf8Windows(file);
+  const result = extractCodexConversation(parseJsonLines(windows.head), parseJsonLines(windows.tail));
+  assert.ok(result.tail.some((m) => m.role === "user" && m.text.includes("卡在查询已有视频")));
+  assert.ok(result.tail.some((m) => m.role === "assistant" && m.text === "已修复，测试通过"));
+  // 文件引用块被剥离：尾部不含 shot.png 引用行
+  assert.ok(!result.tail.some((m) => m.text.includes("Files mentioned")));
+  // base64 巨物不进入任何消息文本
+  assert.ok(!result.tail.some((m) => m.text.includes("AAAA")));
+});
+
+test("codex user message strips files-mentioned block and keeps the real prompt", () => {
+  const message = codexEntryToMessage({
+    type: "response_item",
+    payload: {
+      type: "message",
+      role: "user",
+      content: [
+        { type: "input_text", text: "# Files mentioned by the user:\n\n## a.png: /tmp/a.png\n\n" },
+        { type: "input_text", text: "真正的提问内容" }
+      ]
+    }
+  });
+  assert.deepEqual(message, { role: "user", text: "真正的提问内容" });
+  // 只有引用块没有正文 → 视为噪声丢弃
+  assert.equal(
+    codexEntryToMessage({
+      type: "response_item",
+      payload: { type: "message", role: "user", content: [{ type: "input_text", text: "# Files mentioned by the user:\n\n## a.png: /tmp/a.png\n" }] }
+    }),
+    null
+  );
+});
+
+test("projectDir falls back to transcript cwd when jumpTarget is missing", async () => {
+  // codex：session_meta.cwd 兜底
+  const codexTranscript = writeTmpTranscript("c.jsonl", [
+    { type: "session_meta", payload: { id: "cx-9", cwd: "/tmp/from-meta" } },
+    { type: "event_msg", payload: { type: "user_message", message: "元信息兜底测试" } }
+  ]);
+  const codexPkg = await buildHandoffPackage({
+    tool: "codex",
+    session: { id: "cx-9", tool: "codex", title: "", latestUserPrompt: "", lastAssistantMessage: "", jumpTarget: {}, error: "" },
+    transcriptPath: codexTranscript
+  });
+  assert.equal(codexPkg.projectDir, "/tmp/from-meta");
+  assert.equal(codexPkg.goal, "元信息兜底测试");
+
+  // claude：entry.cwd 兜底
+  const claudeTranscript = writeTmpTranscript("l.jsonl", [
+    { type: "user", cwd: "/tmp/from-claude", message: { role: "user", content: "claude 兜底测试" } }
+  ]);
+  const claudePkg = await buildHandoffPackage({
+    tool: "claude",
+    session: { id: "l-1", tool: "claude", title: "", latestUserPrompt: "", lastAssistantMessage: "", jumpTarget: {}, error: "" },
+    transcriptPath: claudeTranscript
+  });
+  assert.equal(claudePkg.projectDir, "/tmp/from-claude");
+  assert.equal(claudePkg.goal, "claude 兜底测试");
 });
 
 // ── zcode sqlite 尾部（runSqlite mock）──────────────────────────────────────
