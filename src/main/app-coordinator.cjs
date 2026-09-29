@@ -45,6 +45,8 @@ const { createRemoteTunnelManager } = require("./remote-tunnel-manager.cjs");
 const { createDuMateWatcher, getQianfanXdgRoot } = require("./dumate-watcher.cjs");
 const { createQoderWatcher, getQoderProjectsRoot } = require("./qoder-watcher.cjs");
 const { createSessionSearchService } = require("./session-search-service.cjs");
+const { createHandoffPackageBuilder } = require("./handoff-package.cjs");
+const { createHandoffDelivery, createHandoffLog } = require("./handoff-delivery.cjs");
 const { scanSshConfig, formatSshTarget } = require("./ssh-config.cjs");
 const crypto = require("node:crypto");
 const { TerminalService } = require("./terminal-service.cjs");
@@ -345,6 +347,12 @@ function createAppCoordinatorClass({
       this.sessionSearch = createSessionSearchService({
         indexDir: path.join(os.homedir(), ".flux", "session-search")
       });
+      // #126/#129：跨 Agent 交接。包构建纯惰性（点击时才读 transcript + 实拍 Git，
+      // 闲置零成本）；日志与包落在 ~/.flux/handoff，仅存本机。
+      this.handoffRoot = path.join(os.homedir(), ".flux", "handoff");
+      this.handoffPackageBuilder = createHandoffPackageBuilder({ logger: log });
+      this.handoffLog = createHandoffLog({ logPath: path.join(this.handoffRoot, "log.json"), logger: log });
+      this.handoffDelivery = createHandoffDelivery({ handoffRoot: this.handoffRoot, logger: log });
       // 千问办公触发通道：QwenWorkCN 内嵌会话不执行用户级 hooks（实测），
       // 改为观测 ~/.qoder/projects 的 transcript 文件。
       if (fs.existsSync(getQoderProjectsRoot())) {
@@ -500,6 +508,11 @@ function createAppCoordinatorClass({
         }
         const prevSession = event.type === "sessionCompleted" ? getSession(this.state, event.sessionId) : void 0;
         this.state = apply(this.state, event);
+        if (event.type === "jumpTargetUpdated") {
+          // 交接接手链接：目标会话拿到工作目录时查交接日志（#126/#129）。
+          // 放在 jumpTargetUpdated 而不是 sessionStarted：后者不带 cwd。
+          this.maybeAttachHandoffLink(event);
+        }
         if (event.type === "jumpTargetUpdated" && event.jumpTarget?.tty) {
           const pid = event.jumpTarget.pid;
           if (pid) {
@@ -1496,6 +1509,140 @@ function createAppCoordinatorClass({
         log.warn("[continueSessionViaTerminalPrompt] failed: reason=%s error=%s", result.reason ?? "unknown", result.error);
       }
       return result;
+    }
+    /** 跨 Agent 交接（#126/#129）：交接包的 transcript 来源按工具解析。 */
+    resolveHandoffTranscriptPath(session) {
+      if (session.tool === "claude") return this.claudeTranscriptPaths.get(session.id) || "";
+      if (session.tool === "codex") {
+        return (
+          this.codexSessionMeta.get(session.id)?.transcriptPath ??
+          this.codexTranscriptWatcher?.getTranscriptPath(session.id) ??
+          ""
+        );
+      }
+      // zcode 的对话在 db.sqlite（handoff-package 自行读取）；其余工具 v1 无尾部来源
+      return "";
+    }
+    /** 目标会话带工作目录出现时，查交接日志补「接手自 X」标记。 */
+    maybeAttachHandoffLink(event) {
+      try {
+        const session = getSession(this.state, event.sessionId);
+        if (!session || session.receivedFrom) return;
+        const workingDirectory = event.jumpTarget?.workingDirectory;
+        if (!workingDirectory) return;
+        const entry = this.handoffLog.findRecentForStart({
+          tool: event.tool,
+          workingDirectory,
+          createdAt: session.createdAt
+        });
+        if (!entry) return;
+        this.handoffLog.markLinked(entry.id, event.sessionId);
+        this.state = apply(this.state, {
+          type: "handoffLinkAttached",
+          sessionId: event.sessionId,
+          tool: event.tool,
+          timestamp: Date.now(),
+          receivedFrom: {
+            tool: entry.sourceTool,
+            sessionId: entry.sourceSessionId,
+            handoffId: entry.id
+          }
+        });
+        log.info(
+          "[Handoff] linked receiving session=%s tool=%s <- handoff %s from %s",
+          event.sessionId,
+          event.tool,
+          entry.id,
+          entry.sourceTool
+        );
+        this.broadcastSessionUpdate();
+      } catch (error) {
+        log.warn("[Handoff] attach link failed:", error?.message ?? error);
+      }
+    }
+    /** 预览交接包：纯构建不落盘，返回目标能力与内容摘要供 UI 展示。 */
+    async previewHandoff(sessionId) {
+      const session = getSession(this.state, sessionId);
+      if (!session) return { ok: false, reason: "session-not-found" };
+      if (session.isRemote) return { ok: false, reason: "remote-unsupported" };
+      if (!session.jumpTarget?.workingDirectory) return { ok: false, reason: "no-project-dir" };
+      const pkg = await this.handoffPackageBuilder.buildHandoffPackage({
+        tool: session.tool,
+        session,
+        transcriptPath: this.resolveHandoffTranscriptPath(session)
+      });
+      const targets = [];
+      for (const targetTool of Object.keys(this.handoffDelivery.HANDOFF_TARGETS)) {
+        if (targetTool === session.tool) continue;
+        const target = await this.handoffDelivery.targetLevel(targetTool);
+        targets.push({ tool: targetTool, level: target.level, degradedReason: target.degradedReason || "" });
+      }
+      return {
+        ok: true,
+        handoffId: pkg.id,
+        source: { tool: session.tool, sessionId: session.id, title: session.title || "" },
+        projectDir: pkg.projectDir,
+        goal: pkg.goal,
+        lastUserPrompt: pkg.lastUserPrompt,
+        lastAssistantMessage: pkg.lastAssistantMessage,
+        git: pkg.git,
+        transcriptAvailable: pkg.source.transcriptAvailable,
+        targets
+      };
+    }
+    /** 交付交接：去重校验 → 惰性重建（证据新鲜）→ 交付 → 记回执 → 源卡打标。 */
+    async deliverHandoff(sessionId, targetTool, opts) {
+      const session = getSession(this.state, sessionId);
+      if (!session) return { ok: false, reason: "session-not-found" };
+      if (session.isRemote) return { ok: false, reason: "remote-unsupported" };
+      if (!this.handoffDelivery.HANDOFF_TARGETS[targetTool]) {
+        return { ok: false, reason: "unsupported-target" };
+      }
+      if (targetTool === session.tool) return { ok: false, reason: "same-tool" };
+      if (!session.jumpTarget?.workingDirectory) return { ok: false, reason: "no-project-dir" };
+      const dedupe = this.handoffLog.canDeliver({
+        sourceSessionId: session.id,
+        targetTool,
+        sourceCompletedAt: session.updatedAt
+      });
+      if (!dedupe.ok && !opts?.force) {
+        return { ok: false, reason: dedupe.reason, lastDeliveredAt: dedupe.lastDeliveredAt };
+      }
+      const pkg = await this.handoffPackageBuilder.buildHandoffPackage({
+        tool: session.tool,
+        session,
+        transcriptPath: this.resolveHandoffTranscriptPath(session)
+      });
+      const receipt = await this.handoffDelivery.deliver(pkg, { targetTool, locale: i18n.getLocale() });
+      const entry = this.handoffLog.record({
+        pkg,
+        targetTool,
+        level: receipt.level,
+        status: receipt.status,
+        sourceCompletedAt: session.updatedAt
+      });
+      this.handoffLog.setPackageDir(entry.id, receipt.packageDir);
+      this.state = apply(this.state, {
+        type: "handoffRecorded",
+        sessionId: session.id,
+        tool: session.tool,
+        timestamp: Date.now(),
+        targetTool,
+        handoffId: pkg.id,
+        level: receipt.level,
+        status: receipt.status
+      });
+      log.info(
+        "[Handoff] delivered %s: %s/%s -> %s level=%s",
+        pkg.id,
+        session.tool,
+        session.id,
+        targetTool,
+        receipt.level
+      );
+      this.broadcastSessionUpdate();
+      this.scheduleSave();
+      return { ok: true, receipt };
     }
     watchSessionPid(sessionId, tool, pid) {
       this.pidWatchers.get(sessionId)?.();

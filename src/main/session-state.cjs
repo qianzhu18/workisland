@@ -90,6 +90,9 @@ function createSessionState({ isVisibleInIsland }) {
           // 整段对话的 30 分钟+，且会话结束过/应用重启后又会重置，
           // 表现成「时而整段时而单轮」。
           turnStartedAt: event.timestamp,
+          // 跨 Agent 接手（#126/#129）：交付后 N 分钟内同目录启动的目标会话
+          // 由 coordinator 查交接日志反向标记；普通启动事件不带该字段。
+          receivedFrom: event.receivedFrom ?? prev.receivedFrom,
           updatedAt: event.timestamp
         };
         break;
@@ -291,6 +294,38 @@ function createSessionState({ isVisibleInIsland }) {
         session = {
           ...prev,
           jumpTarget: event.jumpTarget,
+          updatedAt: event.timestamp
+        };
+        break;
+      }
+      case "handoffRecorded": {
+        // 交接已交付：源会话卡显示「已交接 → 目标」。新一轮 turn（sessionStarted）
+        // 不清该标记——同一会话继续干说明交接被放弃，但历史回执保留无妨；
+        // 真正的重复投递防线在 handoff-log 的 canDeliver。
+        session = {
+          ...prev,
+          handoff: {
+            targetTool: event.targetTool,
+            handoffId: event.handoffId,
+            level: event.level,
+            status: event.status,
+            at: event.timestamp
+          },
+          updatedAt: event.timestamp
+        };
+        break;
+      }
+      case "handoffLinkAttached": {
+        // 目标会话的接手标记（由 coordinator 在 jumpTargetUpdated 时查日志补发）。
+        // 独立成事件而不是塞进 sessionStarted：链接发现晚于会话启动，
+        // 要能对已存在的会话补标记。
+        if (!event.receivedFrom) {
+          session = prev;
+          break;
+        }
+        session = {
+          ...prev,
+          receivedFrom: event.receivedFrom,
           updatedAt: event.timestamp
         };
         break;
