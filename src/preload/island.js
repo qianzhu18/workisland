@@ -188,6 +188,16 @@ electron.contextBridge.exposeInMainWorld("islandBridge", {
   continueSessionViaTerminalPrompt(sessionId, text) {
     return electron.ipcRenderer.invoke(ipc.IPC.SESSION_CONTINUE_VIA_TERMINAL_PROMPT, { sessionId, text });
   },
+  previewHandoff(sessionId) {
+    return electron.ipcRenderer.invoke(ipc.IPC.HANDOFF_PREVIEW, { sessionId });
+  },
+  deliverHandoff(sessionId, targetTool, options) {
+    return electron.ipcRenderer.invoke(ipc.IPC.HANDOFF_DELIVER, {
+      sessionId,
+      targetTool,
+      force: options?.force ?? false
+    });
+  },
   openSettings() {
     electron.ipcRenderer.send(ipc.IPC.ISLAND_OPEN_SETTINGS);
   },

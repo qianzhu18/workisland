@@ -68,7 +68,8 @@ const {
 // PRD-019 M2 adds session-search:query (171 -> 172); PR #36 re-adds four
 // island:dock* channels for the opt-in dock addon (172 -> 176).
 // Search jump v2 adds session-search:open-client (176 -> 177, 2026-09).
-assert.equal(Object.keys(IPC).length, 177, "IPC contract changed; review both main and preload consumers");
+// Cross-agent handoff (#126/#129) adds handoff:preview / handoff:deliver (177 -> 179, 2026-09).
+assert.equal(Object.keys(IPC).length, 179, "IPC contract changed; review both main and preload consumers");
 assert.equal(listProductCapabilities({ platform: "darwin" }).length, 15, "MCP product catalog must stay explicit");
 assert.equal(diagnoseMcpSubject("performance-details-not-visible", { settings: {} }).subject, "performance-details-not-visible");
 assert.equal(IPC.APP_UPDATE_DOWNLOAD, "app:update-download");

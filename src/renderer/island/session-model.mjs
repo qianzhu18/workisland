@@ -30,6 +30,15 @@ export function canContinueSessionViaTerminalPrompt(session) {
   return false;
 }
 
+// 跨 Agent 交接（#126/#129）：完成/失败的本地会话且拿到了项目目录即可交接。
+// 目标侧能力（能否自动注入）由预览结果分级展示，这里不做工具白名单——
+// 交接包对任何源工具都能从会话字段 + Git 证据组装。
+export function canHandoffSession(session) {
+  if (session.phase !== "completed") return false;
+  if (session.isRemote) return false;
+  return Boolean(session.jumpTarget?.workingDirectory);
+}
+
 export function sortVisibleSessions(sessions) {
   return sessions.filter(isVisibleInIsland).sort((left, right) => right.updatedAt - left.updatedAt);
 }

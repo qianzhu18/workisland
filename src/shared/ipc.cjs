@@ -135,6 +135,9 @@ const IPC = Object.freeze({
   SESSION_DISMISS_COMPLETION: "session:dismiss-completion",
   SESSION_CONTINUE_VIA_TERMINAL_PROMPT: "session:continue-via-terminal-prompt",
 
+  HANDOFF_PREVIEW: "handoff:preview",
+  HANDOFF_DELIVER: "handoff:deliver",
+
   SETTINGS_GET: "settings:get",
   SETTINGS_SET: "settings:set",
   SETTINGS_GET_TELEMETRY_STATUS: "settings:get-telemetry-status",

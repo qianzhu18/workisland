@@ -1487,6 +1487,195 @@
   box-sizing: border-box;
 }
 
+/* ── 跨 Agent 交接（#126/#129）────────────────────────────────────────── */
+
+.completion-handoff-badge {
+  margin-top: 6px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(124, 148, 199, 0.16);
+  color: #B8C4DA;
+  font-size: 11px;
+  line-height: 14px;
+  width: fit-content;
+}
+
+.completion-handoff-btn {
+  background: rgba(224, 230, 242, 0.09);
+  color: #EEEEEE;
+}
+
+.session-handoff-chip {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(124, 148, 199, 0.16);
+  color: #B8C4DA;
+  font-size: 10px;
+  line-height: 14px;
+  white-space: nowrap;
+}
+
+.session-handoff-chip-source {
+  background: rgba(151, 178, 137, 0.16);
+  color: #C3D4B5;
+}
+
+.handoff-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #39393E;
+  border-radius: 6px;
+  background: rgba(224, 230, 242, 0.04);
+}
+
+.handoff-header {
+  display: flex;
+  align-items: center;
+}
+
+.handoff-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #EEEEEE;
+}
+
+.handoff-loading {
+  font-size: 12px;
+  color: rgba(238, 238, 238, 0.55);
+}
+
+.handoff-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.handoff-preview-row {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.handoff-preview-label {
+  flex: 0 0 52px;
+  color: rgba(238, 238, 238, 0.5);
+}
+
+.handoff-preview-value {
+  flex: 1;
+  min-width: 0;
+  color: #EEEEEE;
+  overflow-wrap: anywhere;
+}
+
+.handoff-preview-note {
+  font-size: 11px;
+  line-height: 16px;
+  color: rgba(238, 238, 238, 0.45);
+}
+
+.handoff-targets {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.handoff-target {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  color: #EEEEEE;
+}
+
+.handoff-target.is-selected {
+  border-color: rgba(224, 230, 242, 0.28);
+  background: rgba(224, 230, 242, 0.06);
+}
+
+.handoff-target input[type="radio"] {
+  margin: 0;
+  accent-color: #B8C4DA;
+}
+
+.handoff-target-name {
+  font-weight: 600;
+}
+
+.handoff-target-level {
+  color: rgba(238, 238, 238, 0.5);
+}
+
+.handoff-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 16px;
+  color: #E8B4B4;
+}
+
+.handoff-force-btn {
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #B8C4DA;
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+}
+
+.handoff-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.handoff-cancel-btn {
+  background: rgba(224, 230, 242, 0.09);
+  color: #EEEEEE;
+}
+
+.handoff-deliver-btn {
+  background: #DADDE5;
+  color: #0C0C0D;
+}
+
+.handoff-deliver-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.handoff-receipt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.handoff-receipt-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: #EEEEEE;
+}
+
+.handoff-done-btn {
+  background: #DADDE5;
+  color: #0C0C0D;
+}
+
 .continue-prompt-content {
   flex: 0 0 auto;
   display: flex;

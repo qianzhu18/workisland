@@ -511,6 +511,12 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
     electron.ipcMain.handle(IPC.SESSION_CONTINUE_VIA_TERMINAL_PROMPT, async (_event, { sessionId, text }) => {
       return coordinator.continueSessionViaTerminalPrompt(sessionId, text, { source: "island" });
     });
+    electron.ipcMain.handle(IPC.HANDOFF_PREVIEW, (_event, { sessionId }) => {
+      return coordinator.previewHandoff(sessionId);
+    });
+    electron.ipcMain.handle(IPC.HANDOFF_DELIVER, (_event, { sessionId, targetTool, force }) => {
+      return coordinator.deliverHandoff(sessionId, targetTool, { force: !!force });
+    });
     electron.ipcMain.on(IPC.ISLAND_ENTER, () => {
     });
     electron.ipcMain.on(IPC.ISLAND_LEAVE, () => {

@@ -4,7 +4,7 @@ import { A as AGENT_TOOL_LABELS, j as isPluginAgentTool, g as getPluginColor, h 
 import { g as getFireIconByTokenCount, s as sanitizeAgentDisplayText, c as cleanAppName, b as buildApproveAlwaysTooltip } from "../../shared/formatters.js";
 import { f as formatTokenCount } from "../../shared/tokens.js";
 import { M as Markdown, r as remarkGfm } from "../../vendor/markdown.js";
-import { canContinueSessionViaTerminalPrompt, filterSurfaceSessions, sortVisibleSessions } from "../session-model.mjs";
+import { canContinueSessionViaTerminalPrompt, canHandoffSession, filterSurfaceSessions, sortVisibleSessions } from "../session-model.mjs";
 import { MediaCard } from "./MediaCard.js";
 import { PerformancePopover } from "./PerformancePopover.js";
 import { UpdateStatusButton, hasActiveUpdateFlow } from "./UpdatePopover.js";
@@ -483,7 +483,7 @@ function SessionRow({
         height: 32
       }
     ),
-    /* @__PURE__ */ React.createElement("div", { className: "session-body" }, /* @__PURE__ */ React.createElement("div", { className: "session-headline" }, /* @__PURE__ */ React.createElement("div", { className: "session-headline-left" }, /* @__PURE__ */ React.createElement(AgentToolBadge, { tool: session.tool }), session.remoteHostName && /* @__PURE__ */ React.createElement("span", { className: "session-remote-host", title: t("remote.host") }, session.remoteHostName), /* @__PURE__ */ React.createElement("span", { className: "session-title" }, session.title)), /* @__PURE__ */ React.createElement("div", { className: "session-meta" }, terminalApp && /* @__PURE__ */ React.createElement("span", { className: "session-terminal" }, terminalApp.toLowerCase() === "claude" ? "APP" : cleanAppName(terminalApp)), /* @__PURE__ */ React.createElement("span", { className: "session-elapsed" }, elapsed), canContinueSession && /* @__PURE__ */ React.createElement(
+    /* @__PURE__ */ React.createElement("div", { className: "session-body" }, /* @__PURE__ */ React.createElement("div", { className: "session-headline" }, /* @__PURE__ */ React.createElement("div", { className: "session-headline-left" }, /* @__PURE__ */ React.createElement(AgentToolBadge, { tool: session.tool }), session.remoteHostName && /* @__PURE__ */ React.createElement("span", { className: "session-remote-host", title: t("remote.host") }, session.remoteHostName), session.receivedFrom && /* @__PURE__ */ React.createElement("span", { className: "session-handoff-chip", title: t("handoff.chip.received.tooltip") }, t("handoff.chip.received", { tool: handoffToolLabel(session.receivedFrom.tool) })), session.handoff && /* @__PURE__ */ React.createElement("span", { className: "session-handoff-chip session-handoff-chip-source", title: t("handoff.chip.delivered.tooltip") }, t("handoff.chip.delivered", { tool: handoffToolLabel(session.handoff.targetTool) })), /* @__PURE__ */ React.createElement("span", { className: "session-title" }, session.title)), /* @__PURE__ */ React.createElement("div", { className: "session-meta" }, terminalApp && /* @__PURE__ */ React.createElement("span", { className: "session-terminal" }, terminalApp.toLowerCase() === "claude" ? "APP" : cleanAppName(terminalApp)), /* @__PURE__ */ React.createElement("span", { className: "session-elapsed" }, elapsed), canContinueSession && /* @__PURE__ */ React.createElement(
       "button",
       {
         type: "button",
@@ -1190,8 +1190,10 @@ const continueChatIcon = "data:image/svg+xml,%3csvg%20width='12'%20height='12'%2
 function CompletionCard({
   session,
   isFollowUpOpen,
+  isHandoffOpen,
   onCollapse,
-  onFollowUpClick
+  onFollowUpClick,
+  onHandoffClick
 }) {
   const prompt = sanitizeAgentDisplayText(session.latestUserPrompt ?? "");
   const details = session.lastAssistantMessage ?? "";
@@ -1200,6 +1202,7 @@ function CompletionCard({
   const shortcuts = useShortcuts();
   const jumpHint = formatBinding(shortcuts, "jumpToTerminal");
   const canFollowUp = !!onFollowUpClick && canContinueSessionViaTerminalPrompt(session);
+  const canHandoff = !!onHandoffClick && canHandoffSession(session);
   function handleJump() {
     window.islandBridge?.jumpToSession(session.id);
     onCollapse?.();
@@ -1213,7 +1216,7 @@ function CompletionCard({
   ), hasContent && /* @__PURE__ */ React.createElement("div", { className: "completion-content" }, isError ? /* @__PURE__ */ React.createElement("div", { className: "completion-error-detail" }, session.errorDetail || session.error) : details && /* @__PURE__ */ React.createElement("div", { className: "island-markdown" }, /* @__PURE__ */ React.createElement(Markdown, { remarkPlugins: [remarkGfm], components: { a: ({ href, children }) => /* @__PURE__ */ React.createElement("a", { href, onClick: (e) => {
     e.preventDefault();
     if (href) window.islandBridge?.openExternal?.(href);
-  } }, children) } }, details)))), session.jumpTarget && !isFollowUpOpen && /* @__PURE__ */ React.createElement("div", { className: "completion-actions" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "approval-btn completion-jump-btn", onClick: handleJump }, t("common.open"), " ", cleanAppName(session.jumpTarget.app), " ↗", jumpHint && /* @__PURE__ */ React.createElement("span", { className: "kbd" }, jumpHint)), canFollowUp && /* @__PURE__ */ React.createElement("button", { type: "button", className: "approval-btn completion-follow-up-btn", onClick: onFollowUpClick }, /* @__PURE__ */ React.createElement("img", { src: continueChatIcon, alt: "continue chat", className: "completion-follow-up-icon", "aria-hidden": "true" }), t("session.continueFollowUp"))));
+  } }, children) } }, details)))), session.handoff && !isHandoffOpen && /* @__PURE__ */ React.createElement("div", { className: "completion-handoff-badge" }, t("handoff.badge.delivered", { tool: handoffToolLabel(session.handoff.targetTool) })), session.jumpTarget && !isFollowUpOpen && !isHandoffOpen && /* @__PURE__ */ React.createElement("div", { className: "completion-actions" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "approval-btn completion-jump-btn", onClick: handleJump }, t("common.open"), " ", cleanAppName(session.jumpTarget.app), " ↗", jumpHint && /* @__PURE__ */ React.createElement("span", { className: "kbd" }, jumpHint)), canFollowUp && /* @__PURE__ */ React.createElement("button", { type: "button", className: "approval-btn completion-follow-up-btn", onClick: onFollowUpClick }, /* @__PURE__ */ React.createElement("img", { src: continueChatIcon, alt: "continue chat", className: "completion-follow-up-icon", "aria-hidden": "true" }), t("session.continueFollowUp")), canHandoff && /* @__PURE__ */ React.createElement("button", { type: "button", className: "approval-btn completion-handoff-btn", onClick: onHandoffClick }, t("handoff.action"))));
 }
 const AUTOMATION_PRIVACY_SETTINGS_URL = "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation";
 const TEXTAREA_MIN_HEIGHT = 40;
@@ -1378,7 +1381,7 @@ function ContinuePromptInput({
   )));
 }
 function renderActionableCard(props) {
-  const { session, actionableId, isFollowUpOpen, onCollapse, onFollowUpClick } = props;
+  const { session, actionableId, isFollowUpOpen, isHandoffOpen, onCollapse, onFollowUpClick, onHandoffClick } = props;
   // PRD-016 远程会话（observe-only）：审批/追问/跳转都作用不到远程机器，
   // 不渲染可操作卡，仅保留常规状态卡与等待角标。
   if (session.isRemote) return null;
@@ -1396,11 +1399,160 @@ function renderActionableCard(props) {
       {
         session,
         isFollowUpOpen,
+        isHandoffOpen,
         onCollapse,
-        onFollowUpClick
+        onFollowUpClick,
+        onHandoffClick
       }
     );
   return null;
+}
+const HANDOFF_TOOL_LABELS = { codex: "Codex", zcode: "ZCode" };
+function handoffToolLabel(tool) {
+  return HANDOFF_TOOL_LABELS[tool] || tool;
+}
+function handoffGitLine(git) {
+  if (!git || !git.isRepo) return t("handoff.git.notRepo");
+  const parts = [];
+  if (git.branch) parts.push(git.branch);
+  if (git.commit) parts.push(`@ ${git.commit}`);
+  if (git.dirtyCount > 0) parts.push(t("handoff.git.dirty", { count: git.dirtyCount }));
+  else parts.push(t("handoff.git.clean"));
+  return parts.join(" ");
+}
+function handoffTargetLevelLabel(target) {
+  if (target.level === "inject") return t("handoff.level.inject");
+  if (target.degradedReason === "codex-cli-not-found") return t("handoff.level.degradedCodex");
+  return t("handoff.level.copyOpen");
+}
+// 跨 Agent 交接面板（#126/#129）：预览交接包内容与目标能力分级 → 用户点击即授权交付。
+// 诚实原则：copy-open 级别明说「需要去粘贴」，不显示为已接手。
+function HandoffPanel({ session, onCancel }) {
+  const [preview, setPreview] = React.useState(null);
+  const [loadError, setLoadError] = React.useState("");
+  const [selectedTool, setSelectedTool] = React.useState("");
+  const [isDelivering, setIsDelivering] = React.useState(false);
+  const [receipt, setReceipt] = React.useState(null);
+  const [deliverError, setDeliverError] = React.useState(null);
+  React.useEffect(() => {
+    let disposed = false;
+    setPreview(null);
+    setLoadError("");
+    setSelectedTool("");
+    setReceipt(null);
+    setDeliverError(null);
+    const previewHandoff = window.islandBridge?.previewHandoff;
+    if (!previewHandoff) {
+      setLoadError("bridge-unavailable");
+      return;
+    }
+    previewHandoff(session.id).then((result) => {
+      if (disposed) return;
+      if (!result?.ok) {
+        setLoadError(result?.reason || "preview-failed");
+        return;
+      }
+      setPreview(result);
+      if (result.targets?.length) setSelectedTool(result.targets[0].tool);
+    }).catch(() => {
+      if (!disposed) setLoadError("preview-failed");
+    });
+    return () => {
+      disposed = true;
+    };
+  }, [session.id]);
+  async function deliver(force = false) {
+    if (!selectedTool || isDelivering) return;
+    setIsDelivering(true);
+    setDeliverError(null);
+    try {
+      const result = await window.islandBridge?.deliverHandoff(session.id, selectedTool, { force });
+      if (!result?.ok) {
+        setDeliverError(result?.reason === "already-handed-off" ? { duplicated: true } : { reason: result?.reason || "deliver-failed" });
+        return;
+      }
+      setReceipt(result.receipt);
+    } catch {
+      setDeliverError({ reason: "deliver-failed" });
+    } finally {
+      setIsDelivering(false);
+    }
+  }
+  if (receipt) {
+    const successText = receipt.level === "inject" ? t("handoff.receipt.inject", { tool: handoffToolLabel(receipt.targetTool), terminal: receipt.terminal }) : t("handoff.receipt.copyOpen", { tool: handoffToolLabel(receipt.targetTool) });
+    return /* @__PURE__ */ React.createElement("div", { className: "handoff-panel" },
+      /* @__PURE__ */ React.createElement("div", { className: "handoff-receipt" },
+        /* @__PURE__ */ React.createElement("div", { className: "handoff-receipt-text" }, successText),
+        /* @__PURE__ */ React.createElement("button", { type: "button", className: "approval-btn handoff-done-btn", onClick: onCancel }, t("handoff.done"))
+      )
+    );
+  }
+  const loadErrorText = loadError === "no-project-dir"
+    ? t("handoff.error.noProjectDir")
+    : loadError === "remote-unsupported"
+      ? t("handoff.error.remote")
+      : t("handoff.error.loadFailed");
+  const targetsBlock = !preview
+    ? null
+    : preview.targets?.length
+      ? /* @__PURE__ */ React.createElement("div", { className: "handoff-targets" },
+          preview.targets.map((target) => /* @__PURE__ */ React.createElement(
+            "label",
+            {
+              key: target.tool,
+              className: `handoff-target${selectedTool === target.tool ? " is-selected" : ""}`
+            },
+            /* @__PURE__ */ React.createElement("input", {
+              type: "radio",
+              name: `handoff-target-${session.id}`,
+              checked: selectedTool === target.tool,
+              onChange: () => setSelectedTool(target.tool)
+            }),
+            /* @__PURE__ */ React.createElement("span", { className: "handoff-target-name" }, handoffToolLabel(target.tool)),
+            /* @__PURE__ */ React.createElement("span", { className: "handoff-target-level" }, handoffTargetLevelLabel(target))
+          ))
+        )
+      : /* @__PURE__ */ React.createElement("div", { className: "handoff-error" }, t("handoff.error.noTargets"));
+  const previewBlock = !preview
+    ? !loadError && /* @__PURE__ */ React.createElement("div", { className: "handoff-loading" }, t("handoff.loading"))
+    : /* @__PURE__ */ React.createElement(React.Fragment, null,
+        /* @__PURE__ */ React.createElement("div", { className: "handoff-preview" },
+          /* @__PURE__ */ React.createElement("div", { className: "handoff-preview-row" },
+            /* @__PURE__ */ React.createElement("span", { className: "handoff-preview-label" }, t("handoff.preview.goal")),
+            /* @__PURE__ */ React.createElement("span", { className: "handoff-preview-value" }, preview.goal || t("handoff.preview.noGoal"))
+          ),
+          /* @__PURE__ */ React.createElement("div", { className: "handoff-preview-row" },
+            /* @__PURE__ */ React.createElement("span", { className: "handoff-preview-label" }, t("handoff.preview.git")),
+            /* @__PURE__ */ React.createElement("span", { className: "handoff-preview-value" }, handoffGitLine(preview.git))
+          ),
+          !preview.transcriptAvailable && /* @__PURE__ */ React.createElement("div", { className: "handoff-preview-note" }, t("handoff.preview.noTranscript")),
+          /* @__PURE__ */ React.createElement("div", { className: "handoff-preview-note" }, t("handoff.preview.localOnly"))
+        ),
+        targetsBlock
+      );
+  return /* @__PURE__ */ React.createElement("div", { className: "handoff-panel" },
+    /* @__PURE__ */ React.createElement("div", { className: "handoff-header" },
+      /* @__PURE__ */ React.createElement("span", { className: "handoff-title" }, t("handoff.title"))
+    ),
+    loadError ? /* @__PURE__ */ React.createElement("div", { className: "handoff-error" }, loadErrorText) : previewBlock,
+    deliverError && /* @__PURE__ */ React.createElement("div", { className: "handoff-error" },
+      deliverError.duplicated ? t("handoff.error.duplicated") : t("handoff.error.deliverFailed"),
+      deliverError.duplicated && /* @__PURE__ */ React.createElement("button", { type: "button", className: "handoff-force-btn", onClick: () => deliver(true) }, t("handoff.error.redeliver"))
+    ),
+    /* @__PURE__ */ React.createElement("div", { className: "handoff-actions" },
+      /* @__PURE__ */ React.createElement("button", { type: "button", className: "approval-btn handoff-cancel-btn", onClick: onCancel }, t("handoff.cancel")),
+      !!preview?.targets?.length && /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          type: "button",
+          className: "approval-btn handoff-deliver-btn",
+          disabled: !selectedTool || isDelivering,
+          onClick: () => deliver(false)
+        },
+        isDelivering ? t("handoff.delivering") : t("handoff.deliver", { tool: handoffToolLabel(selectedTool) })
+      )
+    )
+  );
 }
 function SessionEmptyOnboarding({ onOpenSettings }) {
   return /* @__PURE__ */ React.createElement("div", { className: "session-empty-onboarding" },
@@ -1453,6 +1605,8 @@ function IslandPanel({
   onOpenRelease
 }) {
   const [followUpSessionId, setFollowUpSessionId] = React.useState(null);
+  // #126/#129 跨 Agent 交接：当前展开交接面板的会话
+  const [handoffSessionId, setHandoffSessionId] = React.useState(null);
   // PRD-019 M2：跨 Agent 历史会话搜索（⌘K 唤起，结果卡点击复制恢复命令）
   const [searchQuery, setSearchQuery] = React.useState("");
   // PRD-019 M2：搜索结果点击 → 切到岛内终端，在项目目录自动执行恢复命令
@@ -1550,6 +1704,13 @@ function IslandPanel({
     }
   }, [followUpSessionId, visibleSessions]);
   React.useEffect(() => {
+    if (!handoffSessionId) return;
+    const handoffSession = visibleSessions.find((session) => session.id === handoffSessionId);
+    if (!handoffSession || !canHandoffSession(handoffSession)) {
+      setHandoffSessionId(null);
+    }
+  }, [handoffSessionId, visibleSessions]);
+  React.useEffect(() => {
     onFollowUpChange?.(followUpSessionId !== null);
   }, [followUpSessionId, onFollowUpChange]);
   React.useEffect(() => {
@@ -1623,12 +1784,16 @@ function IslandPanel({
     const canFollowUp = session.phase === "completed" && canContinueSessionViaTerminalPrompt(session);
     const isFollowUpOpen = followUpSessionId === session.id && canFollowUp;
     const openFollowUp = canFollowUp ? () => setFollowUpSessionId(session.id) : void 0;
+    const isHandoffOpen = handoffSessionId === session.id && canHandoffSession(session);
+    const openHandoff = canHandoffSession(session) ? () => setHandoffSessionId(session.id) : void 0;
     const actionableCard = renderActionableCard({
       session,
       actionableId,
       isFollowUpOpen,
+      isHandoffOpen,
       onCollapse,
-      onFollowUpClick: openFollowUp
+      onFollowUpClick: openFollowUp,
+      onHandoffClick: openHandoff
     });
     return /* @__PURE__ */ React.createElement(
       "div",
@@ -1652,12 +1817,18 @@ function IslandPanel({
           onClick: onSessionRowClick ? () => onSessionRowClick(session.id) : void 0,
           onFollowUpClick: openFollowUp
         }
-      ), session.activeSubagents && session.activeSubagents.length > 0 && /* @__PURE__ */ React.createElement(SubagentList, { subagents: session.activeSubagents }), (actionableCard || isFollowUpOpen) && /* @__PURE__ */ React.createElement("div", { className: "session-action-area" }, actionableCard, isFollowUpOpen && /* @__PURE__ */ React.createElement(
+      ), session.activeSubagents && session.activeSubagents.length > 0 && /* @__PURE__ */ React.createElement(SubagentList, { subagents: session.activeSubagents }), (actionableCard || isFollowUpOpen || isHandoffOpen) && /* @__PURE__ */ React.createElement("div", { className: "session-action-area" }, actionableCard, isFollowUpOpen && /* @__PURE__ */ React.createElement(
         ContinuePromptInput,
         {
           session,
           onCancel: () => setFollowUpSessionId(null),
           onSubmitted: () => setFollowUpSessionId(null)
+        }
+      ), isHandoffOpen && /* @__PURE__ */ React.createElement(
+        HandoffPanel,
+        {
+          session,
+          onCancel: () => setHandoffSessionId(null)
         }
       )))
     );
