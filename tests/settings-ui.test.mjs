@@ -170,9 +170,9 @@ test("agents page does not advertise speculative custom Hook connections", () =>
   assert.doesNotMatch(ipcSource, /CUSTOM_AGENT_CONNECTION/);
 });
 
-test("DeepSeek Harness remains opt-in until the user clicks connect", () => {
+test("DeepSeek Harness auto-connects instead of staying opt-in", () => {
   const settingsSource = readFileSync(new URL("../src/shared/settings.cjs", import.meta.url), "utf8");
-  assert.match(settingsSource, /dsh:\s*false/);
+  assert.match(settingsSource, /dsh:\s*true/);
 });
 
 test("current TraeCode Hooks are offered without advertising unsupported TraeWork or Trae CN", () => {

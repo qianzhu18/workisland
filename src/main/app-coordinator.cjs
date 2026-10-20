@@ -31,6 +31,7 @@ const { reportTokenUsage, getHermesCumulativeTokens, diffHermesCumulativeTokens,
 const { UsageDiscoveryService } = require("./usage-discovery.cjs");
 const { getAgentDescriptor, validateAgentWiring } = require("../shared/agent-catalog.cjs");
 const { diagnoseReport } = require("../shared/agent-doctor.cjs");
+const { shouldAutoEnableDsh, shouldAttemptDshAutoInstall, shouldUninstallBeforeAutoReinstall } = require("../shared/dsh-auto-connect.cjs");
 const { createPresentationRequest } = require("./presentation-policy.cjs");
 const { EVENTS } = require("../shared/telemetry.cjs");
 const { MediaService } = require("./media-service.cjs");
@@ -601,6 +602,9 @@ function createAppCoordinatorClass({
       this.terminalService.setEnabled(this.settings.terminalEnabled !== false);
       this.startCodexTranscriptWatcher();
       this.startUsageDiscovery();
+      // DSH 自动接入：一次性迁移旧开关，然后挂一条低成本的巡检定时器。
+      this.migrateDshAutoDetect();
+      this.startDshWatchdog();
       // Agent Doctor（B-1）：启动时后台自动检测并修复可修复的 hook 状态，
       // fire-and-forget，失败不影响启动路径。
       void this.runStartupDoctor();
@@ -887,6 +891,60 @@ function createAppCoordinatorClass({
     readClaudeTranscriptState(file) {
       return readClaudeTranscriptState(file);
     }
+    // DSH 自动接入的一次性迁移：老版本默认把 hookToggles.dsh 持久化成 false，
+    // 只有「从未接入过」（配置文件不存在）的用户才翻成 true；迁移标记写入后
+    // 用户在设置里手动关闭不会被重新打开。
+    migrateDshAutoDetect() {
+      if (this.settings.agentAutoDetectMigrated) return;
+      const manager = this.hookManagers.get("dsh");
+      if (!manager) return;
+      const enable = shouldAutoEnableDsh({
+        toggle: this.settings.hookToggles?.dsh,
+        configExists: fs.existsSync(manager.configPath),
+        migrated: false
+      });
+      if (enable) {
+        log.info("[AppCoordinator] DSH auto-connect enabled by one-time migration");
+        this.updateSettings({
+          agentAutoDetectMigrated: true,
+          hookToggles: { ...this.settings.hookToggles, dsh: true }
+        });
+        return;
+      }
+      this.updateSettings({ agentAutoDetectMigrated: true });
+    }
+    // 后台巡检：DSH 中途升级/重置 profile 会清掉 bridge，而启动时的自动修复
+    // 只跑一次。这里每 5 分钟检测一次，缺失就静默补装（失败 10 分钟后再试）。
+    startDshWatchdog() {
+      if (this.dshWatchdogTimer) return;
+      this.dshWatchdogTimer = setInterval(() => {
+        void this.runDshAutoInstallCheck();
+      }, 5 * 60 * 1000);
+      this.dshWatchdogTimer.unref?.();
+    }
+    async runDshAutoInstallCheck() {
+      const manager = this.hookManagers.get("dsh");
+      if (!manager) return;
+      const enabled = this.settings.hookToggles?.dsh ?? true;
+      if (!enabled) return;
+      try {
+        const targets = await manager.targetProfiles();
+        const health = await manager.checkHealth().catch(() => null);
+        const now = Date.now();
+        if (!shouldAttemptDshAutoInstall({
+          enabled,
+          targetCount: targets.length,
+          installed: Boolean(health?.installed),
+          lastAttemptAt: this.dshAutoInstallAttemptedAt || 0,
+          now
+        })) return;
+        this.dshAutoInstallAttemptedAt = now;
+        await manager.install();
+        log.info("[AppCoordinator] DSH auto-connect wrote the bridge for %d profile(s)", targets.length);
+      } catch (error) {
+        log.warn("[AppCoordinator] DSH auto-connect failed: %s", error?.message || error);
+      }
+    }
     async autoReInstallHooks() {
       if (process.argv.some((arg) => arg.startsWith("--smoke-user-data="))) {
         log.info("[AppCoordinator] packaged smoke mode, skipping Hook reconciliation");
@@ -910,11 +968,23 @@ function createAppCoordinatorClass({
               continue;
             }
           }
-          try {
-            // Reconciliation refreshes Hook commands; it must not erase proof
-            // from a real Agent event when the same integration is reinstalled.
-            await manager.uninstall({ preserveVerification: true });
-          } catch {
+          // 自动识别：DSH 没装/没初始化时静默跳过，不产生每启动一次的报错日志。
+          if (typeof manager.isAvailable === "function") {
+            const available = await manager.isAvailable();
+            if (!available) {
+              log.info(`[AppCoordinator] ${agentId} is not installed or has no initialized profile, skipping auto-reinstall`);
+              continue;
+            }
+          }
+          // DSH 不走「先拆后装」：uninstall 会 pnpm remove + 改 profile，一旦
+          // 安装失败就留下半坏状态。它的 install 本身幂等并会重写命令。
+          if (shouldUninstallBeforeAutoReinstall(agentId)) {
+            try {
+              // Reconciliation refreshes Hook commands; it must not erase proof
+              // from a real Agent event when the same integration is reinstalled.
+              await manager.uninstall({ preserveVerification: true });
+            } catch {
+            }
           }
           const options = { statusLineEnabled: this.resolveClaudeStatusLineEnabled(agentId) };
           if (agentId === "zcode") options.workspacePaths = this.collectRecentSessionCwds();
@@ -1863,7 +1933,11 @@ function createAppCoordinatorClass({
     }
     async repairAllHooks() {
       const results = [];
+      const toggles = this.settings?.hookToggles ?? {};
       for (const agentId of this.hookManagers.keys()) {
+        // 用户明确关掉的 Agent 不自动重装 Hook：opt-in（如 DSH 手动移除、
+        // TraeCode 关闭）必须被尊重，只有用户点「连接/修复」才恢复。
+        if (toggles[agentId] === false) continue;
         const manager = this.hookManagers.get(agentId);
         const health = await manager.checkHealth().catch(() => null);
         const diagnosis = diagnoseReport({ ...health, agentId });

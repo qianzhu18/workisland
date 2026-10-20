@@ -4,6 +4,22 @@
 
 > **版本体系重置（2026-09-02）**：公开版本号统一归位——内测期整理为 `v0.1.0 – v0.10.0`（原 `v0.2.x` 系列与初版 `v0.1.0` 重排，各版本说明注明原版本号）；`v3.0.0 / v3.1.0 / v3.2.0` 分别平移为 `v1.0.0 / v1.1.0 / v1.2.0`；`v3.2.0-rc.1` 与整条 `v1.0.0-alpha`（Windows 试验线）已删除，Windows 支持暂停维护、欢迎社区贡献者主导适配。
 
+## [Unreleased]
+
+DeepSeek Harness 自动接入：不再需要用户点「连接」——检测到已初始化的 DSH profile 后自动写入 bridge（幂等，不先卸载），启动时后台巡检补齐被升级/重置清掉的配置；插件兼容 DSH 0.2.1 的 `agent/created` 事件；「已连接」仅在配置还在且没有待重启改动时显示。
+
+### Changed
+
+- **DeepSeek Harness 自动识别**：默认开启，启动时自动向已初始化的 `~/.dsh/profiles/*` 写入生命周期插件，并每 5 分钟后台巡检一次。旧版本把 `hookToggles.dsh` 持久化成 `false` 的用户只对「从未接入过」的情况做一次性迁移；迁移后在设置里手动关闭仍会被尊重。
+- **安装幂等**：稳态启动不再跑 pnpm、也不再「先卸载再安装」——避免升级中途失败后留下「配置在、插件没了」的半坏状态（真实事故）。
+
+### Fixed
+
+- **连接状态更诚实**：写入配置但 DSH 尚未重启时显示「已写入配置」，收到真实事件后才显示「已连接」；DSH 升级/重置 profile 清掉 bridge 后由巡检自动补装。
+- **DSH 0.2.1 兼容**：插件同时监听 `agent/session-start`（旧版）与 `agent/created`（0.2.1），会话开始事件不再丢失。
+
+> **English summary:** DeepSeek Harness is now auto-detected and auto-connected like every other local agent — no "Connect" click required. The bridge install is idempotent (steady-state launches skip pnpm and never uninstall first), a background watchdog re-installs the bridge within minutes if a DSH upgrade/reset wipes the profile, and the plugin listens to DSH 0.2.1's renamed `agent/created` event. Connection state stays "configured" until a real event arrives, so a stale verification can no longer read as connected.
+
 ## [1.5.1] - 2026-09-16
 
 紧急修复版本：修复 v1.5.0 中岛悬浮窗完全不可见的 P0 渲染层启动崩溃。

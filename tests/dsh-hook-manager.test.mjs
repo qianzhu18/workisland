@@ -32,8 +32,12 @@ test("DSH verification config remains valid during concurrent event updates", as
 });
 
 test("DSH reinstall preserves verification only for the same discovered profiles", () => {
-  const source = readFileSync(new URL("../src/main/hooks-custom.cjs", import.meta.url), "utf8");
-  assert.match(source, /preservesVerification = JSON\.stringify\(profileDirs\) === JSON\.stringify\(existingProfileDirs\)/);
-  assert.match(source, /preservesVerification && existing\?\.lastVerifiedAt/);
-  assert.match(source, /if \(!options\.preserveVerification\)[\s\S]*unlink\(this\.configPath\)/);
+  const managerSource = readFileSync(new URL("../src/main/hooks-custom.cjs", import.meta.url), "utf8");
+  const helperSource = readFileSync(new URL("../src/shared/dsh-auto-connect.cjs", import.meta.url), "utf8");
+  // 配置拼装收敛到纯函数里（可单测），manager 只负责读写 profile。
+  assert.match(managerSource, /buildDshBridgeConfig\(/);
+  assert.match(helperSource, /profileDirs = \(profiles \|\| \[\]\)/);
+  assert.match(helperSource, /preservesVerification = JSON\.stringify\(profileDirs\) === JSON\.stringify\(existingDirs\)/);
+  assert.match(helperSource, /preservesVerification && existing\?\.lastVerifiedAt/);
+  assert.match(managerSource, /if \(!options\.preserveVerification\)[\s\S]*unlink\(this\.configPath\)/);
 });

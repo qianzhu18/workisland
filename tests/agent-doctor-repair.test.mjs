@@ -46,6 +46,7 @@ function createFakeCoordinator({ managers, settings = {} } = {}) {
     async repairAllHooks() {
       const results = [];
       for (const agentId of managers.keys()) {
+        if (settings.hookToggles?.[agentId] === false) continue;
         const health = await managers.get(agentId).checkHealth().catch(() => null);
         const diagnosis = diagnoseReport({ ...health, agentId });
         if (!diagnosis.repairable) continue;
@@ -152,4 +153,18 @@ test("audit log is capped at 50 entries", () => {
   assert.equal(c.audit.length, 50);
   assert.equal(c.audit[0].agentId, "a10");
   assert.equal(c.audit[c.audit.length - 1].agentId, "a59");
+});
+
+test("startup doctor never auto-installs an agent the user explicitly disabled", async () => {
+  const installs = [];
+  const claude = manager({ installed: false, issues: ["Hook not found"] });
+  const orig = claude.install.bind(claude);
+  claude.install = async () => { installs.push("claude"); return orig(); };
+  const c = createFakeCoordinator({
+    managers: new Map([["claude", claude]]),
+    settings: { hookToggles: { claude: false } }
+  });
+  const repaired = await c.runStartupDoctor();
+  assert.deepEqual(repaired, []);
+  assert.deepEqual(installs, []);
 });
