@@ -32,3 +32,30 @@ test("ignores unrelated processes and deduplicates one running profile", () => {
   const output = `${dsh}\n55328 ?? S 0:00 node dsh --profile dev DSH_HOME=/tmp/demo/.dsh HOME=/Users/bao\n99 ?? S 0:00 node other --profile dev HOME=/Users/bao`;
   assert.equal(discoverRunningDshProfiles(output).length, 1);
 });
+
+test("discovers the launcher-started web profile without --profile or DSH_HOME", () => {
+  const output = "9233 ?? S 0:00 node /opt/homebrew/lib/node_modules/@deepseek-ai/dsh/lib/bin.js web --port 3080 --no-open HOME=/Users/bao";
+  assert.deepEqual(discoverRunningDshProfiles(output, { homeDir: "/Users/bao/.dsh" }), [{
+    pid: 9233,
+    name: "web",
+    port: 3080,
+    homeDir: "/Users/bao/.dsh",
+    profileDir: "/Users/bao/.dsh/profiles/web"
+  }]);
+});
+
+test("derives the profile from the DSH subcommand when launched as a bare CLI", () => {
+  const output = "4242 ?? S 0:00 /usr/local/bin/dsh tui --port 4000";
+  assert.deepEqual(discoverRunningDshProfiles(output, { homeDir: "/Users/bao/.dsh" }), [{
+    pid: 4242,
+    name: "tui",
+    port: 4000,
+    homeDir: "/Users/bao/.dsh",
+    profileDir: "/Users/bao/.dsh/profiles/tui"
+  }]);
+});
+
+test("ignores dsh mentions that do not describe a running harness", () => {
+  const output = "99 ?? S 0:00 node /tmp/dsh-helper.js --watch\n100 ?? S 0:00 node /tmp/dsh-cache-worker.js";
+  assert.deepEqual(discoverRunningDshProfiles(output, { homeDir: "/Users/bao/.dsh" }), []);
+});

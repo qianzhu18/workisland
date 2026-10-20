@@ -81,13 +81,24 @@ function requestApproval(req) {
 
 export function apply(ctx, options = {}) {
   const askWorkIsland = options.requestApproval || requestApproval;
-  ctx.on("agent/session-start", ({ agent }) => emit("SessionStart", agent));
-  ctx.on("agent/inbox/claimed", ({ agent, message }) => emit("UserPromptSubmit", agent, { prompt: text(message?.content) }));
+  const fire = options.emitEvent || emit;
+  const startedSessions = new Set();
+  // DSH 0.2.1 把 `agent/session-start` 改名成 `agent/created`；两个都监听，
+  // 新老版本都能拿到 SessionStart。同一 session 只上报一次，避免重复气泡。
+  const sessionStarted = ({ agent }) => {
+    const id = agent?.id;
+    if (!id || startedSessions.has(id)) return;
+    startedSessions.add(id);
+    fire("SessionStart", agent);
+  };
+  ctx.on("agent/session-start", sessionStarted);
+  ctx.on("agent/created", sessionStarted);
+  ctx.on("agent/inbox/claimed", ({ agent, message }) => fire("UserPromptSubmit", agent, { prompt: text(message?.content) }));
   ctx.on("agent/status", ({ agent, status }) => {
-    if (status === "running") emit("PreToolUse", agent, { tool_name: "DeepSeek Harness" });
-    if (status === "idle") emit("Stop", agent);
+    if (status === "running") fire("PreToolUse", agent, { tool_name: "DeepSeek Harness" });
+    if (status === "idle") fire("Stop", agent);
   });
-  ctx.on("agent/error", ({ agent, error }) => emit("Notification", agent, { notification_type: "error", message: String(error?.message || error || "DeepSeek Harness error") }));
+  ctx.on("agent/error", ({ agent, error }) => fire("Notification", agent, { notification_type: "error", message: String(error?.message || error || "DeepSeek Harness error") }));
   ctx.on("approval/request", async (req, next) => {
     const outcome = await askWorkIsland(req);
     return outcome || next();

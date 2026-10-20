@@ -31,9 +31,10 @@ const DEFAULT_HOOK_TOGGLES = {
   // TraeWork shares TraeCode's hooks.json, but its current desktop runtime
   // executes Hooks in a sandbox. Keep it opt-in until a real event verifies it.
   traework: false,
-  // DSH installation changes the active profile, so it must only run after
-  // the user clicks “连接”.
-  dsh: false
+  // DSH 与其他本地 Agent 一样自动识别：安装只往已初始化的 profile 里追加
+  // bundle，且是幂等的，不需要用户点「连接」。老版本把这里的默认值持久化成
+  // false 的用户由 AppCoordinator.migrateDshAutoDetect() 一次性迁移。
+  dsh: true
 };
 
 const {
@@ -183,6 +184,9 @@ const DEFAULT_SETTINGS = {
   suppressNotificationWhenFocused: true,
   updateChecksEnabled: true,
   hookToggles: { ...DEFAULT_HOOK_TOGGLES },
+  // DSH 自动接入的一次性迁移标记：迁移后用户在设置里手动关闭会被尊重，
+  // 不会被下一次启动重新打开。
+  agentAutoDetectMigrated: false,
   approvalModes: { ...DEFAULT_APPROVAL_MODES },
   showDebugWindow: false,
   petScale: 1,

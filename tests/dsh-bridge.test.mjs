@@ -27,3 +27,16 @@ test("DSH bridge falls through to the native UI when WorkIsland is unavailable",
   }, () => Promise.resolve("native-ui"));
   assert.equal(outcome, "native-ui");
 });
+
+test("DSH bridge reports session start for both legacy and current DSH lifecycle events", async () => {
+  const listeners = new Map();
+  const ctx = { on: (name, listener) => listeners.set(name, listener) };
+  const events = [];
+  bridge.apply(ctx, { emitEvent: (event, agent) => events.push([event, agent?.id]) });
+  listeners.get("agent/session-start")({ agent: { id: "legacy-session", session: { header: { cwd: "/tmp" } } } });
+  listeners.get("agent/created")({ agent: { id: "current-session", session: { header: { cwd: "/tmp" } } } });
+  assert.deepEqual(events, [
+    ["SessionStart", "legacy-session"],
+    ["SessionStart", "current-session"]
+  ]);
+});
