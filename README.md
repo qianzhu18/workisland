@@ -43,6 +43,22 @@ WorkIsland 的产品定义是：**AI 原生时代的 macOS 工作界面**。它�
 
 **普通用户：** 从 [GitHub Releases](https://github.com/qianzhu18/workisland/releases) 下载 Apple Silicon DMG，无需任何云端账号。
 
+**命令行安装（macOS / Apple Silicon，二选一）：**
+
+一键脚本（自动下载最新版 DMG 并安装到 /Applications）：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/qianzhu18/workisland/main/scripts/install.sh | bash
+```
+
+Homebrew Cask：
+
+```bash
+brew install --cask https://raw.githubusercontent.com/qianzhu18/workisland/main/scripts/workisland.rb
+```
+
+两种方式都从 GitHub Releases 下载最新版；命令来源固定指向 `qianzhu18/workisland` 仓库，执行前可先核对，或到 [Releases 页面](https://github.com/qianzhu18/workisland/releases) 手动下载。
+
 > **版本叙事**：0.2.x 为内测期，1.x 为公开稳定线。WorkIsland 于 2026-08 基于两代原型经验重写。
 >
 > **关于 Windows**：Windows 支持暂停维护（代码、CI 与构建脚本完整保留）。当前没有达到我们质量标准的 Windows 版本，因此不提供公开下载。如果你日常使用 Windows 并愿意主导适配，欢迎[开 issue](https://github.com/qianzhu18/workisland/issues/new/choose) 联系我们。
