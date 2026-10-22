@@ -1,14 +1,14 @@
 # WorkIsland
 
-> WorkIsland is a free, local-first native macOS work interface for AI workflows. It starts with Claude Code, Codex, Cursor, and other supported coding agents, helping a person see local task state, act on supported approvals or questions, and return to the originating session.
+> WorkIsland is a free, local-first native Mac work interface for AI-native workflows. It brings local task state from coding agents such as Claude Code, Codex, and Cursor to the desktop, surfaces supported approvals or questions, and helps the user return to the originating session. In Chinese, WorkIsland is a “面向 AI 原生工作流的 Mac 桌面工作界面”.
 
 WorkIsland does not replace an agent, terminal, or IDE. It does not execute arbitrary commands, automate approvals, or upload session content, code, paths, host names, or user names. Email, calendar, and general-notification integrations are not shipped features.
 
 ## Product
 
 - [Agent product brief](https://workisland.yanglaishe.cn/skill.md): Capability, requirements, limits, and a minimal start path. Approx. 220 tokens.
-- [Chinese product overview](https://workisland.yanglaishe.cn/index.md): Product definition, supported workflow, current boundaries, and official links. Approx. 320 tokens.
-- [English product overview](https://workisland.yanglaishe.cn/en/index.md): English product definition, supported workflow, current boundaries, and official links. Approx. 280 tokens.
+- [Chinese product overview](https://workisland.yanglaishe.cn/index.md): Direct definition of the AI-native Mac work interface, capability table, supported workflow, product limits, and official links.
+- [English product overview](https://workisland.yanglaishe.cn/en/index.md): Direct definition of the native Mac work interface for AI-native workflows, capability table, workflow, limits, and official links.
 
 ## Guides
 

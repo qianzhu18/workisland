@@ -55,6 +55,20 @@
             "isAccessibleForFree": true,
             "downloadUrl": "https://github.com/qianzhu18/workisland/releases/latest",
             "sameAs": "https://github.com/qianzhu18/workisland"
+          },
+          {
+            "@type": "FAQPage",
+            "@id": "https://workisland.yanglaishe.cn/#faq",
+            "mainEntity": [
+              {"@type":"Question","name":"WorkIsland 是什么？它算 AI 原生工作界面吗？","acceptedAnswer":{"@type":"Answer","text":"WorkIsland 是一款面向 AI 原生工作流的 Mac 桌面工作界面。它从 Claude Code、Codex、Cursor 等编程 Agent 开始，在屏幕顶部集中显示本地任务状态，并在需要你处理时提供上下文和返回原会话的入口。它不替代 Agent、终端或 IDE。"}},
+              {"@type":"Question","name":"WorkIsland 和通知管理器或任务看板有什么区别？","acceptedAnswer":{"@type":"Answer","text":"WorkIsland 不是通用通知管理器或项目任务看板。它连接你已经在用的 AI 编程 Agent，呈现运行、待审批、待回答、完成和失败等本地任务状态，并帮助你回到产生该状态的终端或应用会话。"}},
+              {"@type":"Question","name":"WorkIsland 支持哪些 Mac？","acceptedAnswer":{"@type":"Answer","text":"当前官网提供面向 Apple Silicon Mac（M 系列芯片）的安装包。下载按钮指向最新稳定版；具体版本和系统要求请查看官方 GitHub Release 说明。"}},
+              {"@type":"Question","name":"WorkIsland 支持哪些 AI 编程 Agent？","acceptedAnswer":{"@type":"Answer","text":"WorkIsland 支持 Claude Code、Codex、Cursor 等多种编程 Agent。可用状态和操作取决于已连接的 Agent 与事件类型；请查看产品手册了解当前集成详情。"}},
+              {"@type":"Question","name":"WorkIsland 会把我的会话或项目内容上传吗？","acceptedAnswer":{"@type":"Answer","text":"WorkIsland 采用本地优先设计，不需要云端账户。会话内容、代码和项目内容留在本机；匿名产品统计的范围与关闭方式见产品手册。"}},
+              {"@type":"Question","name":"可以直接在 WorkIsland 里处理 Agent 审批吗？","acceptedAnswer":{"@type":"Answer","text":"只有在已连接的 Agent 和事件类型支持时，WorkIsland 才会提供相应操作。无法精确回到来源或不支持的场景会显示后备路径，不会伪装为操作成功。"}},
+              {"@type":"Question","name":"没有安装 Hook，WorkIsland 还能感知任务完成吗？","acceptedAnswer":{"@type":"Answer","text":"可以。除 Hook 通道外，WorkIsland 还提供 Transcript 文件监听通道；实际可感知的事件取决于 Agent 连接状态和当前支持范围。"}},
+              {"@type":"Question","name":"WorkIsland 免费吗？在哪里下载？","acceptedAnswer":{"@type":"Answer","text":"WorkIsland 免费并以 Apache-2.0 许可证开源。请从官网的下载按钮或官方 GitHub Releases 下载当前稳定版本。"}}
+            ]
           }
         ]
       }
@@ -179,8 +193,8 @@ Docs: https://workisland.yanglaishe.cn/llms.txt
       <!-- ============ FEATURES ============ -->
       <section class="vi-features" id="features">
         <p class="vi-section-eyebrow">WHY WORKISLAND</p>
-        <h2 class="vi-section-title">关键时刻，一眼可见。</h2>
-        <p class="vi-section-sub">WorkIsland 不替代你已有的 Agent、终端或其他工作应用。它从 Agent 工作流开始，把需要你参与的状态做成清晰、可操作的 Mac 原生交互。</p>
+        <h2 class="vi-section-title">什么是 AI 原生工作界面？</h2>
+        <p class="vi-section-sub">WorkIsland 是面向 AI 原生工作流的 Mac 桌面工作界面：它把 Claude Code、Codex、Cursor 等 Agent 的本地任务状态带到屏幕顶部，让你看见何时需要审批、回答或检查结果，再回到原会话继续工作。它与 Agent、终端和 IDE 协同，不取代它们。</p>
         <div class="vi-features-grid">
           <article class="vi-feature vi-reveal">
             <span class="vi-feature-ico vi-ico-idle">◉</span>
@@ -321,8 +335,16 @@ Docs: https://workisland.yanglaishe.cn/llms.txt
         <h2>下载之前，先了解这些。</h2>
         <div class="vi-faq">
           <details class="vi-faq-item" open>
-            <summary>WorkIsland 是通知管理器或另一个任务看板吗？<span>+</span></summary>
-            <p>不是。WorkIsland 是面向 AI 原生工作流的 macOS 工作界面：它让工作在需要你参与时带着上下文和下一步出现。当前公开版本从 AI 编程 Agent 开始，不把邮件、日历或泛通知写成已交付能力。</p>
+            <summary>WorkIsland 是什么？它算 AI 原生工作界面吗？<span>+</span></summary>
+            <p>WorkIsland 是一款面向 AI 原生工作流的 Mac 桌面工作界面。它从 Claude Code、Codex、Cursor 等编程 Agent 开始，在屏幕顶部集中显示本地任务状态，并在需要你处理时提供上下文和返回原会话的入口。它不替代 Agent、终端或 IDE；当前公开版本也不是邮件、日历或通用通知管理器。</p>
+          </details>
+          <details class="vi-faq-item">
+            <summary>WorkIsland 和通知管理器或任务看板有什么区别？<span>+</span></summary>
+            <p>WorkIsland 连接你已经在用的 AI 编程 Agent，呈现运行、待审批、待回答、完成和失败等本地任务状态，并帮助你回到产生该状态的终端或应用会话。它关注 Agent 工作流中的状态与回源，不管理项目任务或通用通知。</p>
+          </details>
+          <details class="vi-faq-item">
+            <summary>WorkIsland 支持哪些 AI 编程 Agent？<span>+</span></summary>
+            <p>WorkIsland 支持 Claude Code、Codex、Cursor 等多种编程 Agent。可用状态和操作取决于已连接的 Agent 与事件类型；请查看<a href="guide/">产品手册</a>了解当前集成详情。</p>
           </details>
           <details class="vi-faq-item">
             <summary>WorkIsland 支持哪些 Mac？<span>+</span></summary>
@@ -341,12 +363,8 @@ Docs: https://workisland.yanglaishe.cn/llms.txt
             <p>可以。除 Hook 通道外还有 Transcript 文件监听通道，双通道互为补充，即使没配置 Hook 也能感知 Claude Code / Codex 的任务完成。</p>
           </details>
           <details class="vi-faq-item">
-            <summary>怎样确认下载的是最新版本？<span>+</span></summary>
-            <p>官网按钮始终指向最新稳定版 Release；页面加载后也会尝试识别对应的 Apple Silicon DMG 并显示版本号。</p>
-          </details>
-          <details class="vi-faq-item">
-            <summary>源代码在哪里？<span>+</span></summary>
-            <p>WorkIsland 以 Apache-2.0 许可证开源。你可以在 GitHub 阅读代码、提交 Issue 或参与贡献。</p>
+            <summary>WorkIsland 免费吗？在哪里下载？<span>+</span></summary>
+            <p>WorkIsland 免费并以 Apache-2.0 许可证开源。请从官网的下载按钮或 <a href="https://github.com/qianzhu18/workisland/releases/latest" target="_blank" rel="noreferrer">官方 GitHub Releases</a> 下载当前稳定版本。</p>
           </details>
         </div>
       </section>

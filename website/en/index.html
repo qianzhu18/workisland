@@ -54,6 +54,20 @@
             "isAccessibleForFree": true,
             "downloadUrl": "https://github.com/qianzhu18/workisland/releases/latest",
             "sameAs": "https://github.com/qianzhu18/workisland"
+          },
+          {
+            "@type": "FAQPage",
+            "@id": "https://workisland.yanglaishe.cn/en/#faq",
+            "mainEntity": [
+              {"@type":"Question","name":"What is an AI-native work interface?","acceptedAnswer":{"@type":"Answer","text":"An AI-native work interface brings the state and next action of AI agent work into the person's desktop workflow. WorkIsland is a local-first native Mac work interface that shows task signals from connected coding agents, surfaces supported approvals or questions, and helps users return to the originating session. It works alongside the agent, terminal, and IDE."}},
+              {"@type":"Question","name":"Is WorkIsland a notification manager or another task dashboard?","acceptedAnswer":{"@type":"Answer","text":"No. WorkIsland is a native Mac work interface for AI workflows. It connects to coding agents already in use and makes local task states, context, and supported next actions visible. The public release starts with coding agents; email, calendar, and general notifications are not shipped features."}},
+              {"@type":"Question","name":"Does WorkIsland replace Claude Code, Codex, or my terminal?","acceptedAnswer":{"@type":"Answer","text":"No. WorkIsland works alongside the agents and terminal or IDE you already use. It helps you notice relevant task state and return to the originating session when work needs you."}},
+              {"@type":"Question","name":"Which AI coding agents does WorkIsland support?","acceptedAnswer":{"@type":"Answer","text":"WorkIsland supports Claude Code, Codex, Cursor, and other coding agents. Available states and actions depend on the connected agent and event type; consult the product guide for current integration details."}},
+              {"@type":"Question","name":"Does WorkIsland upload my code or session content?","acceptedAnswer":{"@type":"Answer","text":"No. WorkIsland is local-first. Session content, code, paths, project names, host names, and user names stay on your Mac. No cloud account is required for the local workflow."}},
+              {"@type":"Question","name":"Which Mac systems can run WorkIsland?","acceptedAnswer":{"@type":"Answer","text":"Current public releases provide macOS builds for Apple Silicon and Intel Macs. Check the official GitHub Release notes for the current version and system requirements."}},
+              {"@type":"Question","name":"Is WorkIsland free and where can I download it?","acceptedAnswer":{"@type":"Answer","text":"WorkIsland is free and open source under the Apache 2.0 license. Download the current stable version from the official GitHub Releases page."}},
+              {"@type":"Question","name":"Where can I ask for an agent integration or report an issue?","acceptedAnswer":{"@type":"Answer","text":"Open a GitHub issue with your WorkIsland version, the agent you use, steps to reproduce, and redacted diagnostics when relevant."}}
+            ]
           }
         ]
       }
@@ -147,9 +161,12 @@ Docs: https://workisland.yanglaishe.cn/llms.txt
       <section class="en-section en-faq" id="faq">
         <p class="en-eyebrow">FAQ</p><h2>Before you install</h2>
         <details open><summary>Is WorkIsland a notification manager or another task dashboard?</summary><p>No. WorkIsland is a native Mac work interface for AI workflows: it makes work that needs you visible with the context and next action. The public release starts with coding agents; email, calendar, and general notifications are not advertised as shipped features.</p></details>
+        <details><summary>What is an AI-native work interface?</summary><p>An AI-native work interface brings agent task state and the next action into the person's desktop workflow. WorkIsland shows local signals from connected coding agents, surfaces supported approvals or questions, and helps you return to the originating session. It works alongside your agent, terminal, and IDE.</p></details>
         <details><summary>Does WorkIsland replace Claude Code, Codex, or my terminal?</summary><p>No. It works alongside the tools you already run and helps you return to the originating session when work requires you.</p></details>
+        <details><summary>Which AI coding agents does WorkIsland support?</summary><p>WorkIsland supports Claude Code, Codex, Cursor, and other coding agents. Available states and actions depend on the connected agent and event type; see the <a href="../guide/">product guide</a> for current integration details.</p></details>
+        <details><summary>Does WorkIsland upload my code or session content?</summary><p>No. Session content, code, paths, project names, host names, and user names stay on your Mac. No cloud account is required for the local workflow. Website analytics are described in the <a href="../guide/#privacy">privacy notes</a>.</p></details>
         <details><summary>Which Mac systems can run WorkIsland?</summary><p>Current public releases provide macOS builds for Apple Silicon and Intel Macs. See the <a href="https://github.com/qianzhu18/workisland/releases" target="_blank" rel="noreferrer">official releases</a> for the current installers and notes.</p></details>
-        <details><summary>Is WorkIsland free?</summary><p>Yes. WorkIsland is free and open source under the Apache 2.0 license. Download the current installer from the official GitHub Releases page.</p></details>
+        <details><summary>Is WorkIsland free and where can I download it?</summary><p>Yes. WorkIsland is free and open source under the Apache 2.0 license. <a href="https://github.com/qianzhu18/workisland/releases/latest" target="_blank" rel="noreferrer">Download the current installer from the official GitHub Releases page.</a></p></details>
         <details><summary>Where can I ask for an agent integration or report an issue?</summary><p>Open an issue with your WorkIsland version, the agent you use, steps to reproduce, and redacted diagnostics when relevant. That makes compatibility requests and bug reports actionable.</p><a href="https://github.com/qianzhu18/workisland/issues/new/choose" target="_blank" rel="noreferrer">Open a GitHub issue <span aria-hidden="true">↗</span></a></details>
       </section>
 
