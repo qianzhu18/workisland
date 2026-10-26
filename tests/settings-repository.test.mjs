@@ -56,3 +56,9 @@ test("legacy automatic locale values migrate to follow system", () => {
   assert.equal(mergeSettings({ languagePreference: "en" }).languagePreference, "en");
   assert.equal(mergeSettings({ languagePreference: "fr" }).languagePreference, "system");
 });
+
+test('usage dashboard starts stored in More but preserves an explicit toolbar choice', () => {
+  assert.deepEqual(mergeSettings({}).toolbarHiddenModules, ['usage']);
+  assert.deepEqual(mergeSettings({ toolbarHiddenModules: [] }).toolbarHiddenModules, []);
+  assert.deepEqual(mergeSettings({ toolbarHiddenModules: ['usage', 'terminal'] }).toolbarHiddenModules, ['usage', 'terminal']);
+});
