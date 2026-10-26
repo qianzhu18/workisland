@@ -1,74 +1,30 @@
-# WorkIsland v1.5.1 Release Notes（发布候选）
+# WorkIsland v1.6.0
 
-状态：`release-candidate — 范围冻结；Tag 推送后由 GitHub Actions 签名公证并创建正式 Release`
+会话搜索与回源更顺手，Agent 接入更省心，系统状态融入灵动岛。本版包含 v1.5.1 之后已经合并的功能与修复。
 
-## 中文说明（tag 时粘贴到 Release 页前半）
+## 新功能
 
-### 修复
+- **会话搜索与回源**：搜索历史会话，点击结果优先回到仍在运行的原会话；ZCode 可打开会话所在工作区，千问办公、DuMate 等回到对应客户端。搜索跳转沿用日常会话卡的回源路径。
+- **DeepSeek Harness 自动接入**：检测已初始化的 DSH profile 后自动配置，无需手动点连接；后台巡检补齐升级或重置后丢失的配置，兼容 DSH 0.2.1，连接状态区分“已写入配置”和真实事件确认。
+- **macOS 系统状态**：顶部工具栏的电池按钮一次查看电池与充电功率、音频输出/耳机、网络、下载、屏幕捕获；电源、连接、下载、录屏等变化可显示短暂提示。各项可在设置中单独关闭，锁屏信息默认关闭。
 
-- **岛悬浮窗不可见（P0，v1.5.0 回归）**：会话搜索 UI 的一个具名导入与渲染层模块实际导出不匹配，ESM 加载即抛 SyntaxError，island 渲染层 React 永不挂载——悬浮窗窗口存在但内容全透明。本版一行修复并实机验证。
+## 改进与修复
 
-### English Summary
+- Codex 订阅额度保留左侧固定的周期、已用百分比与重置倒计时；图标随安装包提供。用量看板独立可收纳，新安装默认放入“更多”。
 
-Emergency fix for a v1.5.0 regression: a bad named import in the island renderer crashed the module graph on load (SyntaxError), leaving the floating island window fully transparent. One-line fix, verified on device.
+- 系统提示和收起图标避开 MacBook 摄像头区域；修复进出动画跳动与内容闪回，Agent 待处理和用户正在操作的面板优先。
+- 会话索引与用量解析改为流式处理，合并重复扫描并串行处理启动回填，降低大历史记录下的内存峰值。
+- 修复搜索结果渲染导致岛窗口退出的问题；减少隐藏状态下的性能采样并精简安装包资源。
+- 改善自定义背景设置，修复“主屏”选择随设置窗口焦点漂移的问题。
 
-## What's Changed
+## 更新方式与已知范围
 
-（tag 时由 GitHub「Generate release notes」自动生成后填充）
+应用会自动检查稳定版并提醒；点击顶部更新入口或“设置 → 关于 → 更新”后才下载安装，校验 SHA-256 后安装并重启。也可下载与芯片匹配的官方 DMG 手动安装。
 
----
+下载识别基于浏览器临时文件；网络连接不代表任意网站可达。设备电量与瓦数仅在系统提供时显示。屏幕捕获提示不识别所属应用；锁屏展示使用可选系统接口，默认关闭。真实耳机切换、Wi-Fi 断开恢复、多屏休眠及真实锁定/解锁仍需更多设备反馈。布局用例与原生预览不能替代这些场景的真机验收。
 
-# WorkIsland v1.5.0 Release Notes（发布候选）
-
-状态：`release-candidate — 范围冻结；Tag 推送后由 GitHub Actions 签名公证并创建正式 Release`
-
-本版主题「远程、随手清理与办公 Agent」：SSH 远程升级为独立设置页并由 WorkIsland 主动管理反向隧道，会话清理进岛工具栏，千问办公与 DuMate 两个办公 Agent 上岛且历史会话可被本地索引（跨会话搜索地基就位），修复刘海屏工具栏遮挡。完整历史见仓库根目录的 [`CHANGELOG.md`](../CHANGELOG.md)。
-
-## 中文说明（tag 时粘贴到 Release 页前半）
-
-### SSH 远程：独立设置页 + WorkIsland 管理隧道
-
-- **SSH Config 主机发现**（#150，issue #116）：设置 → SSH 远程，自动扫描 `~/.ssh/config`（支持筛选与重新扫描），常用服务器一键添加；也支持手动填写主机。
-- **隧道由 WorkIsland 守护**：添加主机后 WorkIsland 从 Mac 主动 `ssh -R` 建立反向隧道并自动重连——**Mac 不再需要开启「远程登录」**。
-- **接入三步走**：复制接入命令 → 第 1 步 Mac 终端拷脚本 → 第 2 步在远程主机执行配对与 hook 安装（可整段交给远程机器上的 AI 助手，指南见 [REMOTE_ONBOARDING.md](./REMOTE_ONBOARDING.md)）。
-- **observe-only 边界不变**：只回传运行状态（运行中 / 等待审批 / 完成 / 失败），不回传提示词、代码或路径；一次性配对令牌、按主机分组、随时撤销；tmux attach 等交互式能力属二期另裁。
-
-### 办公 Agent 上岛 + 跨会话搜索地基
-
-- **千问办公（Qoder CLI）与 DuMate（百度搭子）接入**（#158/#159）：会话状态、审批与完成提醒实时上岛；设置页 Agents 列表办公 Agent 提前显示，并按「在用优先」浮动排序——已验证连接的 Agent 永远在最上面。
-- **会话搜索索引器 M1**（#115/#120）：本地增量索引五家 Agent（Claude Code / Codex / ZCode / 千问办公 / OpenCode-DuMate）的历史会话用户提问与项目路径；数据全部留在本机，为下一版本的搜索 UI 与 ⌘K 跳转打好地基。
-
-### 随手清理
-
-- **会话清理进工具栏**（#147/#149，issue #139）：岛工具栏一键清理全部可见会话卡片，设置提供显示开关。
-
-### 贴边停靠回归（社区贡献）
-
-- **dock 可选附件**（#36，by @skye46126-dotcom）：岛支持贴边停靠（默认关闭，设置开启）；停靠形态不再占用刘海/灵动岛区域，历史冲突（#44）随之解决。
-
-### 修复
-
-- **刘海屏工具栏遮挡**（#152，issue #151）：工具栏刘海禁区两侧各加 8px 安全边距，13/14 寸 MacBook 原生屏上边缘图标不再被刘海物理遮挡；外接屏与无刘海屏行为不变。
+ZCode ↔ Codex 双向交接仍在开发，不包含在本版。
 
 ### English Summary
 
-Dedicated "SSH Remote" settings page (#150) — discover hosts from `~/.ssh/config` with filtering and one-click add; WorkIsland-managed reverse tunnels remove the macOS Remote Login requirement; copyable setup commands hand the remote steps to the remote machine's AI assistant; observe-only boundaries unchanged. Session cleanup moves into the island toolbar with a settings toggle (#147/#149). Office agents Qoder CLI (千问办公) and DuMate join the Island with session status and alerts, promoted to the top of the settings list with in-use-first ordering (#158/#159); the session search indexer (M1, #115/#120) now incrementally indexes user prompts across five agents, fully local. An 8px camera-zone safety margin stops the notch from occluding toolbar icons on 13"/14" MacBook displays (#152). The opt-in dock attachment mode returns via community PR #36 (off by default, never covering the notch — resolving #44); connecting an agent now always enables its event toggle (#169).
-
-## What's Changed
-
-（tag 时由 GitHub「Generate release notes」自动生成后填充）
-
-## 发布前验收
-
-- [ ] `package.json` 与 `package-lock.json` 均为 `1.5.0`。
-- [ ] `npm run check` 通过。
-- [ ] `npm run release:check -- --tag v1.5.0` 通过。
-- [ ] 真机验收：一台真实 SSH 主机端到端（添加主机 → 隧道建立 → 状态上岛 → 撤销断隧道）；14 寸刘海屏确认清理图标完整可见。
-- [ ] Tag 后 GitHub Actions 签名、公证、Staple、Gatekeeper 校验通过，生成 `SHA256SUMS.txt`。
-- [ ] Release 成为 `releases/latest`，应用内更新可检测到 v1.5.0。
-
-## 已知限制与回滚
-
-- 隧道固定绑定远程机 17878 端口，被占用时设置页显示「隧道未建立」。
-- tmux attach / 交互式操作不在本版（二期另裁）。
-- 出现 P0 时发布新的 `v1.5.1`，绝不覆盖既有 Tag 或替换既有产物。
+v1.6.0 brings session search with live-session-first navigation, automatic DeepSeek Harness setup and repair (including DSH 0.2.1), and native macOS battery/power, audio, network, download and screen-capture status in the Island toolbar. Camera-safe transient notices respect agent attention and active panels. Streaming transcript processing, coalesced scans and serialized startup backfill reduce memory spikes; search rendering, display selection and custom backgrounds are improved. Codex quota retains its fixed left period/usage/reset display; the separate usage dashboard can be stored in More (the default on new installs). Updates are checked automatically but download/install require a click. Lock-screen information is off by default; hardware-specific audio/network/sleep/lock scenarios still need broader device validation. The unmerged ZCode–Codex handoff is excluded.

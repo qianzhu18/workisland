@@ -18,3 +18,5 @@
 - [PRD-011: v3.2.0 macOS Template & Appearance Release](./PRD-011-v3.2.0-macOS-Template-Appearance-Release.md)
 
 编号只递增不复用。Feature PRD 的批准意味着可以拆 Issue，不意味着所有任务都必须在同一版本交付。
+
+- [Version PRD: v1.6.0](./PRD-v1.6.0-Release.md)

@@ -6,19 +6,29 @@
 
 ## [Unreleased]
 
-DeepSeek Harness 自动接入：不再需要用户点「连接」——检测到已初始化的 DSH profile 后自动写入 bridge（幂等，不先卸载），启动时后台巡检补齐被升级/重置清掉的配置；插件兼容 DSH 0.2.1 的 `agent/created` 事件；「已连接」仅在配置还在且没有待重启改动时显示。
+尚无新的未发布条目。
 
-### Changed
+## [1.6.0] - 2026-10-26
 
-- **DeepSeek Harness 自动识别**：默认开启，启动时自动向已初始化的 `~/.dsh/profiles/*` 写入生命周期插件，并每 5 分钟后台巡检一次。旧版本把 `hookToggles.dsh` 持久化成 `false` 的用户只对「从未接入过」的情况做一次性迁移；迁移后在设置里手动关闭仍会被尊重。
-- **安装幂等**：稳态启动不再跑 pnpm、也不再「先卸载再安装」——避免升级中途失败后留下「配置在、插件没了」的半坏状态（真实事故）。
+会话搜索与回源、DeepSeek Harness 自动接入和 macOS 原生系统状态正式打包，并汇总 v1.5.1 后的内存、显示与背景修复。
 
-### Fixed
+### Added
 
-- **连接状态更诚实**：写入配置但 DSH 尚未重启时显示「已写入配置」，收到真实事件后才显示「已连接」；DSH 升级/重置 profile 清掉 bridge 后由巡检自动补装。
-- **DSH 0.2.1 兼容**：插件同时监听 `agent/session-start`（旧版）与 `agent/created`（0.2.1），会话开始事件不再丢失。
+- 会话搜索结果优先回到运行中的原会话，ZCode 工作区深链及办公 Agent 客户端回源（#176、#177、#179–#183）。
+- DeepSeek Harness 自动发现、幂等安装、后台补装与 DSH 0.2.1 兼容（#191）。
+- 顶部系统状态按钮、充电实际瓦数、音频/网络/下载/屏幕捕获状态、短暂变化提示与默认关闭的锁屏信息（#192）。
 
-> **English summary:** DeepSeek Harness is now auto-detected and auto-connected like every other local agent — no "Connect" click required. The bridge install is idempotent (steady-state launches skip pnpm and never uninstall first), a background watchdog re-installs the bridge within minutes if a DSH upgrade/reset wipes the profile, and the plugin listens to DSH 0.2.1's renamed `agent/created` event. Connection state stays "configured" until a real event arrives, so a stale verification can no longer read as connected.
+### Improved and Fixed
+
+- Codex 固定额度保持原有周期、百分比和重置倒计时；图标本地随包提供，用量看板独立收纳，新安装默认放入“更多”（#195）。
+
+- 流式历史索引与用量解析、串行启动回填、重复扫描合并，修复搜索渲染退出并精简资源与隐藏采样（#186–#188）。
+- 改善自定义背景设置（#184）；修复主屏选择跟随设置窗口焦点（#182）。
+- 系统状态提示与收起图标避让摄像头，修复进出动画跳动和内容闪回（#192）。
+
+真实耳机切换、Wi-Fi、多屏休眠与锁定/解锁仍需更多设备验证，锁屏信息默认关闭。完整范围与限制见 [v1.6.0 中文说明](https://github.com/qianzhu18/workisland/releases/tag/v1.6.0)。
+
+> **English summary:** Session search gains live-session-first navigation, DeepSeek Harness connects automatically, and native macOS system status joins the toolbar with camera-safe transient notices. Streaming and coalesced transcript work reduce memory spikes; search, custom backgrounds and display selection are fixed. Hardware-specific audio/network/sleep/lock validation remains limited; lock-screen information is off by default. [Full release notes](https://github.com/qianzhu18/workisland/releases/tag/v1.6.0).
 
 ## [1.5.1] - 2026-09-16
 
