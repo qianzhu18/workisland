@@ -2,6 +2,7 @@ import { R as React } from "../../vendor/react-runtime.js";
 import { t } from "../../shared/i18n.js";
 import { s as sanitizeAgentDisplayText } from "../../shared/formatters.js";
 import { d as defaultIcon, b as approvalIcon, c as completeIcon, r as runningIcon } from "./IslandPanel.js";
+import { SystemIcon, useSystemActivity } from "./SystemStatus.js";
 import { getNotchMediaLayout } from "./workstation-model.mjs";
 function requiresAttention(phase) {
   return phase === "waitingForApproval" || phase === "waitingForAnswer";
@@ -73,12 +74,14 @@ function derivePillDisplay(sessions, visibleCount, hasNotch, media, performanceA
   }
   return { status, icon, label };
 }
-function IslandPill({ sessions, visibleCount, hasNotch, notchWidth = 0, useNotchMedia = false, onClick, media, performanceAlert }) {
-  const { status, icon, label } = derivePillDisplay(sessions, visibleCount, hasNotch, media, performanceAlert);
+function IslandPill({ sessions, visibleCount, hasNotch, notchWidth = 0, useNotchMedia = false, onClick, media, performanceAlert, systemStatus }) {
+  const activity = useSystemActivity(systemStatus, visibleCount > 0);
+  const display = derivePillDisplay(sessions, visibleCount, hasNotch, media, performanceAlert);
+  const { status, icon, label } = activity ? { status: "system", icon: defaultIcon, label: t(activity.key, activity) } : display;
   const isIdle = status === "idle";
   const notchMedia = useNotchMedia && (status === "media-playing" || status === "media-paused");
   const layout = notchMedia ? getNotchMediaLayout(notchWidth) : null;
-  return /* @__PURE__ */ React.createElement("div", { className: `pill pill-${status}${notchMedia ? " pill-notch-media" : ""}`, onClick }, /* @__PURE__ */ React.createElement("div", { className: "pill-left", style: layout ? { left: `calc(50% + ${layout.artworkLeft}px)` } : void 0 }, /* @__PURE__ */ React.createElement("img", { key: notchMedia ? `${media?.appBundleId}:${media?.title}` : "status-icon", className: "pill-icon-img", src: icon, alt: "", draggable: false })), label && /* @__PURE__ */ React.createElement("div", { className: `pill-label${isIdle ? " pill-label-idle" : ""}` }, label), /* @__PURE__ */ React.createElement("div", { className: "pill-right", style: layout ? { left: `calc(50% + ${layout.indicatorLeft}px)` } : void 0 }, notchMedia ? /* @__PURE__ */ React.createElement("div", { className: "media-wave", "aria-label": t(media?.playing ? "media.playing" : "media.paused") }, [0, 1, 2, 3].map((index) => /* @__PURE__ */ React.createElement("i", { className: "media-wave-bar", key: index }))) : visibleCount > 0 && /* @__PURE__ */ React.createElement("div", { className: "pill-count" }, visibleCount)));
+  return /* @__PURE__ */ React.createElement("div", { className: `pill pill-${status}${notchMedia ? " pill-notch-media" : ""}`, onClick }, /* @__PURE__ */ React.createElement("div", { className: "pill-left", style: layout ? { left: `calc(50% + ${layout.artworkLeft}px)` } : void 0 }, /* @__PURE__ */ activity ? React.createElement(SystemIcon, { kind: activity.kind, className: "pill-system-icon" }) : React.createElement("img", { key: notchMedia ? `${media?.appBundleId}:${media?.title}` : "status-icon", className: "pill-icon-img", src: icon, alt: "", draggable: false })), label && /* @__PURE__ */ React.createElement("div", { className: `pill-label${isIdle ? " pill-label-idle" : ""}` }, label), /* @__PURE__ */ React.createElement("div", { className: "pill-right", style: layout ? { left: `calc(50% + ${layout.indicatorLeft}px)` } : void 0 }, notchMedia ? /* @__PURE__ */ React.createElement("div", { className: "media-wave", "aria-label": t(media?.playing ? "media.playing" : "media.paused") }, [0, 1, 2, 3].map((index) => /* @__PURE__ */ React.createElement("i", { className: "media-wave-bar", key: index }))) : visibleCount > 0 && /* @__PURE__ */ React.createElement("div", { className: "pill-count" }, visibleCount)));
 }
 function buildNotchPath(left, right, bottom, topRadius, bottomRadius, topInset = 0) {
   const width = right - left;

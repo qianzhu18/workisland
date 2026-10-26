@@ -360,6 +360,16 @@ function generalPage() {
       () => [row(t("settings.general.performance.alerts.title"), t("settings.general.performance.alerts.description"), toggle(state.settings.performanceAlertsEnabled, v => save({ performanceAlertsEnabled: v }), t("settings.general.performance.alerts.title")))]
     )
   );
+  if (api.platform === "darwin") {
+    workstation.append(featureSettingsRow(
+      "system-status", t("system.title"), t("system.settings.description"),
+      el("span", "setting-description", "macOS"),
+      () => [
+        ...[["battery", "systemBatteryEnabled"], ["network", "systemNetworkEnabled"], ["audio", "systemAudioEnabled"], ["capture", "systemCaptureEnabled"], ["downloads", "systemDownloadsEnabled"], ["lockScreen", "systemLockScreenEnabled"]].map(([kind, key]) =>
+          row(t(`system.${kind}.title`), t(`system.settings.${kind}`), toggle(state.settings[key], value => save({ [key]: value }), t(`system.${kind}.title`))))
+      ]
+    ));
+  }
   const productivity = section(t("settings.general.productivity.sectionTitle"), t("settings.general.productivity.description"));
   productivity.append(
     featureSettingsRow(

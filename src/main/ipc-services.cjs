@@ -392,6 +392,8 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
     electron.ipcMain.handle(IPC.USAGE_CLEAR_DATA, () => {
       return coordinator.clearUsageData();
     });
+    electron.ipcMain.handle(IPC.SYSTEM_STATUS_GET, () => coordinator.getSystemStatus());
+    electron.ipcMain.handle(IPC.SYSTEM_STATUS_PREVIEW_LOCK, () => coordinator.previewSystemLockScreen());
     electron.ipcMain.handle(IPC.MEDIA_GET_STATE, () => coordinator.getMediaState());
     electron.ipcMain.handle(IPC.MEDIA_COMMAND, (_event, command) => coordinator.sendMediaCommand(command));
     electron.ipcMain.handle(IPC.LYRICS_GET_STATE, () => coordinator.getLyricsState());

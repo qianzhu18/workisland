@@ -43,6 +43,15 @@ const PRODUCT_CAPABILITIES = Object.freeze([
     requirements: ["性能监视器已开启"], enabledWhen: (settings, modules) => settings.performanceEnabled !== false && modules.performance !== false
   }),
   capability({
+    id: "system-status", name: "系统状态", category: "工作台",
+    summary: "显示电池与实际功率、网络、音频输出、浏览器下载、屏幕捕获和可选锁屏摘要。",
+    platforms: ["darwin"], relatedSettings: ["systemBatteryEnabled", "systemNetworkEnabled", "systemAudioEnabled", "systemCaptureEnabled", "systemDownloadsEnabled", "systemLockScreenEnabled"], settingsSection: "general",
+    howToUse: "展开灵动岛，点击系统状态查看详情；在通用设置中分别开启检测和锁屏信息。",
+    privacy: "状态仅在本机处理；锁屏不显示对话正文和文件路径。",
+    requirements: ["macOS 原生状态组件可运行；部分能力取决于系统及设备支持"],
+    enabledWhen: settings => ["systemBatteryEnabled", "systemNetworkEnabled", "systemAudioEnabled", "systemCaptureEnabled", "systemDownloadsEnabled"].some(key => settings[key] !== false) || settings.systemLockScreenEnabled === true
+  }),
+  capability({
     id: "file-shelf", name: "文件架", category: "效率工具",
     summary: "把文件引用临时放在灵动岛中，方便跨应用拖放。",
     platforms: ["darwin", "win32"], relatedSettings: ["fileShelfEnabled"], settingsSection: "general",

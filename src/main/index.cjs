@@ -811,6 +811,7 @@ async function runIslandApp() {
     setPreference: (languagePreference) => coordinator.updateSettings({ languagePreference }, "settings"),
     getPreferredSystemLanguages: () => electron.app.getPreferredSystemLanguages(),
     broadcast: (snapshot) => {
+      coordinator.systemStatusService.configure({ language: snapshot.locale });
       for (const win of electron.BrowserWindow.getAllWindows()) {
         if (!win.isDestroyed()) win.webContents.send(IPC.LOCALE_DID_CHANGE, snapshot);
       }

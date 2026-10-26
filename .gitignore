@@ -30,3 +30,6 @@ doc/
 CLAUDE.md
 DESIGN.md
 SHA256SUMS.txt
+
+# Native system status build output
+resources/bin/workisland-system-status

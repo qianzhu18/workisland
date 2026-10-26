@@ -27,6 +27,13 @@ const initialNotchInfo = parseInitialNotchInfo();
 electron.contextBridge.exposeInMainWorld("islandBridge", {
   searchSessions: (query) => electron.ipcRenderer.invoke(ipc.IPC.SESSION_SEARCH_QUERY, { query }),
   openAgentClient: (tool, projectPath) => electron.ipcRenderer.invoke(ipc.IPC.SESSION_SEARCH_OPEN_CLIENT, { tool, projectPath }),
+  getSystemStatus: () => electron.ipcRenderer.invoke(ipc.IPC.SYSTEM_STATUS_GET),
+  previewSystemLockScreen: () => electron.ipcRenderer.invoke(ipc.IPC.SYSTEM_STATUS_PREVIEW_LOCK),
+  onSystemStatus(cb) {
+    const handler = (_event, state) => cb(state);
+    electron.ipcRenderer.on(ipc.IPC.SYSTEM_STATUS_UPDATE, handler);
+    return () => electron.ipcRenderer.removeListener(ipc.IPC.SYSTEM_STATUS_UPDATE, handler);
+  },
   // ── Synchronous initial data (injected via additionalArguments) ──────────
   __initialNotchInfo: initialNotchInfo,
   // ── Main → renderer ────────────────────────────────────────────────────────

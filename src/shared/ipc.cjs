@@ -40,6 +40,9 @@ const IPC = Object.freeze({
   ISLAND_GET_AGENT_SETUP_STATUS: "island:get-agent-setup-status",
 
   MEDIA_GET_STATE: "media:get-state",
+  SYSTEM_STATUS_GET: "system-status:get",
+  SYSTEM_STATUS_UPDATE: "system-status:update",
+  SYSTEM_STATUS_PREVIEW_LOCK: "system-status:preview-lock",
   MEDIA_STATE_UPDATE: "media:state-update",
   MEDIA_COMMAND: "media:command",
   LYRICS_GET_STATE: "lyrics:get-state",

@@ -22,6 +22,31 @@
  *   Card header bg:  --island-card-header-bg（Subagents / 工具名 / 提问等顶栏统一加深）
  */
 
+.system-status { flex: 1 1 auto; min-height: 0; padding: 16px 20px; overflow: auto; color: var(--island-fg-primary); }
+.system-status-heading { font-size: 13px; font-weight: 600; margin: 0 0 12px; }
+.system-icon { flex: 0 0 auto; }
+.system-status button:focus-visible { outline: 2px solid var(--island-fg-primary); outline-offset: 2px; border-radius: 5px; }
+.system-status-details { max-height: calc(var(--island-panel-max-height, 540px) - var(--island-safe-top-inset, 32px) - 100px); overflow: auto; scrollbar-color: var(--island-control-border) transparent; scrollbar-width: thin; padding: 4px 0 12px; font-size: 11px; }
+.system-status-rows { margin: 0; }
+.system-status-row { display: flex; justify-content: space-between; align-items: baseline; gap: 20px; padding: 6px 0; }
+.system-status-row dt { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; color: var(--island-fg-secondary); }
+.system-status-row dd { margin: 0; min-width: 0; text-align: right; overflow-wrap: anywhere; }
+.system-power-readings { display: flex; flex-wrap: wrap; gap: 8px 24px; padding: 12px 0; margin-top: 8px; border-top: 1px solid var(--island-control-border); }
+.system-power-readings > div { display: flex; align-items: baseline; gap: 10px; }
+.system-power-readings span { color: var(--island-fg-secondary); }
+.system-power-readings strong { font-size: 13px; font-weight: 550; font-variant-numeric: tabular-nums; }
+.system-power-readings p, .system-download-list p, .system-status-footnote { color: var(--island-fg-secondary); font-size: 10px; line-height: 1.6; flex-basis: 100%; }
+.system-device-row { display: flex; justify-content: space-between; gap: 20px; padding: 5px 0; }
+.system-device-row span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.system-device-row span:last-child { flex: 0 0 auto; color: var(--island-fg-secondary); font-variant-numeric: tabular-nums; }
+.system-lock-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; margin-top: 8px; border-top: 1px solid var(--island-control-border); color: var(--island-fg-secondary); }
+.system-lock-actions button { min-height: 28px; padding: 4px 9px; font: inherit; font-size: 11px; color: var(--island-fg-primary); border: 1px solid var(--island-control-border); border-radius: 6px; background: transparent; cursor: pointer; }
+.system-lock-actions button:hover { background: var(--island-card-header-bg); }
+.system-capture-dot { width: 6px; height: 6px; background: #e27a29; border-radius: 50%; }
+.system-status-error { color: var(--island-fg-primary); margin: 5px 0; }
+.pill-system-icon { width: 17px; height: 17px; color: var(--island-fg-primary); }
+.pill-system .pill-label { max-width: 175px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+
 /* ── Reset ───────────────────────────────────────────────────────────────── */
 *,
 *::before,
@@ -1201,3 +1226,11 @@ html[data-island-material="solid"] .island { border-top-color:transparent; }
   background: rgba(255, 255, 255, 0.2);
 }
 }
+
+.system-notice-panel { padding: calc(var(--island-safe-top-inset, 32px) + 8px) 18px 14px; }
+.system-notice-content { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 42px; background: transparent; border: 0; color: var(--island-fg-primary); text-align: left; font: inherit; cursor: pointer; }
+.system-notice-content > .system-icon { width: 23px; height: 23px; }
+.system-notice-content > span { flex: 1; min-width: 0; }
+.system-notice-content strong { display: block; font-size: 13px; font-weight: 550; line-height: 1.5; }
+.system-notice-name { display: block; font-size: 11px; line-height: 1.5; color: var(--island-fg-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.system-notice-content:focus-visible { outline: 2px solid var(--island-fg-primary); outline-offset: 3px; border-radius: 4px; }

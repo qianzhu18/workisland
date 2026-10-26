@@ -41,3 +41,12 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
+
+## SkyLightWindow
+
+The macOS system-status helper adapts the guarded native window-space hosting
+mechanism from SkyLightWindow, Copyright (c) 2025 Lakr Aream, under the MIT License.
+Source: https://github.com/Lakr233/SkyLightWindow
+
+The complete license is bundled at `Resources/bin/workisland-system-status-LICENSE`
+and retained in the source tree at `native/system-status/SkyLightWindow-LICENSE`.

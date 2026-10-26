@@ -5,6 +5,7 @@ import { D as DEFAULT_NOTCH_INFO, r as requiresAttention, d as dominantPhase, I 
 import { c as create } from "../vendor/store.js";
 import { I as IslandPanel, setIslandStatusAssets as setIslandPanelStatusAssets } from "./components/IslandPanel.js";
 import { enabledToolboxModules, resolveToolboxReopenModule } from "./components/productivity-toolbox-model.mjs";
+import { systemNotice, shouldPresentSystemNotice } from "./components/system-status-model.mjs";
 import { isVisibleInIsland } from "./session-model.mjs";
 import { resolveFocusLossPresentation, shouldCollapseOnFocusLoss } from "./focus-policy.mjs";
 import { u as useIslandDock, D as DockStatusDot } from "./dock/use-island-dock.js";
@@ -198,6 +199,8 @@ function IslandApp() {
   const [requestedToolboxModule, setRequestedToolboxModule] = reactExports.useState(null);
   const [pillFileDragActive, setPillFileDragActive] = reactExports.useState(false);
   const fileDropLatest = reactExports.useRef({ enabled: false, openShelf: () => {} });
+  const [systemStatus, setSystemStatus] = reactExports.useState(null);
+  const lastSystemNoticeRef = reactExports.useRef("");
   const [mediaState, setMediaState] = reactExports.useState({ active: false });
   const [lyricsState, setLyricsState] = reactExports.useState({ status: "idle", lines: [], plainText: "" });
   const [performanceState, setPerformanceState] = reactExports.useState({ cpuPct: 0, memoryPct: 0, processes: [] });
@@ -370,6 +373,8 @@ function IslandApp() {
   reactExports.useEffect(() => {
     let mounted2 = true;
     const bridge = window.islandBridge;
+    bridge?.getSystemStatus?.().then((state) => mounted2 && state && setSystemStatus(state)).catch(() => {});
+    const offSystem = bridge?.onSystemStatus?.((state) => setSystemStatus(state));
     bridge?.getMediaState?.().then((state) => mounted2 && state && setMediaState(state));
     bridge?.getLyricsState?.().then((state) => mounted2 && state && setLyricsState(state));
     bridge?.getPerformanceState?.().then((state) => mounted2 && state && setPerformanceState(state));
@@ -378,6 +383,7 @@ function IslandApp() {
     const offPerformance = bridge?.onPerformanceUpdate?.((state) => setPerformanceState(state));
     return () => {
       mounted2 = false;
+      offSystem?.();
       offMedia?.();
       offLyrics?.();
       offPerformance?.();
@@ -623,6 +629,16 @@ function IslandApp() {
     if (!onboardingExpand) return;
     setOnboardingExpand(false);
   }, [onboardingExpand]);
+  reactExports.useEffect(() => {
+    const notice = systemNotice(systemStatus);
+    if (!notice) return;
+    const key = `${notice.kind}:${notice.at}`;
+    if (key === lastSystemNoticeRef.current) return;
+    lastSystemNoticeRef.current = key;
+    if (!shouldPresentSystemNotice({ state: systemStatus, hasAttention: sessions.some(session => requiresAttention(session.phase)), isOpen: notchStatus === "opened", surfaceType: surface?.type })) return;
+    presentSurface({ type: "systemStatus", notice, autoDismissMs: 5000 }, "notification", true);
+    pop();
+  }, [systemStatus, sessions, notchStatus, surface?.type, presentSurface, pop]);
   const notchH = notchInfo.hasNotch ? notchInfo.notchHeight : notchInfo.menuBarHeight > 0 && notchInfo.menuBarHeight < 40 ? notchInfo.menuBarHeight : 24;
   const notchW = notchInfo.hasNotch ? notchInfo.notchWidth : 126;
   const hasAttention = sessions.some((s) => requiresAttention(s.phase));
@@ -669,7 +685,7 @@ function IslandApp() {
   }
   const pillExtra = getPillExtra();
   const pillWidth = Math.min(Math.max(notchW, 126) + pillExtra, maxPillBodyWidth);
-  const desiredPanelWidth = notchInfo.screenWidth > 0 ? Math.max(680, Math.min(740, notchInfo.screenWidth * 0.46)) : 680;
+  const desiredPanelWidth = surface?.type === "systemStatus" ? Math.max(360, notchW + 96) : notchInfo.screenWidth > 0 ? Math.max(680, Math.min(740, notchInfo.screenWidth * 0.46)) : 680;
   const panelWidth = Math.min(desiredPanelWidth, maxPanelBodyWidth);
   const isOpen = notchStatus === "opened";
   const actualPanelH = Math.max(
@@ -1019,7 +1035,8 @@ function IslandApp() {
             onClick: handlePillClick,
             onUpdateClick: handleOpenAbout,
             media: mediaEnabled ? mediaState : null,
-            performanceAlert
+            performanceAlert,
+            systemStatus
           }
         )
       ),
@@ -1048,6 +1065,7 @@ function IslandApp() {
             mediaState,
             lyricsState,
             mediaEnabled,
+            systemStatus,
             performanceState,
             performanceEnabled,
             fileShelfEnabled,
@@ -1058,6 +1076,11 @@ function IslandApp() {
             usageDashboardEnabled,
             terminalSavedCommands,
             requestedToolboxModule,
+            onSystemDetails: () => {
+              window.islandBridge?.surfaceDismissed?.();
+              setRequestedToolboxModule({ id: "system-status", nonce: Date.now() });
+              presentSurface({ type: "sessionList" }, "click");
+            },
             onSessionRowClick: handleSessionRowClick,
             onOpenSettings: handleOpenSettings,
             onOpenAbout: handleOpenAbout,
