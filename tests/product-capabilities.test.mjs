@@ -15,6 +15,7 @@ const REQUIRED_IDS = [
   "media",
   "lyrics",
   "performance",
+  "system-status",
   "file-shelf",
   "quick-share",
   "clipboard-history",

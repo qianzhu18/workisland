@@ -37,6 +37,7 @@ const { EVENTS } = require("../shared/telemetry.cjs");
 const { MediaService } = require("./media-service.cjs");
 const { LyricsService } = require("./lyrics-service.cjs");
 const { createAppIconResolver } = require("./app-icon-resolver.cjs");
+const { SystemStatusService } = require("./system-status-service.cjs");
 const { PerformanceService } = require("./performance-service.cjs");
 const { ShelfService } = require("./shelf-service.cjs");
 const { ClipboardHistoryService } = require("./clipboard-history-service.cjs");
@@ -252,6 +253,24 @@ function createAppCoordinatorClass({
       this.mediaService = new MediaService({ resourceDir: mediaResourceDir, windowsScriptPath: mediaWindowsScriptPath, resolveAppIcon });
       this.lyricsService = new LyricsService({ storePath: path.join(electron.app.getPath("userData"), "lyrics-cache.json") });
       this.performanceService = new PerformanceService();
+      this.systemStatusService = new SystemStatusService({
+        helperPath: electron.app.isPackaged
+          ? path.join(process.resourcesPath, "bin", "workisland-system-status")
+          : path.join(electron.app.getAppPath(), "resources", "bin", "workisland-system-status"),
+        downloadsDirectory: electron.app.getPath("downloads"),
+        settings: { ...this.settings, language: i18n.getLocale() },
+        logger: log
+      });
+      this.systemStatusService.on("update", state => {
+        const noticeKey = state.notice ? `${state.notice.kind}:${state.notice.at}` : "";
+        if (noticeKey && noticeKey !== this.lastSystemNoticeKey) {
+          this.lastSystemNoticeKey = noticeKey;
+          if (!state.locked && !this.petMode?.isActive && !this.islandHiddenForFullscreen && !this.getSessions().some(session => requiresAttention(session.phase)) && !this.islandWin?.isPanelExpanded) {
+            this.islandWin?.setFocusHidden(false);
+          }
+        }
+        this.broadcastWorkstationState(IPC.SYSTEM_STATUS_UPDATE, { ...state, notificationsSuppressed: !!this.petMode?.isActive || this.islandHiddenForFullscreen === true });
+      });
       const userDataPath = electron.app.getPath("userData");
       this.shelfService = new ShelfService({ storePath: path.join(userDataPath, "shelf.json") });
       this.clipboardHistoryService = new ClipboardHistoryService({
@@ -265,6 +284,7 @@ function createAppCoordinatorClass({
       this.mediaService.on("update", (state) => {
         this.broadcastWorkstationState(IPC.MEDIA_STATE_UPDATE, state);
         void this.lyricsService.setTrack(state);
+        this.systemStatusService.setMedia(state);
       });
       this.lyricsService.on("update", (state) => this.broadcastWorkstationState(IPC.LYRICS_STATE_UPDATE, state));
       this.performanceService.on("update", (state) => this.broadcastWorkstationState(IPC.PERFORMANCE_STATE_UPDATE, state));
@@ -591,6 +611,8 @@ function createAppCoordinatorClass({
       this.mediaService.start();
       void this.lyricsService.setTrack(this.mediaService.getSnapshot());
       this.performanceService.start();
+      this.systemStatusService.configure({ ...this.settings, language: i18n.getLocale() });
+      this.systemStatusService.start();
       void this.shelfService.start();
       void this.clipboardHistoryService.start().then(() => {
         this.clipboardHistoryService.setPolicy({
@@ -1012,6 +1034,7 @@ function createAppCoordinatorClass({
       this.mediaService.stop();
       this.lyricsService.dispose();
       this.performanceService.stop();
+      this.systemStatusService.stop();
       this.clipboardHistoryService.dispose();
       this.terminalService.dispose();
       if (this.codexTranscriptWatcher) {
@@ -1062,6 +1085,7 @@ function createAppCoordinatorClass({
         this.broadcastWorkstationState(IPC.MEDIA_STATE_UPDATE, this.mediaService.getSnapshot());
         this.broadcastWorkstationState(IPC.LYRICS_STATE_UPDATE, this.lyricsService.snapshot());
         this.broadcastWorkstationState(IPC.PERFORMANCE_STATE_UPDATE, this.performanceService.getSnapshot());
+        this.broadcastWorkstationState(IPC.SYSTEM_STATUS_UPDATE, this.systemStatusService.getSnapshot());
         this.broadcastWorkstationState(IPC.SHELF_STATE_UPDATE, this.shelfService.snapshot());
         this.broadcastWorkstationState(IPC.CLIPBOARD_HISTORY_UPDATE, this.clipboardHistoryService.snapshot());
         this.broadcastWorkstationState(IPC.TERMINAL_STATUS_UPDATE, this.terminalService.snapshot());
@@ -1474,6 +1498,10 @@ function createAppCoordinatorClass({
           void this.lyricsService.setTrack(this.mediaService.getSnapshot());
         }
       }
+      if (Object.keys(partial).some(key => key.startsWith("system") || key === "languagePreference" || key === "mediaEnabled")) {
+        this.systemStatusService.configure({ ...this.settings, language: i18n.getLocale() });
+        this.systemStatusService.setMedia(this.mediaService.getSnapshot());
+      }
       if ("performanceEnabled" in partial) this.performanceService.setEnabled(this.settings.performanceEnabled !== false);
       if ("clipboardHistoryEnabled" in partial) this.clipboardHistoryService.setEnabled(this.settings.clipboardHistoryEnabled === true);
       if ("clipboardHistoryLimit" in partial || "clipboardRetentionHours" in partial) {
@@ -1691,6 +1719,8 @@ function createAppCoordinatorClass({
     clearUsageData() {
       return this.usageService.clearUsageData();
     }
+    getSystemStatus() { return this.systemStatusService.getSnapshot(); }
+    previewSystemLockScreen() { return this.systemStatusService.previewLockScreen(); }
     getMediaState() { return this.mediaService.getSnapshot(); }
     sendMediaCommand(command) { return this.mediaService.sendCommand(command); }
     getLyricsState() { return this.lyricsService.snapshot(); }

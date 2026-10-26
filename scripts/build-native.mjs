@@ -1,3 +1,4 @@
+import { buildSystemStatus } from "./build-system-status.mjs";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, copyFileSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -21,6 +22,7 @@ const targetArch = (() => {
   const value = flagValue || process.env.WORKISLAND_NATIVE_ARCH || process.env.npm_config_arch || process.arch;
   return value === "x64" || value === "x86_64" ? "x86_64" : "arm64";
 })();
+await buildSystemStatus({ arch: targetArch });
 const outDir = join(root, "resources/bin");
 mkdirSync(outDir, { recursive: true });
 const nodeInclude = join(process.execPath, "..", "..", "include", "node");

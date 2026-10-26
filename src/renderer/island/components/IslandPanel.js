@@ -5,6 +5,8 @@ import { g as getFireIconByTokenCount, s as sanitizeAgentDisplayText, c as clean
 import { f as formatTokenCount } from "../../shared/tokens.js";
 import { M as Markdown, r as remarkGfm } from "../../vendor/markdown.js";
 import { canContinueSessionViaTerminalPrompt, filterSurfaceSessions, sortVisibleSessions } from "../session-model.mjs";
+import { SystemNoticeCard } from "./SystemNoticeCard.js";
+import { SystemStatus, SystemIcon } from "./SystemStatus.js";
 import { MediaCard } from "./MediaCard.js";
 import { PerformancePopover } from "./PerformancePopover.js";
 import { UpdateStatusButton, hasActiveUpdateFlow } from "./UpdatePopover.js";
@@ -130,6 +132,7 @@ function ClearSessionsToolIcon() {
     React.createElement("path", { d: "M3.2 5.2h11.6M6.1 5.2V3.7h5.8v1.5M4.7 5.2l.7 9.1h7.2l.7-9.1M7.2 7.8v4M10.8 7.8v4" })
   );
 }
+function SystemStatusToolIcon() { return React.createElement(SystemIcon, { kind: "battery" }); }
 function AgentHomeIcon() {
   return React.createElement(ToolIconFrame, null,
     React.createElement("path", { d: "m3 8 6-5 6 5v6.5H3Z" }),
@@ -336,7 +339,7 @@ function AgentUsageRow({
   );
   const utilityModuleDefs = [
     ['shelf', t('toolbox.shelf'), ShelfToolIcon], ['clipboard', t('toolbox.clipboard'), ClipboardToolIcon],
-    ['terminal', t('toolbox.terminal'), TerminalToolIcon], ["usage", t("toolbox.usage"), UsageToolIcon]
+    ['terminal', t('toolbox.terminal'), TerminalToolIcon], ["usage", t("toolbox.usage"), UsageToolIcon], ["system-status", t("system.title"), SystemStatusToolIcon]
   ];
   const utilityModules = orderToolboxModules(
     utilityModuleDefs.filter(([id]) => enabledToolboxModules.includes(id)).map(([id]) => id), toolboxModuleOrder
@@ -1429,6 +1432,8 @@ function IslandPanel({
   mediaState,
   lyricsState,
   mediaEnabled = true,
+  systemStatus,
+  systemNoticeLayout,
   performanceState,
   performanceEnabled = true,
   clearSessionsEnabled = true,
@@ -1440,6 +1445,7 @@ function IslandPanel({
   terminalSavedCommands = [],
   requestedToolboxModule = null,
   onSessionRowClick,
+  onSystemDetails,
   onOpenSettings,
   onOpenAbout,
   onOpenPet,
@@ -1507,9 +1513,10 @@ function IslandPanel({
       unsubscribe?.();
     };
   }, []);
-  const enabledModules = enabledToolboxModules({ fileShelfEnabled, clipboardHistoryEnabled, terminalEnabled, usageDashboardEnabled });
+  const systemStatusEnabled = !!systemStatus && Object.values(systemStatus).some(value => value && typeof value === "object" && value.enabled);
+  const enabledModules = enabledToolboxModules({ fileShelfEnabled, clipboardHistoryEnabled, terminalEnabled, usageDashboardEnabled, systemStatusEnabled });
   const handleToolboxModuleReorder = async (visibleOrder, hiddenOrder = toolbarHidden, sides = toolbarSides, slots = toolbarSlots) => {
-    const fullOrder = orderToolboxModules(["shelf", "clipboard", "terminal", "usage", "clear-sessions", "performance", "pet"], moduleOrder);
+    const fullOrder = orderToolboxModules(["shelf", "clipboard", "terminal", "usage", "system-status", "clear-sessions", "performance", "pet"], moduleOrder);
     let cursor = 0;
     const nextOrder = fullOrder.map(id => visibleOrder.includes(id) ? visibleOrder[cursor++] : id);
     setModuleOrder(nextOrder);
@@ -1524,7 +1531,7 @@ function IslandPanel({
   };
   React.useEffect(() => {
     setActiveModule((current) => selectToolboxModule({ current, enabled: enabledModules }));
-  }, [fileShelfEnabled, clipboardHistoryEnabled, terminalEnabled, usageDashboardEnabled]);
+  }, [fileShelfEnabled, clipboardHistoryEnabled, terminalEnabled, usageDashboardEnabled, systemStatusEnabled]);
   React.useEffect(() => {
     onActiveModuleChange?.(activeModule);
   }, [activeModule, onActiveModuleChange]);
@@ -1575,6 +1582,9 @@ function IslandPanel({
     });
     return () => cancelAnimationFrame(frame);
   }, [followUpSessionId]);
+  if (surface?.type === "systemStatus") {
+    return React.createElement(SystemNoticeCard, { notice: surface.notice, layout: systemNoticeLayout, panelStyle, onDetails: onSystemDetails });
+  }
   if (surface?.type === "settingsChange") {
     return /* @__PURE__ */ React.createElement("div", { className: "panel settings-change-panel", style: panelStyle }, /* @__PURE__ */ React.createElement(SettingsChangeCard, {
       surface,
@@ -1611,7 +1621,7 @@ function IslandPanel({
       onUpdateInstall,
       onOpenRelease
     }
-  ), /* @__PURE__ */ React.createElement("div", { className: "panel-divider" }), activeModule === "shelf" && /* @__PURE__ */ React.createElement(ShelfPanel), activeModule === "clipboard" && /* @__PURE__ */ React.createElement(ClipboardPanel), terminalEnabled && /* @__PURE__ */ React.createElement(TerminalPanel, { active: activeModule === "terminal", panelOpen, savedCommands: terminalSavedCommands, onOpenSettings: () => onOpenSettings("general"), onFullChange: onTerminalFullChange }), activeModule === "usage" && /* @__PURE__ */ React.createElement(UsagePanel), /* @__PURE__ */ React.createElement("div", { className: `workspace-content${mediaEnabled && mediaState?.active && mediaState?.title ? " has-media" : ""}${activeModule === "agent" ? "" : " is-hidden"}` }, mediaEnabled && mediaState?.active && mediaState?.title && /* @__PURE__ */ React.createElement(MediaCard, { media: mediaState, lyrics: lyricsState }), /* @__PURE__ */ React.createElement("div", { className: "workspace-agent-pane" }, /* @__PURE__ */ React.createElement(SessionSearchPane, { query: searchQuery, onQueryChange: setSearchQuery }), searchQuery ? /* @__PURE__ */ React.createElement(SessionSearchResults, { query: searchQuery, onActivate: handleSearchActivate }) : null, /* @__PURE__ */ React.createElement("div", { className: `session-list${searchQuery ? " is-hidden" : ""}`, ref: sessionListRef }, visibleSessions.length === 0 ? (hasConnectedAgent === false ? /* @__PURE__ */ React.createElement(SessionEmptyOnboarding, { onOpenSettings }) : /* @__PURE__ */ React.createElement("div", { className: "session-list-empty" }, /* @__PURE__ */ React.createElement(
+  ), /* @__PURE__ */ React.createElement("div", { className: "panel-divider" }), activeModule === "system-status" && React.createElement(SystemStatus, { state: systemStatus }), activeModule === "shelf" && /* @__PURE__ */ React.createElement(ShelfPanel), activeModule === "clipboard" && /* @__PURE__ */ React.createElement(ClipboardPanel), terminalEnabled && /* @__PURE__ */ React.createElement(TerminalPanel, { active: activeModule === "terminal", panelOpen, savedCommands: terminalSavedCommands, onOpenSettings: () => onOpenSettings("general"), onFullChange: onTerminalFullChange }), activeModule === "usage" && /* @__PURE__ */ React.createElement(UsagePanel), /* @__PURE__ */ React.createElement("div", { className: `workspace-content${mediaEnabled && mediaState?.active && mediaState?.title ? " has-media" : ""}${activeModule === "agent" ? "" : " is-hidden"}` }, mediaEnabled && mediaState?.active && mediaState?.title && /* @__PURE__ */ React.createElement(MediaCard, { media: mediaState, lyrics: lyricsState }), /* @__PURE__ */ React.createElement("div", { className: "workspace-agent-pane" }, /* @__PURE__ */ React.createElement(SessionSearchPane, { query: searchQuery, onQueryChange: setSearchQuery }), searchQuery ? /* @__PURE__ */ React.createElement(SessionSearchResults, { query: searchQuery, onActivate: handleSearchActivate }) : null, /* @__PURE__ */ React.createElement("div", { className: `session-list${searchQuery ? " is-hidden" : ""}`, ref: sessionListRef }, visibleSessions.length === 0 ? (hasConnectedAgent === false ? /* @__PURE__ */ React.createElement(SessionEmptyOnboarding, { onOpenSettings }) : /* @__PURE__ */ React.createElement("div", { className: "session-list-empty" }, /* @__PURE__ */ React.createElement(
     "img",
     {
       className: "session-list-empty-icon",

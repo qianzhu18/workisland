@@ -21,6 +21,11 @@ test("only enabled utility modules appear after Agent", () => {
     usageDashboardEnabled: false
   }), ["agent", "shelf", "terminal"]);
 });
+test('system status is a selectable toolbar module and returns home when disabled', () => {
+  assert.ok(enabledToolboxModules({ systemStatusEnabled: true }).includes('system-status'));
+  assert.equal(selectToolboxModule({ current: 'system-status', enabled: ['agent', 'system-status'] }), 'system-status');
+  assert.equal(selectToolboxModule({ current: 'system-status', enabled: ['agent'] }), 'agent');
+});
 
 test("reopen policy changes only the presented toolbox module", () => {
   const enabled = ["agent", "shelf", "terminal"];

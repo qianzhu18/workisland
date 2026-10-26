@@ -148,6 +148,12 @@ const DEFAULT_SETTINGS = {
   islandDisplayModeVersion: 1,
   autoCollapseOnMouseLeave: true,
   completionPopupDurationSec: 5,
+  systemBatteryEnabled: true,
+  systemNetworkEnabled: true,
+  systemAudioEnabled: true,
+  systemCaptureEnabled: true,
+  systemDownloadsEnabled: true,
+  systemLockScreenEnabled: false,
   mediaEnabled: true,
   mediaTrackChangeNotifications: true,
   // Online lyrics send only track metadata to LRCLIB, so privacy-first default is off.
@@ -268,6 +274,9 @@ function migrateIslandDisplayMode(merged, parsed) {
 function mergeSettings(parsed = {}) {
   const merged = { ...createDefaultSettings(), ...parsed };
 
+  for (const key of ["systemBatteryEnabled", "systemNetworkEnabled", "systemAudioEnabled", "systemCaptureEnabled", "systemDownloadsEnabled", "systemLockScreenEnabled"]) {
+    merged[key] = typeof parsed[key] === "boolean" ? parsed[key] : DEFAULT_SETTINGS[key];
+  }
   merged.languagePreference = normalizeLanguagePreference(parsed.languagePreference);
   delete merged.locale;
 
@@ -389,7 +398,7 @@ function mergeSettings(parsed = {}) {
     ? parsed.toolboxReopenMode
     : DEFAULT_SETTINGS.toolboxReopenMode;
   {
-    const known = ["shelf", "clipboard", "terminal", "usage", "clear-sessions", "performance", "pet"];
+    const known = ["shelf", "clipboard", "terminal", "usage", "system-status", "clear-sessions", "performance", "pet"];
     const order = Array.isArray(parsed.toolboxModuleOrder)
       ? parsed.toolboxModuleOrder.filter((id) => known.includes(id))
       : [];

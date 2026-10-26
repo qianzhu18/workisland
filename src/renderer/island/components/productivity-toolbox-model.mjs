@@ -1,4 +1,4 @@
-const TOOLBOX_MODULES = Object.freeze(["agent", "shelf", "clipboard", "terminal", "usage"]);
+const TOOLBOX_MODULES = Object.freeze(["agent", "shelf", "clipboard", "terminal", "usage", "system-status"]);
 
 // Sort known utility modules by the user-dragged order; modules missing from
 // the order (including newly introduced ones) keep their default position
@@ -31,6 +31,7 @@ function enabledToolboxModules(settings = {}) {
   if (settings.terminalEnabled !== false) enabled.push("terminal");
   // PRD-015：用量看板（Agent Center 独立窗口落地前的宿主位置）
   if (settings.usageDashboardEnabled !== false) enabled.push("usage");
+  if (settings.systemStatusEnabled === true) enabled.push("system-status");
   return enabled;
 }
 

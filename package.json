@@ -169,6 +169,19 @@
       "signIgnore": [
         "/Resources/.*\\.lproj/",
         "\\.(pak|png|webp|wav|json|icns|dat|bin)$"
+      ],
+      "extraResources": [
+        {
+          "from": "resources/bin/workisland-system-status",
+          "to": "bin/workisland-system-status",
+          "filter": [
+            "**/*"
+          ]
+        },
+        {
+          "from": "native/system-status/SkyLightWindow-LICENSE",
+          "to": "bin/workisland-system-status-LICENSE"
+        }
       ]
     },
     "dmg": {

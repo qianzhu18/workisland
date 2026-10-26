@@ -5,6 +5,8 @@ import { D as DEFAULT_NOTCH_INFO, r as requiresAttention, d as dominantPhase, I 
 import { c as create } from "../vendor/store.js";
 import { I as IslandPanel, setIslandStatusAssets as setIslandPanelStatusAssets } from "./components/IslandPanel.js";
 import { enabledToolboxModules, resolveToolboxReopenModule } from "./components/productivity-toolbox-model.mjs";
+import { systemNoticeLayout } from "./components/system-notice-layout.mjs";
+import { systemNotice, shouldPresentSystemNotice } from "./components/system-status-model.mjs";
 import { isVisibleInIsland } from "./session-model.mjs";
 import { resolveFocusLossPresentation, shouldCollapseOnFocusLoss } from "./focus-policy.mjs";
 import { u as useIslandDock, D as DockStatusDot } from "./dock/use-island-dock.js";
@@ -198,6 +200,10 @@ function IslandApp() {
   const [requestedToolboxModule, setRequestedToolboxModule] = reactExports.useState(null);
   const [pillFileDragActive, setPillFileDragActive] = reactExports.useState(false);
   const fileDropLatest = reactExports.useRef({ enabled: false, openShelf: () => {} });
+  const [systemStatus, setSystemStatus] = reactExports.useState(null);
+  const systemStatusEnabled = !!systemStatus && Object.values(systemStatus).some(value => value && typeof value === "object" && value.enabled);
+  const lastSystemNoticeRef = reactExports.useRef("");
+  const [exitingSystemNotice, setExitingSystemNotice] = reactExports.useState(null);
   const [mediaState, setMediaState] = reactExports.useState({ active: false });
   const [lyricsState, setLyricsState] = reactExports.useState({ status: "idle", lines: [], plainText: "" });
   const [performanceState, setPerformanceState] = reactExports.useState({ cpuPct: 0, memoryPct: 0, processes: [] });
@@ -370,6 +376,8 @@ function IslandApp() {
   reactExports.useEffect(() => {
     let mounted2 = true;
     const bridge = window.islandBridge;
+    bridge?.getSystemStatus?.().then((state) => mounted2 && state && setSystemStatus(state)).catch(() => {});
+    const offSystem = bridge?.onSystemStatus?.((state) => setSystemStatus(state));
     bridge?.getMediaState?.().then((state) => mounted2 && state && setMediaState(state));
     bridge?.getLyricsState?.().then((state) => mounted2 && state && setLyricsState(state));
     bridge?.getPerformanceState?.().then((state) => mounted2 && state && setPerformanceState(state));
@@ -378,6 +386,7 @@ function IslandApp() {
     const offPerformance = bridge?.onPerformanceUpdate?.((state) => setPerformanceState(state));
     return () => {
       mounted2 = false;
+      offSystem?.();
       offMedia?.();
       offLyrics?.();
       offPerformance?.();
@@ -469,7 +478,7 @@ function IslandApp() {
       clearTimeout(collapsePanelToPillTimerRef.current);
       collapsePanelToPillTimerRef.current = null;
     }
-    const enabledModules = enabledToolboxModules({ fileShelfEnabled, clipboardHistoryEnabled, terminalEnabled, usageDashboardEnabled });
+    const enabledModules = enabledToolboxModules({ fileShelfEnabled, clipboardHistoryEnabled, terminalEnabled, usageDashboardEnabled, systemStatusEnabled });
     const resumeFullTerminal = activeModuleRef.current === "terminal" && terminalFullRef.current;
     const nextModule = resumeFullTerminal
       ? "terminal"
@@ -483,7 +492,7 @@ function IslandApp() {
     close();
     clearSurface();
     window.islandBridge?.surfaceDismissed();
-  }, [clipboardHistoryEnabled, close, clearSurface, fileShelfEnabled, terminalEnabled, usageDashboardEnabled, toolboxReopenMode]);
+  }, [clipboardHistoryEnabled, close, clearSurface, fileShelfEnabled, terminalEnabled, usageDashboardEnabled, toolboxReopenMode, systemStatusEnabled]);
   reactExports.useEffect(() => {
     const handleWindowBlur = () => {
       const followUpFocused = isFollowUpActiveRef.current
@@ -623,6 +632,23 @@ function IslandApp() {
     if (!onboardingExpand) return;
     setOnboardingExpand(false);
   }, [onboardingExpand]);
+  reactExports.useEffect(() => {
+    const notice = systemNotice(systemStatus);
+    if (!notice) return;
+    const key = `${notice.kind}:${notice.at}`;
+    if (key === lastSystemNoticeRef.current) return;
+    lastSystemNoticeRef.current = key;
+    if (!shouldPresentSystemNotice({ state: systemStatus, hasAttention: sessions.some(session => requiresAttention(session.phase)), isOpen: notchStatus === "opened", surfaceType: surface?.type })) return;
+    presentSurface({ type: "systemStatus", notice, autoDismissMs: 5000 }, "notification", true);
+  }, [systemStatus, sessions, notchStatus, surface?.type, presentSurface]);
+  reactExports.useEffect(() => {
+    if (surface?.type === "systemStatus") { setExitingSystemNotice(surface); return; }
+    if (notchStatus === "opened") { setExitingSystemNotice(null); return; }
+    const timer = setTimeout(() => setExitingSystemNotice(null), CLOSE_WINDOW_RESIZE_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [surface, notchStatus]);
+  const displaySurface = surface || (notchStatus === "closed" ? exitingSystemNotice : null);
+  const isSystemNotice = displaySurface?.type === "systemStatus";
   const notchH = notchInfo.hasNotch ? notchInfo.notchHeight : notchInfo.menuBarHeight > 0 && notchInfo.menuBarHeight < 40 ? notchInfo.menuBarHeight : 24;
   const notchW = notchInfo.hasNotch ? notchInfo.notchWidth : 126;
   const hasAttention = sessions.some((s) => requiresAttention(s.phase));
@@ -642,10 +668,11 @@ function IslandApp() {
     topRadius: openedTopR,
     windowWidth: WINDOW_W
   });
+  const noticeLayout = systemNoticeLayout({ hasNotch: notchInfo.hasNotch, notchHeight: notchH, notchWidth: notchW, maxWidth: maxPanelBodyWidth });
   function getPillExtra() {
     let extra;
     if (notchInfo.hasNotch) {
-      extra = visibleCount > 0 ? 72 : mediaState?.active && mediaState?.title ? 96 : 62;
+      extra = visibleCount > 0 ? 72 : systemStatus?.capture?.active || systemStatus?.downloads?.active || systemNotice(systemStatus) ? 76 : mediaState?.active && mediaState?.title ? 96 : 62;
     } else if (visibleCount === 0 || phase === null) {
       extra = 72;
     } else {
@@ -669,16 +696,16 @@ function IslandApp() {
   }
   const pillExtra = getPillExtra();
   const pillWidth = Math.min(Math.max(notchW, 126) + pillExtra, maxPillBodyWidth);
-  const desiredPanelWidth = notchInfo.screenWidth > 0 ? Math.max(680, Math.min(740, notchInfo.screenWidth * 0.46)) : 680;
+  const desiredPanelWidth = isSystemNotice ? noticeLayout.width : notchInfo.screenWidth > 0 ? Math.max(680, Math.min(740, notchInfo.screenWidth * 0.46)) : 680;
   const panelWidth = Math.min(desiredPanelWidth, maxPanelBodyWidth);
   const isOpen = notchStatus === "opened";
-  const actualPanelH = Math.max(
+  const actualPanelH = isSystemNotice ? noticeLayout.height : Math.max(
     notchH + 40,
     Math.min(panelHeight, WINDOW_H - 10)
   );
   const maxExpandedWindowHeight = Math.min(
     WINDOW_H,
-    panelMaxHeightPx + OPEN_WINDOW_SHADOW_MARGIN_PX
+    (isSystemNotice ? noticeLayout.height : panelMaxHeightPx) + OPEN_WINDOW_SHADOW_MARGIN_PX
   );
   reactExports.useLayoutEffect(() => {
     window.islandBridge?.setInteractionBounds?.({
@@ -1019,7 +1046,8 @@ function IslandApp() {
             onClick: handlePillClick,
             onUpdateClick: handleOpenAbout,
             media: mediaEnabled ? mediaState : null,
-            performanceAlert
+            performanceAlert,
+            systemStatus
           }
         )
       ),
@@ -1027,7 +1055,7 @@ function IslandApp() {
         "div",
         {
           ref: panelLayerRef,
-          className: `island-panel-layer${isOpen ? "" : " is-hidden"}${dock.panelLayerClass}`,
+          className: `island-panel-layer${isOpen ? "" : " is-hidden"}${isSystemNotice ? " is-system-notice" : ""}${dock.panelLayerClass}`,
           style: dock.panelLayerStyle ?? { width: panelWidth }
         },
         /* @__PURE__ */ React.createElement(
@@ -1036,7 +1064,8 @@ function IslandApp() {
             sessions,
             hasConnectedAgent: agentSetupReports ? agentSetupReports.some((report) => report?.diagnosis?.status === "ok") : null,
             sessionRecaps,
-            surface,
+            surface: displaySurface,
+            systemNoticeLayout: noticeLayout,
             notchHeight: notchH,
             notchWidth: notchInfo.hasNotch ? notchInfo.notchWidth + 16 : 0,
             panelMaxHeightPx,
@@ -1048,6 +1077,7 @@ function IslandApp() {
             mediaState,
             lyricsState,
             mediaEnabled,
+            systemStatus,
             performanceState,
             performanceEnabled,
             fileShelfEnabled,
@@ -1058,6 +1088,11 @@ function IslandApp() {
             usageDashboardEnabled,
             terminalSavedCommands,
             requestedToolboxModule,
+            onSystemDetails: () => {
+              window.islandBridge?.surfaceDismissed?.();
+              setRequestedToolboxModule({ id: "system-status", nonce: Date.now() });
+              presentSurface({ type: "sessionList" }, "click");
+            },
             onSessionRowClick: handleSessionRowClick,
             onOpenSettings: handleOpenSettings,
             onOpenAbout: handleOpenAbout,
