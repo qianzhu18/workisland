@@ -1,6 +1,12 @@
-# WorkIsland v1.6.1
+# WorkIsland v1.6.2
 
 会话搜索与回源更顺手，Agent 接入更省心，系统状态融入灵动岛。本版包含 v1.5.1 之后已经合并的功能与修复。
+
+## 签名版系统状态修复
+
+- 修复正式签名版蓝牙读取触发 macOS 隐私终止，导致电池、网络与录屏等状态一起失效的问题。
+- 打包保留蓝牙用途说明；没有既有授权时跳过额外配对设备列表，不因后台轮询反复请求权限。当前音频输出（含正在使用的耳机）仍由系统音频接口检测。
+- 保留 Codex 左侧固定额度、独立可收纳的用量看板和六项状态开关。
 
 ## 更新校验修复
 
@@ -33,4 +39,4 @@ ZCode ↔ Codex 双向交接仍在开发，不包含在本版。
 
 ### English Summary
 
-v1.6.1 fixes installer integrity checks: published checksum manifests use bare filenames for older clients, legacy release-directory entries remain readable, and missing/unreadable/unmatched checksums stop installation. It includes v1.6.0 features: session search with live-session-first navigation, automatic DeepSeek Harness setup and repair (including DSH 0.2.1), and native macOS battery/power, audio, network, download and screen-capture status in the Island toolbar. Camera-safe transient notices respect agent attention and active panels. Streaming transcript processing, coalesced scans and serialized startup backfill reduce memory spikes; search rendering, display selection and custom backgrounds are improved. Codex quota retains its fixed left period/usage/reset display; the separate usage dashboard can be stored in More (the default on new installs). Updates are checked automatically but download/install require a click. Lock-screen information is off by default; hardware-specific audio/network/sleep/lock scenarios still need broader device validation. The unmerged ZCode–Codex handoff is excluded.
+v1.6.2 fixes a signed-app native status crash caused by a missing Bluetooth purpose description. Packaging preserves that description and paired-device reads require existing authorization; the active audio output and independent status monitors remain available without a background permission request. It also includes the v1.6.1 installer integrity fixes: published checksum manifests use bare filenames for older clients, legacy release-directory entries remain readable, and missing/unreadable/unmatched checksums stop installation. It includes v1.6.0 features: session search with live-session-first navigation, automatic DeepSeek Harness setup and repair (including DSH 0.2.1), and native macOS battery/power, audio, network, download and screen-capture status in the Island toolbar. Camera-safe transient notices respect agent attention and active panels. Streaming transcript processing, coalesced scans and serialized startup backfill reduce memory spikes; search rendering, display selection and custom backgrounds are improved. Codex quota retains its fixed left period/usage/reset display; the separate usage dashboard can be stored in More (the default on new installs). Updates are checked automatically but download/install require a click. Lock-screen information is off by default; hardware-specific audio/network/sleep/lock scenarios still need broader device validation. The unmerged ZCode–Codex handoff is excluded.

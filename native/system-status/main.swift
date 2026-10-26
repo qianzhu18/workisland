@@ -5,6 +5,7 @@ import CoreAudio
 import CoreWLAN
 import Network
 import IOBluetooth
+import CoreBluetooth
 
 let nilValue = NSNull()
 func jsonValue(_ value: Any?) -> Any { value ?? nilValue }
@@ -76,8 +77,10 @@ func audioSnapshot() -> [String: Any] {
         let kind = (transport == kAudioDeviceTransportTypeBluetooth || transport == kAudioDeviceTransportTypeBluetoothLE) ? "bluetooth" : transport == kAudioDeviceTransportTypeBuiltIn ? "builtIn" : transport == kAudioDeviceTransportTypeUSB ? "usb" : "other"
         devices.append(["id": String(active), "name": audioString(active, kAudioObjectPropertyName) ?? "Audio", "transport": kind, "connected": true, "batteryPercent": jsonValue(batteries[(audioString(active, kAudioObjectPropertyName) ?? "").lowercased()])])
     }
-    // pairedDevices is local cached metadata; do not initiate discovery or authentication.
-    for device in (IOBluetoothDevice.pairedDevices() as? [IOBluetoothDevice] ?? []) where device.isConnected() && ((device.classOfDevice >> 8) & 0x1f) == 4 {
+    let paired = authorizedBluetoothDevices(authorization: CBManager.authorization) {
+        IOBluetoothDevice.pairedDevices() as? [IOBluetoothDevice] ?? []
+    }
+    for device in paired where device.isConnected() && ((device.classOfDevice >> 8) & 0x1f) == 4 {
         let name = device.name ?? "Bluetooth"
         if !devices.contains(where: { ($0["name"] as? String) == name }) {
             devices.append(["id": device.addressString ?? name, "name": name, "transport": "bluetooth", "connected": true, "batteryPercent": jsonValue(batteries[name.lowercased()])])

@@ -1,7 +1,7 @@
 {
   "name": "workisland",
   "productName": "WorkIsland",
-  "version": "1.6.1",
+  "version": "1.6.2",
   "description": "macOS 与 Windows 本地 Work Agent 工作状态与注意力路由器",
   "private": true,
   "main": "./src/main/index.cjs",
@@ -157,6 +157,7 @@
       "category": "public.app-category.productivity",
       "icon": "resources/icon.icns",
       "extendInfo": {
+        "NSBluetoothAlwaysUsageDescription": "WorkIsland reads connected Bluetooth audio devices to display their connection status and available battery level.",
         "CFBundleDevelopmentRegion": "en",
         "CFBundleLocalizations": [
           "en",
