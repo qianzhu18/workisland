@@ -922,5 +922,17 @@
   "system.notice.download-started": "Download started",
   "system.viewDetails": "View system status details",
   "system.notice.audio-connected": "Headphones connected",
-  "system.notice.audio-disconnected": "Headphones disconnected"
+  "system.notice.audio-disconnected": "Headphones disconnected",
+  "usage.entry.title": "Quota & usage",
+  "usage.entry.codex": "Codex subscription quota",
+  "usage.entry.remaining": "{pct}% remaining",
+  "usage.entry.remainingWindow": "{window} quota remaining",
+  "usage.entry.reset": "Resets in {time}",
+  "usage.entry.api": "API / Agent usage · last 7 days",
+  "usage.entry.noData": "Quota unavailable",
+  "usage.entry.unavailable": "Codex quota is unavailable. Check that Codex is signed in on this Mac. Usage remains accessible.",
+  "usage.entry.quotaHidden": "Codex quota display is turned off in settings.",
+  "usage.entry.localHint": "Local token counts and estimated costs include recorded subscription sessions; they are not provider account balances.",
+  "usage.entry.failed": "Usage is unavailable. Reopen to retry.",
+  "usage.entry.details": "Open full usage dashboard"
 }

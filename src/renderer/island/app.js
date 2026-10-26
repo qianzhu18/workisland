@@ -478,7 +478,7 @@ function IslandApp() {
       clearTimeout(collapsePanelToPillTimerRef.current);
       collapsePanelToPillTimerRef.current = null;
     }
-    const enabledModules = enabledToolboxModules({ fileShelfEnabled, clipboardHistoryEnabled, terminalEnabled, usageDashboardEnabled, systemStatusEnabled });
+    const enabledModules = enabledToolboxModules({ fileShelfEnabled, clipboardHistoryEnabled, terminalEnabled, usageDashboardEnabled: usageDashboardEnabled !== false || (showUsageQuota && pillFirstRow.codexSubscription), systemStatusEnabled });
     const resumeFullTerminal = activeModuleRef.current === "terminal" && terminalFullRef.current;
     const nextModule = resumeFullTerminal
       ? "terminal"
@@ -492,7 +492,7 @@ function IslandApp() {
     close();
     clearSurface();
     window.islandBridge?.surfaceDismissed();
-  }, [clipboardHistoryEnabled, close, clearSurface, fileShelfEnabled, terminalEnabled, usageDashboardEnabled, toolboxReopenMode, systemStatusEnabled]);
+  }, [clipboardHistoryEnabled, close, clearSurface, fileShelfEnabled, terminalEnabled, usageDashboardEnabled, toolboxReopenMode, systemStatusEnabled, showUsageQuota, pillFirstRow.codexSubscription]);
   reactExports.useEffect(() => {
     const handleWindowBlur = () => {
       const followUpFocused = isFollowUpActiveRef.current

@@ -181,6 +181,7 @@ const DEFAULT_SETTINGS = {
   toolbarHiddenModules: [],
   toolbarModuleSides: {},
   toolbarModuleSlots: {},
+  usageEntryVersion: 1,
   showUsageQuota: true,
   usageDisplayValue: "used",
   disableClaudeTerminalTitle: true,
@@ -411,6 +412,13 @@ function mergeSettings(parsed = {}) {
       .filter(([id, side]) => known.includes(id) && ['left', 'right'].includes(side)));
   }
 
+  // The formerly fixed Codex cell must not disappear just because the old
+  // separate usage dashboard was in More. Later explicit hiding is respected.
+  if (parsed.usageEntryVersion !== 1 && merged.showUsageQuota && merged.pillFirstRow.codexSubscription) {
+    merged.toolbarHiddenModules = merged.toolbarHiddenModules.filter(id => id !== "usage");
+    if (merged.toolbarModuleSlots.usage === "overflow") delete merged.toolbarModuleSlots.usage;
+  }
+  merged.usageEntryVersion = 1;
   return merged;
 }
 

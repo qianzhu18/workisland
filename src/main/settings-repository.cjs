@@ -26,6 +26,7 @@ class SettingsRepository {
       // telemetryPolicyVersion v2 distinguishes a legacy explicit opt-out from
       // the old default false value, so it must not remain memory-only.
       if (
+        parsed?.usageEntryVersion !== merged.usageEntryVersion ||
         parsed?.telemetryPolicyVersion !== merged.telemetryPolicyVersion ||
         parsed?.telemetryEnabled !== merged.telemetryEnabled
       ) {

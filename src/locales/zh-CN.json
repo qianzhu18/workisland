@@ -922,5 +922,17 @@
   "system.notice.download-started": "开始下载",
   "system.viewDetails": "查看系统状态详情",
   "system.notice.audio-connected": "耳机已连接",
-  "system.notice.audio-disconnected": "耳机已断开"
+  "system.notice.audio-disconnected": "耳机已断开",
+  "usage.entry.title": "额度与用量",
+  "usage.entry.codex": "Codex 订阅额度",
+  "usage.entry.remaining": "剩余 {pct}%",
+  "usage.entry.remainingWindow": "{window} 剩余额度",
+  "usage.entry.reset": "{time} 后重置",
+  "usage.entry.api": "API / Agent 用量 · 近 7 天",
+  "usage.entry.noData": "额度暂不可用",
+  "usage.entry.unavailable": "暂未读取到 Codex 额度；请确认本机 Codex 已登录。入口仍可查看用量。",
+  "usage.entry.quotaHidden": "Codex 额度显示已在设置中关闭。",
+  "usage.entry.localHint": "本地 Token 统计与估算费用，包含已记录的订阅会话；不代表服务商账户余额。",
+  "usage.entry.failed": "用量暂时不可用，请重新打开重试。",
+  "usage.entry.details": "打开完整用量看板"
 }

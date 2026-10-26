@@ -69,7 +69,7 @@ export function ToolbarTools({ modules, active, onSelect, onOrder, order = [], h
       if (event.type === 'blur' || event.key === 'Escape') { finish(); setMenu(false); }
     };
     const outside = event => {
-      if (!root.current?.contains(event.target) && !event.target.closest?.('.performance-popover')) setMenu(false);
+      if (!root.current?.contains(event.target) && !event.target.closest?.('.performance-popover, .usage-entry-popover')) setMenu(false);
     };
     window.addEventListener('keydown', cancel);
     window.addEventListener('blur', cancel);

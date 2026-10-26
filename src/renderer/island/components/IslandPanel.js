@@ -15,6 +15,7 @@ import { ClipboardPanel } from "./ClipboardPanel.js";
 import { SessionSearchPane, SessionSearchResults } from "./SessionSearchPane.js";
 import { CLIENT_TOOLS } from "./search-jump.mjs";
 import { TerminalPanel } from "./TerminalPanel.js";
+import { UsageEntry } from "./UsageEntry.js";
 import { UsagePanel } from "./UsagePanel.js";
 import { SettingsChangeCard } from "./SettingsChangeCard.js";
 import { ToolbarTools } from "./ToolbarTools.js";
@@ -216,9 +217,6 @@ const AGENT_BADGE_COLORS = { claude: "#F08A5D", codex: "#63D5A0", cursor: "#A7B0
 function isValidPeriod(period) {
   return period.total !== "-";
 }
-function isValidQuota(quota) {
-  return isValidPeriod(quota.daily) || isValidPeriod(quota.weekly);
-}
 function formatPct(pct) {
   const s = pct.toFixed(1);
   return s.endsWith(".0") ? s.slice(0, -2) : s;
@@ -315,6 +313,7 @@ function AgentUsageRow({
   visibleSessionIds,
   pillFirstRow,
   showUsageQuota = true,
+  panelOpen = true,
   performanceState,
   performanceEnabled = true,
   clearSessionsEnabled = true,
@@ -335,7 +334,7 @@ function AgentUsageRow({
   onOpenRelease
 }) {
   const agentsWithQuota = ALL_AGENTS.filter(
-    (tool) => agentQuotas[tool] && (tool !== "codex" || isValidQuota(agentQuotas[tool]))
+    (tool) => tool !== "codex" && agentQuotas[tool]
   );
   const utilityModuleDefs = [
     ['shelf', t('toolbox.shelf'), ShelfToolIcon], ['clipboard', t('toolbox.clipboard'), ClipboardToolIcon],
@@ -345,11 +344,15 @@ function AgentUsageRow({
     utilityModuleDefs.filter(([id]) => enabledToolboxModules.includes(id)).map(([id]) => id), toolboxModuleOrder
   ).map(id => {
     const [, label, Icon] = utilityModuleDefs.find(([key]) => key === id);
-    return { id, label, icon: React.createElement(Icon) };
+    return { id, label, icon: React.createElement(Icon),
+      ...(id === 'usage' ? { render: (labelled) => React.createElement(UsageEntry, {
+        quota: agentQuotas.codex, showQuota: showUsageQuota && pillFirstRow.codexSubscription,
+        labelled, notchHeight, panelOpen, onOpenDashboard: () => onToolboxModuleChange('usage')
+      }) } : {}) };
   });
   const quotaCells = agentsWithQuota.filter((tool) => {
     if (tool === "claude" && !pillFirstRow.claudeSubscription) return false;
-    if (tool === "codex" && !pillFirstRow.codexSubscription) return false;
+    if (tool === "codex") return false; // Codex lives in the unified usage module.
     return true;
   }).map((tool, idx, arr) => /* @__PURE__ */ React.createElement(React.Fragment, { key: tool }, /* @__PURE__ */ React.createElement(AgentQuotaCell, { tool, quota: agentQuotas[tool] }), idx < arr.length - 1 && /* @__PURE__ */ React.createElement("span", { className: "usage-cell-divider" }, "|")));
   return React.createElement(ToolbarTools, { modules: utilityModules, active: activeToolboxModule,
@@ -1429,6 +1432,7 @@ function IslandPanel({
   hasUpdate,
   tokenBurnTotal,
   pillFirstRow,
+  showUsageQuota = true,
   mediaState,
   lyricsState,
   mediaEnabled = true,
@@ -1514,7 +1518,7 @@ function IslandPanel({
     };
   }, []);
   const systemStatusEnabled = !!systemStatus && Object.values(systemStatus).some(value => value && typeof value === "object" && value.enabled);
-  const enabledModules = enabledToolboxModules({ fileShelfEnabled, clipboardHistoryEnabled, terminalEnabled, usageDashboardEnabled, systemStatusEnabled });
+  const enabledModules = enabledToolboxModules({ fileShelfEnabled, clipboardHistoryEnabled, terminalEnabled, usageDashboardEnabled: usageDashboardEnabled !== false || (showUsageQuota && pillFirstRow.codexSubscription), systemStatusEnabled });
   const handleToolboxModuleReorder = async (visibleOrder, hiddenOrder = toolbarHidden, sides = toolbarSides, slots = toolbarSlots) => {
     const fullOrder = orderToolboxModules(["shelf", "clipboard", "terminal", "usage", "system-status", "clear-sessions", "performance", "pet"], moduleOrder);
     let cursor = 0;
@@ -1531,7 +1535,7 @@ function IslandPanel({
   };
   React.useEffect(() => {
     setActiveModule((current) => selectToolboxModule({ current, enabled: enabledModules }));
-  }, [fileShelfEnabled, clipboardHistoryEnabled, terminalEnabled, usageDashboardEnabled, systemStatusEnabled]);
+  }, [fileShelfEnabled, clipboardHistoryEnabled, terminalEnabled, usageDashboardEnabled, systemStatusEnabled, showUsageQuota, pillFirstRow.codexSubscription]);
   React.useEffect(() => {
     onActiveModuleChange?.(activeModule);
   }, [activeModule, onActiveModuleChange]);
@@ -1602,6 +1606,8 @@ function IslandPanel({
       tokenBurnTotal,
       visibleSessionIds: visibleSessions.map((session) => session.id),
       pillFirstRow,
+      showUsageQuota,
+      panelOpen,
       performanceState,
       performanceEnabled,
       clearSessionsEnabled,

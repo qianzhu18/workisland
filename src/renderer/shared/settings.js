@@ -138,6 +138,7 @@ const DEFAULT_SETTINGS = {
   usageDashboardEnabled: true,
   statsRetentionDays: 90,
   toolboxReopenMode: "agent",
+  usageEntryVersion: 1,
   showUsageQuota: true,
   usageDisplayValue: "used",
   disableClaudeTerminalTitle: true,
