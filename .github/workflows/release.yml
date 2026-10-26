@@ -117,6 +117,12 @@ jobs:
           const fs = require('node:fs');
           const path = require('node:path');
           const resources = path.dirname(archive);
+          const { execFileSync } = require('node:child_process');
+          const purpose = execFileSync('/usr/libexec/PlistBuddy', [
+            '-c', 'Print :NSBluetoothAlwaysUsageDescription',
+            path.join(resources, '..', 'Info.plist')
+          ], { encoding: 'utf8' }).trim();
+          if (!purpose) throw new Error('Missing Bluetooth usage description in signed app');
           for (const resource of ['bin/workisland-system-status', 'bin/workisland-system-status-LICENSE']) {
             if (!fs.existsSync(path.join(resources, resource))) {
               throw new Error(`Missing native system status resource: ${resource}`);
@@ -124,6 +130,9 @@ jobs:
           }
           console.log(`Packaged payload OK: ${required.length} assets, default-on telemetry, and privacy guards present.`);
           NODE
+      - name: Exercise signed app native status
+        if: matrix.arch == 'arm64'
+        run: node scripts/smoke-mac-system-status.mjs release/mac-arm64/WorkIsland.app
       - name: Notarize and staple tagged release
         if: startsWith(github.ref, 'refs/tags/v')
         env:

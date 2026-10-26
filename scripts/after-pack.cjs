@@ -9,7 +9,6 @@ module.exports = async function afterPack(context) {
   const plist = path.join(context.appOutDir, `${appName}.app`, "Contents", "Info.plist");
   for (const key of [
     "NSAudioCaptureUsageDescription",
-    "NSBluetoothAlwaysUsageDescription",
     "NSBluetoothPeripheralUsageDescription",
     "NSCameraUsageDescription",
     "NSMicrophoneUsageDescription"
@@ -17,7 +16,8 @@ module.exports = async function afterPack(context) {
     try {
       execFileSync("/usr/libexec/PlistBuddy", ["-c", `Delete :${key}`, plist]);
     } catch {
-      // Electron versions may omit some keys; absence is the desired state.
+      // These unused capture/peripheral keys may be absent. The connected-audio
+      // Bluetooth purpose is used by the native helper and must be preserved.
     }
   }
 };

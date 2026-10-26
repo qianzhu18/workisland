@@ -65,6 +65,7 @@ npm run release:check -- --tag v3.0.0
 6. `release.yml` 自动执行：
    - macOS 14 Apple Silicon 构建
    - Developer ID 签名
+   - 校验签名应用的蓝牙用途说明，并从 Electron 父进程验证原生状态持续运行（不能只单独运行助手）
    - Apple 公证并 Staple
    - DMG 签名校验和 Gatekeeper 校验
    - SHA-256 校验文件生成

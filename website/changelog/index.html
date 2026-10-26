@@ -49,6 +49,15 @@
       <section class="changelog-list" aria-label="版本更新列表">
         <article class="changelog-release changelog-release-latest">
           <div class="changelog-release-meta"><span class="changelog-release-label">LATEST STABLE</span><time datetime="2026-10-27">2026-10-27</time></div>
+          <div class="changelog-release-body"><h2>v1.6.2</h2>
+            <p class="changelog-summary">修复签名版蓝牙读取导致系统状态助手退出；保留权限说明，未授权时继续检测当前音频输出与其他状态。</p>
+            <p lang="en">English summary: Fixes a signed-app Bluetooth privacy crash; preserves the purpose description and guards paired-device reads without blocking other status monitors.</p>
+            <a class="changelog-release-link" href="https://github.com/qianzhu18/workisland/releases/tag/v1.6.2" target="_blank" rel="noreferrer">查看 v1.6.2 Release 与下载 ↗</a>
+          </div>
+        </article>
+
+        <article class="changelog-release">
+          <div class="changelog-release-meta"><span class="changelog-release-label">STABLE</span><time datetime="2026-10-27">2026-10-27</time></div>
           <div class="changelog-release-body"><h2>v1.6.1</h2>
             <p class="changelog-summary">更新校验修复：兼容旧版下载校验，缺失或无法匹配的校验信息不再被跳过；包含 v1.6.0 的全部功能。</p>
             <p lang="en">English summary: Correct checksum filenames for older clients, support legacy manifests, and stop installation when verification data is missing. Includes all v1.6.0 features.</p>

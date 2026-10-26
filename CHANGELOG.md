@@ -8,6 +8,12 @@
 
 尚无新的未发布条目。
 
+## [1.6.2] - 2026-10-27
+
+修复正式签名应用读取蓝牙设备时，因缺少权限说明导致系统状态助手退出的问题。打包保留蓝牙用途说明；未授权时不读取配对列表，当前音频输出仍由系统音频接口检测，电池、网络和录屏检测可继续运行。
+
+> **English summary:** Fixes a signed-app privacy crash in native status monitoring. Packaging preserves the Bluetooth purpose string; paired-device reads require existing authorization, while current audio output and other status monitors remain available. [Full release notes](https://github.com/qianzhu18/workisland/releases/tag/v1.6.2).
+
 ## [1.6.1] - 2026-10-27
 
 修复更新下载校验：发布文件使用纯安装包名，兼容旧版客户端；新版也兼容历史 `release/` 前缀。缺失、无法获取或未匹配的校验不再被跳过。

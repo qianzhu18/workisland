@@ -15,15 +15,15 @@ function swift(args) {
 }
 try {
   const test = join(temporary, 'power-tests');
-  swift([join(source, 'PowerMetrics.swift'), join(source, 'Tests/main.swift'), '-o', test]);
+  swift([join(source, 'PowerMetrics.swift'), join(source, 'BluetoothAccess.swift'), join(source, 'Tests/main.swift'), '-framework', 'CoreBluetooth', '-o', test]);
   const result = spawnSync(test, [], { stdio: 'inherit' });
   if (result.status !== 0) throw new Error('Power telemetry regression tests failed');
   if (!testOnly) {
     const output = join(root, 'resources/bin/workisland-system-status');
     mkdirSync(dirname(output), { recursive: true });
     swift(['-O', '-swift-version', '5', '-target', `${arch === 'arm64' ? 'arm64' : 'x86_64'}-apple-macosx12.0`,
-      ...['PowerMetrics.swift', 'CaptureObserver.swift', 'LockScreenHost.swift', 'main.swift'].map(file => join(source, file)),
-      ...['AppKit', 'IOKit', 'CoreAudio', 'CoreWLAN', 'Network', 'IOBluetooth'].flatMap(name => ['-framework', name]), '-o', output]);
+      ...['PowerMetrics.swift', 'BluetoothAccess.swift', 'CaptureObserver.swift', 'LockScreenHost.swift', 'main.swift'].map(file => join(source, file)),
+      ...['AppKit', 'IOKit', 'CoreAudio', 'CoreWLAN', 'Network', 'IOBluetooth', 'CoreBluetooth'].flatMap(name => ['-framework', name]), '-o', output]);
     console.log(`Built ${output}`);
   }
 } finally { rmSync(temporary, { recursive: true, force: true }); }
