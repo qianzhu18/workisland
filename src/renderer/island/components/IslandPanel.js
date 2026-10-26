@@ -5,6 +5,7 @@ import { g as getFireIconByTokenCount, s as sanitizeAgentDisplayText, c as clean
 import { f as formatTokenCount } from "../../shared/tokens.js";
 import { M as Markdown, r as remarkGfm } from "../../vendor/markdown.js";
 import { canContinueSessionViaTerminalPrompt, filterSurfaceSessions, sortVisibleSessions } from "../session-model.mjs";
+import { SystemNoticeCard } from "./SystemNoticeCard.js";
 import { SystemStatus, SystemIcon } from "./SystemStatus.js";
 import { MediaCard } from "./MediaCard.js";
 import { PerformancePopover } from "./PerformancePopover.js";
@@ -1432,6 +1433,7 @@ function IslandPanel({
   lyricsState,
   mediaEnabled = true,
   systemStatus,
+  systemNoticeLayout,
   performanceState,
   performanceEnabled = true,
   clearSessionsEnabled = true,
@@ -1581,14 +1583,7 @@ function IslandPanel({
     return () => cancelAnimationFrame(frame);
   }, [followUpSessionId]);
   if (surface?.type === "systemStatus") {
-    const notice = surface.notice;
-    return React.createElement("div", { className: "panel system-notice-panel", style: panelStyle },
-      React.createElement("button", { className: "system-notice-content", type: "button", onClick: onSystemDetails, "aria-label": t("system.viewDetails") },
-        React.createElement(SystemIcon, { kind: notice?.icon || "network" }),
-        React.createElement("span", null,
-          React.createElement("strong", { role: "status" }, t(notice?.key || "system.title", notice || {})),
-          notice?.name && React.createElement("span", { className: "system-notice-name" }, notice.name)),
-        React.createElement("svg", { width: 12, height: 12, viewBox: "0 0 12 12", fill: "none", stroke: "currentColor", "aria-hidden": true }, React.createElement("path", { d: "m4 2 4 4-4 4" }))));
+    return React.createElement(SystemNoticeCard, { notice: surface.notice, layout: systemNoticeLayout, panelStyle, onDetails: onSystemDetails });
   }
   if (surface?.type === "settingsChange") {
     return /* @__PURE__ */ React.createElement("div", { className: "panel settings-change-panel", style: panelStyle }, /* @__PURE__ */ React.createElement(SettingsChangeCard, {

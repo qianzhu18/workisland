@@ -1,9 +1,8 @@
 export function systemActivity(state, now = Date.now(), hasAttention = false) {
   if (!state || hasAttention) return null;
-  if (state.capture?.available && state.capture.active) return { kind: 'capture', key: 'system.capture.active' };
-  if (state.downloads?.available && state.downloads.active) return { kind: 'downloads', key: 'system.downloads.active', count: state.downloads.items?.length || 1 };
-  if (state.notice && now >= state.notice.at && now - state.notice.at < 6000) return { ...state.notice, key: `system.notice.${state.notice.kind}` };
-  return null;
+  if (state.capture?.available && state.capture.active) return { kind: 'capture', icon: 'capture', key: 'system.capture.active' };
+  if (state.downloads?.available && state.downloads.active) return { kind: 'downloads', icon: 'downloads', key: 'system.downloads.active', count: state.downloads.items?.length || 1 };
+  return systemNotice(state, now);
 }
 const noticeCapabilities = { 'capture-started': 'capture', 'capture-stopped': 'capture', 'download-started': 'downloads', 'download-completed': 'downloads', 'download-cancelled': 'downloads', 'audio-changed': 'audio', 'audio-connected': 'audio', 'audio-disconnected': 'audio', 'network-connected': 'network', 'network-disconnected': 'network', 'power-connected': 'battery', 'power-disconnected': 'battery' };
 export function systemNotice(state, now = Date.now()) {

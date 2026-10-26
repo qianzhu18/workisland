@@ -62,8 +62,25 @@ try {
     await client.evaluate("window.dispatchEvent(new Event('focus')); window.dispatchEvent(new Event('blur'))");
     await wait(500);
     assert.ok(await client.evaluate("document.querySelector('.island-panel-layer').classList.contains('is-hidden')"), "island is collapsed before testing an automatic popup");
+    const cameraSafety = process.argv.includes('--camera-safety');
+    if (cameraSafety) await client.evaluate(`(() => {
+      window.__hudMotion = { running:true, frames:[], flashes:0, lastHUD:-1000 };
+      const tick = time => {
+        const trace=window.__hudMotion; if (!trace?.running) return;
+        const layer=document.querySelector('.island-panel-layer'), hud=layer?.querySelector('.system-notice-panel');
+        const opacity=layer ? Number(getComputedStyle(layer).opacity) : 0;
+        if (opacity > .05 && hud) {
+          trace.lastHUD=time;
+          const icon=hud.querySelector('.system-icon').getBoundingClientRect(),title=hud.querySelector('strong').getBoundingClientRect();
+          const transform=getComputedStyle(document.querySelector('.island-pop-wrapper')).transform;
+          const matrix=new DOMMatrix(transform==='none'?undefined:transform);
+          trace.frames.push({time,top:title.top,iconTop:icon.top,height:hud.getBoundingClientRect().height,scaleX:matrix.a,scaleY:matrix.d,exiting:layer.classList.contains('is-hidden')});
+        } else if (opacity > .05 && time-trace.lastHUD < 280 && !hud) trace.flashes++;
+        requestAnimationFrame(tick);
+      }; requestAnimationFrame(tick);
+    })()`);
     const movie = resolve(evidence, 'temporary-capture.mov');
-    const recording = spawn('screencapture', ['-x', '-v', '-V', '4', movie], { stdio: 'ignore' });
+    const recording = spawn('screencapture', ['-x', '-v', '-V', cameraSafety ? '8' : '4', movie], { stdio: 'ignore' });
     const completion = new Promise(resolveExit => recording.once('exit', resolveExit));
     await wait(1200);
     const during = await client.evaluate('window.islandBridge.getSystemStatus()');
@@ -72,16 +89,52 @@ try {
     const noticeClip = await client.evaluate("(()=>{const r=document.querySelector('.island-panel-layer').getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height,scale:1}})()");
     const captureShot = await client.call('Page.captureScreenshot', { format: 'png', clip: noticeClip });
     await writeFile(resolve(evidence, 'capture-status-popup.png'), Buffer.from(captureShot.data, 'base64'));
+    if (cameraSafety) {
+      await wait(4500);
+      const wings = await client.evaluate(`(() => {
+        const p=document.querySelector('.pill-notch-system'), icon=p?.querySelector('.system-icon')?.getBoundingClientRect(), indicator=p?.querySelector('.system-pill-indicator')?.getBoundingClientRect();
+        const width=window.islandBridge.__initialNotchInfo.notchWidth;
+        return {notched:window.islandBridge.__initialNotchInfo.hasNotch,leftRight:icon?.right,rightLeft:indicator?.left,cameraLeft:(innerWidth-width)/2,cameraRight:(innerWidth+width)/2,labels:p?.querySelectorAll('.pill-label').length};
+      })()`);
+      if (wings.notched) {
+        assert.ok(wings.leftRight <= wings.cameraLeft - 6, 'persistent recording icon clears camera');
+        assert.ok(wings.rightLeft >= wings.cameraRight + 6, 'persistent recording indicator clears camera');
+        assert.equal(wings.labels, 0, 'no recording text behind physical camera');
+      }
+      await writeFile(resolve(evidence, 'persistent-recording-wings.json'), JSON.stringify(wings, null, 2));
+    }
     await completion; await wait(500);
     const after = await client.evaluate('window.islandBridge.getSystemStatus()');
     await rm(movie, { force: true });
     assert.equal(during.capture.active, true, 'actual recording detected');
     assert.equal(after.capture.active, false, 'recording end detected');
     assert.ok(popup, 'capture change automatically presents a compact popup');
+    const clearance = await client.evaluate(`(() => {
+      const inset = window.islandBridge.__initialNotchInfo;
+      const title = document.querySelector('.system-notice-content strong');
+      const icon = document.querySelector('.system-notice-content .system-icon');
+      return { safeTop: inset.hasNotch ? inset.notchHeight : 0, titleTop: title?.getBoundingClientRect().top, iconTop: icon?.getBoundingClientRect().top };
+    })()`);
+    assert.ok(clearance.titleTop >= clearance.safeTop + 6, 'HUD title must clear the physical MacBook camera');
+    assert.ok(clearance.iconTop >= clearance.safeTop + 6, 'HUD icon must clear the physical MacBook camera');
     assert.equal(after.notice.kind, 'capture-stopped', 'recording end announces its own transition');
     assert.ok(await client.evaluate("!!document.querySelector('.system-notice-content')"), 'end notification is visible');
     await wait(5200);
     assert.ok(await client.evaluate("document.querySelector('.island-panel-layer').classList.contains('is-hidden')"), 'status popup automatically retracts');
+    if (cameraSafety) {
+      const trace = await client.evaluate('window.__hudMotion.running=false;window.__hudMotion');
+      const info = await client.evaluate('window.islandBridge.__initialNotchInfo');
+      const safeTop = info.hasNotch ? info.notchHeight : 0;
+      assert.ok(trace.frames.length > 20, 'capture real entry and exit frames');
+      assert.ok(trace.frames.every(frame => frame.top >= safeTop + 6 && frame.iconTop >= safeTop + 6), 'all animated frames clear physical camera');
+      assert.ok(trace.frames.every(frame => Math.abs(frame.scaleX-1)<.001 && Math.abs(frame.scaleY-1)<.001), 'camera-anchored HUD never scales the whole island');
+      assert.equal(trace.flashes, 0, 'exit never flashes the Agent workspace');
+      const heights=[...new Set(trace.frames.map(frame=>frame.height))];
+      assert.deepEqual(heights, [safeTop+68], 'no measurement-driven shell height jump');
+      await writeFile(resolve(evidence, 'hud-motion-trace.json'), JSON.stringify(trace, null, 2));
+      console.log(JSON.stringify({cameraSafeFrames:trace.frames.length,exitFrames:trace.frames.filter(frame=>frame.exiting).length,heights,workspaceFlashes:trace.flashes}));
+      await client.evaluate('delete window.__hudMotion');
+    }
   }
   console.log(JSON.stringify({ ok: true, evidence, battery: status.battery, networkAvailable: status.network.available, audioAvailable: status.audio.available }, null, 2));
 } finally { client.close(); }

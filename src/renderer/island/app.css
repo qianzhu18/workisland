@@ -1225,12 +1225,25 @@ html[data-island-material="solid"] .island { border-top-color:transparent; }
 .plan-confirmation-expand:hover {
   background: rgba(255, 255, 255, 0.2);
 }
-}
 
-.system-notice-panel { padding: calc(var(--island-safe-top-inset, 32px) + 8px) 18px 14px; }
+.system-notice-panel { padding: var(--system-notice-content-top, calc(var(--island-safe-top-inset, 32px) + 10px)) 18px 16px; }
 .system-notice-content { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 42px; background: transparent; border: 0; color: var(--island-fg-primary); text-align: left; font: inherit; cursor: pointer; }
 .system-notice-content > .system-icon { width: 23px; height: 23px; }
 .system-notice-content > span { flex: 1; min-width: 0; }
-.system-notice-content strong { display: block; font-size: 13px; font-weight: 550; line-height: 1.5; }
+.system-notice-content strong { display: block; font-size: 13px; font-weight: 550; line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .system-notice-name { display: block; font-size: 11px; line-height: 1.5; color: var(--island-fg-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .system-notice-content:focus-visible { outline: 2px solid var(--island-fg-primary); outline-offset: 3px; border-radius: 4px; }
+
+/* The camera is immovable: keep foreground geometry anchored while the black
+ * shell morphs, and finish fading the outgoing notice before replacing it. */
+.island-panel-layer.is-system-notice { transition: opacity 160ms ease-out; }
+.island-panel-layer.is-system-notice.is-hidden { transition-duration: 110ms; }
+.is-system-notice:not(.is-hidden) .system-notice-content { animation: system-notice-reveal 240ms cubic-bezier(.22,1,.36,1) both; }
+@keyframes system-notice-reveal { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+.pill-notch-system { position: relative; padding: 0; }
+.pill-notch-system .pill-left, .pill-notch-system .pill-right { position: absolute; top: 50%; margin: 0; transform: translateY(-50%); width: 18px; height: 18px; justify-content: center; }
+.system-pill-indicator { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; font-size: 10px; font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) {
+  .is-system-notice .system-notice-content { animation: none !important; }
+  .island:has(.system-notice-panel) { transition-duration: 0.01ms; }
+}

@@ -5,6 +5,7 @@ import { D as DEFAULT_NOTCH_INFO, r as requiresAttention, d as dominantPhase, I 
 import { c as create } from "../vendor/store.js";
 import { I as IslandPanel, setIslandStatusAssets as setIslandPanelStatusAssets } from "./components/IslandPanel.js";
 import { enabledToolboxModules, resolveToolboxReopenModule } from "./components/productivity-toolbox-model.mjs";
+import { systemNoticeLayout } from "./components/system-notice-layout.mjs";
 import { systemNotice, shouldPresentSystemNotice } from "./components/system-status-model.mjs";
 import { isVisibleInIsland } from "./session-model.mjs";
 import { resolveFocusLossPresentation, shouldCollapseOnFocusLoss } from "./focus-policy.mjs";
@@ -202,6 +203,7 @@ function IslandApp() {
   const [systemStatus, setSystemStatus] = reactExports.useState(null);
   const systemStatusEnabled = !!systemStatus && Object.values(systemStatus).some(value => value && typeof value === "object" && value.enabled);
   const lastSystemNoticeRef = reactExports.useRef("");
+  const [exitingSystemNotice, setExitingSystemNotice] = reactExports.useState(null);
   const [mediaState, setMediaState] = reactExports.useState({ active: false });
   const [lyricsState, setLyricsState] = reactExports.useState({ status: "idle", lines: [], plainText: "" });
   const [performanceState, setPerformanceState] = reactExports.useState({ cpuPct: 0, memoryPct: 0, processes: [] });
@@ -638,8 +640,15 @@ function IslandApp() {
     lastSystemNoticeRef.current = key;
     if (!shouldPresentSystemNotice({ state: systemStatus, hasAttention: sessions.some(session => requiresAttention(session.phase)), isOpen: notchStatus === "opened", surfaceType: surface?.type })) return;
     presentSurface({ type: "systemStatus", notice, autoDismissMs: 5000 }, "notification", true);
-    pop();
-  }, [systemStatus, sessions, notchStatus, surface?.type, presentSurface, pop]);
+  }, [systemStatus, sessions, notchStatus, surface?.type, presentSurface]);
+  reactExports.useEffect(() => {
+    if (surface?.type === "systemStatus") { setExitingSystemNotice(surface); return; }
+    if (notchStatus === "opened") { setExitingSystemNotice(null); return; }
+    const timer = setTimeout(() => setExitingSystemNotice(null), CLOSE_WINDOW_RESIZE_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [surface, notchStatus]);
+  const displaySurface = surface || (notchStatus === "closed" ? exitingSystemNotice : null);
+  const isSystemNotice = displaySurface?.type === "systemStatus";
   const notchH = notchInfo.hasNotch ? notchInfo.notchHeight : notchInfo.menuBarHeight > 0 && notchInfo.menuBarHeight < 40 ? notchInfo.menuBarHeight : 24;
   const notchW = notchInfo.hasNotch ? notchInfo.notchWidth : 126;
   const hasAttention = sessions.some((s) => requiresAttention(s.phase));
@@ -659,10 +668,11 @@ function IslandApp() {
     topRadius: openedTopR,
     windowWidth: WINDOW_W
   });
+  const noticeLayout = systemNoticeLayout({ hasNotch: notchInfo.hasNotch, notchHeight: notchH, notchWidth: notchW, maxWidth: maxPanelBodyWidth });
   function getPillExtra() {
     let extra;
     if (notchInfo.hasNotch) {
-      extra = visibleCount > 0 ? 72 : mediaState?.active && mediaState?.title ? 96 : 62;
+      extra = visibleCount > 0 ? 72 : systemStatus?.capture?.active || systemStatus?.downloads?.active || systemNotice(systemStatus) ? 76 : mediaState?.active && mediaState?.title ? 96 : 62;
     } else if (visibleCount === 0 || phase === null) {
       extra = 72;
     } else {
@@ -686,16 +696,16 @@ function IslandApp() {
   }
   const pillExtra = getPillExtra();
   const pillWidth = Math.min(Math.max(notchW, 126) + pillExtra, maxPillBodyWidth);
-  const desiredPanelWidth = surface?.type === "systemStatus" ? Math.max(360, notchW + 96) : notchInfo.screenWidth > 0 ? Math.max(680, Math.min(740, notchInfo.screenWidth * 0.46)) : 680;
+  const desiredPanelWidth = isSystemNotice ? noticeLayout.width : notchInfo.screenWidth > 0 ? Math.max(680, Math.min(740, notchInfo.screenWidth * 0.46)) : 680;
   const panelWidth = Math.min(desiredPanelWidth, maxPanelBodyWidth);
   const isOpen = notchStatus === "opened";
-  const actualPanelH = Math.max(
+  const actualPanelH = isSystemNotice ? noticeLayout.height : Math.max(
     notchH + 40,
     Math.min(panelHeight, WINDOW_H - 10)
   );
   const maxExpandedWindowHeight = Math.min(
     WINDOW_H,
-    panelMaxHeightPx + OPEN_WINDOW_SHADOW_MARGIN_PX
+    (isSystemNotice ? noticeLayout.height : panelMaxHeightPx) + OPEN_WINDOW_SHADOW_MARGIN_PX
   );
   reactExports.useLayoutEffect(() => {
     window.islandBridge?.setInteractionBounds?.({
@@ -1045,7 +1055,7 @@ function IslandApp() {
         "div",
         {
           ref: panelLayerRef,
-          className: `island-panel-layer${isOpen ? "" : " is-hidden"}${dock.panelLayerClass}`,
+          className: `island-panel-layer${isOpen ? "" : " is-hidden"}${isSystemNotice ? " is-system-notice" : ""}${dock.panelLayerClass}`,
           style: dock.panelLayerStyle ?? { width: panelWidth }
         },
         /* @__PURE__ */ React.createElement(
@@ -1054,7 +1064,8 @@ function IslandApp() {
             sessions,
             hasConnectedAgent: agentSetupReports ? agentSetupReports.some((report) => report?.diagnosis?.status === "ok") : null,
             sessionRecaps,
-            surface,
+            surface: displaySurface,
+            systemNoticeLayout: noticeLayout,
             notchHeight: notchH,
             notchWidth: notchInfo.hasNotch ? notchInfo.notchWidth + 16 : 0,
             panelMaxHeightPx,
