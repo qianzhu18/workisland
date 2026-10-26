@@ -1,6 +1,12 @@
-# WorkIsland v1.6.0
+# WorkIsland v1.6.1
 
 会话搜索与回源更顺手，Agent 接入更省心，系统状态融入灵动岛。本版包含 v1.5.1 之后已经合并的功能与修复。
+
+## 更新校验修复
+
+- 校验文件改用纯安装包文件名，让旧版客户端可以正确匹配并校验新包。
+- 新版客户端兼容历史校验文件中的 `release/` 前缀；校验文件缺失、无法读取或找不到对应条目时停止安装，不再跳过校验。
+- 本版包含以下 v1.6.0 功能与修复。
 
 ## 新功能
 
@@ -27,4 +33,4 @@ ZCode ↔ Codex 双向交接仍在开发，不包含在本版。
 
 ### English Summary
 
-v1.6.0 brings session search with live-session-first navigation, automatic DeepSeek Harness setup and repair (including DSH 0.2.1), and native macOS battery/power, audio, network, download and screen-capture status in the Island toolbar. Camera-safe transient notices respect agent attention and active panels. Streaming transcript processing, coalesced scans and serialized startup backfill reduce memory spikes; search rendering, display selection and custom backgrounds are improved. Codex quota retains its fixed left period/usage/reset display; the separate usage dashboard can be stored in More (the default on new installs). Updates are checked automatically but download/install require a click. Lock-screen information is off by default; hardware-specific audio/network/sleep/lock scenarios still need broader device validation. The unmerged ZCode–Codex handoff is excluded.
+v1.6.1 fixes installer integrity checks: published checksum manifests use bare filenames for older clients, legacy release-directory entries remain readable, and missing/unreadable/unmatched checksums stop installation. It includes v1.6.0 features: session search with live-session-first navigation, automatic DeepSeek Harness setup and repair (including DSH 0.2.1), and native macOS battery/power, audio, network, download and screen-capture status in the Island toolbar. Camera-safe transient notices respect agent attention and active panels. Streaming transcript processing, coalesced scans and serialized startup backfill reduce memory spikes; search rendering, display selection and custom backgrounds are improved. Codex quota retains its fixed left period/usage/reset display; the separate usage dashboard can be stored in More (the default on new installs). Updates are checked automatically but download/install require a click. Lock-screen information is off by default; hardware-specific audio/network/sleep/lock scenarios still need broader device validation. The unmerged ZCode–Codex handoff is excluded.
