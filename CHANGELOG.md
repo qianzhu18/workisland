@@ -8,6 +8,12 @@
 
 尚无新的未发布条目。
 
+## [1.6.1] - 2026-10-27
+
+修复更新下载校验：发布文件使用纯安装包名，兼容旧版客户端；新版也兼容历史 `release/` 前缀。缺失、无法获取或未匹配的校验不再被跳过。
+
+> **English summary:** Installer checksums now use bare filenames for older clients; new clients accept legacy directory-prefixed entries and stop on missing or unreadable verification data. Includes all [v1.6.0 features](https://github.com/qianzhu18/workisland/releases/tag/v1.6.1).
+
 ## [1.6.0] - 2026-10-26
 
 会话搜索与回源、DeepSeek Harness 自动接入和 macOS 原生系统状态正式打包，并汇总 v1.5.1 后的内存、显示与背景修复。

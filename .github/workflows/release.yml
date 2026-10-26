@@ -147,10 +147,11 @@ jobs:
         # x64 产物使用带架构后缀的校验文件，避免与 arm64 的 SHA256SUMS.txt 冲突；
         # 更新检测会优先匹配 SHA256SUMS-<arch>.txt，再回退 SHA256SUMS.txt。
         run: |
+          cd release
           if [ "${{ matrix.arch }}" = "x64" ]; then
-            shasum -a 256 release/*.dmg > release/SHA256SUMS-x64.txt
+            shasum -a 256 *.dmg > SHA256SUMS-x64.txt
           else
-            shasum -a 256 release/*.dmg > release/SHA256SUMS.txt
+            shasum -a 256 *.dmg > SHA256SUMS.txt
           fi
       - uses: actions/upload-artifact@v4
         with:

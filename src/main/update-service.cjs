@@ -124,7 +124,7 @@ function extractChecksum(text, fileName) {
   const lines = String(text ?? "").split(/\r?\n/);
   for (const line of lines) {
     const match = line.trim().match(/^([0-9a-fA-F]{64})\s+\*?(.+)$/);
-    if (match && match[2].trim() === fileName) return match[1].toLowerCase();
+    if (match && path.posix.basename(match[2].trim().replace(/\\/g, "/")) === fileName) return match[1].toLowerCase();
   }
   return null;
 }
@@ -560,22 +560,18 @@ function createUpdateService({
         retryDelaysMs: downloadRetryDelaysMs
       });
       const checksumAsset = pickChecksumAsset(release.assets, arch);
-      if (checksumAsset) {
-        const checksumResponse = await fetchImpl(checksumAsset.url, {
-          headers: { Accept: "text/plain", "User-Agent": "WorkIsland-update-check" }
-        });
-        if (checksumResponse?.ok) {
-          const expected = extractChecksum(await responseText(checksumResponse), asset.name);
-          if (expected && expected !== sha256) {
-            await fs.promises.rm(destinationPath, { force: true }).catch(() => {});
-            throw new Error(i18n.t("update.error.checksum"));
-          }
-        }
-      }
+      if (!checksumAsset) throw new Error(i18n.t("update.error.checksum"));
+      const checksumResponse = await fetchImpl(checksumAsset.url, {
+        headers: { Accept: "text/plain", "User-Agent": "WorkIsland-update-check" }
+      });
+      if (!checksumResponse?.ok) throw new Error(i18n.t("update.error.checksum"));
+      const expected = extractChecksum(await responseText(checksumResponse), asset.name);
+      if (!expected || expected !== sha256) throw new Error(i18n.t("update.error.checksum"));
       publishState({ phase: "ready", progress: { received: asset.size, total: asset.size, pct: 100 }, downloadedPath: destinationPath, error: null });
       showReadyNotification();
       return getUpdateState();
     } catch (error) {
+      await fs.promises.rm(destinationPath, { force: true }).catch(() => {});
       logger.warn?.("[UpdateService] download failed:", error);
       publishState({ phase: "error", error: error?.message || i18n.t("update.error.downloadFailed") });
       return getUpdateState();

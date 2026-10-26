@@ -523,3 +523,25 @@ test("hasUpdate stays false when the cache is empty or already up to date", asyn
   assert.equal((await upToDate.check({ force: true })).status, "up-to-date");
   assert.equal(upToDate.getUpdateState().hasUpdate, false);
 });
+
+test('legacy release-directory checksum entries match the downloaded basename', () => {
+  const sum='a'.repeat(64);
+  assert.equal(extractChecksum(`${sum}  release/WorkIsland-1.6.0-arm64.dmg\n`,'WorkIsland-1.6.0-arm64.dmg'),sum);
+  assert.equal(extractChecksum(`${sum}  release/other.dmg\n`,'WorkIsland-1.6.0-arm64.dmg'),null);
+});
+for (const invalid of ['missing-asset','unmatched-entry','unavailable-file']) {
+  test(`download cannot become ready with ${invalid} checksum`, async () => {
+    const payload=releasePayload(), bytes=Buffer.from('12345678');
+    if(invalid==='missing-asset')payload.assets=payload.assets.filter(a=>!a.name.startsWith('SHA256SUMS'));
+    const userDataPath=mkdtempSync(join(tmpdir(),'workisland-checksum-required-'));
+    const service=createUpdateService({platform:'darwin',app:makeApp('0.9.0'),arch:'arm64',userDataPath,
+      notificationClass:null,logger:{warn(){},debug(){}},fetchImpl:async url=>{
+        if(url===RELEASE_API_URL)return {ok:true,json:async()=>payload};
+        if(url.endsWith('SHA256SUMS.txt'))return invalid==='unavailable-file'?{ok:false,status:503}:{ok:true,text:async()=>`${'a'.repeat(64)}  other.dmg\n`};
+        return {ok:true,headers:{get:()=>String(bytes.length)},body:(async function*(){yield bytes;})()};
+      }});
+    await service.check({force:true,notify:false});
+    const state=await service.download();assert.equal(state.phase,'error');assert.match(state.error,/verification failed/i);
+    assert.equal(existsSync(join(userDataPath,'update','WorkIsland-1.0.0-arm64.dmg')),false);
+  });
+}
