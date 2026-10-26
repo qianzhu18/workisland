@@ -214,7 +214,7 @@ const cleanIcon = "data:image/svg+xml,%3csvg%20width='16'%20height='16'%20viewBo
 const ALL_AGENTS = ["claude", "codex", "cursor", "opencode", "kimi"];
 const AGENT_BADGE_COLORS = { claude: "#F08A5D", codex: "#63D5A0", cursor: "#A7B0C0", opencode: "#D6A85A", kimi: "#7EA7FF" };
 function isValidPeriod(period) {
-  return period.total !== "-";
+  return !!period && typeof period.total === "string" && period.total !== "-" && Number.isFinite(period.usedPct);
 }
 function isValidQuota(quota) {
   return isValidPeriod(quota.daily) || isValidPeriod(quota.weekly);
@@ -232,6 +232,7 @@ function AgentQuotaCell({ tool, quota }) {
   const dailyValid = isValidPeriod(quota.daily);
   const weeklyValid = isValidPeriod(quota.weekly);
   const [showTooltip, setShowTooltip] = React.useState(false);
+  const [iconFailed, setIconFailed] = React.useState(false);
   const activePeriod = dailyValid ? quota.daily : weeklyValid ? quota.weekly : null;
   const tooltipLines = [];
   if (dailyValid) {
@@ -244,6 +245,7 @@ function AgentQuotaCell({ tool, quota }) {
     "div",
     {
       className: "usage-cell",
+      "data-quota-tool": tool,
       onMouseEnter: () => setShowTooltip(true),
       onMouseLeave: () => setShowTooltip(false)
     },
@@ -254,8 +256,8 @@ function AgentQuotaCell({ tool, quota }) {
         title: AGENT_TOOL_LABELS[tool],
         style: { background: tool === "codex" ? "transparent" : AGENT_BADGE_COLORS[tool] ?? "#7B8794" }
       },
-      tool === "codex"
-        ? /* @__PURE__ */ React.createElement("img", { className: "agent-monogram-image", src: codexIcon, alt: "", draggable: false })
+      tool === "codex" && !iconFailed
+        ? /* @__PURE__ */ React.createElement("img", { className: "agent-monogram-image", src: codexIcon, alt: "Codex", draggable: false, onError: () => setIconFailed(true) })
         : String(AGENT_TOOL_LABELS[tool] ?? tool).slice(0, 1).toUpperCase()
     ),
     activePeriod && /* @__PURE__ */ React.createElement("span", { className: "usage-cell-text" }, /* @__PURE__ */ React.createElement("span", { className: "usage-period" }, activePeriod.total, " ", /* @__PURE__ */ React.createElement("span", { style: { color: usagePctColor(activePeriod.usedPct) } }, formatPct(activePeriod.usedPct), "%"), " ", activePeriod.remaining)),
@@ -1429,6 +1431,7 @@ function IslandPanel({
   hasUpdate,
   tokenBurnTotal,
   pillFirstRow,
+  showUsageQuota = true,
   mediaState,
   lyricsState,
   mediaEnabled = true,
@@ -1602,6 +1605,7 @@ function IslandPanel({
       tokenBurnTotal,
       visibleSessionIds: visibleSessions.map((session) => session.id),
       pillFirstRow,
+      showUsageQuota,
       performanceState,
       performanceEnabled,
       clearSessionsEnabled,

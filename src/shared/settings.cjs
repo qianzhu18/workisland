@@ -178,7 +178,7 @@ const DEFAULT_SETTINGS = {
   // array means the built-in default order; unknown ids are dropped on merge
   // and newly introduced modules append after the ordered ones.
   toolboxModuleOrder: [],
-  toolbarHiddenModules: [],
+  toolbarHiddenModules: ["usage"],
   toolbarModuleSides: {},
   toolbarModuleSlots: {},
   showUsageQuota: true,
@@ -404,7 +404,7 @@ function mergeSettings(parsed = {}) {
       : [];
     merged.toolboxModuleOrder = Array.from(new Set(order));
     merged.toolbarHiddenModules = [...new Set(Array.isArray(parsed.toolbarHiddenModules)
-      ? parsed.toolbarHiddenModules.filter(id => known.includes(id)) : [])];
+      ? parsed.toolbarHiddenModules.filter(id => known.includes(id)) : DEFAULT_SETTINGS.toolbarHiddenModules)];
     merged.toolbarModuleSlots = Object.fromEntries(Object.entries(parsed.toolbarModuleSlots || {})
       .filter(([id, slot]) => known.includes(id) && typeof slot === 'string' && /^(?:left:\d{1,3}|right:\d{1,3}|overflow)$/.test(slot)));
     merged.toolbarModuleSides = Object.fromEntries(Object.entries(parsed.toolbarModuleSides || {})

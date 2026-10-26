@@ -104,3 +104,20 @@ test('Bluetooth connect and disconnect announce even when the active output does
   assert.equal(service.getSnapshot().notice?.kind, 'audio-disconnected');
   service.stop();
 });
+
+test('each native status feature can be disabled and reenabled independently', () => {
+  const keys = { battery:'systemBatteryEnabled', network:'systemNetworkEnabled', audio:'systemAudioEnabled', capture:'systemCaptureEnabled', downloads:'systemDownloadsEnabled', lockScreen:'systemLockScreenEnabled' };
+  const allOff = Object.fromEntries(Object.values(keys).map(key => [key, false]));
+  const { service, children, monitor } = harness(allOff); service.start();
+  emit(children[0], { battery:{available:true,present:true,percent:80},network:{available:true,connected:true},audio:{available:true,devices:[]},capture:{available:true,active:true},lockScreen:{available:true,active:true} });
+  monitor.emit('update',{available:true,active:true,items:[{name:'a.zip'}]});
+  assert.equal(service.getSnapshot().notice,null);
+  for (const [kind,key] of Object.entries(keys)) {
+    service.configure({...allOff,[key]:true});
+    const state=service.getSnapshot();
+    for (const other of Object.keys(keys)) assert.equal(state[other].enabled,other===kind,`${kind} must not enable ${other}`);
+    service.configure(allOff);
+    assert.equal(service.getSnapshot()[kind].available,false);
+  }
+  service.stop();
+});
