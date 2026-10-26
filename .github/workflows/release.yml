@@ -85,6 +85,9 @@ jobs:
             '/src/renderer/island/assets/brands/agent.svg',
             '/src/renderer/island/assets/brands/claude.svg',
             '/src/renderer/island/assets/brands/codebuddy.svg',
+            '/src/renderer/island/assets/brands/codex.png',
+            '/src/renderer/island/components/SystemStatus.js',
+            '/src/renderer/island/components/SystemNoticeCard.js',
             '/src/renderer/island/assets/brands/copilot.svg',
             '/src/renderer/island/assets/brands/cursor.svg',
             '/src/renderer/island/assets/brands/dumate.png',
@@ -110,6 +113,14 @@ jobs:
           if (missing.length) {
             console.error(`Packaged payload is incomplete:\n${missing.map((file) => `- ${file}`).join('\n')}`);
             process.exit(1);
+          }
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const resources = path.dirname(archive);
+          for (const resource of ['bin/workisland-system-status', 'bin/workisland-system-status-LICENSE']) {
+            if (!fs.existsSync(path.join(resources, resource))) {
+              throw new Error(`Missing native system status resource: ${resource}`);
+            }
           }
           console.log(`Packaged payload OK: ${required.length} assets, default-on telemetry, and privacy guards present.`);
           NODE

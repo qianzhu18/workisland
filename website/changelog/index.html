@@ -48,8 +48,31 @@
 
       <section class="changelog-list" aria-label="版本更新列表">
         <article class="changelog-release changelog-release-latest">
+          <div class="changelog-release-meta"><span class="changelog-release-label">LATEST STABLE</span><time datetime="2026-10-26">2026-10-26</time></div>
+          <div class="changelog-release-body">
+            <h2>v1.6.0</h2>
+            <p class="changelog-summary">会话搜索与回源更顺手，DeepSeek Harness 自动接入，系统状态融入灵动岛，并降低大历史记录下的内存峰值。</p>
+            <div class="changelog-columns">
+              <section><h3>新增</h3><ul>
+                <li>搜索历史会话，优先回到运行中的原对话；支持 ZCode 工作区与办公 Agent 客户端回源。</li>
+                <li>DeepSeek Harness 自动发现、幂等接入和后台修复，兼容 DSH 0.2.1。</li>
+                <li>顶部系统状态按钮展示电池与充电瓦数、音频、网络、下载和屏幕捕获；变化时短暂提示，避让摄像头。</li>
+              </ul></section>
+              <section><h3>改进与修复</h3><ul>
+                <li>流式索引和用量解析、合并重复扫描，减少内存峰值；修复搜索结果渲染退出。</li>
+                <li>改善自定义背景、主屏选择与系统提示动画，精简隐藏采样和打包资源。</li>
+                <li>Codex 额度保持左侧固定显示；用量看板独立可收纳，新安装默认放入“更多”。</li>
+                <li>锁屏信息默认关闭；耳机、网络、多屏休眠及锁屏仍需更多设备反馈。</li>
+              </ul></section>
+            </div>
+            <p lang="en">English summary: Session search and navigation, automatic DeepSeek Harness setup, camera-safe native system status, and lower transcript-processing memory spikes. Lock-screen information is off by default; hardware coverage remains limited.</p>
+            <a class="changelog-release-link" href="https://github.com/qianzhu18/workisland/releases/tag/v1.6.0" target="_blank" rel="noreferrer">查看 v1.6.0 Release 与下载 ↗</a>
+          </div>
+        </article>
+
+        <article class="changelog-release">
           <div class="changelog-release-meta">
-            <span class="changelog-release-label">LATEST STABLE</span>
+            <span class="changelog-release-label">STABLE</span>
             <time datetime="2026-09-05">2026-09-05</time>
           </div>
           <div class="changelog-release-body">
