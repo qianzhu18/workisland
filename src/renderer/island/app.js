@@ -200,6 +200,7 @@ function IslandApp() {
   const [pillFileDragActive, setPillFileDragActive] = reactExports.useState(false);
   const fileDropLatest = reactExports.useRef({ enabled: false, openShelf: () => {} });
   const [systemStatus, setSystemStatus] = reactExports.useState(null);
+  const systemStatusEnabled = !!systemStatus && Object.values(systemStatus).some(value => value && typeof value === "object" && value.enabled);
   const lastSystemNoticeRef = reactExports.useRef("");
   const [mediaState, setMediaState] = reactExports.useState({ active: false });
   const [lyricsState, setLyricsState] = reactExports.useState({ status: "idle", lines: [], plainText: "" });
@@ -475,7 +476,7 @@ function IslandApp() {
       clearTimeout(collapsePanelToPillTimerRef.current);
       collapsePanelToPillTimerRef.current = null;
     }
-    const enabledModules = enabledToolboxModules({ fileShelfEnabled, clipboardHistoryEnabled, terminalEnabled, usageDashboardEnabled });
+    const enabledModules = enabledToolboxModules({ fileShelfEnabled, clipboardHistoryEnabled, terminalEnabled, usageDashboardEnabled, systemStatusEnabled });
     const resumeFullTerminal = activeModuleRef.current === "terminal" && terminalFullRef.current;
     const nextModule = resumeFullTerminal
       ? "terminal"
@@ -489,7 +490,7 @@ function IslandApp() {
     close();
     clearSurface();
     window.islandBridge?.surfaceDismissed();
-  }, [clipboardHistoryEnabled, close, clearSurface, fileShelfEnabled, terminalEnabled, usageDashboardEnabled, toolboxReopenMode]);
+  }, [clipboardHistoryEnabled, close, clearSurface, fileShelfEnabled, terminalEnabled, usageDashboardEnabled, toolboxReopenMode, systemStatusEnabled]);
   reactExports.useEffect(() => {
     const handleWindowBlur = () => {
       const followUpFocused = isFollowUpActiveRef.current
