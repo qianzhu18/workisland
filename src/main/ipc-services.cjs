@@ -471,12 +471,20 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
     electron.ipcMain.handle(IPC.CLIPBOARD_HISTORY_FAVORITE, (_event, { id, favorite } = {}) => coordinator.favoriteClipboardEntry(String(id || ""), Boolean(favorite)));
     electron.ipcMain.handle(IPC.CLIPBOARD_HISTORY_REMOVE, (_event, { ids } = {}) => coordinator.removeClipboardEntries(ids));
     electron.ipcMain.handle(IPC.CLIPBOARD_HISTORY_CLEAR, () => coordinator.clearClipboardHistory());
-    electron.ipcMain.handle(IPC.TERMINAL_GET_STATE, () => coordinator.getTerminalState());
+    electron.ipcMain.handle(IPC.TERMINAL_GET_STATE, (_event, { id } = {}) => coordinator.getTerminalState(id));
     electron.ipcMain.handle(IPC.TERMINAL_START, (_event, options) => coordinator.startTerminal(options));
-    electron.ipcMain.handle(IPC.TERMINAL_INPUT, (_event, { data } = {}) => coordinator.sendTerminalInput(data));
+    electron.ipcMain.handle(IPC.TERMINAL_CREATE, (_event, options) => coordinator.createTerminal(options));
+    electron.ipcMain.handle(IPC.TERMINAL_SELECT, (_event, { id } = {}) => coordinator.selectTerminal(String(id || "")));
+    electron.ipcMain.handle(IPC.TERMINAL_CLOSE, (_event, { id } = {}) => coordinator.closeTerminal(String(id || "")));
+    electron.ipcMain.handle(IPC.TERMINAL_RENAME, (_event, { id, name } = {}) => coordinator.renameTerminal(String(id || ""), name));
+    electron.ipcMain.handle(IPC.TERMINAL_EXTERNAL_STATE, () => coordinator.getExternalTerminalState());
+    electron.ipcMain.handle(IPC.TERMINAL_EXTERNAL_REFRESH, () => coordinator.refreshExternalTerminals());
+    electron.ipcMain.handle(IPC.TERMINAL_EXTERNAL_FOCUS, (_event, { id } = {}) => coordinator.focusExternalTerminal(String(id || "")));
+    electron.ipcMain.handle(IPC.TERMINAL_EXTERNAL_CLOSE, (_event, { id } = {}) => coordinator.closeExternalTerminal(String(id || "")));
+    electron.ipcMain.handle(IPC.TERMINAL_INPUT, (_event, { data, id } = {}) => coordinator.sendTerminalInput(data, id));
     electron.ipcMain.handle(IPC.TERMINAL_RESIZE, (_event, size) => coordinator.resizeTerminal(size));
     electron.ipcMain.handle(IPC.TERMINAL_RESTART, (_event, options) => coordinator.restartTerminal(options));
-    electron.ipcMain.handle(IPC.TERMINAL_STOP, () => coordinator.stopTerminal());
+    electron.ipcMain.handle(IPC.TERMINAL_STOP, (_event, { id } = {}) => coordinator.stopTerminal(id));
     electron.ipcMain.handle(IPC.TERMINAL_RUN_SAVED_COMMAND, (_event, { id } = {}) => coordinator.runSavedTerminalCommand(String(id || "")));
     electron.ipcMain.handle(IPC.WELCOME_GET_FIRST_LAUNCH_AT, () => {
       return coordinator.getSettings().firstLaunchAt;

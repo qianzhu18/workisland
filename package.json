@@ -50,6 +50,7 @@
     "@electron-toolkit/utils": "4.0.0",
     "@iarna/toml": "2.2.5",
     "@modelcontextprotocol/server": "^2.0.0",
+    "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "6.0.0",
     "electron-log": "5.4.4",
     "js-yaml": "4.3.1",
@@ -157,6 +158,7 @@
       "category": "public.app-category.productivity",
       "icon": "resources/icon.icns",
       "extendInfo": {
+        "NSAppleEventsUsageDescription": "WorkIsland lists and activates external terminal sessions you choose, and closes supported sessions when you request it.",
         "NSBluetoothAlwaysUsageDescription": "WorkIsland reads connected Bluetooth audio devices to display their connection status and available battery level.",
         "CFBundleDevelopmentRegion": "en",
         "CFBundleLocalizations": [

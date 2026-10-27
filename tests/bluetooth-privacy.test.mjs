@@ -18,11 +18,12 @@ test('packaging preserves Bluetooth purpose while removing unused capture permis
     mkdirSync(contents, { recursive: true });
     const plist = join(contents, 'Info.plist');
     execFileSync('/usr/bin/plutil', ['-create', 'xml1', plist]);
-    for (const key of ['NSBluetoothAlwaysUsageDescription', 'NSCameraUsageDescription', 'NSMicrophoneUsageDescription']) {
+    for (const key of ['NSBluetoothAlwaysUsageDescription', 'NSAppleEventsUsageDescription', 'NSCameraUsageDescription', 'NSMicrophoneUsageDescription']) {
       execFileSync('/usr/libexec/PlistBuddy', ['-c', `Add :${key} string Purpose`, plist]);
     }
     await afterPack({ electronPlatformName: 'darwin', appOutDir: root, packager: { appInfo: { productFilename: 'WorkIsland' } } });
     assert.equal(execFileSync('/usr/libexec/PlistBuddy', ['-c', 'Print :NSBluetoothAlwaysUsageDescription', plist], { encoding: 'utf8' }).trim(), 'Purpose');
+    assert.equal(execFileSync('/usr/libexec/PlistBuddy', ['-c', 'Print :NSAppleEventsUsageDescription', plist], { encoding: 'utf8' }).trim(), 'Purpose');
     const xml = readFileSync(plist, 'utf8');
     assert.ok(!xml.includes('NSCameraUsageDescription') && !xml.includes('NSMicrophoneUsageDescription'));
   } finally {

@@ -1247,3 +1247,52 @@ html[data-island-material="solid"] .island { border-top-color:transparent; }
   .is-system-notice .system-notice-content { animation: none !important; }
   .island:has(.system-notice-panel) { transition-duration: 0.01ms; }
 }
+
+/* The terminal manager shares the existing toolbox surface and color tokens. */
+.terminal-panel .toolbox-heading-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 30px; padding: 5px 9px; font-size: 11px; white-space: nowrap; }
+.terminal-panel .terminal-new { color: #c5f6dc; border-color: rgba(114,231,167,.25); background: rgba(67,198,130,.12); }
+.terminal-panel button:focus-visible, .terminal-panel input:focus-visible, .terminal-panel select:focus-visible { outline: 2px solid #83eab0; outline-offset: 2px; }
+.terminal-error { margin: 10px 12px; padding: 9px 10px; border-radius: 8px; color: #f5bdb7; background: rgba(222,98,86,.1); font-size: 11px; line-height: 1.5; }
+.terminal-manager-empty { display: flex; align-items: center; flex-direction: column; padding: 22px 16px 14px; text-align: center; }
+.terminal-manager-empty > svg { width: 26px; height: 26px; margin-bottom: 10px; color: #a7b5c3; }
+.terminal-manager-empty > strong { font-size: 13px; font-weight: 600; }
+.terminal-manager-empty > p { max-width: 34em; margin: 7px 0 14px; color: rgba(224,232,242,.65); font-size: 11px; line-height: 1.6; text-wrap: pretty; }
+.terminal-manager-empty .terminal-enter-full { width: auto; min-width: 150px; margin: 0; padding: 0 15px; }
+.terminal-session-list { max-height: 270px; margin: 0; padding: 0; overflow: auto; list-style: none; }
+.terminal-session-row + .terminal-session-row { border-top: 1px solid rgba(255,255,255,.055); }
+.terminal-session-main { display: flex; align-items: center; gap: 5px; padding: 5px 10px 5px 6px; }
+.terminal-panel .terminal-session-open { display: flex; flex: 1; min-width: 0; min-height: 52px; align-items: center; gap: 10px; padding: 8px; border-color: transparent; background: transparent; text-align: left; }
+.terminal-panel .terminal-session-open:hover { background: rgba(255,255,255,.035); }
+.terminal-session-mark { display: flex; flex: 0 0 28px; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 7px; color: #8d98a6; background: rgba(255,255,255,.035); }
+.terminal-session-mark.is-running { color: #a2d8bb; }
+.terminal-session-text { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 4px; }
+.terminal-session-text strong { overflow: hidden; color: #e4edf5; font-size: 12px; font-weight: 550; text-overflow: ellipsis; white-space: nowrap; }
+.terminal-session-text > span { overflow: hidden; color: rgba(213,225,236,.6); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.terminal-session-state { flex: 0 0 auto; color: #a5aab2; font-size: 10px; }
+.terminal-session-state.is-running { color: #9fd9b9; }
+.terminal-row-actions { display: flex; flex: 0 0 auto; gap: 3px; }
+.terminal-panel .terminal-icon-action { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; border-color: transparent; color: #a3afbb; background: transparent; }
+.terminal-panel .terminal-icon-action:hover { color: #edf4fa; background: rgba(255,255,255,.07); }
+.terminal-close-confirm { display: flex; align-items: center; justify-content: flex-end; gap: 7px; padding: 0 14px 10px; }
+.terminal-close-confirm > span { flex: 1; color: #d4b8a6; font-size: 10px; line-height: 1.5; }
+.terminal-close-confirm button, .terminal-rename button { flex: 0 0 auto; padding: 5px 8px; font-size: 10px; }
+.terminal-panel .terminal-confirm-close { border-color: rgba(240,130,113,.24); color: #f5b6ab; background: rgba(240,130,113,.08); }
+.terminal-rename { display: flex; flex: 1; min-width: 0; align-items: center; gap: 6px; padding: 11px 5px; }
+.terminal-rename input { flex: 1; min-width: 0; padding: 6px 8px; border: 1px solid rgba(255,255,255,.16); border-radius: 6px; color: #e8eef5; background: #0b0e13; font: inherit; font-size: 12px; }
+.terminal-quick-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px 2px; border-top: 1px solid rgba(255,255,255,.065); }
+.terminal-quick-heading > strong { color: #c3cdd8; font-size: 11px; font-weight: 550; }
+.terminal-panel .terminal-quick-heading > button { min-height: 28px; padding: 4px 6px; border-color: transparent; color: #a4b1c0; background: transparent; font-size: 10px; }
+.terminal-panel .terminal-quick-empty { min-height: 0; align-items: flex-start; padding: 7px 14px 17px; text-align: left; }
+.terminal-session-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 12px; border-bottom: 1px solid rgba(255,255,255,.05); }
+.terminal-session-bar label { display: flex; flex: 1; min-width: 0; align-items: center; gap: 8px; color: #a5b1be; font-size: 10px; }
+.terminal-session-bar select { min-width: 0; max-width: 70%; min-height: 28px; padding: 3px 25px 3px 8px; border: 1px solid rgba(255,255,255,.12); border-radius: 6px; color: #e0e9f2; background: #11161d; font: inherit; font-size: 11px; }
+.terminal-session-view[hidden] { display: none; }
+.terminal-session-view .terminal-shell { height: clamp(180px, calc(var(--island-panel-max-height, 540px) - var(--island-safe-top-inset, 0px) - 185px), 350px); }
+.terminal-exit-note { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 12px; border-top: 1px solid rgba(255,255,255,.07); color: #b0bdcb; background: #10141a; font-size: 11px; }
+.terminal-exit-note button { padding: 6px 9px; font-size: 11px; }
+@media (max-width: 480px) { .terminal-session-main { gap: 0; padding-right: 7px; } .terminal-session-open { gap: 7px !important; } .terminal-session-state { font-size: 9px; } .terminal-close-confirm { flex-wrap: wrap; } .terminal-close-confirm > span { flex-basis: 100%; } }
+.terminal-external-description, .terminal-external-note { margin: 5px 14px 12px; color: rgba(213,225,236,.6); font-size: 10px; line-height: 1.6; }
+.terminal-external-note { color: #dac5aa; }
+.terminal-external-list { max-height: 200px; margin: 0; padding: 0; overflow: auto; list-style: none; }
+.terminal-external-list > li + li { border-top: 1px solid rgba(255,255,255,.055); }
+.terminal-panel .toolbox-panel-heading strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
