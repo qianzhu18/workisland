@@ -4,6 +4,7 @@ import { Terminal } from "../../../../node_modules/@xterm/xterm/lib/xterm.mjs";
 import { FitAddon } from "../../../../node_modules/@xterm/addon-fit/lib/addon-fit.mjs";
 import { createTerminalStream } from "./terminal-stream.mjs";
 import { ExternalTerminalList } from "./ExternalTerminalList.js";
+import { TerminalAgentNotices } from "./TerminalAgentNotices.js";
 
 function TerminalIcon({ kind = "terminal" }) {
   const paths = { terminal: "m6 7 4 5-4 5m7 0h5", plus: "M12 5v14M5 12h14", close: "m6 6 12 12M18 6 6 18", edit: "m14 5 5 5M4 20l5-1L20 8l-4-4L5 15z", back: "m12 5-7 7 7 7M5 12h15" };
@@ -66,7 +67,7 @@ function TerminalSessionView({ session, visible, register, onRestart, onError })
   );
 }
 
-export function TerminalPanel({ active = false, panelOpen = true, savedCommands = [], onOpenSettings, onFullChange }) {
+export function TerminalPanel({ active = false, panelOpen = true, savedCommands = [], agentSessions = [], onAgentNotice, onOpenSettings, onFullChange }) {
   const [full, setFull] = React.useState(false);
   const [status, setStatus] = React.useState({ sessions: [], activeId: null, revision: -1 });
   const [visited, setVisited] = React.useState(new Set());
@@ -135,6 +136,7 @@ export function TerminalPanel({ active = false, panelOpen = true, savedCommands 
   const rename = async () => { const next = await run(() => window.islandBridge.renameTerminal(editingId, draftName)); if (next) setEditingId(null); };
   const iconButton = (label, kind, onClick) => React.createElement("button", { type: "button", className: "terminal-icon-action", title: label, "aria-label": label, disabled: busy, onClick }, React.createElement(TerminalIcon, { kind }));
   return React.createElement("section", { className: `toolbox-panel terminal-panel${active ? "" : " is-hidden"}`, "aria-label": full ? t("terminal.full.title") : t("terminal.manager.title"), "aria-hidden": active ? undefined : "true", "data-terminal-interactive": panelOpen && active && (full || controlsFocused || editingId || confirmId) ? "true" : "false",
+    "data-terminal-viewing": panelOpen && active ? "true" : "false",
     onFocusCapture: () => setControlsFocused(true), onBlurCapture: event => { if (!event.currentTarget.contains(event.relatedTarget)) setControlsFocused(false); },
     onKeyDown: event => { if (!full && event.key === "Escape" && (editingId || confirmId)) { event.preventDefault(); setEditingId(null); setConfirmId(null); } } },
     React.createElement("div", { className: "toolbox-panel-heading" },
@@ -144,6 +146,7 @@ export function TerminalPanel({ active = false, panelOpen = true, savedCommands 
         full && React.createElement("button", { type: "button", className: "terminal-back", onClick: () => setFull(false) }, React.createElement(TerminalIcon, { kind: "back" }), t("terminal.full.back")),
         React.createElement("button", { type: "button", className: "terminal-new", disabled: busy, onClick: create }, React.createElement(TerminalIcon, { kind: "plus" }), t("terminal.manager.new")))
     ),
+    React.createElement(TerminalAgentNotices, { sessions: agentSessions, onOpen: onAgentNotice }),
     error && React.createElement("div", { className: "terminal-error", role: "alert" }, error),
     !full && React.createElement("div", { className: "terminal-manager" },
       sessions.length === 0 ? React.createElement("div", { className: "terminal-manager-empty" },

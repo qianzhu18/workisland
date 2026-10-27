@@ -11,6 +11,7 @@ import { isVisibleInIsland } from "./session-model.mjs";
 import { resolveFocusLossPresentation, shouldCollapseOnFocusLoss } from "./focus-policy.mjs";
 import { u as useIslandDock, D as DockStatusDot } from "./dock/use-island-dock.js";
 import { applyIslandAppearance } from "./theme.mjs";
+import { shouldDeferAgentSurface } from "./components/terminal-notification-policy.mjs";
 const useSessionStore = create((set) => ({
   sessions: [],
   notchInfo: window.islandBridge?.__initialNotchInfo ?? DEFAULT_NOTCH_INFO,
@@ -54,6 +55,9 @@ function useIslandState() {
       setSessions(sessions);
     });
     bridge.onPresentSurface(({ surface, reason, autoDismiss }) => {
+      // Read the committed page at event time, including the manager and
+      // unfocused terminal controls. Session updates still arrive normally.
+      if (shouldDeferAgentSurface({ surface, reason }, isTerminalPageVisible())) return;
       presentSurface(surface, reason, autoDismiss);
     });
     bridge.onQuotaUpdate((quotas) => setAgentQuotas(quotas));
@@ -121,6 +125,9 @@ const HOVER_OPEN_DELAY_MS = 200;
 const MOUSE_LEAVE_CLOSE_DELAY_MS = 300;
 const CLOSE_WINDOW_RESIZE_DELAY_MS = 300;
 const OPEN_WINDOW_SHADOW_MARGIN_PX = 32;
+function isTerminalPageVisible() {
+  return Boolean(document.querySelector('.terminal-panel[data-terminal-viewing="true"]'));
+}
 function isToolboxInteractionFocused() {
   if (document.documentElement.hasAttribute('data-toolbar-dragging') || document.querySelector('.toolbar-overflow')) return true;
   return Boolean(document.activeElement?.closest?.(".toolbox-panel input, .toolbox-panel textarea, .terminal-host"));
@@ -585,6 +592,9 @@ function IslandApp() {
   }, []);
   reactExports.useEffect(() => {
     if (!surface) return;
+    // A previously displayed Agent surface may expire or lose its session
+    // while the user is reading a terminal. It no longer owns this page.
+    if (isTerminalPageVisible()) return;
     if (mouseLeaveCloseTimer.current) {
       clearTimeout(mouseLeaveCloseTimer.current);
       mouseLeaveCloseTimer.current = null;
@@ -616,10 +626,12 @@ function IslandApp() {
   reactExports.useEffect(() => {
     if (!surface) return;
     if (openReason !== "notification" || !notificationAutoDismiss) return;
-    if (isFollowUpActiveRef.current || isToolboxInteractionFocused()) return;
+    if (isFollowUpActiveRef.current || isToolboxInteractionFocused() || isTerminalPageVisible()) return;
     if (autoCollapseTimer.current) clearTimeout(autoCollapseTimer.current);
     autoCollapseTimer.current = setTimeout(() => {
       autoCollapseTimer.current = null;
+      // The user may have entered the terminal after this timer was scheduled.
+      if (isTerminalPageVisible()) return;
       clearSurface();
       close();
       window.islandBridge?.surfaceDismissed();
@@ -1088,6 +1100,7 @@ function IslandApp() {
             usageDashboardEnabled,
             terminalSavedCommands,
             requestedToolboxModule,
+            onAgentNotice: (sessionId) => presentSurface({ type: "sessionList", actionableSessionId: sessionId, visibleSessionIds: [sessionId] }, "click"),
             onSystemDetails: () => {
               window.islandBridge?.surfaceDismissed?.();
               setRequestedToolboxModule({ id: "system-status", nonce: Date.now() });
