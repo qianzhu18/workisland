@@ -1,0 +1,17 @@
+# Terminal Desktop Docking Implementation Plan
+
+**Goal:** Move the same WorkIsland PTY and persistent xterm view between the Island and desktop, with real drag/drop and safe cancellation.
+
+**Architecture:** TerminalService owns PTYs and lightweight location metadata. TerminalViewController owns lazy native views, desktop hosts, scoped frame IPC, geometry and transactional moves. Island React owns management and layout; a minimal standalone terminal page owns one xterm. Existing native window helpers and pointer capture are extended rather than adding a drag library.
+
+**Tech Stack:** Electron 43.3.0 WebContentsView / BaseWindow, existing node-pty, xterm/FitAddon, node:test, existing localization.
+
+## Execution
+
+- [ ] **Lifecycle first:** Add failing `tests/terminal-view-controller.test.mjs` using injected native factories. Assert same view across detach/dock, no PTY respawn, stale sender rejection, host close docks, generation replacement, disable/close disposal, failed host creation preserving original view. Add terminal location metadata regressions before implementation.
+- [ ] **Controller:** Create `src/main/terminal-view-controller.cjs` and pure `src/shared/terminal-window-geometry.cjs`. Implement `show(id,bounds)`, `hide(id)`, `detach(id)`, `dock(id)`, `focus(id)`, `frameAction(sender,action)`, `drag(sender,payload)`, `dispose()`. Check ID/generation/record ownership after asynchronous view loading; remove a child from its old parent before adding it to the new parent. Do not recreate xterm for ordinary moves. Tie disposal to session lifecycle and app quit.
+- [ ] **Bridge and runtime:** Add scoped terminal preload and `src/renderer/terminal/terminal.html`, `terminal.js`, `terminal.css`. Reuse existing stream restore/sequence logic and public FitAddon. Restrict frame commands to the sender's bound session. Connect controller to coordinator, status/data, native island host and ShortcutService. Test focused desktop terminals keep terminal keys even after Island collapse.
+- [ ] **Island management:** Replace inline xterm with a native host that reports intersected content bounds. Keep existing manager, quick commands, exit/restart and notification tests meaningful. Add position labels and focus/dock/detach actions; activate a terminal only on explicit navigation, not every bounds update. On dock, reveal the selected terminal in the Island.
+- [ ] **Drag:** Reuse stable pointer capture on a no-drag grab handle; threshold 6px, source view stays attached until drop. Main uses current screen DIP cursor for hit testing. Desktop handle moves the host, release over actual Island bounds docks; cancellation restores origin. Broadcast transient target highlighting, bound drag lifetime, and clean on focus loss/renderer destruction/feature disable.
+- [ ] **Real proof:** Start with an isolated actual Electron native-view handoff probe before relying on mocks for layer/focus. Run real PTY and xterm smoke for 20 handoffs, half-input, scroll, selection, alternate screen, background output, three windows, native close, explicit termination and drag cancel. Record process/memory behavior for lazy views. Preserve old preview's user PTYs and `/Applications/WorkIsland.app`.
+- [ ] **Ship reviewable work:** Update guide, changelog, PRD and validation record, run `npm run check`, build and inspect Developer ID preview, run UI smoke against packaged code, create/attach stacked PR with base `codex/multi-terminal-manager`, verify CI and clean disposable QA files. No merge or public release.
