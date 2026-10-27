@@ -4,6 +4,7 @@
 Owner：WorkIsland maintainers  
 目标版本：下一版，尚未排期  
 GitHub tracking Issue：[\#200](https://github.com/qianzhu18/workisland/issues/200)  
+Pull Request：[\#201](https://github.com/qianzhu18/workisland/pull/201)
 设计：[多终端管理](../../superpowers/specs/2026-10-27-multi-terminal-manager-design.md)
 
 ## 用户问题与目标
@@ -30,6 +31,6 @@ GitHub tracking Issue：[\#200](https://github.com/qianzhu18/workisland/issues/2
 
 ## 实施与发布
 
-任务通过 #200 统一跟踪：会话生命周期与 IPC、列表及持久画面、外部发现、签名包交互验证与文档。详见[实施计划](../../superpowers/plans/2026-10-27-multi-terminal-manager.md)。
+任务通过 #200 统一跟踪：会话生命周期与 IPC、列表及持久画面、外部发现、签名包交互验证与文档。详见[实施计划](../../superpowers/plans/2026-10-27-multi-terminal-manager.md)与[验证记录](../../superpowers/plans/2026-10-27-multi-terminal-validation.md)。
 
 更新 [用户手册](../../TERMINAL-MANAGER.md)、CHANGELOG 和第三方许可。先交付功能 PR 与本地隔离预览，不更换用户当前安装、不发布正式版。后续正式发布沿用现有签名、公证、更新校验流程；24 小时 / 7 天复盘重点是错关、上下文丢失、后台资源占用和外部权限困惑。此次不新增遥测事件。

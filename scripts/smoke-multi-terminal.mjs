@@ -49,15 +49,28 @@ const report = {}, originalSettings = await api('getSettings');
 assert.equal((await state()).sessions.length, 0, 'Preview must start without unrelated terminal sessions');
 await call('Runtime.enable');
 async function home() { if (await evaluate("!!document.querySelector('.terminal-back')")) await click('.terminal-back'); await wait(100); }
+async function expand() {
+  await call('Page.bringToFront');
+  if (await evaluate("document.querySelector('.island-panel-layer').classList.contains('is-hidden')")) await click('.pill');
+  await until(() => evaluate("!document.querySelector('.island-panel-layer').classList.contains('is-hidden')"), 'expanded Island');
+  await evaluate("new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true))))");
+}
 async function create(name) {
+  await expand();
   await click('.terminal-new');
   const s = await until(async () => { const s = await state(); return s.id && !created.includes(s.id) && s.running && s; }, 'new independent PTY');
   created.push(s.id); await api('renameTerminal', s.id, name);
   await until(() => evaluate(`!!document.querySelector('[data-terminal-id="${s.id}"]:not([hidden]) .xterm-helper-textarea')`), 'xterm mounted');
   await wait(150); return s.id;
 }
-async function open(terminalId) { await home(); await click(`[data-session-id="${terminalId}"] .terminal-session-open`); await until(async () => (await state()).activeId === terminalId, 'selected terminal'); await wait(150); }
+async function open(terminalId) {
+  await expand();
+  await home(); await click(`[data-session-id="${terminalId}"] .terminal-session-open`);
+  await until(async () => (await state()).activeId === terminalId, 'selected terminal');
+  await until(() => evaluate(`(()=>{const h=document.querySelector('[data-terminal-id="${terminalId}"]:not([hidden])');return Boolean(h && h.getBoundingClientRect().height>0 && h.querySelector('.xterm-helper-textarea')===document.activeElement)})()`), 'selected terminal visible and focused');
+}
 async function type(text, submit = true) {
+  await expand();
   const s = await state();
   await evaluate(`document.querySelector('[data-terminal-id="${s.id}"] .xterm-helper-textarea').focus();true`);
   await call('Input.insertText', { text });
@@ -65,13 +78,14 @@ async function type(text, submit = true) {
 }
 const hasOutput = (terminalId, marker) => until(async () => (await api('getTerminalState', terminalId))?.recentOutput.includes(marker), marker);
 async function screenshot(name) {
-  const clip = await evaluate("(()=>{const r=document.querySelector('.terminal-panel').getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:Math.min(r.height,innerHeight-r.y),scale:1}})()");
+  const clip = await until(() => evaluate("(()=>{const r=document.querySelector('.terminal-panel').getBoundingClientRect();return r.width>0 && r.height>0 ? {x:r.x,y:r.y,width:r.width,height:Math.min(r.height,innerHeight-r.y),scale:1}:null})()"), 'visible terminal screenshot');
   const shot = await call('Page.captureScreenshot', { format: 'png', clip });
   await writeFile(resolve(output, name), Buffer.from(shot.data, 'base64'));
 }
 try {
   await api('setSettings', { autoCollapseOnMouseLeave: false, terminalEnabled: true, terminalSavedCommands: [{ id: 'qa-multi-command', name: 'Quick command QA', command: "printf '%s%s\\n' 'QUICK_' 'OWN_SESSION'", cwdMode: 'home' }] });
-  await click('.pill'); await wait(100); await click('[data-tool-id=terminal] button');
+  await expand();
+  if (await evaluate("document.querySelector('.terminal-panel').classList.contains('is-hidden')")) await click('[data-tool-id=terminal] button');
   await until(() => evaluate("!!document.querySelector('.terminal-manager-empty')"), 'empty manager');
   await screenshot('empty.png');
   const nonce = Date.now().toString(36);
@@ -140,6 +154,12 @@ try {
   await until(async () => (await api('getTerminalState', quick.id)).running, 'restart exited terminal');
   await type(`printf '%s%s\\n' 'RESTARTED_' '${nonce}'`); await hasOutput(quick.id, 'RESTARTED_' + nonce);
   report.exitAndRestart = true;
+  await evaluate("window.dispatchEvent(new Event('blur'));true");
+  await until(() => evaluate("document.querySelector('.island-panel-layer').classList.contains('is-hidden')"), 'Island collapsed on blur');
+  await expand();
+  await until(() => evaluate(`!!document.querySelector('[data-terminal-id="${quick.id}"]:not([hidden])')`), 'same terminal restored after collapse');
+  await type(`printf '%s%s\\n' 'RESUMED_' '${nonce}'`); await hasOutput(quick.id, 'RESUMED_' + nonce);
+  report.collapseAndResume = true;
   await click('[data-tool-id=shelf] button'); await wait(100); await click('[data-tool-id=terminal] button'); await wait(100);
   assert.equal((await api('getTerminalState', a)).running, true);
   assert.equal((await state()).sessions.length, 3);
@@ -152,6 +172,10 @@ try {
   report.disableStopsAll = true;
   assert.deepEqual(errors, []);
   report.pass = true;
+} catch (error) {
+  report.failure = { message: error.message, state: await state(), ui: await evaluate("({focus:document.activeElement?.className,panel:document.querySelector('.terminal-panel')?.outerHTML.slice(0,2000)})") };
+  for (const session of report.failure.state.sessions) session.outputTail = (await api('getTerminalState', session.id)).recentOutput.slice(-2500);
+  throw error;
 } finally {
   for (const terminalId of created) await api('closeTerminal', terminalId).catch(() => {});
   for (const pid of childPids) { try { process.kill(pid, 'SIGHUP'); } catch {} }

@@ -12,7 +12,7 @@
 
 ## 实现决定
 
-复用 node-pty、xterm 和既有 IPC；不新增运行时依赖。TerminalService 从单 PTY 改为按稳定 ID 管理的 Map，兼容既有 start/input/resize/restart/stop 调用，新增 create/select/close/rename。输入、输出、尺寸和关闭携带 ID，未知 ID 失败而不回退到其他终端。每项输出缓存有界、总数量有界，单次大输出分块而不截断。
+复用 node-pty、xterm 和既有 IPC；仅增加官方 FitAddon，通过公开接口计算尺寸，替代私有内部访问。TerminalService 从单 PTY 改为按稳定 ID 管理的 Map，兼容既有 start/input/resize/restart/stop 调用，新增 create/select/close/rename。输入、输出、尺寸和关闭携带 ID，未知 ID 失败而不回退到其他终端。每项输出缓存有界、总数量有界，单次大输出分块而不截断。
 
 外部终端不能无损接管到新 PTY。macOS 用户主动查找外部 Terminal/iTerm 会话，按宿主稳定定位并跳回原窗口；显示宿主及操作能力。仅提供经适配器确认能精确关闭的关闭操作，不拿关闭整窗或模糊 PID 替代关闭标签页。拒绝自动化授权不影响内部终端。其他宿主与 tmux 的通用接管不作为本次完整支持的承诺。产品内部新建、进入、关闭是完整验收范围，符合用户明确允许的识别范围回退。
 
