@@ -27,6 +27,7 @@ const EXPECTED_AGENT_ICONS = Object.freeze({
   aiden: "agent.svg",
   dsh: "agent.svg",
   traex: "trae.svg",
+  crew: "crew.svg",
   "plugin:omp": "pi.svg",
   "plugin:pi": "pi.svg"
 });

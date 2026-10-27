@@ -94,7 +94,7 @@ Windows 适配贡献者可使用 `npm run package:win` 构建安装版与便携�
 
 ## Agent 兼容性
 
-WorkIsland 为以下 Agent 提供官方原生适配：Claude Code、Codex、Coco、Cursor、TraeCode、ZCode、WorkBuddy / CodeBuddy、OpenCode、Sara、Kimi Code、Gemini CLI、GitHub Copilot CLI、Hermes、Aiden、DeepSeek Harness 与 TRAE CLI。MiMo、Trae Work、Trae CN 以及通用的自定义 Hook 连接暂未列出，因为它们尚未通过真实端到端集成测试。TraeCode 需在应用内开启 Hooks 开关与本地自动执行模式后，事件才能送达 WorkIsland。
+WorkIsland 为以下 Agent 提供官方原生适配：Claude Code、Codex、Coco、Cursor、TraeCode、ZCode、WorkBuddy / CodeBuddy、OpenCode、Sara、Kimi Code、Gemini CLI、GitHub Copilot CLI、Hermes、Aiden、DeepSeek Harness、TRAE CLI 与 CrewAI（Crew CLI）。CrewAI 通过事件文件观测接入（需在 crew 代码中引入 `integrations/crewai/workisland_crew.py`，详见 [CrewAI 接入说明](docs/CREWAI_INTEGRATION.md)）。MiMo、Trae Work、Trae CN 以及通用的自定义 Hook 连接暂未列出，因为它们尚未通过真实端到端集成测试。TraeCode 需在应用内开启 Hooks 开关与本地自动执行模式后，事件才能送达 WorkIsland。
 
 Windows 适配处于暂停维护状态，代码与构建入口完整保留，欢迎社区贡献者参与。
 

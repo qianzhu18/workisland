@@ -57,6 +57,9 @@ const CORE_AGENT_DESCRIPTORS = Object.freeze([
   }),
   descriptor("traex", "TRAE CLI", "#626EE3", "TRAE CLI Hook，支持会话、工具和 Island 审批；不监控 Trae 桌面端会话。", {
     completion: "native", approval: "bridge", question: "observe", jump: "workspace", approvalConfigurable: true
+  }),
+  descriptor("crew", "CrewAI（Crew CLI）", "#FF6B35", "CrewAI 无本地 hooks 协议，通过用户 crew 代码中的集成模块把事件写入 events.jsonl 观测（任务开始/完成/整场完成），支持状态与完成提醒；详见 docs/CREWAI_INTEGRATION.md。", {
+    completion: "inferred", approval: "none", question: "none", jump: "workspace"
   })
 ]);
 

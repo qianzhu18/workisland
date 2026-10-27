@@ -23,6 +23,7 @@ const { HermesHookManager, AidenHookManager, TraexCliHookManager } = require("./
 const { PluginHookManager, DeepSeekHarnessHookManager } = require("./hooks-custom.cjs");
 const { ZCodeHookManager, WorkBuddyHookManager, CodeBuddyHookManager, QoderHookManager } = require("./hooks-work-agents.cjs");
 const { DuMateHookManager } = require("./hooks-dumate.cjs");
+const { CrewHookManager } = require("./hooks-crew.cjs");
 const { initSoundDirs, playSoundEvent } = require("./sound-service.cjs");
 const { createAgentSoundDeduplicator, resolveCodexTranscriptSoundEvent } = require("./agent-sound-policy.cjs");
 const { pushBarkNotification } = require("./bark-push.cjs");
@@ -46,6 +47,7 @@ const { createRemoteHostStore } = require("./remote-host-store.cjs");
 const { createRemoteTunnelManager } = require("./remote-tunnel-manager.cjs");
 const { createDuMateWatcher, getQianfanXdgRoot } = require("./dumate-watcher.cjs");
 const { createQoderWatcher, getQoderProjectsRoot } = require("./qoder-watcher.cjs");
+const { createCrewWatcher, getCrewEventsRoot } = require("./crew-watcher.cjs");
 const { createSessionSearchService } = require("./session-search-service.cjs");
 const { scanSshConfig, formatSshTarget } = require("./ssh-config.cjs");
 const crypto = require("node:crypto");
@@ -361,6 +363,20 @@ function createAppCoordinatorClass({
       } else {
         log.warn("[Watchers] qianfan xdg root missing — dumate watcher NOT armed");
       }
+      // CrewAI 触发通道：CrewAI 无本地 hooks 协议，用户 crew 代码中的集成模块
+      // 把事件 append 到 ~/.flux/hooks/crew/events.jsonl；此处增量轮询该文件。
+      if (fs.existsSync(getCrewEventsRoot())) {
+        log.info("[Watchers] crew events root found — crew watcher armed");
+        this.crewWatcher = createCrewWatcher({
+          logger: log,
+          onEvent: (event) => {
+            log.info("[Watchers] crew event:", event.type, event.sessionId);
+            this.bridge.emit("agentEvent", event);
+          }
+        });
+      } else {
+        log.warn("[Watchers] crew events root missing — crew watcher NOT armed");
+      }
       // PRD-019 M2：五家 Agent 会话搜索索引（~/.flux/session-search），
       // 开机增量扫描，供岛上 ⌘K 搜索历史会话。
       this.sessionSearch = createSessionSearchService({
@@ -426,6 +442,7 @@ function createAppCoordinatorClass({
         ["codebuddy", new CodeBuddyHookManager()],
         ["qoder", new QoderHookManager()],
         ["dumate", new DuMateHookManager()],
+        ["crew", new CrewHookManager()],
         ["opencode", new OpenCodePluginManager()],
         ["sara", new SaraPluginManager()],
         ["kimi", new KimiHookManager()],
@@ -603,7 +620,8 @@ function createAppCoordinatorClass({
       this.bridge.start();
       this.dumateWatcher?.start();
       this.qoderWatcher?.start();
-      log.info("[Watchers] started: dumate=%s qoder=%s", !!this.dumateWatcher, !!this.qoderWatcher);
+      this.crewWatcher?.start();
+      log.info("[Watchers] started: dumate=%s qoder=%s crew=%s", !!this.dumateWatcher, !!this.qoderWatcher, !!this.crewWatcher);
       void this.sessionSearch.start();
       this.syncRemoteBridge();
       this.quotaService.start();
@@ -1025,6 +1043,7 @@ function createAppCoordinatorClass({
       log.info("[AppCoordinator] stopping local services...");
       this.dumateWatcher?.stop();
       this.qoderWatcher?.stop();
+      this.crewWatcher?.stop();
       this.sessionSearch.dispose();
       this.remoteTunnels?.stopAll();
       this.remoteBridge.stop();
@@ -1290,6 +1309,12 @@ function createAppCoordinatorClass({
     /** PRD-019 M2：按工具激活对应客户端（未运行则拉起）。
      *  zcode 附带会话所在工作区的 workspace 深链（zcode://workspace/open）。 */
     focusAgentClient(tool, projectPath = "") {
+      // CrewAI 没有桌面客户端：回源到终端环境（iTerm2 优先，回退 Terminal.app）。
+      if (String(tool || "").toLowerCase() === "crew") {
+        return focusAgentClientByTool("iterm2", {}).catch(() =>
+          focusAgentClientByTool("apple_terminal", {})
+        );
+      }
       const openUrl = String(tool || "").toLowerCase() === "zcode" && projectPath
         ? `zcode://workspace/open?path=${encodeURIComponent(projectPath)}`
         : "";

@@ -43,6 +43,7 @@ const AGENT_ICON_URLS = Object.freeze({
   aiden: "../assets/brands/agent.svg",
   dsh: "../assets/brands/agent.svg",
   traex: "../assets/brands/trae.svg",
+  crew: "../assets/brands/crew.svg",
   "plugin:omp": "../assets/brands/pi.svg",
   "plugin:pi": "../assets/brands/pi.svg"
 });

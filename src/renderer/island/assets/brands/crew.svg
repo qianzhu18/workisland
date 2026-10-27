@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>CrewAI</title>
+  <rect x="4" y="4" width="56" height="56" rx="14" fill="#FF6B35"/>
+  <path d="M42 18a18 18 0 1 0 0 28" fill="none" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round"/>
+</svg>

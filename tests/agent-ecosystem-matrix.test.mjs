@@ -45,7 +45,8 @@ for (const [agentId, adapter] of Object.entries({
   hermes: require("../src/main/adapters-extended.cjs").HermesAdapter,
   aiden: require("../src/main/adapters-extended.cjs").AidenAdapter,
   dsh: require("../src/main/adapters-dsh.cjs").DeepSeekHarnessAdapter,
-  traex: require("../src/main/adapters-extended.cjs").TraexCliAdapter
+  traex: require("../src/main/adapters-extended.cjs").TraexCliAdapter,
+  crew: require("../src/main/adapters-crew.cjs").CrewAdapter
 })) adapterRegistry.set(agentId, new adapter());
 const { hasTraexSourceMarker } = require("../src/main/hooks-extended.cjs");
 const { AGENT_PLUGINS } = require("../src/main/agent-registry.cjs");
@@ -70,7 +71,8 @@ const scenarios = {
   "copilot-cli": { hook_event_name: "userPromptSubmitted", prompt: "matrix test" },
   hermes: { event_type: "pre_llm_call", user_message: "matrix test" },
   aiden: { hook_event_name: "UserPromptSubmit", prompt: "matrix test" },
-  traex: { hook_event_name: "UserPromptSubmit", prompt: "matrix test" }
+  traex: { hook_event_name: "UserPromptSubmit", prompt: "matrix test" },
+  crew: { hook_event_name: "CrewKickoffStarted", prompt: "matrix test" }
 };
 
 function createContext(events, responses) {

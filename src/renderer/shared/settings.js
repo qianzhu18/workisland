@@ -35,7 +35,8 @@ const AGENT_TOOL_LABELS = {
   aiden: "Aiden",
   sara: "Sara CLI",
   "traex": "TRAE CLI 2.0",
-  zcode: "ZCode"
+  zcode: "ZCode",
+  crew: "CrewAI"
 };
 function isPluginAgentTool(tool) {
   return typeof tool === "string" && tool.startsWith("plugin:");
@@ -72,7 +73,8 @@ const DEFAULT_HOOK_TOGGLES = {
   "copilot-cli": true,
   aiden: true,
   sara: true,
-  "traex": true
+  "traex": true,
+  crew: true
 };
 const DEFAULT_APPROVAL_MODES = {
   codex: "bridge",
