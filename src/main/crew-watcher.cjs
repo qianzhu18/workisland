@@ -77,6 +77,11 @@ function createCrewWatcher({
   // 已消费字节游标。启动时（首个 scan）初始化为文件当前 size，历史事件不重放；
   // 只有 WorkIsland 运行期间新 append 的事件才会被播报。
   let cursor = -1;
+  // 上次观测的 stat（ino + size）：文件被重建（ino 变化）或清空/截断（size 回退）
+  // 时，从头部重新消费。events.jsonl 是 append-only 协议，重建/截断属于协议外
+  // 异常；"截断后重写更长内容"且中途未被观测到的情况无法可靠区分，损坏行会被
+  // 静默跳过、后续行继续消费。
+  let lastStat = null;
   // sessionId → { title, projectPath }
   const sessions = /* @__PURE__ */ new Map();
 
@@ -102,19 +107,11 @@ function createCrewWatcher({
     } catch {
       return;
     }
-    if (stat.size <= 0) {
-      cursor = Math.max(cursor, 0);
-      return;
-    }
-    if (cursor === -1) {
-      // 首次启动：历史事件不重放，只从当前位置开始增量。
-      cursor = stat.size;
-      return;
-    }
-    if (stat.size < cursor) {
-      // 文件被截断/重建：从头部重新消费（事件文件是 append-only，罕见）。
+    if (lastStat !== null && (stat.ino !== lastStat.ino || stat.size < lastStat.size)) {
+      // 文件被重建或清空/截断：从头部重新消费。
       cursor = 0;
     }
+    lastStat = { ino: stat.ino, size: stat.size };
     if (stat.size === cursor) return;
 
     let fd;
@@ -178,9 +175,25 @@ function createCrewWatcher({
     }
   }
 
+  /**
+   * 游标初始化（仅一次）：
+   * - 启动时事件文件已存在且有内容 → 游标 = 当前 size，历史不重放；
+   * - 启动时文件尚不存在 → 游标 = 0，文件随后出现时从头增量消费，
+   *   避免把 WorkIsland 开始监控后才写入的新事件误吞为"历史"。
+   */
+  function initializeCursor() {
+    if (cursor !== -1) return;
+    try {
+      cursor = fs.statSync(getCrewEventsFile(homeDir)).size;
+    } catch {
+      cursor = 0;
+    }
+  }
+
   return {
     start() {
       if (timer) return;
+      initializeCursor();
       scan();
       timer = setInterval(() => scan(), scanIntervalMs);
       timer.unref?.();
@@ -192,6 +205,7 @@ function createCrewWatcher({
       }
       sessions.clear();
       cursor = -1;
+      lastStat = null;
     },
     scan,
     hasSession(sessionId) {

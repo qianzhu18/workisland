@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createRequire } from "node:module";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync, readFileSync, truncateSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync, truncateSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -108,7 +108,7 @@ test("historical events at watcher startup are not replayed; failures mark compl
   }
 });
 
-test("file truncation resets cursor and re-consumes from head", () => {
+test("file truncation (clear + shorter rewrite) resets cursor and re-consumes from head", () => {
   const fx = makeFixture();
   try {
     const events = [];
@@ -124,12 +124,19 @@ test("file truncation resets cursor and re-consumes from head", () => {
     watcher.scan();
     assert.equal(events.length, 1);
 
-    // 文件被截断重建（append-only 协议外的异常情况）
+    // 文件被清空（truncate）后重写为更短内容：size 回退 → 游标重置，从头消费。
     truncateSync(fx.eventsFile, 0);
-    writeFileSync(fx.eventsFile, JSON.stringify({ type: "sessionStarted", sessionId: "s2", crewName: "c2", cwd: "/tmp", timestamp: 1 }) + "\n", { flag: "a" });
+    writeFileSync(fx.eventsFile, JSON.stringify({ type: "sessionStarted", sessionId: "s2", crewName: "c2", cwd: "/", timestamp: 1 }) + "\n", { flag: "a" });
     watcher.scan();
     assert.equal(events.length, 2);
     assert.equal(events[1].sessionId, "crew-s2");
+
+    // 文件被删除重建（ino 变化）：同样从头消费。
+    rmSync(fx.eventsFile, { force: true });
+    writeFileSync(fx.eventsFile, JSON.stringify({ type: "sessionStarted", sessionId: "s3", crewName: "c3", cwd: "/", timestamp: 1 }) + "\n", { flag: "a" });
+    watcher.scan();
+    assert.equal(events.length, 3);
+    assert.equal(events[2].sessionId, "crew-s3");
   } finally {
     fx.cleanup();
   }
