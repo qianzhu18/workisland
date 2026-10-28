@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WorkIsland Terminal</title>
+<link rel="stylesheet" href="../../../node_modules/@xterm/xterm/css/xterm.css">
+<link rel="stylesheet" href="terminal.css">
+<script type="module" src="terminal.js"></script>
+</head>
+<body>
+<header id="header">
+<button id="drag" type="button"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M5 3v10M11 3v10M3 5h10M3 11h10"/></svg><span id="title"></span></button>
+<button id="dock" type="button"></button>
+</header>
+<div id="terminal" class="terminal-host"></div>
+<div id="exit" hidden><span></span><button id="restart" type="button"></button></div>
+<div id="error" role="status" hidden></div>
+</body></html>

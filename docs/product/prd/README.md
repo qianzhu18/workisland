@@ -9,6 +9,7 @@
 
 ## 当前活动 PRD
 
+- [PRD-014: Terminal Desktop Docking](./PRD-014-TERMINAL-DESKTOP-DOCKING.md)
 - [PRD-013: Multi-terminal Manager](./PRD-013-MULTI-TERMINAL-MANAGER.md)
 - [PRD-005: Anonymous Telemetry](./PRD-005-ANONYMOUS-TELEMETRY.md)
 - [PRD-006: v0.3.0 Beta Pilot](./PRD-006-v0.3.0-Beta-Pilot.md)

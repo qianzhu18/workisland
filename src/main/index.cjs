@@ -812,8 +812,8 @@ async function runIslandApp() {
     getPreferredSystemLanguages: () => electron.app.getPreferredSystemLanguages(),
     broadcast: (snapshot) => {
       coordinator.systemStatusService.configure({ language: snapshot.locale });
-      for (const win of electron.BrowserWindow.getAllWindows()) {
-        if (!win.isDestroyed()) win.webContents.send(IPC.LOCALE_DID_CHANGE, snapshot);
+      for (const contents of electron.webContents.getAllWebContents()) {
+        if (!contents.isDestroyed()) contents.send(IPC.LOCALE_DID_CHANGE, snapshot);
       }
       refreshStatusTrayMenu();
     }
@@ -1243,6 +1243,7 @@ async function runIslandApp() {
     },
     confirmSession: () => coordinator.confirmSession()
   });
+  coordinator.onTerminalWindowFocus = focused => shortcutService.setDetachedTerminalFocused(focused);
   shortcutService.setConfig(coordinator.getSettings().shortcuts);
   shortcutService.setOnStatusChange((status) => {
     coordinator.sendToSettings(IPC.SETTINGS_SHORTCUT_STATUS, status);

@@ -50,6 +50,7 @@ const { createSessionSearchService } = require("./session-search-service.cjs");
 const { scanSshConfig, formatSshTarget } = require("./ssh-config.cjs");
 const crypto = require("node:crypto");
 const { TerminalService } = require("./terminal-service.cjs");
+const { TerminalViewController } = require("./terminal-view-controller.cjs");
 const { ExternalTerminalService } = require("./external-terminal-service.cjs");
 const { resolveRecentProjectCwd, resolveTerminalCommand } = require("../shared/terminal-state.cjs");
 const { listCodexPets } = require("./codex-pet.cjs");
@@ -280,6 +281,19 @@ function createAppCoordinatorClass({
         clipboardAdapter: createElectronClipboardAdapter()
       });
       this.terminalService = new TerminalService();
+      this.terminalViews = new TerminalViewController({ service: this.terminalService, getIslandWindow: () => this.islandWindow,
+        onRestart: id => this.restartTerminal({ id }),
+        onDock: id => {
+          this.islandWin?.setFocusHidden(false);
+          this.islandWindow?.focus();
+          this.broadcastWorkstationState(IPC.TERMINAL_VIEW_REVEAL, { id, nonce: Date.now() });
+        },
+        onDesktopFocus: focused => this.onTerminalWindowFocus?.(focused),
+        onDragState: state => this.broadcastWorkstationState(IPC.TERMINAL_DRAG_STATE, state),
+        onDragLease: active => this.islandWin?.setTerminalDragging(active)
+      });
+      this.onTerminalQuit = () => this.terminalViews.dispose();
+      electron.app.on("before-quit", this.onTerminalQuit);
       this.externalTerminalService = new ExternalTerminalService();
       this.mediaService.setEnabled(this.settings.mediaEnabled !== false);
       this.lyricsService.setEnabled(this.settings.mediaEnabled !== false && this.settings.lyricsEnabled === true);
@@ -294,7 +308,7 @@ function createAppCoordinatorClass({
       this.shelfService.on("update", (state) => this.broadcastWorkstationState(IPC.SHELF_STATE_UPDATE, state));
       this.clipboardHistoryService.on("update", (state) => this.broadcastWorkstationState(IPC.CLIPBOARD_HISTORY_UPDATE, state));
       this.terminalService.on("status", (state) => this.broadcastWorkstationState(IPC.TERMINAL_STATUS_UPDATE, state));
-      this.terminalService.on("data", (data) => this.broadcastWorkstationState(IPC.TERMINAL_DATA, data));
+      // Terminal data is routed only to its bound native view.
       this.petMode = new PetModeController({
         registerReady: (callback) => electron.ipcMain.once(IPC.PET_READY, callback),
         sessionUpdateChannel: IPC.PET_SESSION_UPDATE,
@@ -1039,6 +1053,8 @@ function createAppCoordinatorClass({
       this.performanceService.stop();
       this.systemStatusService.stop();
       this.clipboardHistoryService.dispose();
+      this.terminalViews.dispose();
+      electron.app.off("before-quit", this.onTerminalQuit);
       this.terminalService.dispose();
       if (this.codexTranscriptWatcher) {
         this.codexTranscriptWatcher.stop();
@@ -2063,6 +2079,7 @@ function createAppCoordinatorClass({
       this.onJumpStateChangeCallback?.(has);
     }
     maybePresentSurface(event) {
+      if (this.terminalViews.hasFocusedDesktop()) return;
       const session = this.state.sessions.get(event.sessionId);
       const request = createPresentationRequest({ ...event, error: event.error ?? session?.error }, this.settings);
       if (!request) return;

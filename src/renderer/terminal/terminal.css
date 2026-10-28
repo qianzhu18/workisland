@@ -1,0 +1,21 @@
+:root { color-scheme: dark; font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 12px; background: #07090c; color: #e7edf5; }
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; overflow: hidden; }
+body { display: flex; flex-direction: column; }
+#header { display: none; flex: 0 0 36px; min-width: 0; gap: 8px; align-items: center; padding: 3px 10px; border-bottom: 1px solid #20272d; background: #0c1116; }
+html[data-location="desktop"] #header { display: flex; }
+button { min-height: 28px; padding: 4px 9px; border: 1px solid #2a353d; border-radius: 6px; color: #c3d4cd; background: #131c19; font: inherit; cursor: pointer; }
+button:hover { background: #1b2823; }
+button:focus-visible { outline: 2px solid #83eab0; outline-offset: 1px; }
+#drag { display: flex; min-width: 0; flex: 1; align-items: center; gap: 8px; border-color: transparent; background: transparent; text-align: left; cursor: grab; touch-action: none; -webkit-app-region: no-drag; user-select: none; }
+#drag:active { cursor: grabbing; }
+#drag span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+#drag svg { flex: 0 0 auto; color: #889b94; }
+#dock { flex: 0 0 auto; font-size: 11px; }
+#terminal { min-height: 0; flex: 1; padding: 6px 8px; }
+.xterm { height: 100%; }
+#exit, #error { flex: 0 0 auto; padding: 7px 10px; border-top: 1px solid #20272d; font-size: 11px; }
+#exit { display: flex; align-items: center; justify-content: space-between; }
+[hidden] { display: none !important; }
+#error { color: #f5bdb7; }
+html[data-dock-ready="true"] #header { background: #193426; }

@@ -1304,3 +1304,12 @@ html[data-island-material="solid"] .island { border-top-color:transparent; }
 .terminal-panel .terminal-agent-notice:hover { background: rgba(255,255,255,.045); }
 .terminal-agent-notice > strong { max-width: 100%; overflow: hidden; color: #e4edf5; font-size: 11px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
 .terminal-agent-notice > span { color: #b8aa92; font-size: 10px; }
+
+/* Native terminal views keep their renderer while moving between hosts. */
+.terminal-native-host { width: 100%; height: clamp(180px, calc(var(--island-panel-max-height, 540px) - var(--island-safe-top-inset, 0px) - 185px), 350px); background: #07090c; }
+.terminal-native-host[hidden] { display: none; }
+.terminal-drag-handle { flex: 0 0 auto; min-width: 28px; min-height: 30px; display: grid; place-items: center; cursor: grab; touch-action: none; user-select: none; -webkit-app-region: no-drag; color: #9bada5 !important; }
+.terminal-drag-handle:active { cursor: grabbing; }
+html[data-terminal-dragging] { cursor: grabbing; }
+html[data-terminal-dock-over] .pill { outline: 2px solid #83eab0; outline-offset: -2px; }
+html[data-terminal-dock-over] .panel { outline: 2px solid #83eab0; outline-offset: -2px; }

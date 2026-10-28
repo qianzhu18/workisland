@@ -962,5 +962,10 @@
   "terminal.external.notFound": "This terminal ended or moved. Refresh the list.",
   "terminal.external.closeInHost": "Close this terminal in its original app.",
   "terminal.external.confirmationPending": "Confirm closing in the original terminal, then refresh the list.",
-  "terminal.external.unavailable": "External terminals are unavailable. Check the app and automation permission, then retry."
+  "terminal.external.unavailable": "External terminals are unavailable. Check the app and automation permission, then retry.",
+  "terminal.window.detach": "Move to desktop",
+  "terminal.window.dock": "Return to Island",
+  "terminal.window.desktop": "Desktop",
+  "terminal.window.dragOut": "Drag to desktop and keep this terminal running",
+  "terminal.window.dragBack": "Drag onto Island to return this terminal"
 }

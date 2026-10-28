@@ -4,8 +4,11 @@ import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import WebSocket from 'ws';
+import { terminalFrames } from './lib/electron-smoke-cdp.mjs';
 
 const port = Number(process.env.FLUX_DEBUG_PORT || 9351);
+const frames = terminalFrames(port);
+const frameEval = async (id, expression) => (await frames.get(id)).evaluate(expression.replace(/\[data-terminal-id="[^"]+"\](?::not\(\[hidden\]\))?/g, "body"));
 const base = `http://127.0.0.1:${port}`;
 const wait = ms => new Promise(r => setTimeout(r, ms));
 async function until(fn, label) { for (let n = 0; n < 100; n++) { const v = await fn(); if (v) return v; await wait(100); } throw new Error(`Timed out: ${label}`); }
@@ -37,10 +40,11 @@ const click = async selector => {
   await until(() => evaluate(`(()=>{const b=document.querySelector(${JSON.stringify(selector)});return Boolean(b && !b.disabled)})()`), `enabled control: ${selector}`);
   return evaluate(`document.querySelector(${JSON.stringify(selector)}).click();true`);
 };
-const press = async key => {
+const press = async (key, frame = null) => {
+  const send = frame ? frame.call : call;
   const code = key === 'Enter' ? 13 : key === 'Escape' ? 27 : 0;
-  await call('Input.dispatchKeyEvent', { type: 'keyDown', key, code: key, windowsVirtualKeyCode: code, ...(key === 'Enter' ? { text: '\r' } : {}) });
-  await call('Input.dispatchKeyEvent', { type: 'keyUp', key, code: key, windowsVirtualKeyCode: code });
+  await send('Input.dispatchKeyEvent', { type: 'keyDown', key, code: key, windowsVirtualKeyCode: code, ...(key === 'Enter' ? { text: '\r' } : {}) });
+  await send('Input.dispatchKeyEvent', { type: 'keyUp', key, code: key, windowsVirtualKeyCode: code });
 };
 const created = [], childPids = [];
 const output = resolve('.local-data/multi-terminal');
@@ -60,21 +64,23 @@ async function create(name) {
   await click('.terminal-new');
   const s = await until(async () => { const s = await state(); return s.id && !created.includes(s.id) && s.running && s; }, 'new independent PTY');
   created.push(s.id); await api('renameTerminal', s.id, name);
-  await until(() => evaluate(`!!document.querySelector('[data-terminal-id="${s.id}"]:not([hidden]) .xterm-helper-textarea')`), 'xterm mounted');
+  await until(() => frames.get(s.id), 'native frame');
+  await until(() => frameEval(s.id, `!!document.querySelector('.xterm-helper-textarea')`), 'xterm mounted');
   await wait(150); return s.id;
 }
 async function open(terminalId) {
   await expand();
   await home(); await click(`[data-session-id="${terminalId}"] .terminal-session-open`);
   await until(async () => (await state()).activeId === terminalId, 'selected terminal');
-  await until(() => evaluate(`(()=>{const h=document.querySelector('[data-terminal-id="${terminalId}"]:not([hidden])');return Boolean(h && h.getBoundingClientRect().height>0 && h.querySelector('.xterm-helper-textarea')===document.activeElement)})()`), 'selected terminal visible and focused');
+  await until(() => frameEval(terminalId, `(()=>{const h=document.querySelector('[data-terminal-id="${terminalId}"]:not([hidden])');return Boolean(h && h.getBoundingClientRect().height>0 && h.querySelector('.xterm-helper-textarea')===document.activeElement)})()`), 'selected terminal visible and focused');
 }
 async function type(text, submit = true) {
   await expand();
   const s = await state();
-  await evaluate(`document.querySelector('[data-terminal-id="${s.id}"] .xterm-helper-textarea').focus();true`);
-  await call('Input.insertText', { text });
-  if (submit) await press('Enter');
+  const frame = await until(async () => { const f = await frames.get(s.id); return f && await f.evaluate("!!document.querySelector('.xterm-helper-textarea')") && f; }, 'ready xterm');
+  await frame.evaluate("document.querySelector('.xterm-helper-textarea').focus();true");
+  await frame.call('Input.insertText', { text });
+  if (submit) await press('Enter', frame);
 }
 const hasOutput = (terminalId, marker) => until(async () => (await api('getTerminalState', terminalId))?.recentOutput.includes(marker), marker);
 async function screenshot(name) {
@@ -101,13 +107,13 @@ try {
   await home(); await screenshot('three-terminals.png');
   report.threeIndependentPtys = true;
   await open(a);
-  await evaluate(`document.querySelector('[data-terminal-id="${a}"] .xterm').dataset.qaInstance='preserved';true`);
+  await frameEval(a, `document.querySelector('[data-terminal-id="${a}"] .xterm').dataset.qaInstance='preserved';true`);
   await type(`printf '%s%s\\n' 'WI_PART_' '${nonce}'`, false);
   await open(b); await hasOutput(b, 'WI_BG_' + nonce);
   await open(a);
-  assert.equal(await evaluate(`document.querySelector('[data-terminal-id="${a}"] .xterm').dataset.qaInstance`), 'preserved');
+  assert.equal(await frameEval(a, `document.querySelector('[data-terminal-id="${a}"] .xterm').dataset.qaInstance`), 'preserved');
   assert.equal((await api('getTerminalState', a)).recentOutput.includes('WI_PART_' + nonce), false);
-  await press('Enter'); await hasOutput(a, 'WI_PART_' + nonce);
+  await press('Enter', await frames.get(a)); await hasOutput(a, 'WI_PART_' + nonce);
   await type("printf 'ENV_%s\\n' \"$WI_QA_VALUE\"");
   await hasOutput(a, 'ENV_first');
   assert.equal((await api('getTerminalState', a)).recentOutput.includes('WI_C_' + nonce), false);
@@ -115,17 +121,17 @@ try {
   report.backgroundOutputInputAndDomPreserved = true;
   await type(`for i in {1..150}; do printf 'SCROLL_%s\\n' "$i"; done`);
   await hasOutput(a, 'SCROLL_150'); await wait(200);
-  const screenText = () => evaluate(`document.querySelector('[data-terminal-id="${a}"] .xterm-screen').innerText`);
+  const screenText = () => frameEval(a, `document.querySelector('[data-terminal-id="${a}"] .xterm-screen').innerText`);
   const bottom = await screenText();
-  const position = await evaluate(`(()=>{const r=document.querySelector('[data-terminal-id="${a}"] .xterm-screen').getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()`);
-  await call('Input.dispatchMouseEvent', { type: 'mouseWheel', ...position, deltaX: 0, deltaY: -700 });
+  const position = await frameEval(a, `(()=>{const r=document.querySelector('[data-terminal-id="${a}"] .xterm-screen').getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()`);
+  await (await frames.get(a)).call('Input.dispatchMouseEvent', { type: 'mouseWheel', ...position, deltaX: 0, deltaY: -700 });
   const scrolledText = await until(async () => { const text = await screenText(); return text !== bottom && text; }, 'scrollback moved with mouse wheel');
   await open(c); await open(a);
   assert.equal(await screenText(), scrolledText);
   report.scrollPositionPreserved = true;
   await type(`printf '\\033[?1049h\\033[2J\\033[H%s%s\\n' 'WI_ALT_' '${nonce}'`);
   await wait(200); await open(c); await open(a);
-  assert.ok(await evaluate(`document.querySelector('[data-terminal-id="${a}"] .xterm-screen').innerText.includes('WI_ALT_${nonce}')`));
+  assert.ok(await frameEval(a, `document.querySelector('[data-terminal-id="${a}"] .xterm-screen').innerText.includes('WI_ALT_${nonce}')`));
   await type("printf '\\033[?1049l'");
   report.alternateScreenSurvivesSwitch = true;
   await open(b);
@@ -150,11 +156,11 @@ try {
   report.quickCommandUsesNewTerminal = true;
   await type('exit 7');
   await until(async () => (await api('getTerminalState', quick.id)).exitCode === 7, 'natural process exit');
-  await click('.terminal-exit-note button');
+  await (await frames.get(quick.id)).evaluate("document.querySelector('#restart').click();true");
   await until(async () => (await api('getTerminalState', quick.id)).running, 'restart exited terminal');
   await type(`printf '%s%s\\n' 'RESTARTED_' '${nonce}'`); await hasOutput(quick.id, 'RESTARTED_' + nonce);
   report.exitAndRestart = true;
-  await evaluate("window.dispatchEvent(new Event('blur'));true");
+  await evaluate("window.dispatchEvent(new Event('workisland-window-blur'));true");
   await until(() => evaluate("document.querySelector('.island-panel-layer').classList.contains('is-hidden')"), 'Island collapsed on blur');
   await expand();
   await until(() => evaluate(`!!document.querySelector('[data-terminal-id="${quick.id}"]:not([hidden])')`), 'same terminal restored after collapse');
@@ -181,6 +187,6 @@ try {
   for (const pid of childPids) { try { process.kill(pid, 'SIGHUP'); } catch {} }
   await api('setSettings', { terminalEnabled: originalSettings.terminalEnabled, autoCollapseOnMouseLeave: originalSettings.autoCollapseOnMouseLeave, terminalSavedCommands: originalSettings.terminalSavedCommands }).catch(() => {});
   await writeFile(resolve(output, 'validation.json'), JSON.stringify(report, null, 2));
-  socket.close();
+  frames.close(); socket.close();
 }
 console.log(JSON.stringify(report));
