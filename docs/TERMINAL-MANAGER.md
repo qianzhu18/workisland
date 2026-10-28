@@ -24,3 +24,5 @@ macOS 首页提供「查找外部终端」。它只在你主动点击时读取�
 `scripts/smoke-terminal-notifications.mjs` 使用隔离预览的 renderer 调试端口及 main inspector（默认 9354 / 9364，可通过 `FLUX_DEBUG_PORT` / `FLUX_INSPECT_PORT` 修改），向真实 IPC 传递模拟 Agent 状态和提醒，并在真实 PTY 中验证输入保留。它覆盖已有倒计时、后台会话移除、待处理选择与解决、阅读列表和收起后正常提醒。无需真实 Agent 帐号，不把模拟事件覆盖当作真实第三方 hook 验证。
 
 Ghostty 外部终端按窗口、标签和分屏的稳定 ID 定位；读取失败或拒绝自动化权限时不影响其他终端。点击列表项会回到 Ghostty，不会接管其会话或关闭分屏。
+
+Warp、WezTerm、kitty 和 Alacritty 在运行时以应用级入口出现；可切回应用，但不声称能定位其具体标签页。无须更改第三方终端的远程控制设置。

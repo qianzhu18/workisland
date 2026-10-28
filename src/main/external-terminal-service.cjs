@@ -10,7 +10,7 @@ const SCRIPT = String.raw`
 ObjC.import('AppKit');
 function run(argv) {
   const request = JSON.parse(argv[0]);
-  const hosts = { 'com.apple.Terminal': 'terminal', 'com.googlecode.iterm2': 'iterm2', 'com.mitchellh.ghostty': 'ghostty' };
+  const hosts = { 'com.apple.Terminal': 'terminal', 'com.googlecode.iterm2': 'iterm2', 'com.mitchellh.ghostty': 'ghostty', 'dev.warp.Warp-Stable': 'warp', 'com.github.wez.wezterm': 'wezterm', 'net.kovidgoyal.kitty': 'kitty', 'org.alacritty': 'alacritty' };
   const sessions = [], errors = [];
   const running = $.NSWorkspace.sharedWorkspace.runningApplications.js;
   for (const process of running) {
@@ -18,6 +18,11 @@ function run(argv) {
     if (!host) continue;
     const appPid = Number(process.processIdentifier);
     if (request.action !== 'list' && (request.target.host !== host || request.target.appPid !== appPid)) continue;
+    if (['warp', 'wezterm', 'kitty', 'alacritty'].includes(host)) {
+      if (request.action === 'list') { sessions.push({host, appPid, appOnly: true, title: String(process.localizedName.js || host)}); continue; }
+      if (request.action === 'focus' && request.target.appOnly) return JSON.stringify({ok: Boolean(process.activateWithOptions($.NSApplicationActivateIgnoringOtherApps))});
+      continue;
+    }
     try {
       const app = Application(bundle);
       if (host === 'ghostty') {
@@ -67,7 +72,11 @@ function run(argv) {
 }`;
 
 function normalizeRecord(value) {
-  if (!value || !["terminal", "iterm2", "ghostty"].includes(value.host) || !Number.isSafeInteger(value.appPid) || value.appPid <= 0) return null;
+  if (!value || !["terminal", "iterm2", "ghostty", "warp", "wezterm", "kitty", "alacritty"].includes(value.host) || !Number.isSafeInteger(value.appPid) || value.appPid <= 0) return null;
+  if (["warp", "wezterm", "kitty", "alacritty"].includes(value.host)) {
+    if (value.appOnly !== true) return null;
+    return { host: value.host, appPid: value.appPid, appOnly: true, title: typeof value.title === "string" ? value.title.replace(/[\x00-\x1f\x7f]/g, " ").slice(0, 160) : "", tty: "", busy: null };
+  }
   const ghost = value.host === "ghostty";
   const validId = id => typeof id === "string" && id.length > 0 && id.length <= 160;
   if (ghost ? !validId(value.windowId) || !validId(value.tabId) || !validId(value.sessionId) : !Number.isSafeInteger(value.windowId)) return null;
@@ -79,7 +88,7 @@ function normalizeRecord(value) {
     title: typeof value.title === "string" ? value.title.replace(/[\x00-\x1f\x7f]/g, " ").slice(0, 160) : "",
     busy: typeof value.busy === "boolean" ? value.busy : null };
 }
-const identity = r => JSON.stringify([r.host, r.appPid, r.windowId, r.tabId, r.tty, r.sessionId]);
+const identity = r => JSON.stringify([r.host, r.appPid, r.appOnly, r.windowId, r.tabId, r.tty, r.sessionId]);
 
 class ExternalTerminalService {
   constructor({ platform = process.platform, runner = promisify(execFile) } = {}) {
@@ -88,7 +97,7 @@ class ExternalTerminalService {
   }
   snapshot() {
     return { available: this.platform === "darwin", scanned: this.scanned, errors: this.errors,
-      sessions: [...this.records.values()].map(r => ({ id: r.id, source: "external", host: r.host, title: r.title, tty: r.tty, busy: r.busy,
+      sessions: [...this.records.values()].map(r => ({ id: r.id, source: "external", host: r.host, appOnly: Boolean(r.appOnly), title: r.title, tty: r.tty, busy: r.busy,
         capabilities: { focus: true, close: r.host === "iterm2" } })) };
   }
   async execute(payload) {
