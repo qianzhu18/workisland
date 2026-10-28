@@ -43,10 +43,11 @@ const AGENT_ICON_URLS = Object.freeze({
   aiden: "../assets/brands/agent.svg",
   dsh: "../assets/brands/agent.svg",
   traex: "../assets/brands/trae.svg",
+  kiro: "../assets/brands/kiro.svg",
   "plugin:omp": "../assets/brands/pi.svg",
   "plugin:pi": "../assets/brands/pi.svg"
 });
-const VERIFY_ON_REAL_EVENT_AGENT_IDS = new Set(["dsh", "trae", "qoder", "dumate"]);
+const VERIFY_ON_REAL_EVENT_AGENT_IDS = new Set(["dsh", "trae", "qoder", "dumate", "kiro"]);
 const state = { settings: null, statuses: new Map(), doctorSummary: null, displays: [], codexPets: [], templates: { active: null, templates: [] }, shareProviders: [], activeTab: "general", busy: new Set(), expandedSettingDetails: new Set(), latestUpdate: null, updateState: null, onUpdateStateUi: null, telemetryStatus: null, agentControl: null, agentControlManual: null, commandDraft: { name: "", command: "" }, remoteHosts: null, remotePairing: null, remoteSshConfig: null, remoteFilter: "", remoteManualOpen: false, remoteInvites: {}, appearanceImagePreview: null, appearanceImagePreviewRef: "", appearanceError: "" };
 
 function el(tag, className, text) {

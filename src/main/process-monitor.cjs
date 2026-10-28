@@ -49,6 +49,7 @@ function createProcessMonitorClass({ isVisibleInIsland, platform = process.platf
     let isCodexDesktopAppRunning = false;
     let isOpenCodeRunning = false;
     let isTraeRunning = false;
+    let isKiroRunning = false;
     try {
       if (platform === "win32") {
         const { stdout } = await execFileAsync$7("tasklist.exe", ["/FO", "CSV", "/NH"], { timeout: PS_TIMEOUT_MS$1, windowsHide: true });
@@ -58,7 +59,8 @@ function createProcessMonitorClass({ isVisibleInIsland, platform = process.platf
           isClaudeDesktopAppRunning: names.has("claude.exe"),
           isCodexDesktopAppRunning: names.has("codex.exe"),
           isOpenCodeRunning: names.has("opencode.exe"),
-          isTraeRunning: names.has("trae.exe")
+          isTraeRunning: names.has("trae.exe"),
+          isKiroRunning: names.has("kiro.exe")
         };
       }
       const { stdout } = await execFileAsync$7(
@@ -72,7 +74,8 @@ function createProcessMonitorClass({ isVisibleInIsland, platform = process.platf
         if (!isCodexDesktopAppRunning && isCodexDesktopAppCommand(line)) isCodexDesktopAppRunning = true;
         if (!isOpenCodeRunning && isOpenCodeDesktopAppCommand(line)) isOpenCodeRunning = true;
         if (!isTraeRunning && isTraeDesktopAppCommand(line)) isTraeRunning = true;
-        if (isCursorRunning && isClaudeDesktopAppRunning && isCodexDesktopAppRunning && isOpenCodeRunning && isTraeRunning) break;
+        if (!isKiroRunning && hasAppBundlePathSegment(line, ["Kiro.app"])) isKiroRunning = true;
+        if (isCursorRunning && isClaudeDesktopAppRunning && isCodexDesktopAppRunning && isOpenCodeRunning && isTraeRunning && isKiroRunning) break;
       }
     } catch (err) {
       if (platform === "win32") {
@@ -83,7 +86,7 @@ function createProcessMonitorClass({ isVisibleInIsland, platform = process.platf
       }
       return null;
     }
-    const result = { isCursorRunning, isClaudeDesktopAppRunning, isCodexDesktopAppRunning, isOpenCodeRunning, isTraeRunning };
+    const result = { isCursorRunning, isClaudeDesktopAppRunning, isCodexDesktopAppRunning, isOpenCodeRunning, isTraeRunning, isKiroRunning };
     return result;
   }
   class ProcessMonitor {
@@ -183,6 +186,7 @@ function createProcessMonitorClass({ isVisibleInIsland, platform = process.platf
      * 返回 undefined 表示该会话不是桌面 App 会话。
      */
     isDesktopAppAlive(session, status) {
+      if (session.tool === "kiro" && session.jumpTarget?.app?.toLowerCase() === "kiro" && !session.jumpTarget?.tty) return status.isKiroRunning;
       if (session.tool === "cursor") return status.isCursorRunning;
       if (session.tool === "claude" && session.jumpTarget?.app?.toLowerCase() === "claude" && !session.jumpTarget?.tty) {
         return status.isClaudeDesktopAppRunning;

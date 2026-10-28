@@ -22,6 +22,7 @@ const { OpenCodePluginManager, SaraPluginManager, KimiHookManager, GeminiHookMan
 const { HermesHookManager, AidenHookManager, TraexCliHookManager } = require("./hooks-extended.cjs");
 const { PluginHookManager, DeepSeekHarnessHookManager } = require("./hooks-custom.cjs");
 const { ZCodeHookManager, WorkBuddyHookManager, CodeBuddyHookManager, QoderHookManager } = require("./hooks-work-agents.cjs");
+const { KiroHookManager } = require("./hooks-kiro.cjs");
 const { DuMateHookManager } = require("./hooks-dumate.cjs");
 const { initSoundDirs, playSoundEvent } = require("./sound-service.cjs");
 const { createAgentSoundDeduplicator, resolveCodexTranscriptSoundEvent } = require("./agent-sound-policy.cjs");
@@ -451,7 +452,8 @@ function createAppCoordinatorClass({
         ["hermes", new HermesHookManager()],
         ["aiden", new AidenHookManager()],
         ["traex", new TraexCliHookManager()],
-        ["dsh", new DeepSeekHarnessHookManager()]
+        ["dsh", new DeepSeekHarnessHookManager()],
+        ["kiro", new KiroHookManager()]
       ]);
       for (const plugin of AGENT_PLUGINS) {
         this.hookManagers.set(`plugin:${plugin.id}`, new PluginHookManager(plugin));
@@ -520,7 +522,7 @@ function createAppCoordinatorClass({
         );
         // DSH and TraeCode are only considered verified after a configured
         // integration emits a real lifecycle event. Writing config is not E2E proof.
-        if (event.tool === "dsh" || event.tool === "trae") {
+        if (event.tool === "dsh" || event.tool === "trae" || event.tool === "kiro") {
           const manager = this.hookManagers.get(event.tool);
           void manager?.recordEvent?.(event).catch((error) => {
             log.warn("[AppCoordinator] failed to record Agent verification: %s", error?.message || error);

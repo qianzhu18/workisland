@@ -369,6 +369,7 @@ function AgentUsageRow({
     });
 }
 const TOOL_BADGE_COLORS = {
+  kiro: "#9046FF",
   claude: "#DA7250",
   codex: "#8EA1FF",
   coco: "#32F08C",

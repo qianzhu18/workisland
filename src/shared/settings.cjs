@@ -3,6 +3,7 @@
 const ISLAND_PANEL_MAX_HEIGHT_DEFAULT_PX = 540;
 
 const DEFAULT_HOOK_TOGGLES = {
+  kiro: false,
   claude: true,
   codex: true,
   coco: true,

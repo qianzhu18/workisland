@@ -6,6 +6,7 @@ const { ClaudeAdapter, CodexAdapter } = require("./adapters-cli.cjs");
 const { CocoAdapter, CursorAdapter, OpenCodeAdapter, DumateAdapter, SaraAdapter, TraeHookAdapter, KimiAdapter, CopilotCliAdapter } = require("./adapters-ide.cjs");
 const { GeminiAdapter, HermesAdapter, AidenAdapter, TraexCliAdapter } = require("./adapters-extended.cjs");
 const { ZCodeAdapter, WorkBuddyAdapter, CodeBuddyAdapter, QoderAdapter } = require("./adapters-work-agents.cjs");
+const { KiroAdapter } = require("./adapters-kiro.cjs");
 const { DeepSeekHarnessAdapter } = require("./adapters-dsh.cjs");
 
 function createLocalHookAdapterRegistry() {
@@ -28,7 +29,8 @@ function createLocalHookAdapterRegistry() {
     new HermesAdapter(),
     new AidenAdapter(),
     new DeepSeekHarnessAdapter(),
-    new TraexCliAdapter()
+    new TraexCliAdapter(),
+    new KiroAdapter()
   ];
   const registry = new Map(adapters.map((adapter) => [adapter.agentId, adapter]));
   return registry;

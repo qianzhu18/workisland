@@ -21,6 +21,7 @@ function getPluginLabelMap() {
   return labelMap;
 }
 const AGENT_TOOL_LABELS = {
+  kiro: "Kiro",
   claude: "Claude Code",
   codex: "Codex",
   coco: "TRAE CLI",
@@ -59,6 +60,7 @@ function clampPanelMaxHeightPx(value) {
   );
 }
 const DEFAULT_HOOK_TOGGLES = {
+  kiro: false,
   claude: true,
   codex: true,
   coco: true,

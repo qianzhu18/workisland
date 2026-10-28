@@ -57,3 +57,7 @@ Source: https://github.com/Lakr233/SkyLightWindow
 
 The complete license is bundled at `Resources/bin/workisland-system-status-LICENSE`
 and retained in the source tree at `native/system-status/SkyLightWindow-LICENSE`.
+
+## Kiro product mark
+
+The Kiro mark is included only to identify the integrated product. Original artwork belongs to Kiro; source: Kiro IDE 1.4.51, `Resources/app/out/media/code-icon.svg` (with an accessibility title added). Product information: https://kiro.dev/.
