@@ -10,6 +10,7 @@
 ## 当前活动 PRD
 
 - [PRD-020: Kiro IDE / CLI Integration](./PRD-020-KIRO-AGENT-INTEGRATION.md)
+- [PRD-021: Grok Build Integration](./PRD-021-GROK-BUILD-INTEGRATION.md)
 
 - [PRD-014: Terminal Desktop Docking](./PRD-014-TERMINAL-DESKTOP-DOCKING.md)
 - [PRD-013: Multi-terminal Manager](./PRD-013-MULTI-TERMINAL-MANAGER.md)

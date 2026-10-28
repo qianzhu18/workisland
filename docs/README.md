@@ -19,3 +19,4 @@ This directory is the GitHub-reviewable source for active product, engineering, 
 4. Local notes can support discovery, but they are not an approval record until their relevant decision is moved here and reviewed in GitHub.
 
 - [Kiro IDE / CLI 接入](KIRO.md)
+- [Grok Build 接入与 Bot 边界](GROK-BUILD.md)

@@ -6,6 +6,7 @@ const os = require("node:os");
 const path = require("node:path");
 const { execFileSync } = require("node:child_process");
 const { normalizeKiroPayload, detectKiroParentContext } = require("../../main/kiro-payload.cjs");
+const {normalizeGrokPayload,isGrokCompatibilityInvocation,findGrokProcess} = require("../../main/grok-build-payload.cjs");
 const { getSocketPath } = require("../../main/bridge-protocol.cjs");
 
 const TERMINAL_APP_ALIASES = Object.freeze({
@@ -266,6 +267,7 @@ async function main() {
   // must stay quiet when the native harness already emits modern events.
   if (source === "kiro" && process.argv.includes("--kiro-classic-only")
       && ["SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "Stop", "SessionEnd"].includes(input?.hook_event_name)) return;
+  if (isGrokCompatibilityInvocation(source, input, process.env)) return;
   let payload = enrichPayload(input, eventName);
   if (source === "kiro") {
     let context = {};
@@ -280,10 +282,20 @@ async function main() {
       } catch {}
     }
   }
+  if(source==='grok-build'){
+    payload=normalizeGrokPayload(payload,process.env);
+    // Do not watch the short-lived hook shell as though it owned the agent.
+    delete payload.pid;
+    if(process.platform!=='win32')try{
+      const context=findGrokProcess(execFileSync('/bin/ps',['-Ao','pid=,ppid=,tty=,comm='],{encoding:'utf8',timeout:500,stdio:['ignore','pipe','ignore']}),process.ppid);
+      if(context.pid)payload.pid=context.pid;
+      if(context.tty&&!payload.terminal_tty)payload.terminal_tty=context.tty;
+    }catch{}
+  }
   const effectiveSource = resolveHookSource(source, payload);
   const socketPath = getSocketPath(process.env, os.homedir());
-  const response = await sendHook(socketPath, effectiveSource, payload, source === 'kiro' ? 1500 : undefined);
-  if (source !== 'kiro' && response?.type === "hookDirective" && response.directive) {
+  const response = await sendHook(socketPath, effectiveSource, payload, ['kiro', 'grok-build'].includes(source) ? 1500 : undefined);
+  if (!['kiro', 'grok-build'].includes(source) && response?.type === "hookDirective" && response.directive) {
     process.stdout.write(`${JSON.stringify(response.directive)}\n`);
   }
 }

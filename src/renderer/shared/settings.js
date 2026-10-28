@@ -22,6 +22,7 @@ function getPluginLabelMap() {
 }
 const AGENT_TOOL_LABELS = {
   kiro: "Kiro",
+  "grok-build": "Grok Build",
   claude: "Claude Code",
   codex: "Codex",
   coco: "TRAE CLI",
@@ -61,6 +62,7 @@ function clampPanelMaxHeightPx(value) {
 }
 const DEFAULT_HOOK_TOGGLES = {
   kiro: false,
+  "grok-build": false,
   claude: true,
   codex: true,
   coco: true,

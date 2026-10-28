@@ -60,6 +60,9 @@ const CORE_AGENT_DESCRIPTORS = Object.freeze([
   }),
   descriptor("kiro", "Kiro（IDE / CLI）", "#9046FF", "Kiro IDE 1.x / CLI V3 生命周期 Hook，支持状态、工具活动和完成提醒；CLI 经典引擎使用独立 workisland-status Agent，原生审批仍在 Kiro 中处理。", {
     completion: "native", approval: "nativeOnly", question: "nativeOnly", jump: "app"
+  }),
+  descriptor("grok-build", "Grok Build", "#D5D8DF", "Grok Build CLI 原生生命周期 Hook，支持状态、工具活动、完成/失败/取消及原生审批等待提示；审批仍在终端确认。此项不代表云端 Grok Bot 接入。", {
+    completion: "native", approval: "observe", question: "nativeOnly", jump: "app"
   })
 ]);
 

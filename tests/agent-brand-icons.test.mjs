@@ -28,6 +28,7 @@ const EXPECTED_AGENT_ICONS = Object.freeze({
   dsh: "agent.svg",
   traex: "trae.svg",
   kiro: "kiro.svg",
+  "grok-build": "agent.svg",
   "plugin:omp": "pi.svg",
   "plugin:pi": "pi.svg"
 });

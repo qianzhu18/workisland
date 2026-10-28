@@ -1,0 +1,28 @@
+#!/usr/bin/env node
+// Official Grok Build binary -> generated hooks -> real Unix bridge -> adapter.
+// Uses an isolated local mock model; does not claim a Grok cloud-model turn.
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+import {mkdtemp,rm,writeFile,mkdir} from 'node:fs/promises';
+import {spawn} from 'node:child_process';
+import net from 'node:net';
+import http from 'node:http';
+import {resolve as resolvePath} from 'node:path';
+const grokBinary=process.env.FLUX_GROK_BINARY; if(!grokBinary)throw Error('Set FLUX_GROK_BINARY to a Grok Build executable; this test does not install it');
+const require=createRequire(import.meta.url),{GrokBuildHookStore}=require('../src/main/grok-build-hooks.cjs'),{GrokBuildAdapter}=require('../src/main/adapters-grok-build.cjs'),{createHooksCliCommand}=require('../src/main/hooks-cli-command.cjs'),{createBridgeServerClass}=require('../src/main/bridge-server.cjs');
+if(process.platform==='win32')throw Error('Run this Unix-socket smoke on macOS/Linux');
+const home=await mkdtemp('/tmp/wi-grok-build-smoke-'),socketPath=home+'/bridge.sock',events=[];
+const Bridge=createBridgeServerClass({adapterRegistry:new Map([['grok-build',new GrokBuildAdapter()]]),PluginAdapter:class{},ClaudeTranscriptWatcher:class{detachAll(){}},createHookPayloadRecorder:()=>null,isPluginAgentTool:()=>false,normalizeAgentPid:pid=>Number.isSafeInteger(pid)&&pid>1?pid:undefined,normalizeIdeWorkspace:()=>undefined,normalizeTerminalAppForHookSource:(_,host)=>host});
+const bridge=new Bridge();bridge.socketPath=socketPath;bridge.on('agentEvent',event=>events.push(event));bridge.server=net.createServer(s=>bridge.handleConnection(s));await new Promise(r=>bridge.server.listen(socketPath,r));
+const store=new GrokBuildHookStore({homeDir:home,hookCommand:createHooksCliCommand({appPath:process.cwd(),source:'grok-build',nodePath:process.execPath})});
+const requests=[];const modelServer=http.createServer(async(req,res)=>{let raw='';for await(const chunk of req)raw+=chunk;requests.push(req.url);let body={};try{body=JSON.parse(raw||'{}')}catch{};if(req.method==='GET'){res.writeHead(200,{'content-type':'application/json'});res.end(JSON.stringify({object:'list',data:[{id:'workisland-mock',object:'model',owned_by:'workisland-test'}]}));return;}const msg={role:'assistant',content:'GROKWORKISLANDOK'};if(body.stream){res.writeHead(200,{'content-type':'text/event-stream'});for(const data of[{id:'chatcmpl-wi',object:'chat.completion.chunk',created:Math.floor(Date.now()/1000),model:'workisland-mock',choices:[{index:0,delta:msg,finish_reason:null}]},{id:'chatcmpl-wi',object:'chat.completion.chunk',created:Math.floor(Date.now()/1000),model:'workisland-mock',choices:[{index:0,delta:{},finish_reason:'stop'}]}])res.write('data: '+JSON.stringify(data)+'\n\n'.replaceAll('\\n','\n'));res.end('data: [DONE]\n\n'.replaceAll('\\n','\n'));}else{res.writeHead(200,{'content-type':'application/json'});res.end(JSON.stringify({id:'chatcmpl-wi',object:'chat.completion',created:Math.floor(Date.now()/1000),model:'workisland-mock',choices:[{index:0,message:msg,finish_reason:'stop'}],usage:{prompt_tokens:1,completion_tokens:1,total_tokens:2}}));}});
+await new Promise(r=>modelServer.listen(0,'127.0.0.1',r));
+try{
+ await store.install();await mkdir(home+'/project',{recursive:true});
+ const port=modelServer.address().port;await writeFile(home+'/.grok/config.toml',`[cli]\nauto_update = false\n[models]\ndefault = "workisland-test"\n[model.workisland-test]\nmodel = "workisland-mock"\nbase_url = "http://127.0.0.1:${port}/v1"\nname = "WorkIsland local mock"\nenv_key = "WORKISLAND_GROK_TEST_KEY"\n`.replaceAll('\\n','\n'));
+ const env={...process.env,HOME:home,GROK_HOME:home+'/.grok',FLUX_SOCKET_PATH:socketPath,WORKISLAND_GROK_TEST_KEY:'local-mock-only'};
+ const result=await new Promise((resolve,reject)=>{const child=spawn(resolvePath(grokBinary),['-p','Reply only GROKWORKISLANDOK. Do not use tools.','-m','workisland-test','--output-format','json','--max-turns','1','--tools',''],{env,cwd:home+'/project',stdio:['ignore','pipe','pipe'],detached:true});let stdout='',stderr='',timedOut=false;const timer=setTimeout(()=>{timedOut=true;try{process.kill(-child.pid,'SIGTERM')}catch{}},45000);child.stdout.on('data',b=>stdout+=b);child.stderr.on('data',b=>stderr+=b);child.on('error',reject);child.on('exit',code=>{clearTimeout(timer);resolve({code,timedOut,stdout,stderr})});});
+ await mkdir('.local-data/grok-build',{recursive:true});await writeFile('.local-data/grok-build/native-output.txt',result.stdout+'\n'+result.stderr);
+ assert.equal(result.code,0,'native Grok failed; see native-output.txt');assert.equal(result.timedOut,false);assert.ok(result.stdout.includes('GROKWORKISLANDOK'));assert.ok(events.some(e=>e.type==='sessionStarted'));assert.ok(events.some(e=>e.type==='sessionCompleted'&&!e.isSessionEnd));assert.ok(events.some(e=>e.type==='sessionCompleted'&&e.isSessionEnd));assert.equal(new Set(events.map(e=>e.sessionId)).size,1);
+ const report={code:result.code,timedOut:result.timedOut,eventTypes:events.map(e=>e.type),nativeSessionIds:[...new Set(events.map(e=>e.sessionId))],mockModelReplied:result.stdout.includes('GROKWORKISLANDOK'),modelRequests:requests,realGrokCloudModelTurn:false};await writeFile('.local-data/grok-build/native.json',JSON.stringify(report,null,2));console.log(report);
+}finally{modelServer.closeAllConnections();await new Promise(r=>modelServer.close(r));bridge.stop();await rm(home,{recursive:true,force:true});}
