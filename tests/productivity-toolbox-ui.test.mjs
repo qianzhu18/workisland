@@ -103,10 +103,11 @@ test("clipboard exposes search favorites replay and clear", () => {
 
 test("terminal uses xterm and offers quick commands plus full shell", () => {
   const source = read("TerminalPanel.js");
-  assert.match(source, /@xterm\/xterm/);
+  const frame = readFileSync(new URL("../src/renderer/terminal/terminal.js", import.meta.url), "utf8");
+  assert.match(frame, /@xterm\/xterm/);
   assert.match(source, /t\("terminal\.full\.enter"\)/);
   assert.match(source, /runSavedTerminalCommand/);
-  assert.match(source, /sendTerminalInput/);
+  assert.match(frame, /bridge.input/);
   assert.match(source, /setTerminalInteractive\?\.\(interactive\)/);
   assert.match(source, /setTerminalInteractive\?\.\(false\)/);
 });
@@ -122,13 +123,15 @@ test("terminal visibility controls shortcuts without owning xterm lifetime", () 
   const terminal = read("TerminalPanel.js");
   assert.match(terminal, /panelOpen && active && full/);
   assert.match(terminal, /setTerminalInteractive\?\.\(interactive\)/);
-  assert.match(terminal, /terminalRef\.current\?\.focus\(\)/);
+  assert.match(terminal, /TerminalNativeHost/);
+  const frame = readFileSync(new URL("../src/renderer/terminal/terminal.js", import.meta.url), "utf8");
+  assert.match(frame, /terminal.focus\(\)/);
   assert.match(terminal, /terminal-panel\$\{active \? "" : " is-hidden"\}/);
 });
 
 test("hidden terminal never resizes the PTY to a zero-sized viewport", () => {
-  const terminal = read("TerminalPanel.js");
-  assert.match(terminal, /if \(!rect \|\| rect\.width < 1 \|\| rect\.height < 1\) return/);
+  const terminal = readFileSync(new URL("../src/renderer/terminal/terminal.js", import.meta.url), "utf8");
+  assert.match(terminal, /if \(rect\.width < 1 \|\| rect\.height < 1\) return/);
 });
 
 test("terminal quick commands come only from user settings", () => {

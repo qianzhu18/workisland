@@ -13,7 +13,7 @@ const runtime = createRendererI18n({
 
 function defaultBridge() {
   if (typeof window === "undefined") return null;
-  return window.islandBridge || window.settingsApi || window.debugBridge || window.welcomeBridge || window.petBridge || window.petPanelBridge;
+  return window.islandBridge || window.settingsApi || window.debugBridge || window.welcomeBridge || window.petBridge || window.petPanelBridge || window.terminalBridge;
 }
 
 async function initializeI18n(bridge = defaultBridge()) {

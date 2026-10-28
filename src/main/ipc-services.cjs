@@ -474,6 +474,15 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
     electron.ipcMain.handle(IPC.TERMINAL_GET_STATE, (_event, { id } = {}) => coordinator.getTerminalState(id));
     electron.ipcMain.handle(IPC.TERMINAL_START, (_event, options) => coordinator.startTerminal(options));
     electron.ipcMain.handle(IPC.TERMINAL_CREATE, (_event, options) => coordinator.createTerminal(options));
+    const islandOwns = event => event.sender === coordinator.islandWindow?.webContents;
+    electron.ipcMain.handle(IPC.TERMINAL_VIEW_LAYOUT, (event, { id, bounds, focus } = {}) => islandOwns(event) ? coordinator.terminalViews.show(id, bounds, { focus: focus === true }) : false);
+    electron.ipcMain.on(IPC.TERMINAL_VIEW_HIDE, (event, { id } = {}) => { if (islandOwns(event)) coordinator.terminalViews.hide(id); });
+    electron.ipcMain.handle(IPC.TERMINAL_VIEW_DETACH, (event, { id } = {}) => islandOwns(event) ? coordinator.terminalViews.detach(id) : false);
+    electron.ipcMain.handle(IPC.TERMINAL_VIEW_DOCK, (event, { id } = {}) => islandOwns(event) ? coordinator.terminalViews.dock(id) : false);
+    electron.ipcMain.handle(IPC.TERMINAL_VIEW_FOCUS, (event, { id } = {}) => islandOwns(event) ? coordinator.terminalViews.focus(id) : false);
+    electron.ipcMain.handle(IPC.TERMINAL_FRAME_ACTION, (event, payload) => coordinator.terminalViews.frameAction(event.sender, payload));
+    electron.ipcMain.handle(IPC.TERMINAL_DRAG, (event, payload) => coordinator.terminalViews.drag(event.sender, payload));
+    electron.ipcMain.on(IPC.TERMINAL_DOCK_BOUNDS, (event, bounds) => { if (islandOwns(event)) coordinator.terminalViews.setDockBounds(bounds); });
     electron.ipcMain.handle(IPC.TERMINAL_SELECT, (_event, { id } = {}) => coordinator.selectTerminal(String(id || "")));
     electron.ipcMain.handle(IPC.TERMINAL_CLOSE, (_event, { id } = {}) => coordinator.closeTerminal(String(id || "")));
     electron.ipcMain.handle(IPC.TERMINAL_RENAME, (_event, { id, name } = {}) => coordinator.renameTerminal(String(id || ""), name));

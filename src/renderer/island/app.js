@@ -14,6 +14,10 @@ import { applyIslandAppearance } from "./theme.mjs";
 import { shouldDeferAgentSurface } from "./components/terminal-notification-policy.mjs";
 const useSessionStore = create((set) => ({
   sessions: [],
+  terminalReveal: null,
+  terminalDrag: null,
+  setTerminalReveal: terminalReveal => set({ terminalReveal }),
+  setTerminalDrag: terminalDrag => set({ terminalDrag }),
   notchInfo: window.islandBridge?.__initialNotchInfo ?? DEFAULT_NOTCH_INFO,
   surface: null,
   openReason: null,
@@ -48,6 +52,8 @@ function useIslandState() {
       console.error("[useIslandState] islandBridge is not defined — preload may have failed");
       return;
     }
+    const offTerminalReveal = bridge.onTerminalReveal?.(request => useSessionStore.getState().setTerminalReveal(request));
+    const offTerminalDrag = bridge.onTerminalDragState?.(state => useSessionStore.getState().setTerminalDrag(state));
     bridge.onNotchInfo((info) => {
       setNotchInfo(info);
     });
@@ -93,6 +99,7 @@ function useIslandState() {
       useSessionStore.getState().requestConfirmSession();
     });
     return () => {
+      offTerminalReveal?.(); offTerminalDrag?.();
       offUpdate?.();
       offUpdateState?.();
     };
@@ -129,6 +136,8 @@ function isTerminalPageVisible() {
   return Boolean(document.querySelector('.terminal-panel[data-terminal-viewing="true"]'));
 }
 function isToolboxInteractionFocused() {
+  if (document.documentElement.hasAttribute('data-terminal-dragging')) return true;
+  if (document.querySelector('.terminal-native-host[data-native-visible="true"]')) return true;
   if (document.documentElement.hasAttribute('data-toolbar-dragging') || document.querySelector('.toolbar-overflow')) return true;
   return Boolean(document.activeElement?.closest?.(".toolbox-panel input, .toolbox-panel textarea, .terminal-host"));
 }
@@ -146,6 +155,8 @@ function IslandApp() {
     hasUpdate,
     updateState
   } = useSessionStore();
+  const terminalReveal = useSessionStore(s => s.terminalReveal);
+  const terminalDrag = useSessionStore(s => s.terminalDrag);
   const onboardingExpand = useSessionStore((s) => s.onboardingExpand);
   const setOnboardingExpand = useSessionStore((s) => s.setOnboardingExpand);
   const toggleExpandTick = useSessionStore((s) => s.toggleExpandTick);
@@ -501,7 +512,8 @@ function IslandApp() {
     window.islandBridge?.surfaceDismissed();
   }, [clipboardHistoryEnabled, close, clearSurface, fileShelfEnabled, terminalEnabled, usageDashboardEnabled, toolboxReopenMode, systemStatusEnabled]);
   reactExports.useEffect(() => {
-    const handleWindowBlur = () => {
+    const handleWindowBlur = event => {
+      if (event.type === "blur" && document.querySelector('.terminal-native-host[data-native-visible="true"]')) return;
       const followUpFocused = isFollowUpActiveRef.current
         && document.activeElement?.closest?.("[data-follow-up-input]");
       // 失焦即隐身——不再受 autoCollapseOnMouseLeave 开关阻断。该开关的旧语义
@@ -824,6 +836,26 @@ function IslandApp() {
       collapsePanelToPill();
     }, MOUSE_LEAVE_CLOSE_DELAY_MS);
   }, [collapsePanelToPill, isOpen]);
+  reactExports.useEffect(() => {
+    if (!terminalReveal) return;
+    setRequestedToolboxModule({ id: "terminal", nonce: terminalReveal.nonce });
+    presentSurface({ type: "sessionList" }, "click"); open();
+  }, [terminalReveal, presentSurface, open]);
+  reactExports.useEffect(() => {
+    document.documentElement.toggleAttribute('data-terminal-dock-over', Boolean(terminalDrag?.active && terminalDrag.from === 'desktop' && terminalDrag.over));
+    return () => document.documentElement.removeAttribute('data-terminal-dock-over');
+  }, [terminalDrag]);
+  reactExports.useEffect(() => {
+    let frame;
+    const update = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(() => {
+      const target = document.querySelector(isOpen ? '.island-panel-layer' : '.pill');
+      const r = target?.getBoundingClientRect(); if (r?.width && r?.height) window.islandBridge?.setTerminalDockBounds?.({ x: r.x, y: r.y, width: r.width, height: r.height });
+    }); };
+    const observer = new ResizeObserver(update);
+    for (const target of document.querySelectorAll('.island-panel-layer,.pill')) observer.observe(target);
+    window.addEventListener('resize', update); update();
+    return () => { observer.disconnect(); cancelAnimationFrame(frame); window.removeEventListener('resize', update); };
+  }, [isOpen]);
   const handlePillClick = reactExports.useCallback(() => {
     if (mouseLeaveCloseTimer.current) {
       clearTimeout(mouseLeaveCloseTimer.current);
@@ -1100,6 +1132,7 @@ function IslandApp() {
             usageDashboardEnabled,
             terminalSavedCommands,
             requestedToolboxModule,
+            requestedTerminalReveal: terminalReveal,
             onAgentNotice: (sessionId) => presentSurface({ type: "sessionList", actionableSessionId: sessionId, visibleSessionIds: [sessionId] }, "click"),
             onSystemDetails: () => {
               window.islandBridge?.surfaceDismissed?.();

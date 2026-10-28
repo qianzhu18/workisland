@@ -59,7 +59,7 @@ class TerminalService extends EventEmitter {
   create(options = {}) {
     if (!this.enabled) return false;
     if (this.sessions.size >= this.maxSessions) throw Object.assign(new Error("Terminal limit reached"), { code: "TERMINAL_LIMIT" });
-    const entry = { id: randomUUID(), ordinal: ++this.ordinal, name: this.cleanName(options.name), createdAt: Date.now(), pty: null,
+    const entry = { id: randomUUID(), ordinal: ++this.ordinal, name: this.cleanName(options.name), location: "island", createdAt: Date.now(), pty: null,
       outputBuffer: "", sequence: 0, generation: 0, status: { running: false, cwd: "", shell: "", exitCode: null } };
     this.sessions.set(entry.id, entry);
     try { this.spawnEntry(entry, options); }
@@ -172,11 +172,18 @@ class TerminalService extends EventEmitter {
 
   setEnabled(enabled) {
     this.enabled = Boolean(enabled);
-    if (!this.enabled) for (const id of this.sessions.keys()) this.stop(id);
+    if (!this.enabled) for (const [id, entry] of this.sessions) { entry.location = "island"; this.stop(id); }
+  }
+
+  setLocation(id, location) {
+    const entry = this.sessions.get(id);
+    if (!entry || !["island", "desktop"].includes(location)) return false;
+    if (entry.location !== location) { entry.location = location; this.publish(); }
+    return true;
   }
 
   setPanelVisible(visible) { this.panelVisible = Boolean(visible); }
-  summary(entry) { return { id: entry.id, ordinal: entry.ordinal, name: entry.name, createdAt: entry.createdAt, generation: entry.generation, pid: entry.pty?.pid ?? null, ...entry.status }; }
+  summary(entry) { return { id: entry.id, ordinal: entry.ordinal, name: entry.name, location: entry.location, createdAt: entry.createdAt, generation: entry.generation, pid: entry.pty?.pid ?? null, ...entry.status }; }
   snapshot(id = this.activeId, includeOutput = true) {
     const entry = this.sessions.get(id);
     if (id && !entry) return null;

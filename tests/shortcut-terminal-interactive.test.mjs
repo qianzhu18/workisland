@@ -88,3 +88,13 @@ test("collapsing the panel clears stale terminal-interactive state", () => {
   assert.equal(registered.has("Up"), true);
   assert.equal(registered.has("Down"), true);
 });
+
+test("desktop terminal focus keeps terminal keys through Island collapse and configuration changes", () => {
+  const service = createService();
+  service.setConfig(shortcutConfig()); service.setPanelExpanded(true); service.armConfirm();
+  service.setDetachedTerminalFocused(true);
+  service.setPanelExpanded(false); service.setPanelExpanded(true); service.setConfig(shortcutConfig()); service.armConfirm();
+  for (const key of ['Esc', 'Up', 'Down', 'Return']) assert.equal(registered.has(key), false);
+  service.setDetachedTerminalFocused(false);
+  for (const key of ['Esc', 'Up', 'Down', 'Return']) assert.equal(registered.has(key), true);
+});

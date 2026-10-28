@@ -81,6 +81,7 @@ function createWindowClasses(dependencies) {
     };
     handleIslandLeave = () => {
       if (this.win.isDestroyed()) return;
+      if (this.terminalDragging) return;
       if (this._isFullscreenHidden || this._isFocusHidden) {
         // 处于隐藏态（全屏隐藏或焦点丢失隐藏）时，鼠标一旦离开就立即收敛到
         // 透明 hotspot。不再"等关闭动画"——旧逻辑在 panel 展开时只置
@@ -273,6 +274,7 @@ function createWindowClasses(dependencies) {
       this.dropProximityTimer.unref?.();
     }
     syncDropProximityInteraction({ force = false } = {}) {
+      if (this.terminalDragging) return;
       if (this.win.isDestroyed()) return;
       const point = electron.screen.getCursorScreenPoint();
       let pointerInside;
@@ -348,6 +350,18 @@ function createWindowClasses(dependencies) {
       this.applyRequestedHeight(this.getClosedHeight());
       this.win.setOpacity(1);
       this.win.setIgnoreMouseEvents(true, { forward: true });
+    }
+    setTerminalDragging(active) {
+      if (this.win.isDestroyed()) return;
+      if (active && !this.terminalDragging) {
+        this.terminalWasFocusHidden = this._isFocusHidden;
+        this.setFocusHidden(false);
+        this.win.setOpacity(1);
+        this.win.setIgnoreMouseEvents(false);
+      }
+      this.terminalDragging = Boolean(active);
+      if (!active && this.terminalWasFocusHidden && !this.win.isFocused() && !this.isPanelExpanded) this.setFocusHidden(true);
+      if (!active) this.terminalWasFocusHidden = false;
     }
     /** Broadcast a typed payload to the island renderer. */
     send(channel, payload) {

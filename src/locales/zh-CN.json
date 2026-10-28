@@ -962,5 +962,10 @@
   "terminal.external.notFound": "此终端已结束或位置已变化，请刷新列表。",
   "terminal.external.closeInHost": "此终端需要在原应用中关闭。",
   "terminal.external.confirmationPending": "请在原终端确认关闭，然后刷新列表。",
-  "terminal.external.unavailable": "暂时无法读取外部终端。请检查应用和自动化权限后重试。"
+  "terminal.external.unavailable": "暂时无法读取外部终端。请检查应用和自动化权限后重试。",
+  "terminal.window.detach": "移到桌面",
+  "terminal.window.dock": "收回灵动岛",
+  "terminal.window.desktop": "桌面窗口",
+  "terminal.window.dragOut": "拖到桌面，继续使用同一个终端",
+  "terminal.window.dragBack": "拖到灵动岛收回终端"
 }

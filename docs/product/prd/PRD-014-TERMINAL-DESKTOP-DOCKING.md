@@ -6,6 +6,8 @@ Owner：WorkIsland maintainers
 
 目标版本：下一次功能迭代，未发布
 
+跟踪：[Issue #202](https://github.com/qianzhu18/workisland/issues/202)
+
 依赖：[PR #201](https://github.com/qianzhu18/workisland/pull/201)、[PRD-013](./PRD-013-MULTI-TERMINAL-MANAGER.md)
 
 ## 用户问题与结果

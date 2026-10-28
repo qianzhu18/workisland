@@ -49,6 +49,7 @@ class ShortcutService {
   jumpArmed = false;
   panelExpanded = false;
   terminalInteractive = false;
+  detachedTerminalFocused = false;
   confirmArmed = false;
   registered = /* @__PURE__ */ new Set();
   switchSessionKeys = /* @__PURE__ */ new Set();
@@ -154,6 +155,13 @@ class ShortcutService {
     }
     this.emitStatus();
   }
+  setDetachedTerminalFocused(focused) {
+    this.detachedTerminalFocused = Boolean(focused);
+    this.unregisterIds(COLLAPSE_ACTIONS);
+    this.unregisterSwitchSession();
+    if (this.panelExpanded) { this.registerCollapse(); this.registerSwitchSession(); }
+    this.emitStatus();
+  }
   /** 用户按上下键选中会话后才允许 Enter 确认。面板收起自动 disarm。 */
   armConfirm() {
     if (this.confirmArmed) return;
@@ -167,7 +175,7 @@ class ShortcutService {
     this.registerBinding("toggleIsland", this.handlers.toggleIsland);
   }
   registerCollapse() {
-    if (this.terminalInteractive) return;
+    if (this.terminalInteractive || this.detachedTerminalFocused) return;
     const accel = this.acceleratorFor("collapsePanel");
     if (!accel) {
       this.status.collapsePanel = "disabled";
@@ -201,7 +209,7 @@ class ShortcutService {
     this.registerBinding("jumpToTerminal", this.handlers.jumpToTerminal);
   }
   registerSwitchSession() {
-    if (this.terminalInteractive) return;
+    if (this.terminalInteractive || this.detachedTerminalFocused) return;
     if (!this.config) return;
     const binding = this.config.bindings.switchSession;
     if (!binding || !binding.enabled) {
@@ -240,7 +248,7 @@ class ShortcutService {
     }
   }
   registerConfirmKey() {
-    if (this.terminalInteractive) return;
+    if (this.terminalInteractive || this.detachedTerminalFocused) return;
     const key = "Return";
     if (this.switchSessionKeys.has(key)) return;
     if (this.registered.has(key)) return;

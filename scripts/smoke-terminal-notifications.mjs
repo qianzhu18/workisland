@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import WebSocket from 'ws';
+import { terminalFrames } from './lib/electron-smoke-cdp.mjs';
 const rendererPort = Number(process.env.FLUX_DEBUG_PORT || 9354), mainPort = Number(process.env.FLUX_INSPECT_PORT || 9364);
 const wait = ms => new Promise(r => setTimeout(r, ms));
 async function until(fn, label) { for (let n = 0; n < 100; n++) { const value = await fn(); if (value) return value; await wait(100); } throw new Error(`Timed out: ${label}`); }
@@ -16,6 +17,7 @@ async function connect(port, select) {
   const evaluate = async expression => { const result = await call('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true }); if (result.exceptionDetails) throw new Error(JSON.stringify(result.exceptionDetails)); return result.result.value; };
   return { target, call, evaluate, close: () => socket.close() };
 }
+const frames = terminalFrames(rendererPort);
 const renderer = await connect(rendererPort, t => t.url.endsWith('/island.html'));
 assert.ok(!renderer.target.url.includes('/Applications/'), 'Use an isolated preview');
 const main = await connect(mainPort, () => true);
@@ -48,11 +50,12 @@ try {
   report.expiredAgentCannotCloseManager = true;
   await click('.terminal-new');
   const terminal = await until(async () => { const s = await api('getTerminalState'); return s.id && s.running && s; }, 'real PTY'); owned.push(terminal.id);
-  const textarea = `[data-terminal-id="${terminal.id}"] .xterm-helper-textarea`;
-  await until(() => renderer.evaluate(`!!document.querySelector(${JSON.stringify(textarea)})`), 'real xterm');
-  await renderer.evaluate(`document.querySelector(${JSON.stringify(textarea)}).focus();document.querySelector('[data-terminal-id="${terminal.id}"] .xterm').dataset.qaInstance='kept';true`);
+  const frame = await until(() => frames.get(terminal.id), 'native frame');
+  const textarea = '.xterm-helper-textarea';
+  await until(() => frame.evaluate(`!!document.querySelector(${JSON.stringify(textarea)})`), 'real xterm');
+  await frame.evaluate(`document.querySelector(${JSON.stringify(textarea)}).focus();document.querySelector('.xterm').dataset.qaInstance='kept';true`);
   const marker = Date.now().toString(36), command = `printf '%s%s\\n' 'GUARD_' '${marker}'`;
-  await renderer.call('Input.insertText', { text: command });
+  await frame.call('Input.insertText', { text: command });
   const snapshots = [
     [session('submission', 'running')],
     [session('complete', 'completed')],
@@ -63,9 +66,9 @@ try {
   for (const rows of snapshots) {
     await send('island:session-update', rows); await notify(rows[0].id, !['approval', 'question', 'error'].includes(rows[0].id)); await wait(100);
     assert.equal(await isOpen(), true);
-    assert.equal(await renderer.evaluate(`document.activeElement===document.querySelector(${JSON.stringify(textarea)})`), true, rows[0].id + ' must not steal input');
+    assert.equal(await frame.evaluate(`document.activeElement===document.querySelector(${JSON.stringify(textarea)})`), true, rows[0].id + ' must not steal input');
     assert.equal((await api('getTerminalState')).activeId, terminal.id);
-    assert.equal(await renderer.evaluate(`document.querySelector('[data-terminal-id="${terminal.id}"] .xterm').dataset.qaInstance`), 'kept');
+    assert.equal(await frame.evaluate(`document.querySelector('.xterm').dataset.qaInstance`), 'kept');
   }
   report.allAutomaticAgentTypesKeepFocus = true;
   const rows = [session('approval', 'waitingForApproval'), session('question', 'waitingForAnswer'), session('error', 'completed', { error: 'QA failure' })];
@@ -79,9 +82,9 @@ try {
   assert.deepEqual(await renderer.evaluate("[...document.querySelectorAll('.session-row .session-title')].map(e=>e.textContent)"), ['Notification QA approval']);
   report.explicitPendingNavigation = true;
   await terminalPage();
-  await until(() => renderer.evaluate(`document.activeElement===document.querySelector(${JSON.stringify(textarea)})`), 'terminal focus restored');
-  await renderer.call('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, text: '\r' });
-  await renderer.call('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
+  await until(() => frame.evaluate(`document.activeElement===document.querySelector(${JSON.stringify(textarea)})`), 'terminal focus restored');
+  await frame.call('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, text: '\r' });
+  await frame.call('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
   await until(async () => (await api('getTerminalState', terminal.id)).recentOutput.includes('GUARD_' + marker), 'half-input command executed');
   report.halfInputAndPtyPreserved = true;
   await send('island:session-update', [session('approval', 'running')]);
@@ -104,6 +107,6 @@ try {
   for (const id of owned) await api('closeTerminal', id).catch(() => {});
   await send('island:session-update', []).catch(() => {});
   await api('setSettings', { terminalEnabled: settings.terminalEnabled, autoCollapseOnMouseLeave: settings.autoCollapseOnMouseLeave, completionPopupDurationSec: settings.completionPopupDurationSec }).catch(() => {});
-  await writeFile(resolve(output, 'validation.json'), JSON.stringify(report, null, 2)); renderer.close(); main.close();
+  await writeFile(resolve(output, 'validation.json'), JSON.stringify(report, null, 2)); frames.close(); renderer.close(); main.close();
 }
 console.log(JSON.stringify(report));
