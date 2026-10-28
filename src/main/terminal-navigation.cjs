@@ -228,6 +228,7 @@ function createTerminalNavigation({
     "codebuddy cn": "com.tencent.codebuddycn",
     // Qoder CLI 的宿主可能是独立 Qoder IDE，也可能是千问办公（QwenWorkCN）
     // 内嵌的 qoderclicn（两者共用 ~/.qoder/settings.json，issue #158）。
+    kiro: "dev.kiro.desktop",
     qoder: "com.qoder.ide",
     qoderide: "com.qoder.ide",
     qwenworkcn: "cn.qwenwork.desktop.mac",
@@ -292,6 +293,9 @@ function createTerminalNavigation({
         break;
       case "codebuddy":
         if (!hasHostTarget) ids.push("com.tencent.codebuddycn");
+        break;
+      case "kiro":
+        if (!hasHostTarget) ids.push("dev.kiro.desktop");
         break;
       case "qoder":
         if (!hasHostTarget) ids.push("com.qoder.ide", "cn.qwenwork.desktop.mac");
@@ -2006,6 +2010,7 @@ function createTerminalNavigation({
   async function focusAgentClientByTool(tool, { openUrl = "" } = {}) {
     const map = {
       zcode: ["dev.zcode.app"],
+      kiro: ["dev.kiro.desktop"],
       qoder: ["com.qoder.ide", "cn.qwenwork.desktop.mac"],
       qoderide: ["com.qoder.ide", "cn.qwenwork.desktop.mac"],
       qwenworkcn: ["cn.qwenwork.desktop.mac"],

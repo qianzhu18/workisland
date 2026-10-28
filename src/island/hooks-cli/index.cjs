@@ -5,6 +5,7 @@ const net = require("node:net");
 const os = require("node:os");
 const path = require("node:path");
 const { execFileSync } = require("node:child_process");
+const { normalizeKiroPayload, detectKiroParentContext } = require("../../main/kiro-payload.cjs");
 const {normalizeGrokPayload,isGrokCompatibilityInvocation,findGrokProcess} = require("../../main/grok-build-payload.cjs");
 const { getSocketPath } = require("../../main/bridge-protocol.cjs");
 
@@ -61,6 +62,7 @@ const HOST_APP_MATCHERS = Object.freeze([
   ["/trae.app/", "Trae"],
   ["/claude.app/", "Claude"],
   ["/cursor.app/", "Cursor"],
+  ["/kiro.app/", "Kiro"],
   ["/windsurf.app/", "Windsurf"],
   ["/visual studio code.app/", "VS Code"],
   ["/ghostty.app/", "Ghostty"],
@@ -213,7 +215,7 @@ function resolveHookSource(source, payload) {
 function sendHook(socketPath, source, payload, timeoutMs) {
   return new Promise((resolve, reject) => {
     const socket = net.createConnection(socketPath);
-    const deadline = timeoutMs ? setTimeout(() => {socket.destroy(); reject(new Error("hook transport timeout"));},timeoutMs) : null;
+    const deadline = timeoutMs ? setTimeout(() => { socket.destroy(); reject(new Error('hook transport timeout')); }, timeoutMs) : null;
     const clearDeadline = () => clearTimeout(deadline);
     let buffer = "";
     let commandSent = false;
@@ -246,11 +248,11 @@ function sendHook(socketPath, source, payload, timeoutMs) {
         if (message.type === "response") finish(message.response);
       }
     });
-    socket.on("error", error => {clearDeadline(); reject(error);});
+    socket.on("error", error => { clearDeadline(); reject(error); });
     socket.on("close", () => {
       clearDeadline();
       if (!commandSent) reject(new Error("bridge closed before handshake"));
-      else if(timeoutMs) reject(new Error("bridge closed before response"));
+      else if (timeoutMs) reject(new Error("bridge closed before response"));
     });
   });
 }
@@ -261,8 +263,25 @@ async function main() {
   const eventName = readArg("--event");
   const raw = await readStdin();
   const input = raw.trim() ? JSON.parse(raw) : {};
-  if(isGrokCompatibilityInvocation(source,input,process.env))return;
-  let payload = enrichPayload(input,eventName);
+  // V3 loads both global hooks and profile hooks. Classic profile observers
+  // must stay quiet when the native harness already emits modern events.
+  if (source === "kiro" && process.argv.includes("--kiro-classic-only")
+      && ["SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "Stop", "SessionEnd"].includes(input?.hook_event_name)) return;
+  if (isGrokCompatibilityInvocation(source, input, process.env)) return;
+  let payload = enrichPayload(input, eventName);
+  if (source === "kiro") {
+    let context = {};
+    if (process.platform !== "win32") {
+      try { context = detectKiroParentContext(execFileSync("/bin/ps", ["-Ao", "pid=,ppid=,comm="], { encoding: "utf8", timeout: 500, stdio: ["ignore", "pipe", "ignore"] }), process.ppid); } catch {}
+    }
+    payload = normalizeKiroPayload(payload, context);
+    if (context.surface === 'cli' && !payload.terminal_tty) {
+      try {
+        const tty = execFileSync('/bin/ps', ['-p', String(context.pid), '-o', 'tty='], { encoding: 'utf8', timeout: 250, stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+        if (/^(?:\/dev\/)?tty[a-z0-9]+$/i.test(tty)) payload.terminal_tty = tty.startsWith('/dev/') ? tty : `/dev/${tty}`;
+      } catch {}
+    }
+  }
   if(source==='grok-build'){
     payload=normalizeGrokPayload(payload,process.env);
     // Do not watch the short-lived hook shell as though it owned the agent.
@@ -275,8 +294,8 @@ async function main() {
   }
   const effectiveSource = resolveHookSource(source, payload);
   const socketPath = getSocketPath(process.env, os.homedir());
-  const response = await sendHook(socketPath, effectiveSource, payload, source === "grok-build" ? 1500 : undefined);
-  if (source !== "grok-build" && response?.type === "hookDirective" && response.directive) {
+  const response = await sendHook(socketPath, effectiveSource, payload, ['kiro', 'grok-build'].includes(source) ? 1500 : undefined);
+  if (!['kiro', 'grok-build'].includes(source) && response?.type === "hookDirective" && response.directive) {
     process.stdout.write(`${JSON.stringify(response.directive)}\n`);
   }
 }
