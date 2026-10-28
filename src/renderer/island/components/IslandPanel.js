@@ -1,3 +1,4 @@
+import { canAllowAlways } from "../../shared/approval-policy.mjs";
 import { r as reactExports, R as React } from "../../vendor/react-runtime.js";
 import { t } from "../../shared/i18n.js";
 import { A as AGENT_TOOL_LABELS, j as isPluginAgentTool, g as getPluginColor, h as getAgentLabel, i as getPluginLabelMap, e as DEFAULT_SHORTCUTS } from "../../shared/settings.js";
@@ -905,7 +906,7 @@ function ApprovalCard({ session }) {
   const rejectHint = formatBinding(shortcuts, "reject");
   const allowAlwaysHint = formatBinding(shortcuts, "allowAlways");
   const isExitPlanMode = req.toolName === "ExitPlanMode";
-  const showAllowAlways = isExitPlanMode || (req.permissionSuggestions?.length ?? 0) > 0;
+  const showAllowAlways = canAllowAlways(session.tool, req);
   const allowAlwaysTooltip = !isExitPlanMode && showAllowAlways ? buildApproveAlwaysTooltip(req) : void 0;
   const mode = req.approvalMode ?? "bridge";
   const isExternal = mode === "terminalNative";
