@@ -15,6 +15,7 @@ function isVisibleInIsland(session) {
     if (session.isSessionEnded) return false;
     if (session.tool === "trae") return Boolean(session.latestUserPrompt);
     if (session.latestUserPrompt) return true;
+    if (session.tool === "kiro" && session.currentActivity) return true;
     return session.tool === "kimi";
   }
   return Boolean(session.isProcessAlive);
