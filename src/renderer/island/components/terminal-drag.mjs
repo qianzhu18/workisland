@@ -1,6 +1,6 @@
 // Capture stays on the source element until release; reparenting occurs in main
 // only after 'end'. All cancellation paths share the same idempotent cleanup.
-export function bindTerminalDrag(element, { send, onActive = () => {}, onError = () => {} }) {
+export function bindTerminalDrag(element, { send, onActive = () => {}, onError = () => {}, blurEvent = 'blur' }) {
   let pointer = null, timer;
   const point = event => event && Number.isFinite(event.screenX) && Number.isFinite(event.screenY) ? { x: event.screenX, y: event.screenY } : undefined;
   const request = (phase, event) => Promise.resolve(send(phase, point(event))).catch(onError);
@@ -26,10 +26,10 @@ export function bindTerminalDrag(element, { send, onActive = () => {}, onError =
   const key = event => { if (event.key === 'Escape' && pointer !== null) { event.preventDefault(); event.stopPropagation(); cancel(); } };
   element.addEventListener('pointerdown', down); window.addEventListener('pointermove', move, true); window.addEventListener('pointerup', up, true);
   element.addEventListener('pointercancel', cancel); element.addEventListener('lostpointercapture', cancel);
-  window.addEventListener('blur', cancel); window.addEventListener('keydown', key, true);
+  window.addEventListener(blurEvent, cancel); window.addEventListener('keydown', key, true);
   return () => {
     cancel(); element.removeEventListener('pointerdown', down); window.removeEventListener('pointermove', move, true); window.removeEventListener('pointerup', up, true);
     element.removeEventListener('pointercancel', cancel); element.removeEventListener('lostpointercapture', cancel);
-    window.removeEventListener('blur', cancel); window.removeEventListener('keydown', key, true);
+    window.removeEventListener(blurEvent, cancel); window.removeEventListener('keydown', key, true);
   };
 }

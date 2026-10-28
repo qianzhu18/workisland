@@ -18,3 +18,15 @@ test('captured native drag handles move events without button flags and releases
     assert.deepEqual(sent.slice(-2).map(s => s.phase), ['begin', 'cancel']);
   } finally { cleanup(); global.window = previous; }
 });
+
+test('Island drag ignores child-view DOM blur and cancels on actual native window blur', () => {
+  const previous = global.window; global.window = new EventTarget();
+  const element = new EventTarget(), sent = []; let captured = false;
+  element.setPointerCapture = () => { captured = true; }; element.hasPointerCapture = () => captured; element.releasePointerCapture = () => { captured = false; };
+  const cleanup = bindTerminalDrag(element, { blurEvent: 'workisland-window-blur', send: phase => sent.push(phase) });
+  try {
+    const down = new Event('pointerdown'); Object.assign(down, { button: 0, pointerId: 1 }); element.dispatchEvent(down);
+    window.dispatchEvent(new Event('blur')); assert.deepEqual(sent, ['begin']);
+    window.dispatchEvent(new Event('workisland-window-blur')); assert.deepEqual(sent, ['begin', 'cancel']);
+  } finally { cleanup(); global.window = previous; }
+});

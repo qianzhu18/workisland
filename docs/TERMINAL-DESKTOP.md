@@ -1,4 +1,4 @@
-# 桌面终端模式（开发中）
+# 桌面终端模式（待验收）
 
 WorkIsland 创建的终端可以留在灵动岛中，也可以各自在桌面窗口运行。两处使用同一个 Shell 和终端视图，移动时不会重新执行命令。
 
@@ -14,3 +14,5 @@ WorkIsland 创建的终端可以留在灵动岛中，也可以各自在桌面窗
 终端视图在第一次打开时创建，未访问的终端不会预先创建页面。每个已打开的终端保有独立渲染进程，以保留输入、滚动、选区和 TUI 状态，多个终端会增加内存。关闭不再使用的终端会释放相应页面和任务。
 
 开发设计与验证：[PRD-014](product/prd/PRD-014-TERMINAL-DESKTOP-DOCKING.md)、[设计](superpowers/specs/2026-10-27-terminal-desktop-docking-design.md)、[实施计划](superpowers/plans/2026-10-27-terminal-desktop-docking.md)。公开安装包是否包含本功能，以正式版本日志为准。
+
+本轮检查与设备覆盖范围：[验证记录](validation/2026-10-28-terminal-desktop-docking.md)。

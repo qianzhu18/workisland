@@ -167,3 +167,11 @@ test('dragging out places the new host at the captured drop point instead of the
   assert.equal(f.children[0].killed, undefined);
   f.controller.dispose(); f.service.dispose();
 });
+
+test('a late layout cannot focus the child view during an Island grab gesture', async () => {
+  const f = setup(), id = f.service.create().id; f.island.webContents = new Contents();
+  const opening = f.controller.show(id, bounds, { focus: true });
+  f.controller.drag(f.island.webContents, { id, phase: 'begin' }); await opening;
+  assert.notEqual(f.views[0].webContents.focused, true);
+  f.controller.dispose(); f.service.dispose();
+});

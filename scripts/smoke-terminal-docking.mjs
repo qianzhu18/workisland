@@ -16,7 +16,7 @@ const click=async selector=>{await until(()=>island.evaluate(`!!document.querySe
 async function expand(){await island.call('Page.bringToFront');if(await island.evaluate("document.querySelector('.island-panel-layer').classList.contains('is-hidden')"))await click('.pill');await wait(120);}
 async function open(id){await expand();if(await island.evaluate("document.querySelector('.terminal-panel').classList.contains('is-hidden')"))await click('[data-tool-id=terminal] button');if(await island.evaluate("!!document.querySelector('.terminal-back')"))await click('.terminal-back');await click(`[data-session-id="${id}"] .terminal-session-open`);await until(()=>island.evaluate(`(()=>{const h=document.querySelector('.terminal-native-host[data-native-visible="true"]');return h?.dataset.terminalId===${JSON.stringify(id)}&&h.getBoundingClientRect().height>0})()`),'selected terminal visible');return until(()=>frames.get(id),'native frame');}
 const press=async(f,key,text)=>{await f.call('Input.dispatchKeyEvent',{type:'keyDown',key,code:key,windowsVirtualKeyCode:key==='Enter'?13:0,...(text?{text}:{})});await f.call('Input.dispatchKeyEvent',{type:'keyUp',key,code:key});};
-async function type(id,text,submit=true){const f=await frames.get(id);await f.evaluate("document.querySelector('.xterm-helper-textarea').focus();true");await f.call('Input.insertText',{text});if(submit)await press(f,'Enter','\r');}
+async function type(id,text,submit=true){const f=await until(async()=>{const frame=await frames.get(id);return frame&&await frame.evaluate("!!document.querySelector('.xterm-helper-textarea')")&&frame;},'ready xterm');await f.evaluate("document.querySelector('.xterm-helper-textarea').focus();true");await f.call('Input.insertText',{text});if(submit)await press(f,'Enter','\r');}
 const hasOutput=(id,marker)=>until(async()=> (await state(id)).recentOutput.includes(marker),marker);
 const terminalExpr=expression=>`import('./terminal.js').then(({terminal:t})=>(${expression}))`;
 const wcInfo=id=>main.evaluate(`(async()=>{const e=process.mainModule.require('electron');for(const w of e.webContents.getAllWebContents().filter(w=>w.getURL().endsWith('/terminal.html'))){if((await w.executeJavaScript('window.terminalBridge?.identity'))?.id===${JSON.stringify(id)})return {id:w.id,pid:w.getOSProcessId(),focused:w.isFocused()};}return null;})()`);
@@ -28,14 +28,14 @@ async function dock(id) {
 const desktopOrigin=id=>main.evaluate(`(async()=>{const e=process.mainModule.require('electron');for(const w of e.BaseWindow.getAllWindows()){for(const v of w.contentView.children){if(v.webContents?.getURL().endsWith('/terminal.html')&&(await v.webContents.executeJavaScript('terminalBridge.identity.id'))===${JSON.stringify(id)})return w.getContentBounds();}}})()`);
 async function pointer(client,type,x,y,buttons) { await client.call('Input.dispatchMouseEvent',{type,x,y,button:'left',buttons,clickCount:1}); }
 async function dragOut(id) {
-  await open(id);
+  await open(id); await wait(250);
   const start=await island.evaluate("(()=>{const r=document.querySelector('.terminal-drag-handle').getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()");
   await pointer(island,'mousePressed',start.x,start.y,1);
   await pointer(island,'mouseMoved',785,400,1); await pointer(island,'mouseReleased',785,400,0);
   await until(async()=> (await state(id)).location==='desktop','pointer drag out');
 }
 async function dragBack(id) {
-  const f=await frames.get(id), origin=await desktopOrigin(id);
+  const f=await frames.get(id); await api('focusTerminalWindow',id); await until(()=>f.evaluate("document.documentElement.dataset.location==='desktop'&&document.querySelector('#drag').getBoundingClientRect().height>0"),'desktop grab handle visible'); await wait(250); const origin=await desktopOrigin(id);
   const start=await f.evaluate("(()=>{const r=document.querySelector('#drag').getBoundingClientRect();return {x:r.x+50,y:r.y+r.height/2}})()");
   const target=await island.evaluate("(()=>{const r=document.querySelector(document.querySelector('.island-panel-layer').classList.contains('is-hidden')?'.pill':'.island-panel-layer').getBoundingClientRect();return {x:r.x+25,y:r.y+Math.min(20,r.height/2)}})()");
   const islandOrigin=await main.evaluate("process.mainModule.require('electron').BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().endsWith('/island.html')).getContentBounds()");

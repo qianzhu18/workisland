@@ -1,12 +1,12 @@
 # PRD-014：可收放的桌面终端
 
-状态：`in progress`
+状态：`implemented — awaiting user acceptance`
 
 Owner：WorkIsland maintainers
 
 目标版本：下一次功能迭代，未发布
 
-跟踪：[Issue #202](https://github.com/qianzhu18/workisland/issues/202)
+跟踪：[Issue #202](https://github.com/qianzhu18/workisland/issues/202)、[PR #203](https://github.com/qianzhu18/workisland/pull/203)
 
 依赖：[PR #201](https://github.com/qianzhu18/workisland/pull/201)、[PRD-013](./PRD-013-MULTI-TERMINAL-MANAGER.md)
 
@@ -31,3 +31,5 @@ Owner：WorkIsland maintainers
 按[设计](../../superpowers/specs/2026-10-27-terminal-desktop-docking-design.md)与[实施计划](../../superpowers/plans/2026-10-27-terminal-desktop-docking.md)推进：持久视图与生命周期、最小 IPC 与独立页面、拖拽和焦点、真实包验证与文档。GitHub issue 和 PR 负责最终进度与验证状态。
 
 合并前需要 source/native/Windows 检查、真实 macOS UI 证据及明确未覆盖设备项。此轮交付源码、隔离签名预览和 PR，不替换正式安装或公开发布。后续发布按现有版本 PRD、签名、公证及更新校验流程；回滚恢复 PR #201 的岛内终端方式。
+
+本地实现与签名预览已完成，验证记录见 [2026-10-28 验证](../../validation/2026-10-28-terminal-desktop-docking.md)。用户检查通过后再合并，未发布。

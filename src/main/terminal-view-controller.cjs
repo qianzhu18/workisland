@@ -65,7 +65,7 @@ class TerminalViewController {
     if (!record || !this.current(record) || this.islandRequest?.ticket !== ticket || this.service.activeId !== id || record.host === 'desktop') return false;
     for (const other of this.records.values()) if (other !== record && other.host === 'island') other.view.setVisible(false);
     this.transfer(record, island); record.bounds = rect; record.viewport = { width: rect.width, height: rect.height }; record.view.setBounds(rect); this.push(record); record.view.setVisible(true);
-    if (focus) record.view.webContents.focus();
+    if (focus && !this.dragState) record.view.webContents.focus();
     return this.service.snapshot(id, false);
   }
   hide(id) {
