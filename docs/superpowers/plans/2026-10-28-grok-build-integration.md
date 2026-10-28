@@ -10,7 +10,8 @@
 - [x] Implement adapter/payload, installer/manager and bounded observer transport. Drop compatibility wrappers under a proven Grok hook environment.
 - [x] Wire default-off catalog, registry, settings and source jump metadata; test actual UI/runtime.
 - [x] Validate generated command with a real bridge and offline/deadline behavior; verify native released parser/hooks if available without installing on PATH.
-- [ ] Run full checks and CI, document Bot scope and remaining acceptance, push independent branch and draft PR. No installed-app update or merge.
+- [x] Run full local checks, document Bot scope and remaining acceptance, push independent branch and draft PR. No installed-app update or merge.
+- [ ] Final-head cross-platform CI and user acceptance (tracked in PR).
 
 ## Local validation
 
