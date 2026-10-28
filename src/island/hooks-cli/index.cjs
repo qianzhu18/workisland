@@ -5,6 +5,7 @@ const net = require("node:net");
 const os = require("node:os");
 const path = require("node:path");
 const { execFileSync } = require("node:child_process");
+const {normalizeGrokPayload,isGrokCompatibilityInvocation,findGrokProcess} = require("../../main/grok-build-payload.cjs");
 const { getSocketPath } = require("../../main/bridge-protocol.cjs");
 
 const TERMINAL_APP_ALIASES = Object.freeze({
@@ -209,12 +210,15 @@ function resolveHookSource(source, payload) {
   return source;
 }
 
-function sendHook(socketPath, source, payload) {
+function sendHook(socketPath, source, payload, timeoutMs) {
   return new Promise((resolve, reject) => {
     const socket = net.createConnection(socketPath);
+    const deadline = timeoutMs ? setTimeout(() => {socket.destroy(); reject(new Error("hook transport timeout"));},timeoutMs) : null;
+    const clearDeadline = () => clearTimeout(deadline);
     let buffer = "";
     let commandSent = false;
     const finish = (value) => {
+      clearDeadline();
       socket.end();
       resolve(value);
     };
@@ -242,9 +246,11 @@ function sendHook(socketPath, source, payload) {
         if (message.type === "response") finish(message.response);
       }
     });
-    socket.on("error", reject);
+    socket.on("error", error => {clearDeadline(); reject(error);});
     socket.on("close", () => {
+      clearDeadline();
       if (!commandSent) reject(new Error("bridge closed before handshake"));
+      else if(timeoutMs) reject(new Error("bridge closed before response"));
     });
   });
 }
@@ -254,11 +260,23 @@ async function main() {
   if (!source) throw new Error("missing --source");
   const eventName = readArg("--event");
   const raw = await readStdin();
-  const payload = enrichPayload(raw.trim() ? JSON.parse(raw) : {}, eventName);
+  const input = raw.trim() ? JSON.parse(raw) : {};
+  if(isGrokCompatibilityInvocation(source,input,process.env))return;
+  let payload = enrichPayload(input,eventName);
+  if(source==='grok-build'){
+    payload=normalizeGrokPayload(payload,process.env);
+    // Do not watch the short-lived hook shell as though it owned the agent.
+    delete payload.pid;
+    if(process.platform!=='win32')try{
+      const context=findGrokProcess(execFileSync('/bin/ps',['-Ao','pid=,ppid=,tty=,comm='],{encoding:'utf8',timeout:500,stdio:['ignore','pipe','ignore']}),process.ppid);
+      if(context.pid)payload.pid=context.pid;
+      if(context.tty&&!payload.terminal_tty)payload.terminal_tty=context.tty;
+    }catch{}
+  }
   const effectiveSource = resolveHookSource(source, payload);
   const socketPath = getSocketPath(process.env, os.homedir());
-  const response = await sendHook(socketPath, effectiveSource, payload);
-  if (response?.type === "hookDirective" && response.directive) {
+  const response = await sendHook(socketPath, effectiveSource, payload, source === "grok-build" ? 1500 : undefined);
+  if (source !== "grok-build" && response?.type === "hookDirective" && response.directive) {
     process.stdout.write(`${JSON.stringify(response.directive)}\n`);
   }
 }

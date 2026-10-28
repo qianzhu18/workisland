@@ -57,6 +57,9 @@ const CORE_AGENT_DESCRIPTORS = Object.freeze([
   }),
   descriptor("traex", "TRAE CLI", "#626EE3", "TRAE CLI Hook，支持会话、工具和 Island 审批；不监控 Trae 桌面端会话。", {
     completion: "native", approval: "bridge", question: "observe", jump: "workspace", approvalConfigurable: true
+  }),
+  descriptor("grok-build", "Grok Build", "#D5D8DF", "Grok Build CLI 原生生命周期 Hook，支持状态、工具活动、完成/失败/取消及原生审批等待提示；审批仍在终端确认。此项不代表云端 Grok Bot 接入。", {
+    completion: "native", approval: "observe", question: "nativeOnly", jump: "app"
   })
 ]);
 

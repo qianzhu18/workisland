@@ -17,3 +17,5 @@ This directory is the GitHub-reviewable source for active product, engineering, 
 2. Each external pre-release or stable release has one version PRD and one 24-hour / 7-day review record.
 3. A code change that changes user behavior, privacy, architecture, or release operation updates its linked documentation in the same pull request.
 4. Local notes can support discovery, but they are not an approval record until their relevant decision is moved here and reviewed in GitHub.
+
+- [Grok Build 接入与 Bot 边界](GROK-BUILD.md)

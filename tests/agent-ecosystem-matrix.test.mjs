@@ -45,6 +45,7 @@ for (const [agentId, adapter] of Object.entries({
   hermes: require("../src/main/adapters-extended.cjs").HermesAdapter,
   aiden: require("../src/main/adapters-extended.cjs").AidenAdapter,
   dsh: require("../src/main/adapters-dsh.cjs").DeepSeekHarnessAdapter,
+  "grok-build": require("../src/main/adapters-grok-build.cjs").GrokBuildAdapter,
   traex: require("../src/main/adapters-extended.cjs").TraexCliAdapter
 })) adapterRegistry.set(agentId, new adapter());
 const { hasTraexSourceMarker } = require("../src/main/hooks-extended.cjs");
@@ -52,6 +53,7 @@ const { AGENT_PLUGINS } = require("../src/main/agent-registry.cjs");
 Module._load = originalLoad;
 
 const scenarios = {
+  "grok-build": { hook_event_name: "UserPromptSubmit", prompt: "matrix test" },
   claude: { hook_event_name: "UserPromptSubmit", prompt: "matrix test" },
   codex: { hook_event_name: "UserPromptSubmit", prompt: "matrix test", transcript_path: "/tmp/missing-transcript" },
   coco: { event_type: "user_prompt_submit", user_prompt_submit: { prompt: "matrix test" } },

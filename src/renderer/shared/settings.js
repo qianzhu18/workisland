@@ -21,6 +21,7 @@ function getPluginLabelMap() {
   return labelMap;
 }
 const AGENT_TOOL_LABELS = {
+  "grok-build": "Grok Build",
   claude: "Claude Code",
   codex: "Codex",
   coco: "TRAE CLI",
@@ -59,6 +60,7 @@ function clampPanelMaxHeightPx(value) {
   );
 }
 const DEFAULT_HOOK_TOGGLES = {
+  "grok-build": false,
   claude: true,
   codex: true,
   coco: true,

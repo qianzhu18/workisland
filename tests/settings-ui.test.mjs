@@ -184,7 +184,7 @@ test("current TraeCode Hooks are offered without advertising unsupported TraeWor
   assert.doesNotMatch(catalogSource, /descriptor\("trae-cn",/);
   assert.doesNotMatch(catalogSource, /descriptor\("traework",/);
   assert.doesNotMatch(source, /traework:/);
-  assert.match(source, /VERIFY_ON_REAL_EVENT_AGENT_IDS = new Set\(\["dsh", "trae", "qoder", "dumate"\]\)/);
+  assert.match(source, /VERIFY_ON_REAL_EVENT_AGENT_IDS = new Set\(\["dsh", "trae", "qoder", "dumate", "grok-build"\]\)/);
   assert.match(coordinatorSource, /\["trae", new TraeHookManager\(\)\]/);
   assert.doesNotMatch(coordinatorSource, /\["traework", new TraeWorkHookManager\(\)\]/);
   assert.match(coordinatorSource, /manager\.uninstall\(\{ preserveVerification: true \}\)/);
