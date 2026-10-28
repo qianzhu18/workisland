@@ -67,7 +67,7 @@ class KiroHookStore {
       if (!hook || !hook.enabled) issues.push(`Hook not registered: ${event}`);
       else if (hook.trigger !== event || hook.action?.command !== this.command || hook.action?.type !== 'command' || hook.timeout !== 5) issues.push(`Stale hook command: ${event}`);
     }
-    return { agentId: 'kiro', installed: issues.length === 0, issues, manifestPath: this.manifestPath, lastVerifiedAt: manifest?.lastVerifiedAt, lastEventAt: manifest?.lastVerifiedAt, lastEventType: manifest?.lastEventType, notes: ['IDE 1.x / CLI V3: global hooks. Classic CLI: --agent workisland-status. Native approvals remain in Kiro.'] };
+    return { agentId: 'kiro', installed: issues.length === 0, connectionState: issues.length ? 'disconnected' : manifest?.lastVerifiedAt ? 'verified' : 'configured', issues, manifestPath: this.manifestPath, lastVerifiedAt: manifest?.lastVerifiedAt, lastEventAt: manifest?.lastVerifiedAt, lastEventType: manifest?.lastEventType, notes: ['IDE 1.x / CLI V3: global hooks. Classic CLI: --agent workisland-status. Native approvals remain in Kiro.'] };
   }
   async recordObservedEvent(event) {
     if (!event?.sessionId || !['sessionStarted','activityUpdated','toolUseStarted','sessionCompleted'].includes(event.type)) return;

@@ -11,10 +11,12 @@
 - [x] Add Kiro payload enrichment to `src/island/hooks-cli/index.cjs` using bounded existing process inspection; recognize Kiro IDE host and stable CLI ancestry. Test that unrelated processes cannot supply identity.
 - [x] Wire catalog, default-off hook toggle, adapter registry, manager, UI brand and navigation. Keep approvals native.
 - [x] Validate generated profile with installed CLI, exercise the actual generated command through an isolated bridge, run full checks. Record actual model-turn limitations.
-- [ ] Update docs/changelog, commit/push branch and open a reviewable PR; verify CI. No automatic merge or installed-app replacement.
+- [x] Update docs/changelog, commit/push branch and open a reviewable PR; verify CI. No automatic merge or installed-app replacement.
 
 ## Local evidence (2026-10-28)
 
 `npm run check`: 748 passed. `node scripts/smoke-kiro-hooks.mjs`: generated command, actual local bridge, lifecycle/routing, classic/V3 duplicate suppression, disable/offline/hung-bridge handling passed. Installed `kiro-cli agent validate` accepted the generated helper profile. Isolated Kiro V3 actual model turn returned the requested synthetic text and emitted prompt/Stop events with one native session ID. Actual Electron settings preview displayed the Kiro card and bundled logo. IDE 1.4.51 global v1 loading verified against its installed JS; IDE model-turn verification remains pending.
 
 Local evidence lives in `.local-data/kiro/` and `kiro-*.log`; no user config or installed app was modified.
+
+Tracking: [Issue #204](https://github.com/qianzhu18/workisland/issues/204), [draft PR #205](https://github.com/qianzhu18/workisland/pull/205). Electron runtime installation state changed from configured to verified after a synthetic valid event; native IDE task acceptance remains open. CI results are shown on the PR.

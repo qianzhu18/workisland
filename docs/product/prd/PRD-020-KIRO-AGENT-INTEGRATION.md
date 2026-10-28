@@ -3,7 +3,7 @@
 状态：`implemented — IDE native-turn acceptance pending`
 Owner：WorkIsland maintainers
 目标版本：下一次功能迭代，未发布
-跟踪：[Issue #204](https://github.com/qianzhu18/workisland/issues/204)
+跟踪：[Issue #204](https://github.com/qianzhu18/workisland/issues/204)、[PR #205](https://github.com/qianzhu18/workisland/pull/205)
 
 ## 用户问题与目标
 
@@ -20,6 +20,6 @@ Owner：WorkIsland maintainers
 
 [设计](../../superpowers/specs/2026-10-28-kiro-agent-integration-design.md)与[计划](../../superpowers/plans/2026-10-28-kiro-agent-integration.md)记录模块和测试。用户手册见 [Kiro 接入](../../KIRO.md)。
 
-748 项本地检查通过；生成命令经真实 Unix bridge 的合成生命周期测试通过，覆盖来源跳转、禁用、离线及无响应退出。Kiro CLI 2.35.1 已通过 profile 格式校验；隔离配置下 V3 实际模型任务成功，收到原生 session ID 及 prompt/Stop 对应事件。本机 IDE 1.4.51 的新格式全局加载链和工作区信任分支已静态核对，WorkIsland 设置页入口已通过实际 Electron 预览检查。
+748 项本地检查通过；生成命令经真实 Unix bridge 的合成生命周期测试通过，覆盖来源跳转、禁用、离线及无响应退出。Kiro CLI 2.35.1 已通过 profile 格式校验；隔离配置下 V3 实际模型任务成功，收到原生 session ID 及 prompt/Stop 对应事件。本机 IDE 1.4.51 的新格式全局加载链和工作区信任分支已静态核对，WorkIsland 设置页入口及配置后待事件、收到有效事件后已验证的状态切换，已通过实际 Electron 预览的合成事件检查。
 
 IDE 原生对话和真实工具审批仍需验收；没有声称已在 IDE 中收到完整任务事件，也没有声称提供 Island 审批。此轮只交付分支/PR，没有改用户真实 Kiro 配置、默认引擎或安装中的 WorkIsland，不自动合并发布。
