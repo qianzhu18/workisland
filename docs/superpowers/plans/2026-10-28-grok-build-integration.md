@@ -18,4 +18,4 @@
 - Generated command/real bridge smoke passed, including two sessions, native approval observation, compatibility suppression and offline/hung fail-open.
 - Official Grok Build 1.0.70 (f50904eaee6c), isolated HOME/GROK_HOME and local mock model: actual CLI prompt, completion and session end received. No Grok cloud-model claim.
 - Source Electron settings UI: configured-to-verified transition checked with a synthetic event. No installed-app update.
-- Tracking issue: https://github.com/qianzhu18/workisland/issues/206. CI and draft PR pending.
+- Tracking issue: https://github.com/qianzhu18/workisland/issues/206. Draft PR: https://github.com/qianzhu18/workisland/pull/207. Final-head CI pending.

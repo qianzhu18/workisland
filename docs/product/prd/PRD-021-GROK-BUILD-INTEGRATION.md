@@ -1,7 +1,7 @@
 # PRD-021: Grok Build 生命周期接入
 
 - Issue: https://github.com/qianzhu18/workisland/issues/206
-- Pull Request: pending
+- Pull Request: https://github.com/qianzhu18/workisland/pull/207
 - 状态：实现与本地验证完成，等待独立 PR 检查；不合并、不更新用户安装版本。
 
 ## 问题与目标
