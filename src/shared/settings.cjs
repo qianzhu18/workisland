@@ -3,6 +3,7 @@
 const ISLAND_PANEL_MAX_HEIGHT_DEFAULT_PX = 540;
 
 const DEFAULT_HOOK_TOGGLES = {
+  "grok-build": false,
   claude: true,
   codex: true,
   coco: true,
