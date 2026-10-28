@@ -50,6 +50,7 @@ const { createSessionSearchService } = require("./session-search-service.cjs");
 const { scanSshConfig, formatSshTarget } = require("./ssh-config.cjs");
 const crypto = require("node:crypto");
 const { TerminalService } = require("./terminal-service.cjs");
+const { ExternalTerminalService } = require("./external-terminal-service.cjs");
 const { resolveRecentProjectCwd, resolveTerminalCommand } = require("../shared/terminal-state.cjs");
 const { listCodexPets } = require("./codex-pet.cjs");
 const { LocalControlAudit } = require("./local-control-audit.cjs");
@@ -150,6 +151,7 @@ function createAppCoordinatorClass({
     shelfService;
     clipboardHistoryService;
     terminalService;
+    externalTerminalService;
     processMonitor;
     localControlService;
     localControlAudit;
@@ -278,6 +280,7 @@ function createAppCoordinatorClass({
         clipboardAdapter: createElectronClipboardAdapter()
       });
       this.terminalService = new TerminalService();
+      this.externalTerminalService = new ExternalTerminalService();
       this.mediaService.setEnabled(this.settings.mediaEnabled !== false);
       this.lyricsService.setEnabled(this.settings.mediaEnabled !== false && this.settings.lyricsEnabled === true);
       this.performanceService.enabled = this.settings.performanceEnabled !== false;
@@ -1757,7 +1760,11 @@ function createAppCoordinatorClass({
     favoriteClipboardEntry(id, favorite) { return this.clipboardHistoryService.favorite(id, favorite); }
     removeClipboardEntries(ids) { return this.clipboardHistoryService.remove(ids); }
     clearClipboardHistory() { return this.clipboardHistoryService.clear(); }
-    getTerminalState() { return this.terminalService.snapshot(); }
+    getTerminalState(id) { return this.terminalService.snapshot(id); }
+    getExternalTerminalState() { return { ...this.externalTerminalService.snapshot(), available: process.platform === "darwin" && this.settings.terminalEnabled !== false }; }
+    refreshExternalTerminals() { return this.settings.terminalEnabled === false ? this.getExternalTerminalState() : this.externalTerminalService.refresh(); }
+    focusExternalTerminal(id) { return this.settings.terminalEnabled === false ? { ok: false, reason: "host-unavailable", state: this.getExternalTerminalState() } : this.externalTerminalService.focus(id); }
+    closeExternalTerminal(id) { return this.settings.terminalEnabled === false ? { ok: false, reason: "host-unavailable", state: this.getExternalTerminalState() } : this.externalTerminalService.close(id); }
     getTerminalLaunchOptions(options = {}) {
       return {
         projectCwd: resolveRecentProjectCwd(this.state.sessions.values(), fs.existsSync),
@@ -1770,15 +1777,21 @@ function createAppCoordinatorClass({
     startTerminal(options = {}) {
       return this.terminalService.start(this.getTerminalLaunchOptions(options));
     }
-    sendTerminalInput(data) { return this.terminalService.input(data); }
-    resizeTerminal(size) { return this.terminalService.resize(size); }
-    restartTerminal(options = {}) { return this.terminalService.restart(this.getTerminalLaunchOptions(options)); }
-    stopTerminal() { this.terminalService.stop(); return this.terminalService.snapshot(); }
+    createTerminal(options = {}) { return this.terminalService.create(this.getTerminalLaunchOptions(options)); }
+    selectTerminal(id) { return this.terminalService.select(id); }
+    closeTerminal(id) { return this.terminalService.close(id); }
+    renameTerminal(id, name) { return this.terminalService.rename(id, name); }
+    sendTerminalInput(data, id) { return this.terminalService.input(data, id); }
+    resizeTerminal(size) { return this.terminalService.resize(size, size?.id); }
+    restartTerminal(options = {}) { return this.terminalService.restart(this.getTerminalLaunchOptions(options), options.id); }
+    stopTerminal(id) { return this.terminalService.stop(id); }
     runSavedTerminalCommand(id) {
       const command = resolveTerminalCommand(id, this.settings.terminalSavedCommands);
       if (!command) return false;
-      this.startTerminal({ cwdMode: command.cwdMode });
-      return this.terminalService.input(`${command.command}\r`);
+      const terminal = this.createTerminal({ cwdMode: command.cwdMode, name: command.name });
+      if (!terminal) return false;
+      this.terminalService.input(`${command.command}\r`, terminal.id);
+      return terminal;
     }
     broadcastWorkstationState(channel, state) {
       if (!this.islandWindow || this.islandWindow.isDestroyed()) return;

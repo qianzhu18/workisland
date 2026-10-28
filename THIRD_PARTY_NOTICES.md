@@ -11,6 +11,13 @@ Source: https://github.com/ungive/mediaremote-adapter
 
 ## Renderer libraries
 
+The embedded terminal uses node-pty 1.1.0, xterm.js 6.0.0, and its official
+FitAddon 0.11.0 (MIT). Copyright Microsoft Corporation, The xterm.js authors,
+and their contributors. Their complete licenses ship in the corresponding
+`node_modules/node-pty`, `node_modules/@xterm/xterm`, and
+`node_modules/@xterm/addon-fit` package directories. FitAddon measures the
+terminal viewport without WorkIsland accessing private xterm internals.
+
 WorkIsland includes browser-ready copies of the following open-source libraries under
 `src/renderer/vendor/`:
 

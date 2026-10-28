@@ -4,11 +4,13 @@ const { EventEmitter } = require("node:events");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
+const { randomUUID } = require("node:crypto");
 const { normalizeTerminalSize, resolveTerminalCwd } = require("../shared/terminal-state.cjs");
 
 const MAX_TERMINAL_INPUT = 64 * 1024;
 const MAX_OUTPUT_CHUNK = 128 * 1024;
 const MAX_RETAINED_OUTPUT = 512 * 1024;
+const MAX_TERMINALS = 24;
 
 function defaultSpawnPty(shell, args, options) {
   return require("node-pty").spawn(shell, args, options);
@@ -34,7 +36,7 @@ function resolveTerminalShell({ platform = process.platform, requestedShell = ""
 }
 
 class TerminalService extends EventEmitter {
-  constructor({ spawnPty = defaultSpawnPty, homeDir = os.homedir(), pathExists = fs.existsSync, env = process.env, platform = process.platform } = {}) {
+  constructor({ spawnPty = defaultSpawnPty, homeDir = os.homedir(), pathExists = fs.existsSync, env = process.env, platform = process.platform, maxSessions = MAX_TERMINALS } = {}) {
     super();
     this.spawnPty = spawnPty;
     this.homeDir = homeDir;
@@ -43,14 +45,31 @@ class TerminalService extends EventEmitter {
     this.platform = platform;
     this.enabled = true;
     this.panelVisible = false;
-    this.pty = null;
-    this.status = { running: false, cwd: "", shell: "", exitCode: null };
-    this.outputBuffer = "";
+    this.sessions = new Map();
+    this.activeId = null;
+    this.ordinal = 0;
+    this.revision = 0;
+    this.maxSessions = maxSessions;
   }
 
-  start({ cwd = "", projectCwd = "", customCwd = "", cwdMode = "agent-project", shell = "" } = {}) {
-    if (!this.enabled) return this.snapshot();
-    if (this.pty) return this.snapshot();
+  start(options = {}) {
+    return this.activeId ? this.snapshot() : this.create(options);
+  }
+
+  create(options = {}) {
+    if (!this.enabled) return false;
+    if (this.sessions.size >= this.maxSessions) throw Object.assign(new Error("Terminal limit reached"), { code: "TERMINAL_LIMIT" });
+    const entry = { id: randomUUID(), ordinal: ++this.ordinal, name: this.cleanName(options.name), createdAt: Date.now(), pty: null,
+      outputBuffer: "", sequence: 0, generation: 0, status: { running: false, cwd: "", shell: "", exitCode: null } };
+    this.sessions.set(entry.id, entry);
+    try { this.spawnEntry(entry, options); }
+    catch (error) { this.sessions.delete(entry.id); throw error; }
+    this.activeId = entry.id;
+    this.publish();
+    return this.snapshot();
+  }
+
+  spawnEntry(entry, { cwd = "", projectCwd = "", customCwd = "", cwdMode = "agent-project", shell = "" } = {}) {
     const resolvedCwd = cwd && this.pathExists(cwd)
       ? cwd
       : resolveTerminalCwd({ projectCwd, customCwd, homeDir: this.homeDir, mode: cwdMode, pathExists: this.pathExists });
@@ -62,58 +81,112 @@ class TerminalService extends EventEmitter {
       cwd: resolvedCwd,
       env: { ...this.env, TERM: "xterm-256color" }
     });
-    this.pty = child;
-    this.outputBuffer = "";
-    this.status = { running: true, cwd: resolvedCwd, shell: resolved.shell, exitCode: null };
+    entry.pty = child;
+    entry.outputBuffer = "";
+    entry.sequence = 0;
+    entry.generation++;
+    entry.status = { running: true, cwd: resolvedCwd, shell: resolved.shell, exitCode: null };
     child.onData?.((data) => {
-      const chunk = String(data).slice(0, MAX_OUTPUT_CHUNK);
-      this.outputBuffer = `${this.outputBuffer}${chunk}`.slice(-MAX_RETAINED_OUTPUT);
-      this.emit("data", chunk);
+      if (this.sessions.get(entry.id) !== entry || entry.pty !== child) return;
+      const text = String(data);
+      // Transport all output, including large AI responses; only retained history
+      // is truncated. Avoid splitting a UTF-16 surrogate pair between frames.
+      for (let offset = 0; offset < text.length;) {
+        let end = Math.min(text.length, offset + MAX_OUTPUT_CHUNK);
+        if (end < text.length && /[\uD800-\uDBFF]/.test(text[end - 1])) end--;
+        const chunk = text.slice(offset, end);
+        entry.outputBuffer = `${entry.outputBuffer}${chunk}`.slice(-MAX_RETAINED_OUTPUT);
+        this.emit("data", { id: entry.id, generation: entry.generation, data: chunk, sequence: ++entry.sequence });
+        offset = end;
+      }
     });
     child.onExit?.(({ exitCode } = {}) => {
-      if (this.pty !== child) return;
-      this.pty = null;
-      this.status = { ...this.status, running: false, exitCode: Number.isInteger(exitCode) ? exitCode : null };
-      this.emit("status", this.snapshot());
+      if (this.sessions.get(entry.id) !== entry || entry.pty !== child) return;
+      entry.pty = null;
+      entry.status = { ...entry.status, running: false, exitCode: Number.isInteger(exitCode) ? exitCode : null };
+      this.publish();
     });
-    this.emit("status", this.snapshot());
+  }
+
+  input(value, id = this.activeId) {
+    const child = this.sessions.get(id)?.pty;
+    if (!child || typeof value !== "string" || value.length === 0 || Buffer.byteLength(value) > MAX_TERMINAL_INPUT) return false;
+    child.write(value);
+    return true;
+  }
+
+  resize(size, id = this.activeId) {
+    const child = this.sessions.get(id)?.pty;
+    const normalized = normalizeTerminalSize(size);
+    if (!child || !normalized) return false;
+    child.resize(normalized.cols, normalized.rows);
+    return true;
+  }
+
+  stop(id = this.activeId) {
+    const entry = this.sessions.get(id);
+    if (!entry) return false;
+    entry.pty?.kill();
+    entry.pty = null;
+    entry.status = { ...entry.status, running: false };
+    this.publish();
     return this.snapshot();
   }
 
-  input(value) {
-    if (!this.pty || typeof value !== "string" || value.length === 0 || Buffer.byteLength(value) > MAX_TERMINAL_INPUT) return false;
-    this.pty.write(value);
-    return true;
+  restart(options = {}, id = this.activeId) {
+    if (!id) return this.create(options);
+    const entry = this.sessions.get(id);
+    if (!entry || !this.enabled) return false;
+    this.stop(id);
+    this.spawnEntry(entry, { cwd: entry.status.cwd, ...options });
+    this.activeId = id;
+    this.publish();
+    return this.snapshot();
   }
 
-  resize(size) {
-    const normalized = normalizeTerminalSize(size);
-    if (!this.pty || !normalized) return false;
-    this.pty.resize(normalized.cols, normalized.rows);
-    return true;
+  select(id) {
+    if (!this.sessions.has(id)) return false;
+    this.activeId = id;
+    this.publish();
+    return this.snapshot();
   }
 
-  stop() {
-    const child = this.pty;
-    this.pty = null;
-    if (child) child.kill();
-    this.status = { ...this.status, running: false };
-    this.emit("status", this.snapshot());
+  close(id) {
+    if (!this.sessions.has(id)) return false;
+    this.stop(id);
+    this.sessions.delete(id);
+    if (this.activeId === id) this.activeId = [...this.sessions.keys()].at(-1) ?? null;
+    this.publish();
+    return this.snapshot();
   }
 
-  restart(options = {}) {
-    this.stop();
-    return this.start(options);
+  cleanName(value) { return typeof value === "string" ? value.replace(/[\x00-\x1f\x7f]/g, "").trim().slice(0, 80) : ""; }
+  rename(id, name) {
+    const entry = this.sessions.get(id);
+    const normalized = this.cleanName(name);
+    if (!entry || !normalized) return false;
+    entry.name = normalized;
+    this.publish();
+    return this.snapshot();
   }
 
   setEnabled(enabled) {
     this.enabled = Boolean(enabled);
-    if (!this.enabled) this.stop();
+    if (!this.enabled) for (const id of this.sessions.keys()) this.stop(id);
   }
 
   setPanelVisible(visible) { this.panelVisible = Boolean(visible); }
-  snapshot() { return { ...this.status, enabled: this.enabled, recentOutput: this.outputBuffer }; }
-  dispose() { this.stop(); }
+  summary(entry) { return { id: entry.id, ordinal: entry.ordinal, name: entry.name, createdAt: entry.createdAt, generation: entry.generation, pid: entry.pty?.pid ?? null, ...entry.status }; }
+  snapshot(id = this.activeId, includeOutput = true) {
+    const entry = this.sessions.get(id);
+    if (id && !entry) return null;
+    return { ...(entry ? this.summary(entry) : { id: null, running: false, cwd: "", shell: "", exitCode: null }),
+      activeId: this.activeId, revision: this.revision, enabled: this.enabled, maxSessions: this.maxSessions,
+      sessions: [...this.sessions.values()].map(s => this.summary(s)), sequence: entry?.sequence ?? 0,
+      ...(includeOutput ? { recentOutput: entry?.outputBuffer ?? "" } : {}) };
+  }
+  publish() { this.revision++; this.emit("status", this.snapshot(undefined, false)); }
+  dispose() { for (const id of [...this.sessions.keys()]) this.close(id); }
 }
 
 module.exports = { MAX_TERMINAL_INPUT, resolveTerminalShell, TerminalService };

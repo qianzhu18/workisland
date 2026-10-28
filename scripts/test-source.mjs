@@ -70,7 +70,8 @@ const {
 // Search jump v2 adds session-search:open-client (176 -> 177, 2026-09).
 // Native system status adds get/update/preview-lock (178 -> 181, 2026-10).
 // Remembered background migration adds appearance:get-recent-background-image (177 -> 178, 2026-09).
-assert.equal(Object.keys(IPC).length, 181, "IPC contract changed; review both main and preload consumers");
+// Multi-terminal management adds create/select/close/rename and four external-host channels.
+assert.equal(Object.keys(IPC).length, 189, "IPC contract changed; review both main and preload consumers");
 assert.equal(listProductCapabilities({ platform: "darwin" }).length, 16, "MCP product catalog must stay explicit");
 assert.equal(diagnoseMcpSubject("performance-details-not-visible", { settings: {} }).subject, "performance-details-not-visible");
 assert.equal(IPC.APP_UPDATE_DOWNLOAD, "app:update-download");
