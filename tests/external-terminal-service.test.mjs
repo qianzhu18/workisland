@@ -73,3 +73,30 @@ test('external close cannot report success when the follow-up host scan fails', 
   assert.equal(result.ok, false);
   assert.equal(result.reason, 'automation-denied');
 });
+
+
+test('Ghostty split terminals have stable independent identities and stale targets are not focused', async () => {
+  const fixture = setup();
+  const ghost = { host: 'ghostty', appPid: 88, windowId: 'window-a', tabId: 'tab-a', sessionId: 'surface-a', tty: '/dev/ttys004', title: 'Agent' };
+  fixture.rows([ghost, { ...ghost, sessionId: 'surface-b', tty: '' }]);
+  const state = await fixture.service.refresh();
+  assert.equal(state.sessions.length, 2);
+  assert.equal(state.sessions[0].host, 'ghostty');
+  assert.equal(state.sessions[0].capabilities.close, false);
+  assert.notEqual(state.sessions[0].id, state.sessions[1].id);
+  assert.equal((await fixture.service.focus(state.sessions[0].id)).ok, true);
+  assert.equal(fixture.calls.at(-1).payload.target.sessionId, 'surface-a');
+  fixture.rows([{ ...ghost, sessionId: 'surface-replaced' }]);
+  assert.equal((await fixture.service.focus(state.sessions[0].id)).reason, 'not-found');
+});
+
+test('supported third-party apps are clearly app-level and never confused with sessions', async () => {
+  const fixture = setup();
+  fixture.rows(['warp', 'wezterm', 'kitty', 'alacritty'].map((host, n) => ({ host, appPid: n + 101, appOnly: true, title: host })));
+  const state = await fixture.service.refresh();
+  assert.deepEqual(state.sessions.map(s => s.host), ['warp', 'wezterm', 'kitty', 'alacritty']);
+  assert.ok(state.sessions.every(s => s.appOnly && s.capabilities.focus && !s.capabilities.close));
+  assert.equal((await fixture.service.focus(state.sessions[0].id)).ok, true);
+  fixture.rows([{ host: 'warp', appPid: 201, appOnly: true, title: 'warp' }]);
+  assert.equal((await fixture.service.focus(state.sessions[0].id)).reason, 'not-found');
+});
