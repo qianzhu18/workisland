@@ -30,6 +30,10 @@ const SCAN_INTERVAL_MS = 2000;
 const LOOKBACK_MS = 24 * 60 * 60 * 1000;
 const BOOTSTRAP_TAIL_BYTES = 64 * 1024;
 const ACTIVE_SESSION_MS = 5 * 60 * 1000;
+// 完整目录扫描会遍历所有年份/月份/日期目录；活跃会话只会出现在最近两天的
+// 日期目录里。平时每 2 秒只扫最近两天，完整扫描降频到每分钟一次，
+// 既保留“旧会话被恢复后仍能被发现”的兜底，又避免空闲时反复 stat 整棵目录树。
+const FULL_DISCOVER_INTERVAL_MS = 60 * 1000;
 const MAX_TITLE_LEN = 60;
 const MAX_SUMMARY_LEN = 140;
 // Codex Desktop 会给复制的用户消息加 attachment 元信息头，需要剥掉
@@ -71,6 +75,7 @@ class CodexTranscriptWatcher extends EventEmitter {
     this.timer = null;
     this.running = false;
     this.bootstrapped = false;
+    this.lastFullDiscoverAt = 0;
   }
 
   start() {
@@ -149,8 +154,13 @@ class CodexTranscriptWatcher extends EventEmitter {
   // ── 内部实现 ──────────────────────────────────────────────────────────
 
   scan(initial) {
-    const discovered = this.discover();
+    const now = Date.now();
+    const fullDiscover = initial || now - this.lastFullDiscoverAt >= FULL_DISCOVER_INTERVAL_MS;
+    const discovered = fullDiscover ? this.discover() : this.discover(this.recentDayDirs(now));
+    if (fullDiscover) this.lastFullDiscoverAt = now;
+    const seen = new Set();
     for (const f of discovered) {
+      seen.add(f.sessionId);
       const existing = this.files.get(f.sessionId);
       if (existing) {
         this.readIncrement(existing);
@@ -174,14 +184,39 @@ class CodexTranscriptWatcher extends EventEmitter {
         }
       }
     }
+    // 非完整扫描时，已跟踪的旧会话文件不在“最近两天”里，仍需逐轮增量读取。
+    if (!fullDiscover) {
+      for (const f of this.files.values()) {
+        if (!seen.has(f.sessionId)) this.readIncrement(f);
+      }
+    }
     this.bootstrapped = true;
   }
 
-  discover() {
+  recentDayDirs(now = Date.now()) {
+    const cutoff = now - LOOKBACK_MS;
+    const dirs = [];
+    const cursor = new Date(cutoff);
+    cursor.setHours(0, 0, 0, 0);
+    const end = new Date(now);
+    end.setHours(0, 0, 0, 0);
+    while (cursor <= end) {
+      dirs.push(path.join(
+        CODEX_SESSIONS_DIR,
+        String(cursor.getFullYear()),
+        String(cursor.getMonth() + 1).padStart(2, "0"),
+        String(cursor.getDate()).padStart(2, "0")
+      ));
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return dirs;
+  }
+
+  discover(rootDirs = null) {
     const cutoff = Date.now() - LOOKBACK_MS;
     /** @type {TrackedFile[]} */
     const out = [];
-    const stack = [CODEX_SESSIONS_DIR];
+    const stack = rootDirs ? [...rootDirs] : [CODEX_SESSIONS_DIR];
     while (stack.length > 0) {
       const dir = stack.pop();
       let entries;

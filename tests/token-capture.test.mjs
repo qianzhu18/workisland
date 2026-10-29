@@ -116,6 +116,87 @@ test("codex token parser streams JSONL without reading the whole file", async (t
   );
 });
 
+test("codex token parser reads only the tail of very large rollouts", async (t) => {
+  const filler = "x".repeat(5 * 1024 * 1024) + "\n";
+  const file = join(dir, "codex-large.jsonl");
+  writeFileSync(file, filler + JSON.stringify({
+    payload: {
+      type: "token_count",
+      info: { total_token_usage: { input_tokens: 500, cached_input_tokens: 200, output_tokens: 80 } }
+    }
+  }) + "\n");
+
+  const fs = require("node:fs");
+  const originalCreateReadStream = fs.createReadStream;
+  const starts = [];
+  fs.createReadStream = (path, options = {}) => {
+    starts.push(options.start ?? 0);
+    return originalCreateReadStream(path, options);
+  };
+  t.after(() => { fs.createReadStream = originalCreateReadStream; });
+
+  const result = await parseCodexTokens(file);
+  assert.ok(starts.some((start) => start > 0), "large rollout must be read from a tail offset");
+  assert.deepEqual(
+    { input: result?.inputTokens, cacheRead: result?.cacheReadTokens, output: result?.outputTokens },
+    { input: 300, cacheRead: 200, output: 80 }
+  );
+});
+
+test("codex token parser walks back when the tail is all tool output", async (t) => {
+  const tokenLine = JSON.stringify({
+    payload: {
+      type: "token_count",
+      info: { total_token_usage: { input_tokens: 900, cached_input_tokens: 400, output_tokens: 70 } }
+    }
+  }) + "\n";
+  // token_count 之后还有 6 MB 大输出：最后 4 MB 里没有 token_count，必须回溯上一块。
+  const file = join(dir, "codex-tail-output.jsonl");
+  writeFileSync(file, tokenLine + ("y".repeat(1024 * 1024) + "\n").repeat(6));
+
+  const fs = require("node:fs");
+  const originalCreateReadStream = fs.createReadStream;
+  const starts = [];
+  fs.createReadStream = (path, options = {}) => {
+    starts.push(options.start ?? 0);
+    return originalCreateReadStream(path, options);
+  };
+  t.after(() => { fs.createReadStream = originalCreateReadStream; });
+
+  const result = await parseCodexTokens(file);
+  assert.ok(starts.length >= 2, "tail miss must trigger an earlier window");
+  assert.deepEqual(
+    { input: result?.inputTokens, cacheRead: result?.cacheReadTokens, output: result?.outputTokens },
+    { input: 500, cacheRead: 400, output: 70 }
+  );
+});
+
+test("codex token parser stops walking back after the scan budget", async (t) => {
+  const tokenLine = JSON.stringify({
+    payload: {
+      type: "token_count",
+      info: { total_token_usage: { input_tokens: 900, cached_input_tokens: 400, output_tokens: 70 } }
+    }
+  }) + "\n";
+  // 20 MB 输出把 token_count 推到扫描上限之外：允许读不到，但不能整份扫描。
+  const file = join(dir, "codex-beyond-budget.jsonl");
+  writeFileSync(file, tokenLine + ("y".repeat(1024 * 1024) + "\n").repeat(20));
+
+  const fs = require("node:fs");
+  const originalCreateReadStream = fs.createReadStream;
+  let bytesRead = 0;
+  fs.createReadStream = (path, options = {}) => {
+    const stream = originalCreateReadStream(path, options);
+    stream.on("data", (chunk) => { bytesRead += chunk.length; });
+    return stream;
+  };
+  t.after(() => { fs.createReadStream = originalCreateReadStream; });
+
+  const result = await parseCodexTokens(file);
+  assert.equal(result, null);
+  assert.ok(bytesRead <= 18 * 1024 * 1024, `scanned ${bytesRead} bytes, expected a bounded scan`);
+});
+
 test("100 concurrent collections of one session open its transcript once", async (t) => {
   const file = write("codex-single-flight.jsonl", [
     { payload: { type: "token_count", info: { total_token_usage: { input_tokens: 30, cached_input_tokens: 10, output_tokens: 5 } } } }
