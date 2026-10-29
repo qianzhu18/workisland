@@ -27,6 +27,9 @@ const INDEX_FORMAT_VERSION = 1;
 const INDEX_FILE_NAME = "session-search-index.json";
 const SCAN_WATCH_DEBOUNCE_MS = 2 * 60 * 1000; // fs.watch 抖动合并：会话文件写入频繁，节流到分钟级守护闲置 CPU
 const SESSION_TEXT_CAP = 20_000; // 每会话收录的用户提问文本上限
+// 单文件索引预算：超大 rollout 只读头尾各一半，既保留首轮和最近提问，
+// 又避免索引重建时把几百 MB 文件整份搬进内存。
+const MAX_INDEX_BYTES_PER_FILE = 16 * 1024 * 1024;
 const ZCODE_SQL_TIMEOUT_MS = 5_000;
 const ZCODE_MESSAGE_CHUNK = 80; // message 表 IN 查询的会话分片大小
 const SEARCH_DEFAULT_LIMIT = 30;
@@ -81,19 +84,48 @@ function parseTranscriptLines(lines, createParser) {
   return parser.result();
 }
 
-async function parseTranscriptFile(filePath, createParser) {
-  const input = fs.createReadStream(filePath, { encoding: "utf8" });
+async function feedTranscriptRange(parser, filePath, { start = 0, end } = {}, budget = Infinity) {
+  const options = { encoding: "utf8" };
+  if (start > 0) options.start = start;
+  if (Number.isFinite(end)) options.end = end;
+  const input = fs.createReadStream(filePath, options);
   const lines = readline.createInterface({ input, crlfDelay: Infinity });
-  const parser = createParser();
+  let skipPartialFirstLine = start > 0;
+  let consumed = 0;
   try {
     for await (const line of lines) {
+      if (skipPartialFirstLine) {
+        skipPartialFirstLine = false;
+        continue;
+      }
+      consumed += Buffer.byteLength(line, "utf8") + 1;
+      if (consumed > budget) break;
       if (parser.push(line)) break;
     }
-    return parser.result();
   } finally {
     lines.close();
     input.destroy();
   }
+  return consumed;
+}
+
+async function parseTranscriptFile(filePath, createParser, maxBytes = MAX_INDEX_BYTES_PER_FILE) {
+  const parser = createParser();
+  let size = 0;
+  try {
+    size = (await fsp.stat(filePath)).size;
+  } catch {
+    return parser.result();
+  }
+  if (size <= maxBytes) {
+    await feedTranscriptRange(parser, filePath, {}, maxBytes);
+    return parser.result();
+  }
+  // 超大文件：头部拿首轮上下文，尾部拿最近提问；中间的工具输出不参与检索。
+  const half = Math.floor(maxBytes / 2);
+  const usedHead = await feedTranscriptRange(parser, filePath, { end: half - 1 }, half);
+  await feedTranscriptRange(parser, filePath, { start: size - half }, maxBytes - usedHead);
+  return parser.result();
 }
 
 function createClaudeTranscriptParser() {
@@ -907,6 +939,7 @@ module.exports = {
   createSessionSearchService,
   parseClaudeTranscript,
   parseCodexTranscript,
+  parseTranscriptFile,
   parseQoderTranscript,
   parseSqliteRows,
   zcodeUserTextFromData,

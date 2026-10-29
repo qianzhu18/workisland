@@ -11,6 +11,7 @@ const {
   createSessionSearchService,
   parseClaudeTranscript,
   parseCodexTranscript,
+  parseTranscriptFile,
   parseSqliteRows,
   zcodeUserTextFromData
 } = require("../src/main/session-search-service.cjs");
@@ -333,6 +334,40 @@ test("scan is incremental: unchanged files skipped, changes and deletions reconc
   assert.ok(reopened.getState().total >= 1, "reopened service should restore records from disk");
   reopened.dispose();
   await service.dispose();
+});
+
+test("oversized transcripts are indexed from head and tail instead of the whole file", async () => {
+  const dir = await fsp.mkdtemp(path.join(os.tmpdir(), "wi-search-large-"));
+  const file = path.join(dir, "large.jsonl");
+  const head = [
+    JSON.stringify({ type: "session_meta", payload: { id: "large-1", cwd: "/tmp/proj" } }),
+    JSON.stringify({ type: "event_msg", payload: { type: "user_message", message: "HEAD_PROMPT 首轮需求" } })
+  ].join("\n") + "\n";
+  const fillerLine = JSON.stringify({
+    type: "response_item",
+    payload: { type: "message", role: "assistant", content: [{ type: "text", text: "x".repeat(1000) }] }
+  }) + "\n";
+  const tail = JSON.stringify({ type: "event_msg", payload: { type: "user_message", message: "TAIL_PROMPT 最近需求" } }) + "\n";
+  const filler = fillerLine.repeat(18_000);
+  await fsp.writeFile(file, head + filler + tail);
+
+  const createParser = () => {
+    const texts = [];
+    return {
+      push(line) {
+        const entry = JSON.parse(line);
+        const message = entry?.payload?.type === "user_message" ? entry.payload.message : "";
+        if (message) texts.push(message);
+        return false;
+      },
+      result() { return { text: texts.join("\n") }; }
+    };
+  };
+
+  const parsed = await parseTranscriptFile(file, createParser);
+  assert.match(parsed.text, /HEAD_PROMPT/);
+  assert.match(parsed.text, /TAIL_PROMPT/);
+  await fsp.rm(dir, { recursive: true, force: true });
 });
 
 test("malformed transcript lines are tolerated and capped text keeps index bounded", async () => {

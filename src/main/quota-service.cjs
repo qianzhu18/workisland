@@ -79,6 +79,11 @@ function loadClaudeQuota() {
 }
 const SESSIONS_DIR = path.join(os.homedir(), ".codex", "sessions");
 const MAX_AGE_MS = 24 * 60 * 60 * 1e3;
+// rate_limits 出现在 token_count 事件里，属于会话累计状态；从文件尾部按块
+// 向前找即可。整份 readFileSync 会把几百 MB 的 rollout 一次性读进内存，
+// 启动时叠加多份大文件会把主进程堆推到数百 MB。
+const RATE_LIMIT_TAIL_BYTES = 4 * 1024 * 1024;
+const RATE_LIMIT_MAX_SCAN_BYTES = 16 * 1024 * 1024;
 function formatMinutes(minutes) {
   if (minutes <= 0) return "0m";
   const days = Math.floor(minutes / 1440);
@@ -123,32 +128,60 @@ function collectRolloutFiles(dir) {
   }
   return results;
 }
-function parseRateLimitsFromFile(filePath) {
-  let text;
+function readTailTextSync(filePath, start, length) {
+  const fd = fs.openSync(filePath, "r");
   try {
-    text = fs.readFileSync(filePath, "utf-8");
+    const buf = Buffer.allocUnsafe(length);
+    const bytesRead = fs.readSync(fd, buf, 0, length, start);
+    return buf.subarray(0, bytesRead).toString("utf8");
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+function parseRateLimitsFromFile(filePath) {
+  let size;
+  try {
+    size = fs.statSync(filePath).size;
   } catch {
     return null;
   }
-  let lastLimits = null;
-  let lastTimestamp = 0;
-  for (const line of text.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
+  const minStart = Math.max(0, size - RATE_LIMIT_MAX_SCAN_BYTES);
+  let end = size;
+  while (end > minStart) {
+    const start = Math.max(minStart, end - RATE_LIMIT_TAIL_BYTES);
+    // 从上一字节开始读，确保不会把跨块的行截断成半个 JSON。
+    const readStart = start > 0 ? start - 1 : 0;
+    let text;
     try {
-      const event = JSON.parse(trimmed);
-      if (event.type === "event_msg" && event.payload?.type === "token_count" && (event.payload.rate_limits?.primary || event.payload.rate_limits?.secondary)) {
-        lastLimits = event.payload.rate_limits;
-        if (event.timestamp) {
-          const d = new Date(event.timestamp);
-          if (!isNaN(d.getTime())) lastTimestamp = d.getTime();
-        }
-      }
+      text = readTailTextSync(filePath, readStart, end - readStart);
     } catch {
+      return null;
     }
+    if (readStart > 0) {
+      const newlineAt = text.indexOf("\n");
+      text = newlineAt === -1 ? "" : text.slice(newlineAt + 1);
+    }
+    let lastLimits = null;
+    let lastTimestamp = 0;
+    for (const line of text.split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      try {
+        const event = JSON.parse(trimmed);
+        if (event.type === "event_msg" && event.payload?.type === "token_count" && (event.payload.rate_limits?.primary || event.payload.rate_limits?.secondary)) {
+          lastLimits = event.payload.rate_limits;
+          if (event.timestamp) {
+            const d = new Date(event.timestamp);
+            if (!isNaN(d.getTime())) lastTimestamp = d.getTime();
+          }
+        }
+      } catch {
+      }
+    }
+    if (lastLimits) return { limits: lastLimits, capturedAt: lastTimestamp || Date.now() };
+    end = start;
   }
-  if (!lastLimits) return null;
-  return { limits: lastLimits, capturedAt: lastTimestamp || Date.now() };
+  return null;
 }
 const DAILY_THRESHOLD_MINUTES = 720;
 function buildQuotaPeriod(win) {
@@ -749,4 +782,4 @@ class QuotaService {
     );
   }
 }
-module.exports = { QuotaService };
+module.exports = { QuotaService, parseRateLimitsFromFile };

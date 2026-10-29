@@ -230,10 +230,27 @@ function reportTokenUsage(tool, sessionId, result, remote) {
   );
   getStatsService().recordToken(tool, sessionId, result.inputTokens, result.outputTokens, result.cacheReadTokens ?? 0, result.cacheCreationTokens ?? 0, remote, result.model);
 }
-async function* readJsonLines(filePath) {
-  const input = fs.createReadStream(filePath, { encoding: "utf8" });
+// Codex 的 token_count 是会话累计值，最后一条就在文件尾部；只读尾部即可，
+// 避免为了几百 MB 的 rollout 反复把整份 transcript 流式扫一遍（启动回填时
+// 多份大文件叠加会把主进程堆推到数百 MB）。尾部被大段工具输出占满时按块
+// 向前回溯，但总量封顶，保证单文件开销有上限。
+const CODEX_TOKEN_TAIL_BYTES = 4 * 1024 * 1024;
+const CODEX_TOKEN_MAX_SCAN_BYTES = 16 * 1024 * 1024;
+const CODEX_MODEL_HEAD_BYTES = 64 * 1024;
+
+async function* readJsonLines(filePath, { start = 0, end } = {}) {
+  const options = { encoding: "utf8" };
+  if (start > 0) options.start = start;
+  if (Number.isFinite(end)) options.end = end;
+  const input = fs.createReadStream(filePath, options);
   const lines = readline.createInterface({ input, crlfDelay: Infinity });
+  // 从文件中间开始读时，第一行大概率是被截断的半行，直接跳过。
+  let skipPartialFirstLine = start > 0;
   for await (const line of lines) {
+    if (skipPartialFirstLine) {
+      skipPartialFirstLine = false;
+      continue;
+    }
     if (!line) continue;
     try {
       yield JSON.parse(line);
@@ -290,20 +307,50 @@ async function parseClaudeTokens(transcriptPath) {
  * token_count 事件的 info.total_token_usage 是会话累计值，取最后一条即可；
  * input_tokens 含缓存部分，拆开与其他工具的口径对齐。
  */
+async function readCodexModelFromHead(transcriptPath) {
+  try {
+    for await (const item of readJsonLines(transcriptPath, { end: CODEX_MODEL_HEAD_BYTES })) {
+      const p = item?.payload;
+      if (p?.type === "thread_settings_applied" && p.thread_settings?.model) return p.thread_settings.model;
+      if (p?.type === "turn_context" && typeof p.model === "string") return p.model;
+    }
+  } catch {
+    // 模型名只影响计价，读不到就按 unknown 处理。
+  }
+  return void 0;
+}
+
 async function parseCodexTokens(transcriptPath) {
   let usage = null;
   let model;
+  let size = 0;
   try {
-    for await (const item of readJsonLines(transcriptPath)) {
-      const p = item?.payload;
-      if (!p) continue;
-      if (p.type === "token_count" && p.info?.total_token_usage) usage = p.info.total_token_usage;
-      if (p.type === "thread_settings_applied" && p.thread_settings?.model) model = p.thread_settings.model;
-    }
-  } catch (err) {
-    log.warn("[codexTokens] stream failed for %s:", transcriptPath, err);
-    return null;
+    size = (await promises.stat(transcriptPath)).size;
+  } catch {
+    size = 0;
   }
+  const minStart = Math.max(0, size - CODEX_TOKEN_MAX_SCAN_BYTES);
+  let end = size;
+  // 先只看最后一块；只有整块都没有 token_count（通常是被一段大输出占满）才向前回溯。
+  do {
+    const start = Math.max(minStart, end - CODEX_TOKEN_TAIL_BYTES);
+    try {
+      const stopAt = end < size ? end - 1 : void 0;
+      for await (const item of readJsonLines(transcriptPath, { start, end: stopAt })) {
+        const p = item?.payload;
+        if (!p) continue;
+        if (p.type === "token_count" && p.info?.total_token_usage) usage = p.info.total_token_usage;
+        if (p.type === "thread_settings_applied" && p.thread_settings?.model) model = p.thread_settings.model;
+        if (p.type === "turn_context" && typeof p.model === "string") model = p.model;
+      }
+    } catch (err) {
+      log.warn("[codexTokens] stream failed for %s:", transcriptPath, err);
+      return null;
+    }
+    end = start;
+  } while (!usage && end > minStart);
+  // end 是实际扫描到的最早偏移：只有没从头扫过时才需要单独读一次文件头拿模型名。
+  if (!model && end > 0) model = await readCodexModelFromHead(transcriptPath);
   if (!usage) return null;
   const cached = usage.cached_input_tokens ?? 0;
   const input = Math.max(0, (usage.input_tokens ?? 0) - cached);
