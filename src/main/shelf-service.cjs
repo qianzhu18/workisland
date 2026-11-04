@@ -3,6 +3,7 @@
 const { EventEmitter } = require("node:events");
 const fs = require("node:fs/promises");
 const path = require("node:path");
+const { randomUUID } = require("node:crypto");
 const { normalizeShelfPayload, shelfItemId } = require("../shared/shelf-state.cjs");
 
 const STORE_VERSION = 1;
@@ -72,6 +73,16 @@ class ShelfService extends EventEmitter {
     this.items = this.items.slice(0, MAX_SHELF_ITEMS);
     if (added.length) await this.persistAndEmit();
     return added;
+  }
+
+  async addClipboardImage(png) {
+    const signature = Buffer.from("89504e470d0a1a0a", "hex");
+    if (!Buffer.isBuffer(png) || png.length < signature.length || png.length > 32 * 1024 * 1024 || !png.subarray(0, signature.length).equals(signature)) throw new Error("Invalid clipboard image");
+    const directory = path.join(path.dirname(this.storePath), "shelf-clipboard-images");
+    await this.fs.mkdir(directory, { recursive: true, mode: 0o700 });
+    const file = path.join(directory, `Screenshot-${new Date().toISOString().replace(/[:.]/g, "-")}-${randomUUID()}.png`);
+    await this.fs.writeFile(file, png, { mode: 0o600, flag: "wx" });
+    return this.addPaths([file]);
   }
 
   async addPayload(payload) {

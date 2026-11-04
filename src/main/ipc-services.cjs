@@ -1,5 +1,7 @@
 "use strict";
 
+const { pasteShelfClipboard } = require("./shelf-paste.cjs");
+
 const electron = require("electron");
 const fs = require("node:fs");
 const path = require("node:path");
@@ -427,13 +429,8 @@ function createIpcServices({ performHapticFeedback, isAllowedExternalUrl, readPa
       event.sender.startDrag({ files, file: files[0], icon });
       return true;
     });
-    electron.ipcMain.handle(IPC.SHELF_PASTE_FROM_CLIPBOARD, () => {
-      const paths = readPasteboardFileURLs();
-      if (Array.isArray(paths) && paths.length > 0) return coordinator.addShelfPaths(paths);
-      const text = electron.clipboard.readText().trim();
-      if (!text) return coordinator.getShelfState();
-      return coordinator.addShelfPayload({ type: /^https?:\/\//i.test(text) ? "url" : "text", value: text });
-    });
+    electron.ipcMain.handle(IPC.SHELF_PASTE_FROM_CLIPBOARD, () =>
+      pasteShelfClipboard(coordinator, electron.clipboard, readPasteboardFileURLs));
     electron.ipcMain.handle(IPC.SHELF_COPY_ITEMS, (_event, { ids } = {}) => {
       const items = resolveShelfItems(coordinator, ids);
       const paths = items.filter((item) => item.path && item.available).map((item) => item.path);
