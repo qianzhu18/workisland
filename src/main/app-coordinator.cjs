@@ -1754,6 +1754,7 @@ function createAppCoordinatorClass({
     getShelfState() { return this.shelfService.snapshot(); }
     addShelfPaths(paths) { return this.shelfService.addPaths(paths); }
     addShelfPayload(payload) { return this.shelfService.addPayload(payload); }
+    addShelfClipboardImage(png) { return this.shelfService.addClipboardImage(png); }
     removeShelfItems(ids) { return this.shelfService.remove(ids); }
     clearShelf() { return this.shelfService.clear(); }
     getShelfItem(id) { return this.shelfService.find(id); }
