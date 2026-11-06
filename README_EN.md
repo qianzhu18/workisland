@@ -28,10 +28,11 @@
   <a href="https://workisland.yanglaishe.cn/"><img src="https://img.shields.io/badge/website-workisland.yanglaishe.cn-0ea5e9" alt="WorkIsland website"></a>
 </p>
 
+<p align="center">Sponsor</p>
+
 <p align="center">
   <a href="https://www.ignai.cn/">
-    <img src="docs/assets/ignai-logo.png" width="64" height="64" alt="洋来社 · IGNAI"><br>
-    <strong>From 洋来社 · IGNAI</strong>
+    <img src="docs/assets/ignai-logo.png" width="64" height="64" alt="洋来社 · IGNAI">
   </a>
 </p>
 
