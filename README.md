@@ -29,6 +29,13 @@
   <a href="https://workisland.yanglaishe.cn/"><img src="https://img.shields.io/badge/website-workisland.yanglaishe.cn-0ea5e9" alt="WorkIsland 官网"></a>
 </p>
 
+<p align="center">
+  <a href="https://www.ignai.cn/">
+    <img src="docs/assets/ignai-logo.png" width="64" height="64" alt="洋来社 · IGNAI"><br>
+    <strong>出自洋来社 · IGNAI</strong>
+  </a>
+</p>
+
 ![WorkIsland 在真实 macOS 界面中展示多个编程 Agent 任务](website/assets/demo/overview.png)
 
 ## 为什么需要 WorkIsland
