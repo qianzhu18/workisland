@@ -72,7 +72,8 @@ const {
 // Remembered background migration adds appearance:get-recent-background-image (177 -> 178, 2026-09).
 // Persistent native terminal views add eleven scoped layout and docking channels.
 // Multi-terminal management adds create/select/close/rename and four external-host channels.
-assert.equal(Object.keys(IPC).length, 200, "IPC contract changed; review both main and preload consumers");
+// Atoll native-panel mode reuses the existing Island renderer (200 -> 201).
+assert.equal(Object.keys(IPC).length, 201, "IPC contract changed; review both main and preload consumers");
 assert.equal(listProductCapabilities({ platform: "darwin" }).length, 16, "MCP product catalog must stay explicit");
 assert.equal(diagnoseMcpSubject("performance-details-not-visible", { settings: {} }).subject, "performance-details-not-visible");
 assert.equal(IPC.APP_UPDATE_DOWNLOAD, "app:update-download");

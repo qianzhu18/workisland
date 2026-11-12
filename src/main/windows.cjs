@@ -26,6 +26,19 @@ function createWindowClasses(dependencies) {
   const ISLAND_HEIGHT = 750;
   class IslandWindow {
     win;
+    _outputSuppressed = false;
+    setOutputSuppressed(value) {
+      // Local visual comparison only: one engine can render both outputs on
+      // separate displays. Regular packaged launches never use this override.
+      const compareOutputs = process.env.FLUX_DEVELOPMENT === "1"
+        && process.argv.includes("--atoll-compare-native");
+      const suppressed = !!value && !compareOutputs;
+      if (this._outputSuppressed === suppressed) return;
+      this._outputSuppressed = suppressed;
+      if (this.win.isDestroyed()) return;
+      if (this._outputSuppressed) this.win.hide();
+      else {this.syncWindowToCurrentState();this.win.showInactive();}
+    }
     currentTarget;
     _isFullscreenHidden = false;
     _isFocusHidden = false;
@@ -197,7 +210,7 @@ function createWindowClasses(dependencies) {
         const notchInfo = this.buildNotchInfo(this.currentTarget);
         this.win.webContents.send(IPC.ISLAND_NOTCH_INFO, notchInfo);
         this.applyRequestedHeight(this.getClosedHeight());
-        this.win.show();
+        if (!this._outputSuppressed) this.win.show();
         log.debug("[IslandWindow] ready on display:", this.currentTarget.screenInfo.label);
       });
       this.win.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedURL) => {
@@ -397,6 +410,7 @@ function createWindowClasses(dependencies) {
     // Hover reveal: user moved mouse into the island area while fullscreen-hidden.
     // Show the island and enable clicks so it behaves normally.
     revealForHover() {
+      if(this._outputSuppressed){if(!this.win.isDestroyed())this.win.hide();return;}
       if (this.win.isDestroyed()) return;
       this.isHoverRevealedWhileFullscreenHidden = true;
       this.applyRequestedHeight(this.requestedHeight);
@@ -447,6 +461,7 @@ function createWindowClasses(dependencies) {
     }
     /** moveToDisplay 等场景下重新对齐窗口尺寸/可见性到当前状态。 */
     syncWindowToCurrentState() {
+      if(this._outputSuppressed){if(!this.win.isDestroyed())this.win.hide();return;}
       if (this.win.isDestroyed()) return;
       if (this.shouldStayConcealed) {
         this.applyClosedWindowTarget("hidden-hotspot");
@@ -461,6 +476,7 @@ function createWindowClasses(dependencies) {
       });
     }
     applyClosedWindowTarget(target, options) {
+      if(this._outputSuppressed){if(!this.win.isDestroyed())this.win.hide();return;}
       if (this.win.isDestroyed()) return;
       const interactive = options?.interactive ?? false;
       const [width] = this.win.getSize();

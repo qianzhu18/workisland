@@ -117,7 +117,7 @@ function UsageTable({ headers, rows, emptyText }) {
   );
 }
 
-export function UsagePanel() {
+export function UsagePanel({ allowDataManagement = true } = {}) {
   const [days, setDays] = React.useState(7);
   const [tab, setTab] = React.useState("overview");
   const [summary, setSummary] = React.useState(null);
@@ -172,8 +172,8 @@ export function UsagePanel() {
             className: days === opt.days ? "is-active" : "",
             onClick: () => setDays(opt.days)
           }, t(opt.labelKey)))),
-        React.createElement("button", { type: "button", onClick: exportData }, t("usage.export.action")),
-        hasData && React.createElement("button", { type: "button", onClick: clearData }, t("usage.clear.action"))
+        allowDataManagement && React.createElement("button", { type: "button", onClick: exportData }, t("usage.export.action")),
+        allowDataManagement && hasData && React.createElement("button", { type: "button", onClick: clearData }, t("usage.clear.action"))
       )
     ),
     React.createElement("div", { className: "usage-tabs", role: "tablist" },

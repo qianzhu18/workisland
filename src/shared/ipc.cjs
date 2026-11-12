@@ -7,6 +7,7 @@ const IPC = Object.freeze({
   ISLAND_NOTCH_INFO: "island:notch-info",
   ISLAND_SESSION_UPDATE: "island:session-update",
   ISLAND_PRESENT_SURFACE: "island:present-surface",
+  ATOLL_PANEL_MODE: "atoll:panel-mode",
   ISLAND_QUOTA_UPDATE: "island:quota-update",
   ISLAND_ENTER: "island:enter",
   ISLAND_LEAVE: "island:leave",

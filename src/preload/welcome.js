@@ -14,7 +14,10 @@ electron.contextBridge.exposeInMainWorld("welcomeBridge", {
     electron.ipcRenderer.on(ipc.IPC.LOCALE_DID_CHANGE, handler);
     return () => electron.ipcRenderer.off(ipc.IPC.LOCALE_DID_CHANGE, handler);
   },
-  getStarted() {
+  async getStarted(options = {}) {
+    if (process.platform === "darwin" && options.displayTarget === "atoll") {
+      await electron.ipcRenderer.invoke(ipc.IPC.SETTINGS_SET, {atollIntegrationEnabled:true,agentDisplayTarget:"atoll"});
+    }
     // 引导完成信号。遥测不再随引导提交选择（2026-08-22 默认开启政策，
     // 披露与开关在「设置 → 关于」）。
     electron.ipcRenderer.send(ipc.IPC.WELCOME_GET_STARTED);

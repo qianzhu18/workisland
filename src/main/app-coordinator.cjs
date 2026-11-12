@@ -9,6 +9,9 @@ const { IPC } = require("../shared/ipc.cjs");
 const { i18n } = require("./i18n.cjs");
 const { SettingsRepository } = require("./settings-repository.cjs");
 const { PetModeController } = require("./pet-mode-controller.cjs");
+const {AtollIntegration}=require("./atoll-integration.cjs");
+const {AtollAgentPanel}=require("./atoll-agent-panel.cjs");
+const {usesAtoll,normalizeAtollSettings}=require("./atoll-mode.cjs");
 const { QuotaService } = require("./quota-service.cjs");
 const { getStatsService } = require("./stats-service.cjs");
 const { UsageService } = require("./usage-service.cjs");
@@ -147,6 +150,8 @@ function createAppCoordinatorClass({
     settingsWindow = null;
     saveTimer = null;
     quotaService = new QuotaService();
+    atollIntegration = new AtollIntegration(this);
+    atollPanel = new AtollAgentPanel(this,{getScreen:()=>electron.screen});
     statsService = getStatsService();
     mediaService;
     lyricsService;
@@ -628,6 +633,7 @@ function createAppCoordinatorClass({
       void this.sessionSearch.start();
       this.syncRemoteBridge();
       this.quotaService.start();
+      void this.atollIntegration.sync(this.settings);
       this.processMonitor.start();
       this.mediaService.start();
       void this.lyricsService.setTrack(this.mediaService.getSnapshot());
@@ -705,6 +711,11 @@ function createAppCoordinatorClass({
         });
         this.codexTranscriptWatcher.on("watcher-error", (err) => {
           log.warn("[AppCoordinator] codex transcript watcher error:", err.message);
+        });
+        this.codexTranscriptWatcher.on("desktop-question", change => {
+          if (!usesAtoll(this.settings)) return;
+          this.broadcastSessionUpdate();
+          if (change.type === "asked") this.maybePresentSurface({...change, type:"questionAsked", tool:"codex"});
         });
         this.codexTranscriptWatcher.start();
         log.info("[AppCoordinator] codex transcript watcher started");
@@ -1044,12 +1055,14 @@ function createAppCoordinatorClass({
     }
     stop() {
       log.info("[AppCoordinator] stopping local services...");
+      this.atollPanel.close();
       this.dumateWatcher?.stop();
       this.qoderWatcher?.stop();
       this.sessionSearch.dispose();
       this.remoteTunnels?.stopAll();
       this.remoteBridge.stop();
       this.bridge.stop();
+      void this.atollIntegration.stop();
       this.quotaService.stop();
       this.processMonitor.stop();
       this.mediaService.stop();
@@ -1120,6 +1133,7 @@ function createAppCoordinatorClass({
      */
     setIslandWin(iw) {
       this.islandWin = iw;
+      iw.setOutputSuppressed?.(usesAtoll(this.settings));
       this.petMode.setIslandWindow(iw);
       // `start()` runs before the Island window is created. Re-evaluate here
       // so notification-only mode is applied on the first launch as well.
@@ -1220,6 +1234,7 @@ function createAppCoordinatorClass({
     }
     /** Shortcut entry point: tell island renderer to toggle expand/collapse. */
     toggleIslandExpand() {
+      if(usesAtoll(this.settings)){if(this.atollPanel.isOpen)this.collapseIsland();else this.atollPanel.open();return;}
       if (!this.islandWindow || this.islandWindow.isDestroyed()) return;
       if (this.islandHiddenForFullscreen && this.islandWin) {
         this.islandHiddenForFullscreen = false;
@@ -1229,6 +1244,7 @@ function createAppCoordinatorClass({
       this.islandWindow.webContents.send(IPC.ISLAND_TOGGLE_EXPAND);
     }
     collapseIsland() {
+      this.atollPanel.close();
       if (!this.islandWindow || this.islandWindow.isDestroyed()) return;
       this.islandWindow.webContents.send(IPC.ISLAND_COLLAPSE);
     }
@@ -1250,6 +1266,7 @@ function createAppCoordinatorClass({
       this.islandWindow.webContents.send(IPC.ISLAND_CONFIRM_SESSION);
     }
     handleSurfaceDismissed() {
+      this.atollPanel.close();
       if (!this.fullscreenOverrideForNotification) return;
       this.fullscreenOverrideForNotification = false;
       this.evaluateFullscreenVisibility();
@@ -1324,7 +1341,10 @@ function createAppCoordinatorClass({
       return this.remoteTunnels.startTunnel({ hostId, sshTarget: host.sshTarget });
     }
     getSessions() {
-      return getVisibleSessions(this.state);
+      const sessions = getVisibleSessions(this.state);
+      return usesAtoll(this.settings)
+        ? require("./codex-desktop-questions.cjs").withDesktopQuestions(sessions, this.codexTranscriptWatcher)
+        : sessions;
     }
     getPetWindow() {
       return this.petMode.window;
@@ -1470,6 +1490,12 @@ function createAppCoordinatorClass({
         }
       }
       this.settings = { ...this.settings, ...partial };
+      Object.assign(this.settings, normalizeAtollSettings(this.settings));
+      if ("atollIntegrationEnabled" in partial || "agentDisplayTarget" in partial) {
+        this.atollPanel.close();
+        void this.atollIntegration.sync(this.settings);
+        this.islandWin?.setOutputSuppressed?.(usesAtoll(this.settings));
+      }
       this.settingsRepository.scheduleSave(this.settings);
       // 匿名遥测：开关变化必须立即同步给服务（关闭即清空未上报队列）；
       // 其余白名单 key 只上报 key 本身，值永不离开本机。
@@ -2050,11 +2076,13 @@ function createAppCoordinatorClass({
       this.islandWindow.webContents.send(IPC.SETTINGS_DID_CHANGE, this.settings);
     }
     broadcastSessionUpdate() {
+      this.atollIntegration.publish();
       if (!this.islandWindow || this.islandWindow.isDestroyed()) {
         log.error("[AppCoordinator] broadcastSessionUpdate skipped: islandWindow destroyed or null");
         return;
       }
-      const sessions = getVisibleSessions(this.state);
+      const sessions = this.getSessions();
+      this.atollPanel.closeIfResolved(sessions);
       const debugDetails = Array.from(this.state.sessions.values()).map((s) => {
         const isVisible = sessions.some((vis) => vis.id === s.id);
         return `${s.id.slice(0, 8)}(vis=${isVisible}/tool=${s.tool}/phase=${s.phase}/hook=${s.isHookManaged}/ended=${s.isSessionEnded}/prompt=${!!s.latestUserPrompt}/jt=${!!s.jumpTarget})`;
@@ -2132,6 +2160,22 @@ function createAppCoordinatorClass({
         );
         if (hasBlockingSession) return;
       }
+      if(usesAtoll(this.settings)){
+        const fresh=this.atollIntegration.notifyEvent(event,request);
+        if(fresh && (request.priority==="completion" || request.priority==="error") && this.atollIntegration.client?.canPresentAttention()){
+          const finished=this.getSessions().find(s=>s.id===event.sessionId);
+          if(finished?.phase==="completed" && !finished.completionDismissed){
+            try { this.atollPanel.openForResult(request); } catch(error){log.warn("[Atoll] result panel:",error.message);}
+          }
+        }
+        if(request.priority === "action-required" && this.atollIntegration.client?.canPresentAttention()){
+          const session = this.getSessions().find(s=>s.id===event.sessionId);
+          if(session && requiresAttention(session.phase)) {
+            try { this.atollPanel.openForAttention(session); } catch(error){log.warn("[Atoll] attention panel:",error.message);}
+          }
+        }
+        return;
+      }
       this.broadcastSurface({
         surface: request.surface,
         reason: "notification",
@@ -2139,6 +2183,7 @@ function createAppCoordinatorClass({
       });
     }
     broadcastSurface(payload) {
+      if(this.atollPanel.isOpen&&payload.reason==='notification')return;
       if (this.petMode.isActive) {
         this.petMode.presentSurface(
           payload.surface,
@@ -2458,6 +2503,7 @@ function createAppCoordinatorClass({
     }
     evaluateFullscreenVisibility() {
       if (!this.islandWin) return;
+      if(this.atollPanel.isOpen)return;
       const shouldHide = this.computeShouldConceal();
       if (shouldHide && this.fullscreenOverrideForNotification) return;
       if (shouldHide !== this.islandHiddenForFullscreen) {

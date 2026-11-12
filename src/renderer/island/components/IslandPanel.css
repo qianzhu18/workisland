@@ -1873,3 +1873,8 @@
 .session-list.is-hidden { display:none; }
 
 .session-search-result.is-resumable { border-left: 2px solid rgba(110,231,183,0.55); }
+
+.atoll-native-controls { display:flex; justify-content:flex-end; padding:0 2px 4px; }
+.atoll-native-return { border:0; border-radius:5px; background:transparent; color:#b9cfff; font:inherit; font-size:11px; padding:4px 6px; cursor:pointer; }
+.atoll-native-return:hover { background:#ffffff12; }
+.atoll-native-return:focus-visible { outline:2px solid #9bbdff; outline-offset:1px; }

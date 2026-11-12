@@ -22,6 +22,8 @@ const useSessionStore = create((set) => ({
   surface: null,
   openReason: null,
   notificationAutoDismiss: false,
+  atollPanelMode: false,
+  setAtollPanelMode: atollPanelMode => set({atollPanelMode}),
   agentQuotas: {},
   onboardingExpand: false,
   hasUpdate: false,
@@ -66,6 +68,7 @@ function useIslandState() {
       if (shouldDeferAgentSurface({ surface, reason }, isTerminalPageVisible())) return;
       presentSurface(surface, reason, autoDismiss);
     });
+    const offAtollPanel=bridge.onAtollPanelMode?.(enabled=>useSessionStore.getState().setAtollPanelMode(enabled));
     bridge.onQuotaUpdate((quotas) => setAgentQuotas(quotas));
     const offUpdate = bridge.onUpdateAvailable?.(() => setHasUpdate(true));
     // hasUpdate 由主进程从缓存 release 推导；启动拉取与状态推送都能恢复升级
@@ -99,6 +102,7 @@ function useIslandState() {
       useSessionStore.getState().requestConfirmSession();
     });
     return () => {
+      offAtollPanel?.();
       offTerminalReveal?.(); offTerminalDrag?.();
       offUpdate?.();
       offUpdateState?.();
@@ -149,6 +153,7 @@ function IslandApp() {
     surface,
     openReason,
     notificationAutoDismiss,
+    atollPanelMode,
     clearSurface,
     presentSurface,
     agentQuotas,
@@ -216,6 +221,7 @@ function IslandApp() {
   const [appearanceImageDataUrl, setAppearanceImageDataUrl] = reactExports.useState(null);
   const [appearanceTemplate, setAppearanceTemplate] = reactExports.useState(DEFAULT_SETTINGS.appearanceTemplate);
   const [requestedToolboxModule, setRequestedToolboxModule] = reactExports.useState(null);
+  reactExports.useEffect(()=>{if(atollPanelMode)setRequestedToolboxModule({id:"agent",nonce:Date.now()});},[atollPanelMode]);
   const [pillFileDragActive, setPillFileDragActive] = reactExports.useState(false);
   const fileDropLatest = reactExports.useRef({ enabled: false, openShelf: () => {} });
   const [systemStatus, setSystemStatus] = reactExports.useState(null);
@@ -722,6 +728,7 @@ function IslandApp() {
   const pillWidth = Math.min(Math.max(notchW, 126) + pillExtra, maxPillBodyWidth);
   const desiredPanelWidth = isSystemNotice ? noticeLayout.width : notchInfo.screenWidth > 0 ? Math.max(680, Math.min(740, notchInfo.screenWidth * 0.46)) : 680;
   const panelWidth = Math.min(desiredPanelWidth, maxPanelBodyWidth);
+  const effectivePanelMaxHeightPx=atollPanelMode ? Math.max(panelMaxHeightPx,Math.min(640,notchInfo.screenHeight-notchH-64)) : panelMaxHeightPx;
   const isOpen = notchStatus === "opened";
   const actualPanelH = isSystemNotice ? noticeLayout.height : Math.max(
     notchH + 40,
@@ -729,7 +736,7 @@ function IslandApp() {
   );
   const maxExpandedWindowHeight = Math.min(
     WINDOW_H,
-    (isSystemNotice ? noticeLayout.height : panelMaxHeightPx) + OPEN_WINDOW_SHADOW_MARGIN_PX
+    (isSystemNotice ? noticeLayout.height : effectivePanelMaxHeightPx) + OPEN_WINDOW_SHADOW_MARGIN_PX
   );
   reactExports.useLayoutEffect(() => {
     window.islandBridge?.setInteractionBounds?.({
@@ -825,6 +832,7 @@ function IslandApp() {
     }
     window.islandBridge?.leaveIsland();
     // 鼠标离开后收成默认胶囊，保持左侧角色可见。
+    if(atollPanelMode)return;
     if (!isOpen) return;
     const isFollowUpFocused = isFollowUpActiveRef.current && document.hasFocus() && document.activeElement?.closest("[data-follow-up-input]");
     if (isFollowUpFocused || isToolboxInteractionFocused()) {
@@ -835,7 +843,7 @@ function IslandApp() {
       if (isToolboxInteractionFocused()) return;
       collapsePanelToPill();
     }, MOUSE_LEAVE_CLOSE_DELAY_MS);
-  }, [collapsePanelToPill, isOpen]);
+  }, [collapsePanelToPill, isOpen, atollPanelMode]);
   reactExports.useEffect(() => {
     if (!terminalReveal) return;
     setRequestedToolboxModule({ id: "terminal", nonce: terminalReveal.nonce });
@@ -1112,7 +1120,8 @@ function IslandApp() {
             systemNoticeLayout: noticeLayout,
             notchHeight: notchH,
             notchWidth: notchInfo.hasNotch ? notchInfo.notchWidth + 16 : 0,
-            panelMaxHeightPx,
+            panelMaxHeightPx: effectivePanelMaxHeightPx,
+            onReturnToAtoll: atollPanelMode ? collapsePanelToPill : undefined,
             agentQuotas,
             hasUpdate,
             tokenBurnTotal,
@@ -1120,7 +1129,7 @@ function IslandApp() {
             showUsageQuota,
             mediaState,
             lyricsState,
-            mediaEnabled,
+            mediaEnabled: !atollPanelMode && mediaEnabled,
             systemStatus,
             performanceState,
             performanceEnabled,

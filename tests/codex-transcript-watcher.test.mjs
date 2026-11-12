@@ -115,3 +115,48 @@ test("truncation clears an unfinished tail before parsing replacement content", 
   assert.equal(file.lastPrompt, "新文件内容");
   assert.deepEqual(events.map((event) => event.type), ["turnStarted", "sessionStarted"]);
 });
+
+test("cold start recovers a running turn whose prompt precedes a large tool-output tail", () => {
+  const record = payload => JSON.stringify({ timestamp: new Date().toISOString(), payload });
+  const transcriptPath = createTranscript([
+    record({ type: "task_started", turn_id: "live-turn" }),
+    record({ type: "user_message", message: "请监控这个真实的长任务" }),
+    ...Array.from({ length: 20 }, () => record({ type: "function_call_output", output: "x".repeat(12000) })),
+    record({ type: "token_count", info: { total_token_usage: { total_tokens: 1000 } } })
+  ].join("\n") + "\n");
+  const reads = [];
+  const watcher = new CodexTranscriptWatcher({ fsModule: { ...fs, readSync(fd, buffer, offset, length, position) {
+    reads.push(length); return fs.readSync(fd, buffer, offset, length, position);
+  } } });
+  const file = createTrackedFile(transcriptPath);
+  const events = []; watcher.on("event", event => events.push(event));
+  watcher.readTail(file); watcher.files.set(file.sessionId, file);
+  assert.equal(file.lastPrompt, "请监控这个真实的长任务");
+  assert.equal(file.turnRunning, true);
+  assert.equal(watcher.discoverActiveSessions([]).length, 1);
+  assert.deepEqual(events.map(event => event.type), ["sessionStarted"]);
+  assert.ok(reads.every(length => length <= 4 * 1024 * 1024));
+});
+
+test("cold start does not replay a completion after reading back to an earlier prompt", () => {
+  const record = payload => JSON.stringify({ timestamp: new Date().toISOString(), payload });
+  const transcriptPath = createTranscript([
+    record({ type: "user_message", message: "已经完成的历史任务" }),
+    ...Array.from({ length: 20 }, () => record({ type: "function_call_output", output: "x".repeat(12000) })),
+    record({ type: "task_complete", last_agent_message: "完成" })
+  ].join("\n") + "\n");
+  const watcher = new CodexTranscriptWatcher(); const file = createTrackedFile(transcriptPath);
+  const events = []; watcher.on("event", event => events.push(event));
+  watcher.readTail(file); watcher.files.set(file.sessionId, file);
+  assert.equal(watcher.discoverActiveSessions([]).length, 0);
+  assert.deepEqual(events, []);
+});
+
+test('desktop cold start finds a turn beyond a multi-megabyte tool result without an event_msg user_message',()=>{
+ const row=(type,payload)=>JSON.stringify({type,timestamp:new Date().toISOString(),payload});
+ const path=createTranscript([row('event_msg',{type:'task_started',turn_id:'desktop-long'}),
+   row('response_item',{type:'function_call_output',output:'x'.repeat(5*1024*1024)}),
+   row('response_item',{type:'message',role:'user',content:[{type:'input_text',text:'请继续真实的任务'}]})].join('\n')+'\n');
+ const w=new CodexTranscriptWatcher(),file=createTrackedFile(path);w.readTail(file);
+ assert.equal(file.turnRunning,true);assert.equal(file.lastPrompt,'请继续真实的任务');
+});

@@ -29,6 +29,7 @@ const CODEX_SESSIONS_DIR = path.join(os.homedir(), ".codex", "sessions");
 const SCAN_INTERVAL_MS = 2000;
 const LOOKBACK_MS = 24 * 60 * 60 * 1000;
 const BOOTSTRAP_TAIL_BYTES = 64 * 1024;
+const MAX_BOOTSTRAP_SCAN_BYTES = 4 * 1024 * 1024;
 const ACTIVE_SESSION_MS = 5 * 60 * 1000;
 // 完整目录扫描会遍历所有年份/月份/日期目录；活跃会话只会出现在最近两天的
 // 日期目录里。平时每 2 秒只扫最近两天，完整扫描降频到每分钟一次，
@@ -323,30 +324,85 @@ class CodexTranscriptWatcher extends EventEmitter {
   }
 
   readTail(file) {
+    const fileSystem = this.fs;
     let stat;
     try {
-      stat = fs.statSync(file.path);
+      stat = fileSystem.statSync(file.path);
     } catch {
       return;
     }
-    const chunkSize = Math.min(stat.size, BOOTSTRAP_TAIL_BYTES);
-    const fd = fs.openSync(file.path, "r");
+    let chunkSize = Math.min(stat.size, BOOTSTRAP_TAIL_BYTES);
+    const fd = fileSystem.openSync(file.path, "r");
     try {
       // 先读头部第一条 record，拿到 session_meta / 标题
       const headSize = Math.min(stat.size, 32 * 1024);
       const head = Buffer.alloc(headSize);
-      fs.readSync(fd, head, 0, headSize, 0);
+      fileSystem.readSync(fd, head, 0, headSize, 0);
       const headText = head.toString("utf8");
       const firstLine = headText
         .split("\n")
         .find((l) => l.trim().startsWith("{"));
       if (firstLine) this.processLine(file, firstLine, false);
 
-      const buf = Buffer.alloc(chunkSize);
-      fs.readSync(fd, buf, 0, chunkSize, stat.size - chunkSize);
+      let lines;
+      // Long turns often end with tool output rather than a turn boundary.
+      // Grow the bounded tail until the latest turn can actually be restored.
+      while (true) {
+        const buf = Buffer.alloc(chunkSize);
+        fileSystem.readSync(fd, buf, 0, chunkSize, stat.size - chunkSize);
+        let text = buf.toString("utf8");
+        if (stat.size > chunkSize) text = text.slice(text.indexOf("\n") + 1);
+        lines = text.split("\n").filter(line => line.trim().startsWith("{"));
+        let hasPrompt = false, latestBoundary;
+        for (let i = lines.length - 1; i >= 0; i--) {
+          let record; try { record = JSON.parse(lines[i]); } catch { continue; }
+          const payload = record.payload;
+          if (!payload) continue;
+          const prompt = payload.type === "user_message" && typeof payload.message === "string"
+            ? extractCodexPrompt(payload.message) : "";
+          if (prompt && !prompt.startsWith("<")) {
+            hasPrompt = true;
+            latestBoundary ??= "user_message";
+          }
+          if (["task_started", "turn_started", "task_complete", "turn_complete", "turn_aborted", "error"].includes(payload.type)) latestBoundary ??= payload.type;
+          if (latestBoundary && hasPrompt) break;
+        }
+        const completed = ["task_complete", "turn_complete", "turn_aborted", "error"].includes(latestBoundary);
+        const maxBytes = Math.min(stat.size, MAX_BOOTSTRAP_SCAN_BYTES);
+        if (completed || (hasPrompt && latestBoundary) || chunkSize >= maxBytes) break;
+        chunkSize = Math.min(maxBytes, chunkSize * 4);
+      }
+      // Desktop transcripts may use only response_item messages, and a single
+      // screenshot/tool result can be larger than the whole 4 MiB replay.
+      // If the retained tail has no lifecycle anchor, walk older bytes in
+      // small blocks. Keep only bounded metadata lines, never the large output.
+      if (stat.size > chunkSize && !lines.some(isLifecycleLine)) {
+        const start = stat.size - chunkSize;
+        let end = start, carry = "", discard = false;
+        const older = [];
+        outer: while (end > 0 && start - end < 32 * 1024 * 1024) {
+          const size = Math.min(end, 256 * 1024), buf = Buffer.alloc(size);
+          end -= size;
+          fileSystem.readSync(fd, buf, 0, size, end);
+          // latin1 preserves UTF-8 bytes split across reads; decode complete records.
+          const parts = buf.toString("latin1").split("\n");
+          for (let j=parts.length-1; j>=0; j--) {
+            if (!discard) {
+              if (parts[j].length + carry.length > 65536) { discard=true; carry=""; }
+              else carry=parts[j]+carry;
+            }
+            if (j===0 && end>0) continue;
+            if (!discard && carry.startsWith("{")) {
+              const line=Buffer.from(carry,"latin1").toString("utf8");
+              if (isLifecycleLine(line)) { older.push(line); break outer; }
+              if (/"(?:user_message|input_text|request_user_input_async)"/.test(line)) older.push(line);
+            }
+            carry="";discard=false;
+          }
+        }
+        lines = older.reverse().concat(lines);
+      }
       file.lastReadSize = stat.size;
-      const text = buf.toString("utf8");
-      const lines = text.split("\n").filter((l) => l.trim().startsWith("{"));
       for (const line of lines) {
         this.processLine(file, line, false);
       }
@@ -369,7 +425,7 @@ class CodexTranscriptWatcher extends EventEmitter {
       }
       // 注意：lastTurnCompleted 的历史完成不发通知，避免重启轰炸
     } finally {
-      fs.closeSync(fd);
+      fileSystem.closeSync(fd);
     }
   }
 
@@ -385,6 +441,8 @@ class CodexTranscriptWatcher extends EventEmitter {
     const payload = evt.payload;
     if (!payload || typeof payload !== "object") return;
 
+    const questionChange = require("./codex-desktop-questions.cjs").applyDesktopQuestion(file, evt);
+    if (questionChange && shouldEmit) this.emit("desktop-question", {sessionId:file.sessionId, type:questionChange, timestamp:ts});
     const self = this;
     const emit = (event) => {
       if (shouldEmit && !file.isSubagent) self.emit("event", event);
@@ -444,6 +502,7 @@ class CodexTranscriptWatcher extends EventEmitter {
         file.activeTurnId = nextTurnId || file.activeTurnId;
         file.lastTurnCompleted = false;
         if (isNewTurn) {
+          file.desktopQuestions?.clear();
           emit(
             this.buildEvent(file, "turnStarted", {
               ts,
@@ -532,6 +591,7 @@ class CodexTranscriptWatcher extends EventEmitter {
 
       case "error": {
         if (!file.turnRunning) break;
+        file.desktopQuestions?.clear();
         file.turnRunning = false;
         const errMsg = payload.message || payload.error || "Codex 报错";
         emit(
@@ -545,6 +605,7 @@ class CodexTranscriptWatcher extends EventEmitter {
       }
 
       case "task_complete":
+      case "turn_complete":
       case "turn_completed":
       case "task_completed":
       case "turn_aborted": {
@@ -558,6 +619,7 @@ class CodexTranscriptWatcher extends EventEmitter {
         ) {
           break;
         }
+        file.desktopQuestions?.clear();
         file.turnRunning = false;
         file.activeTurnId = undefined;
         file.lastTurnCompleted = true;
@@ -631,6 +693,11 @@ class CodexTranscriptWatcher extends EventEmitter {
  * Codex Desktop 会给复制的用户消息加 attachment 元信息头，剥掉它。
  * Clean-room 复刻自 stow 的 extractCodexPrompt。
  */
+function isLifecycleLine(line) {
+  if (!/"(?:task_started|turn_started|task_complete|turn_complete|turn_completed|task_completed|turn_aborted|error)"/.test(line)) return false;
+  try { return ["task_started","turn_started","task_complete","turn_complete","turn_completed","task_completed","turn_aborted","error"].includes(JSON.parse(line).payload?.type); } catch { return false; }
+}
+
 function extractCodexPrompt(value) {
   let text = value.replace(/\r\n?/g, "\n").trim();
   const requestHeading = text.match(CODEX_REQUEST_HEADING);

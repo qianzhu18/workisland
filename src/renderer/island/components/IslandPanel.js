@@ -1393,6 +1393,8 @@ function renderActionableCard(props) {
   if (session.phase === "waitingForApproval")
     return /* @__PURE__ */ React.createElement(ApprovalCard, { session });
   if (session.phase === "waitingForAnswer") {
+    if (session.questionPrompt?.desktopOnly)
+      return React.createElement("div", {className:"question-card"}, ...session.questionPrompt.questions.map(q=>React.createElement("p", {key:q.id}, q.question)), React.createElement("button", {className:"atoll-jump", onClick:()=>window.islandBridge.jumpToSession(session.id)}, t("atoll.replyInCodex")));
     if (session.planConfirmation)
       return /* @__PURE__ */ React.createElement(PlanConfirmationCard, { session });
     if (session.questionPrompt)
@@ -1458,6 +1460,7 @@ function IslandPanel({
   onOpenAbout,
   onOpenPet,
   onCollapse,
+  onReturnToAtoll,
   onFollowUpChange,
   onActiveModuleChange,
   onTerminalFullChange,
@@ -1630,7 +1633,7 @@ function IslandPanel({
       onUpdateInstall,
       onOpenRelease
     }
-  ), /* @__PURE__ */ React.createElement("div", { className: "panel-divider" }), activeModule === "system-status" && React.createElement(SystemStatus, { state: systemStatus }), activeModule === "shelf" && /* @__PURE__ */ React.createElement(ShelfPanel), activeModule === "clipboard" && /* @__PURE__ */ React.createElement(ClipboardPanel), terminalEnabled && /* @__PURE__ */ React.createElement(TerminalPanel, { active: activeModule === "terminal", panelOpen, savedCommands: terminalSavedCommands, requestedTerminalReveal, agentSessions: sessions, onAgentNotice: id => { setActiveModule("agent"); onAgentNotice?.(id); }, onOpenSettings: () => onOpenSettings("general"), onFullChange: onTerminalFullChange }), activeModule === "usage" && /* @__PURE__ */ React.createElement(UsagePanel), /* @__PURE__ */ React.createElement("div", { className: `workspace-content${mediaEnabled && mediaState?.active && mediaState?.title ? " has-media" : ""}${activeModule === "agent" ? "" : " is-hidden"}` }, mediaEnabled && mediaState?.active && mediaState?.title && /* @__PURE__ */ React.createElement(MediaCard, { media: mediaState, lyrics: lyricsState }), /* @__PURE__ */ React.createElement("div", { className: "workspace-agent-pane" }, /* @__PURE__ */ React.createElement(SessionSearchPane, { query: searchQuery, onQueryChange: setSearchQuery }), searchQuery ? /* @__PURE__ */ React.createElement(SessionSearchResults, { query: searchQuery, onActivate: handleSearchActivate }) : null, /* @__PURE__ */ React.createElement("div", { className: `session-list${searchQuery ? " is-hidden" : ""}`, ref: sessionListRef }, visibleSessions.length === 0 ? (hasConnectedAgent === false ? /* @__PURE__ */ React.createElement(SessionEmptyOnboarding, { onOpenSettings }) : /* @__PURE__ */ React.createElement("div", { className: "session-list-empty" }, /* @__PURE__ */ React.createElement(
+  ), /* @__PURE__ */ onReturnToAtoll && React.createElement("div", { className: "atoll-native-controls" }, React.createElement("button", { type: "button", onClick: onReturnToAtoll, className: "atoll-native-return" }, t("atoll.return"))), React.createElement("div", { className: "panel-divider" }), activeModule === "system-status" && React.createElement(SystemStatus, { state: systemStatus }), activeModule === "shelf" && /* @__PURE__ */ React.createElement(ShelfPanel), activeModule === "clipboard" && /* @__PURE__ */ React.createElement(ClipboardPanel), terminalEnabled && /* @__PURE__ */ React.createElement(TerminalPanel, { active: activeModule === "terminal", panelOpen, savedCommands: terminalSavedCommands, requestedTerminalReveal, agentSessions: sessions, onAgentNotice: id => { setActiveModule("agent"); onAgentNotice?.(id); }, onOpenSettings: () => onOpenSettings("general"), onFullChange: onTerminalFullChange }), activeModule === "usage" && /* @__PURE__ */ React.createElement(UsagePanel), /* @__PURE__ */ React.createElement("div", { className: `workspace-content${mediaEnabled && mediaState?.active && mediaState?.title ? " has-media" : ""}${activeModule === "agent" ? "" : " is-hidden"}` }, mediaEnabled && mediaState?.active && mediaState?.title && /* @__PURE__ */ React.createElement(MediaCard, { media: mediaState, lyrics: lyricsState }), /* @__PURE__ */ React.createElement("div", { className: "workspace-agent-pane" }, /* @__PURE__ */ React.createElement(SessionSearchPane, { query: searchQuery, onQueryChange: setSearchQuery }), searchQuery ? /* @__PURE__ */ React.createElement(SessionSearchResults, { query: searchQuery, onActivate: handleSearchActivate }) : null, /* @__PURE__ */ React.createElement("div", { className: `session-list${searchQuery ? " is-hidden" : ""}`, ref: sessionListRef }, visibleSessions.length === 0 ? (hasConnectedAgent === false ? /* @__PURE__ */ React.createElement(SessionEmptyOnboarding, { onOpenSettings }) : /* @__PURE__ */ React.createElement("div", { className: "session-list-empty" }, /* @__PURE__ */ React.createElement(
     "img",
     {
       className: "session-list-empty-icon",
@@ -1696,3 +1699,5 @@ export {
   useActionable as u
 };
 export { DEFAULT_STATUS_ICONS, resolveSessionIcon, setIslandStatusAssets, useIslandStatusIcons };
+
+export { SessionRow, AgentQuotaCell, SubagentList, ContinuePromptInput, renderActionableCard };

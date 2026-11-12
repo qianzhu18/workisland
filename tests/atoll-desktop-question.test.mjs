@@ -1,0 +1,20 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url);
+const {CodexTranscriptWatcher}=require('../src/main/codex-transcript-watcher.cjs');
+const {withDesktopQuestions}=require('../src/main/codex-desktop-questions.cjs');
+test('desktop async consent stays visible after tool ACK and only matching human replies clear it',()=>{
+ const w=new CodexTranscriptWatcher(), f={sessionId:'test',turnRunning:true};
+ w.files.set('test',f);const changes=[];w.on('desktop-question', e=>changes.push(e.type));
+ const feed=(p,emit=true)=>w.processLine(f,JSON.stringify({type:'response_item',payload:p}),emit);
+ const call={type:'function_call',name:'request_user_input_async',call_id:'call_a',arguments:JSON.stringify({questions:[{title:'Which file?'},{title:'And which folder?'}]})};
+ const reply=(id,i)=>({type:'message',role:'user',content:[{type:'input_text',text:'<send_user_message_question_reply>\n'+JSON.stringify([{questionItemId:JSON.stringify(['request_user_input_async',id,i]),answer:'ok'}])+'\n</send_user_message_question_reply>'}]});
+ const current=()=>withDesktopQuestions([{id:'test',tool:'codex',phase:'running'}],w)[0];
+ feed(call);feed(call);feed({type:'function_call_output',call_id:'call_a',output:'{"accepted":true}'});
+ assert.equal(current().phase,'waitingForAnswer');assert.equal(current().questionPrompt.questions.length,2);
+ feed(reply('other',0));feed(reply('call_a',0));assert.equal(current().questionPrompt.questions[0].question,'And which folder?');
+ feed(reply('call_a',1));assert.equal(current().phase,'running');assert.deepEqual(changes,['asked','resolved','resolved']);
+ feed(call,false);assert.equal(changes.length,3);feed({type:'function_call_output',call_id:'call_a',output:'{"accepted":false}'});assert.equal(current().phase,'running');
+ feed(call,false);w.processLine(f,JSON.stringify({type:'event_msg',payload:{type:'turn_aborted'}}));assert.equal(current().phase,'running');
+});

@@ -443,6 +443,8 @@ function summarize(q) {
 }
 class QuotaService {
   quotaMap = {};
+  subscribers = new Set();
+  subscribe(listener) {this.subscribers.add(listener);return ()=>this.subscribers.delete(listener);}
   islandWindow = null;
   claudeWatcher = null;
   // Claude 缓存文件首次启动时不存在；fall back 监听 /tmp 等待文件被 statusLine 创建。
@@ -645,6 +647,7 @@ class QuotaService {
       return;
     }
     this.quotaMap = { ...this.quotaMap, [agent]: next };
+    for (const listener of this.subscribers) listener(this.getQuotaMap());
     log.info(
       "[QuotaService] %s quota changed (%s): %s -> %s",
       agent,

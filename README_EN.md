@@ -38,6 +38,8 @@
 
 ![WorkIsland shows multiple coding-agent tasks in a real macOS interface](website/assets/demo/overview.png)
 
+**Optional Atoll integration (main branch):** Monitor agents, usage and results in Atoll and open WorkIsland’s native action panel. See [setup and compatibility](docs/atoll-integration.md).
+
 ## Why WorkIsland
 
 WorkIsland is **a native Mac work interface for the AI era**. It does not replace your agent, terminal, or other work apps; it keeps work where it happens and makes the state, context, and next action available when you need to step in.

@@ -43,6 +43,11 @@ electron.contextBridge.exposeInMainWorld("islandBridge", {
   onSessionUpdate(cb) {
     electron.ipcRenderer.on(ipc.IPC.ISLAND_SESSION_UPDATE, (_event, sessions) => cb(sessions));
   },
+  onAtollPanelMode(cb) {
+    const handler=(_event,enabled)=>cb(enabled===true);
+    electron.ipcRenderer.on(ipc.IPC.ATOLL_PANEL_MODE,handler);
+    return ()=>electron.ipcRenderer.off(ipc.IPC.ATOLL_PANEL_MODE,handler);
+  },
   onPresentSurface(cb) {
     electron.ipcRenderer.on(ipc.IPC.ISLAND_PRESENT_SURFACE, (_event, payload) => cb(payload));
   },

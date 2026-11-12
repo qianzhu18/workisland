@@ -83,6 +83,8 @@ const DEFAULT_SHORTCUTS = {
 };
 
 const DEFAULT_SETTINGS = {
+  atollIntegrationEnabled: false,
+  agentDisplayTarget: "native",
   launchAtLogin: false,
   updateChecksEnabled: true,
   lastUpdateCheckAt: 0,
@@ -279,6 +281,8 @@ function mergeSettings(parsed = {}) {
   for (const key of ["systemBatteryEnabled", "systemNetworkEnabled", "systemAudioEnabled", "systemCaptureEnabled", "systemDownloadsEnabled", "systemLockScreenEnabled"]) {
     merged[key] = typeof parsed[key] === "boolean" ? parsed[key] : DEFAULT_SETTINGS[key];
   }
+  merged.atollIntegrationEnabled = parsed.atollIntegrationEnabled === true;
+  merged.agentDisplayTarget = parsed.agentDisplayTarget === "atoll" ? "atoll" : "native";
   merged.languagePreference = normalizeLanguagePreference(parsed.languagePreference);
   delete merged.locale;
 

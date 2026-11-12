@@ -1,0 +1,52 @@
+:root{color-scheme:dark;--island-fg-primary:rgba(255,255,255,.92);--island-fg-secondary:rgba(255,255,255,.64);--island-fg-tertiary:rgba(255,255,255,.4);--island-fg-muted:rgba(255,255,255,.3);--island-card-bg:rgba(255,255,255,.035);--island-card-header-bg:rgba(255,255,255,.04);--island-control-border:rgba(255,255,255,.13);--island-control-bg:rgba(255,255,255,.06);font:12px -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;color:#fff;background:#000}
+*{box-sizing:border-box}html,body,#root{height:100%;width:100%;margin:0;overflow:hidden}button{font:inherit;color:inherit;cursor:pointer}.atoll-monitor{display:flex;flex-direction:column;height:100%;min-height:0;padding:4px 8px}.atoll-toolbar{display:flex;gap:8px;align-items:center;flex-shrink:0;min-height:26px;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:4px}.atoll-toolbar button{background:none;border:0;border-radius:5px;padding:3px 6px;font-size:11px;white-space:nowrap}.atoll-toolbar button.selected{background:rgba(255,255,255,.1)}.atoll-quotas{display:flex;align-items:center;gap:8px;flex:1;min-width:0;font-size:10px}.atoll-missing-quota{font-size:9px;color:var(--island-fg-muted)}.atoll-content{flex:1;min-height:0;overflow:auto;scrollbar-width:thin;overflow-anchor:none}.atoll-content[hidden]{display:none}.atoll-content>.session-list{height:auto;max-height:none;padding:4px 0;overflow:visible}.atoll-content .session-row-container{flex-shrink:0}.atoll-content .session-row{padding:4px 2px}.atoll-content .session-empty-onboarding{padding:12px}.atoll-empty{font-size:12px;color:var(--island-fg-secondary);text-align:center;padding:18px}.atoll-error{flex-shrink:0;color:#ffbd73;font-size:10px;margin:2px 0}.atoll-content .usage-panel{height:auto;max-height:none}.atoll-content .usage-panel .usage-header-actions{display:none}.atoll-quotas .usage-cell{min-width:0}.atoll-quotas .usage-cell-tooltip{position:fixed;left:8px;top:32px;z-index:20;max-width:calc(100% - 16px)}
+
+/* The native transparent overlay disables root hit testing; this web surface is fully interactive. */
+#root { pointer-events: auto; }
+.atoll-quota { display: flex; align-items: center; gap: 3px; min-width: 0; }
+.atoll-quota-history { color: #d9b77a; font-size: 8px; white-space: nowrap; }
+/* Atoll does not register the native island's global approval hotkeys. */
+.atoll-monitor .kbd { display: none; }
+.atoll-content { scrollbar-gutter: stable; overscroll-behavior: contain; }
+.atoll-content::-webkit-scrollbar { width: 7px; }
+.atoll-content::-webkit-scrollbar-thumb { background: #ffffff55; border-radius: 5px; }
+/* Some supported Atoll versions clip the web frame. Keep enough scroll range
+   to bring the final card to the visible top without requesting another window. */
+.atoll-content::after { content: ''; display: block; height: 100vh; pointer-events: none; }
+
+/* Keep the native rows and action cards, with disclosure for the smaller host. */
+.atoll-toolbar { gap: 4px; }
+.atoll-toolbar button { min-height: 24px; display: inline-flex; align-items: center; justify-content: center; }
+.atoll-toolbar button:focus-visible, .atoll-card-toggle:focus-visible, .atoll-jump:focus-visible { outline: 2px solid #9bbdff; outline-offset: -2px; }
+.atoll-toolbar button:hover, .atoll-card-toggle:hover, .atoll-jump:hover { background: #ffffff18; }
+.atoll-quotas { justify-content: flex-end; padding-right: 4px; }
+.atoll-quotas .usage-cell { font-size: 10px; }
+.atoll-missing-quota { color: #a0a0a0; }
+.atoll-content > .session-list { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 0 12px; }
+.atoll-session { position: relative; min-width: 0; margin: 0; padding: 5px 0; border-bottom: 1px solid #ffffff16; }
+.atoll-session .session-row { min-height: 54px; padding: 0 27px 0 0; gap: 6px; }
+.atoll-session .session-icon { width: 26px; height: 26px; }
+.atoll-session .session-tool-badge, .atoll-session .session-elapsed, .atoll-session .session-title { font-size: 10px; }
+.atoll-session .session-headline-left, .atoll-session .session-meta { gap: 4px; }
+.atoll-session .session-prompt, .atoll-session .session-activity { font-size: 11px; line-height: 15px; }
+.atoll-session .session-activity { color: #a4a8b2; }
+.atoll-card-toggle { position: absolute; right: 0; top: 17px; display: flex; align-items: center; gap: 2px; min-width: 24px; min-height: 24px; border: 0; border-radius: 4px; background: #000; color: #b6bac3; font-size: 10px; padding: 2px; }
+.needs-attention:not(.is-expanded) .session-row { padding-right: 58px; }
+.needs-attention .atoll-card-toggle { color: #f2c386; }
+.atoll-session-details[hidden] { display: none; }
+.atoll-session-details { padding: 4px 0; }
+.atoll-jump { border: 0; background: none; color: #b9cfff; font-size: 11px; padding: 4px 6px; margin: 0 0 6px 26px; border-radius: 4px; }
+.atoll-session.is-expanded { grid-column: 1 / -1; }
+.atoll-session.is-expanded .session-row { padding-right: 27px; }
+.atoll-session .approval-card { margin-top: 4px; }
+.atoll-session .subagent-card { margin-bottom: 6px; }
+.atoll-monitor ::selection { color: #fff; background: #3e5995; }
+@media (min-width: 560px) {
+  .atoll-content > .session-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 520px) {
+  .atoll-quotas .usage-cell-info, .atoll-quotas .atoll-missing-quota, .atoll-quotas .atoll-quota-history { display: none; }
+}
+
+.atoll-toolbar .atoll-expand-native { background:#e7eaf0; color:#14161a; font-weight:600; padding:4px 8px; }
+.atoll-toolbar .atoll-expand-native:hover { background:#fff; }
