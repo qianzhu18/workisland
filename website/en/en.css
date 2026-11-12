@@ -14,3 +14,5 @@
 .en-agent-tools a, .en-agent-tools button { color:inherit; text-decoration:underline; text-underline-offset:3px; }
 .en-agent-tools button { padding:0; border:0; background:transparent; font:inherit; cursor:pointer; }
 .en-agent-tools a:hover, .en-agent-tools button:hover, .en-agent-tools [data-copy-status] { color:var(--accent); }
+.en-download-count { margin: -4px 0 0; color: rgba(255, 255, 255, .46); font-size: 12px; line-height: 1.5; letter-spacing: .01em; }
+.en-download-count strong { color: rgba(255, 255, 255, .72); font-weight: 500; font-variant-numeric: tabular-nums; }

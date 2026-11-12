@@ -140,6 +140,8 @@ body::before {
 .vi-headline em::after { content: ""; }
 .vi-sub { font-size: 17px; line-height: 1.65; color: rgba(255, 255, 255, .7); max-width: 480px; margin: 0 auto 30px; overflow-wrap: anywhere; }
 .vi-cta { display: flex; gap: 12px; justify-content: center; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+.vi-download-count { margin: -4px 0 16px; color: rgba(255, 255, 255, .46); font-size: 12px; line-height: 1.5; letter-spacing: .01em; text-align: center; }
+.vi-download-count strong { color: rgba(255, 255, 255, .72); font-weight: 500; font-variant-numeric: tabular-nums; }
 .vi-platform { font-family: var(--font-pixel); font-size: 10px; letter-spacing: .14em; color: #666; -webkit-font-smoothing: none; }
 .vi-star-note { max-width: 540px; margin: 14px auto 0; color: rgba(255, 255, 255, .56); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
 

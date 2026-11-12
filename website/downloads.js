@@ -4,6 +4,7 @@
   const repository = "qianzhu18/workisland";
   const releasePage = `https://github.com/${repository}/releases/latest`;
   const releaseApi = `https://api.github.com/repos/${repository}/releases/latest`;
+  const releasesApi = `https://api.github.com/repos/${repository}/releases?per_page=100`;
   const configUrl = "/download-config.json";
 
   function isHttpsUrl(value) {
@@ -47,6 +48,25 @@
     });
     document.querySelectorAll("[data-version]").forEach((node) => {
       node.textContent = tag || "最新稳定版";
+    });
+  }
+
+  function updateDownloadCount(releases) {
+    if (!Array.isArray(releases)) return;
+    const total = releases.reduce((releaseTotal, release) => {
+      const assets = Array.isArray(release?.assets) ? release.assets : [];
+      return releaseTotal + assets.reduce((assetTotal, asset) => {
+        const name = typeof asset?.name === "string" ? asset.name : "";
+        const downloads = Number(asset?.download_count);
+        return assetTotal + (/\.dmg$/i.test(name) && Number.isFinite(downloads) ? downloads : 0);
+      }, 0);
+    }, 0);
+    if (total <= 0) return;
+
+    document.querySelectorAll("[data-download-count]").forEach((node) => {
+      const value = node.querySelector("[data-download-count-value]");
+      if (value) value.textContent = total.toLocaleString("en-US");
+      node.hidden = false;
     });
   }
 
@@ -97,6 +117,15 @@
     }
   }
 
-  window.WorkIslandDownloads = { loadLatestRelease };
+  async function loadDownloadCount() {
+    try {
+      updateDownloadCount(await getJson(releasesApi, 2500, { Accept: "application/vnd.github+json" }));
+    } catch {
+      // The count is decorative; never block the page when GitHub is unavailable.
+    }
+  }
+
+  window.WorkIslandDownloads = { loadLatestRelease, loadDownloadCount };
   loadLatestRelease();
+  loadDownloadCount();
 })();
