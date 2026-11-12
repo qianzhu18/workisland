@@ -525,7 +525,24 @@ function generalPage() {
   lifecycle.append(
     row(t("settings.general.app.quitTitle"), t("settings.general.app.quitDescription"), button(t("settings.general.app.quitAction"), requestQuitApp, "danger"))
   );
-  root.append(language, workstation, productivity, behavior, display, lifecycle);
+  if (api.platform === "darwin") {
+    const integration = section(t("settings.atoll.title"),t("settings.atoll.description"));
+    const connection=el("span","hint",t("settings.atoll.state.disabled"));
+    const enableControl=toggle(state.settings.atollIntegrationEnabled,v=>save({atollIntegrationEnabled:v}),t("settings.atoll.enable"));
+    const updateStatus=async()=>{try{const status=await api.getAtollStatus?.();connection.textContent=t(`settings.atoll.state.${status?.state||"disabled"}`)}catch{connection.textContent=t("settings.atoll.state.error")};if(connection.isConnected)setTimeout(updateStatus,2000)};
+    integration.append(
+      row(t("settings.atoll.enable"),"",enableControl),
+      row(t("settings.atoll.target"),t("settings.atoll.targetHint"),select(state.settings.agentDisplayTarget||"native",[["native",t("settings.atoll.native")],["atoll",t("settings.atoll.host")]],async v=>{
+        await save({agentDisplayTarget:v,atollIntegrationEnabled:v==="atoll"?true:state.settings.atollIntegrationEnabled});
+        enableControl.querySelector("input").checked=Boolean(state.settings.atollIntegrationEnabled);
+      },t("settings.atoll.target"))),
+      row(t("settings.atoll.title"),"",connection),
+      button(t("settings.atoll.reconnect"),async()=>{await api.reconnectAtoll?.();updateStatus()}),
+      button(t("atoll.expandNative"),async()=>{try{await api.openAtollAgentPanel?.()}catch{connection.textContent=t("atoll.actionFailed")}})
+    );
+    root.append(language,workstation,productivity,behavior,display,integration,lifecycle);
+    setTimeout(updateStatus,0);
+  } else {root.append(language, workstation, productivity, behavior, display, lifecycle);}
   return root;
 }
 

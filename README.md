@@ -39,6 +39,8 @@
 
 ![WorkIsland 在真实 macOS 界面中展示多个编程 Agent 任务](website/assets/demo/overview.png)
 
+**可选 Atoll 扩展（主分支）：** 在 Atoll 灵动岛里查看 Agent、额度和完成结果，或展开 WorkIsland 的原生审批面板。[设置与兼容说明](docs/atoll-integration.md)。
+
 ## 为什么需要 WorkIsland
 
 WorkIsland 的产品定义是：**AI 原生时代的 macOS 工作界面**。它不替代 Agent、终端或其他工作应用；它让工作发生在原来的地方，并在需要你参与时提供状态、上下文和下一步。

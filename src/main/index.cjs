@@ -859,12 +859,22 @@ async function runIslandApp() {
   coordinator.setTelemetryService(telemetryService);
   telemetryService.track(EVENTS.APP_LAUNCHED);
   telemetryService.start();
+  coordinator.atollIntegration.getLocaleState = () => localization.getSnapshot();
+  electron.ipcMain.handle("atoll:get-status",()=>coordinator.atollIntegration.getStatus());
+  electron.ipcMain.handle("atoll:reconnect",()=>coordinator.atollIntegration.reconnect());
+  electron.ipcMain.handle("atoll:open-agent-panel",()=>coordinator.atollPanel.open());
   registerIpcHandlers(coordinator, localization);
   const QUIT_WATCHDOG_MS = 1e4;
   let quitWatchdog = null;
   let willQuitFired = false;
   electron.app.on("before-quit", () => {
     setQuitting(true);
+    // Begin best-effort descriptor withdrawal while the socket is still alive.
+    // Do not cancel and re-enter Electron's quit lifecycle: all windows may
+    // already have closed before that second quit reaches will-quit.
+    if (coordinator.atollIntegration.server) {
+      void coordinator.atollIntegration.close().catch(error => log.warn("[Atoll] shutdown:", error.message));
+    }
     if (quitWatchdog) clearTimeout(quitWatchdog);
     quitWatchdog = setTimeout(() => {
       quitWatchdog = null;
@@ -1028,6 +1038,7 @@ async function runIslandApp() {
   }
   function bindDisplayListener() {
     displayManager.on("displayChanged", (t, reason) => {
+      if(coordinator.atollPanel.isOpen)return;
       log.info("[main] displayChanged → moving island to:", t.screenInfo.label);
       coordinator.handleDisplayChanged();
       islandWindow?.moveToDisplay(t, { force: !!reason });
@@ -1270,7 +1281,8 @@ async function runIslandApp() {
     }
     shortcutService.setPanelExpanded(true);
   });
-  electron.ipcMain.on(IPC.ISLAND_PANEL_COLLAPSED, () => {
+  electron.ipcMain.on(IPC.ISLAND_PANEL_COLLAPSED, (event) => {
+    coordinator.atollPanel.handleCollapsed(event.sender);
     if (collapseUnregisterTimer) clearTimeout(collapseUnregisterTimer);
     collapseUnregisterTimer = setTimeout(() => {
       shortcutService.setPanelExpanded(false);

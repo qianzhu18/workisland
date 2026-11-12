@@ -7,16 +7,17 @@ const isWindows = window.welcomeBridge?.platform === "win32";
 function WelcomeApp() {
   const [visible, setVisible] = reactExports.useState(false);
   const [starting, setStarting] = reactExports.useState(false);
+  const [displayTarget,setDisplayTarget] = reactExports.useState("native");
 
   reactExports.useEffect(() => {
     requestAnimationFrame(() => setVisible(true));
   }, []);
 
   // 遥测自 2026-08-22 起默认开启并在「设置 → 关于」披露，欢迎页不再询问。
-  const start = () => {
+  const start = async () => {
     if (starting) return;
     setStarting(true);
-    window.welcomeBridge?.getStarted();
+    try {await window.welcomeBridge?.getStarted({displayTarget});} catch {setStarting(false);}
   };
 
   return React.createElement(
@@ -58,6 +59,7 @@ function WelcomeApp() {
     React.createElement(
       "footer",
       { className: "welcome-footer" },
+      !isWindows && React.createElement("label",{className:"welcome-display-target"},t("settings.atoll.target"),React.createElement("select",{value:displayTarget,onChange:e=>setDisplayTarget(e.target.value)},React.createElement("option",{value:"native"},t("settings.atoll.native")),React.createElement("option",{value:"atoll"},t("settings.atoll.host")))),
       React.createElement(
         "button",
         { className: "welcome-btn", type: "button", onClick: start, disabled: starting },

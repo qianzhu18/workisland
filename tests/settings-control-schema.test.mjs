@@ -12,6 +12,8 @@ const {
 const { createDefaultSettings } = require("../src/shared/settings.cjs");
 
 const EXPECTED_KEYS = [
+  "agentDisplayTarget",
+  "atollIntegrationEnabled",
   "autoCollapseDelayMs",
   "autoCollapseOnMouseLeave",
   "clearSessionsEnabled",
@@ -145,4 +147,10 @@ test("change requests are bounded before any values are accepted", () => {
     () => validateControlledChanges(settings, tooMany),
     (error) => error.code === "TOO_MANY_SETTINGS"
   );
+});
+
+test("Atoll display settings reject invalid targets and non-boolean enable flags",()=>{
+ const settings=createDefaultSettings();
+ assert.throws(()=>validateControlledChanges(settings,[{key:"agentDisplayTarget",value:"external"}]));
+ assert.throws(()=>validateControlledChanges(settings,[{key:"atollIntegrationEnabled",value:"yes"}]));
 });

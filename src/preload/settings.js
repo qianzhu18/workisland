@@ -3,6 +3,9 @@ const electron = require("electron");
 const ipc = require("../../src/shared/ipc.cjs");
 electron.contextBridge.exposeInMainWorld("settingsApi", {
   platform: process.platform,
+  getAtollStatus:()=>electron.ipcRenderer.invoke("atoll:get-status"),
+  reconnectAtoll:()=>electron.ipcRenderer.invoke("atoll:reconnect"),
+  openAtollAgentPanel:()=>electron.ipcRenderer.invoke("atoll:open-agent-panel"),
   getSettings: () => electron.ipcRenderer.invoke(ipc.IPC.SETTINGS_GET),
   getTelemetryStatus: () => electron.ipcRenderer.invoke(ipc.IPC.SETTINGS_GET_TELEMETRY_STATUS),
   getLocaleState: () => electron.ipcRenderer.invoke(ipc.IPC.LOCALE_GET_STATE),

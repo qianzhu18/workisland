@@ -74,6 +74,8 @@ function entry(key, label, description, type, constraints, validate) {
 }
 
 const CONTROLLED_SETTINGS = Object.freeze({
+  atollIntegrationEnabled: booleanEntry("atollIntegrationEnabled", "Atoll 集成", "允许 WorkIsland 连接 Atoll。"),
+  agentDisplayTarget: enumEntry("agentDisplayTarget", "Agent 展示位置", "选择 WorkIsland 或 Atoll；切换不会停止监控。", ["native", "atoll"]),
   autoCollapseDelayMs: numberEntry("autoCollapseDelayMs", "自动收起延迟", "鼠标离开后等待多久收起灵动岛。", { min: 500, max: 60000, integer: true }),
   autoCollapseOnMouseLeave: booleanEntry("autoCollapseOnMouseLeave", "离开后自动收起", "鼠标离开灵动岛后自动收起。"),
   completionPopupDurationSec: numberEntry("completionPopupDurationSec", "完成提醒时长", "任务完成提醒停留的秒数。", { min: 1, max: 60, integer: true }),

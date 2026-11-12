@@ -877,7 +877,7 @@ function readLastUserPrompt(transcriptPath) {
       try {
         const obj = JSON.parse(line);
         if (obj.type === "event_msg" && obj.payload?.type === "user_message" && typeof obj.payload.message === "string") {
-          return obj.payload.message;
+          if (!obj.payload.message.trimStart().startsWith("<send_user_message_question_reply>")) return obj.payload.message;
         }
       } catch {
       }
@@ -1396,6 +1396,12 @@ class CodexAdapter {
       }
       case "UserPromptSubmit": {
         const rawPrompt = payload.prompt || payload.prompt_preview || "";
+        // A desktop questionnaire reply resolves an existing request. It is
+        // not a new task title or a second task-submitted notification.
+        if (rawPrompt.trimStart().startsWith("<send_user_message_question_reply>")) {
+          ctx.sendResponse(clientId, ACK$c);
+          break;
+        }
         const prompt = stripCodexIdeContextWrapper(rawPrompt);
         const inlineMeta = payload._session_meta;
         const transcriptPath = payload.transcript_path;
