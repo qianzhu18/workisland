@@ -4,6 +4,12 @@
 
 > **版本体系重置（2026-09-02）**：公开版本号统一归位——内测期整理为 `v0.1.0 – v0.10.0`（原 `v0.2.x` 系列与初版 `v0.1.0` 重排，各版本说明注明原版本号）；`v3.0.0 / v3.1.0 / v3.2.0` 分别平移为 `v1.0.0 / v1.1.0 / v1.2.0`；`v3.2.0-rc.1` 与整条 `v1.0.0-alpha`（Windows 试验线）已删除，Windows 支持暂停维护、欢迎社区贡献者主导适配。
 
+## [1.6.3] - 2026-11-13
+
+修复部分显示配置下灵动岛收起时窗口高度不是整数，导致主进程参数转换失败并弹出 JavaScript error；包含当前主分支已合并的功能。此修复由用户报错截图触发，已在本机 Electron 43.3.0 与隔离打包启动中验证，尚未在反馈用户设备上验证。
+
+> **English summary:** Fixes a startup main-process error caused by non-integer collapsed-window geometry on some displays, and includes the latest merged main-branch features. [Full release notes](https://github.com/qianzhu18/workisland/releases/tag/v1.6.3).
+
 ## [Unreleased]
 
 - macOS：可选在 Atoll 中查看 WorkIsland 的 Agent、审批、提问和任务结果。在设置中启用后，Atoll 显示实时活动，详细操作复用 WorkIsland 原生监控面板。

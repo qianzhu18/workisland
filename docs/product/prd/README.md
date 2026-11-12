@@ -27,3 +27,5 @@
 - [Version PRD: v1.6.0](./PRD-v1.6.0-Release.md)
 
 - [Version PRD: v1.6.1 Update Integrity](./PRD-v1.6.1-Update-Integrity.md)
+
+- [Version PRD: v1.6.3 Display Geometry Fix](./PRD-023-v1.6.3-Display-Geometry-Fix.md)

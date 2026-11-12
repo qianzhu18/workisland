@@ -24,6 +24,12 @@ function createWindowClasses(dependencies) {
 
   const ISLAND_WIDTH = 740;
   const ISLAND_HEIGHT = 750;
+  const normalizeWindowDimension = (value, fallback) => {
+    const number = Number(value);
+    return Number.isFinite(number) && number > 0
+      ? Math.max(1, Math.round(number))
+      : fallback;
+  };
   class IslandWindow {
     win;
     _outputSuppressed = false;
@@ -435,9 +441,13 @@ function createWindowClasses(dependencies) {
     }
     getClosedHeight() {
       const { screenInfo } = this.currentTarget;
-      return Math.max(
-        screenInfo.hasNotch ? screenInfo.notchHeight : screenInfo.menuBarHeight > 0 && screenInfo.menuBarHeight < 40 ? screenInfo.menuBarHeight : 24,
-        1
+      const menuBarHeight = Number(screenInfo.menuBarHeight);
+      const fallback = screenInfo.menuBarHeight > 0 && screenInfo.menuBarHeight < 40
+        ? Math.max(1, Math.round(menuBarHeight))
+        : 24;
+      return normalizeWindowDimension(
+        screenInfo.hasNotch ? screenInfo.notchHeight : screenInfo.menuBarHeight,
+        fallback
       );
     }
     /**
@@ -479,7 +489,7 @@ function createWindowClasses(dependencies) {
       if(this._outputSuppressed){if(!this.win.isDestroyed())this.win.hide();return;}
       if (this.win.isDestroyed()) return;
       const interactive = options?.interactive ?? false;
-      const [width] = this.win.getSize();
+      const [width] = this.win.getSize().map((value) => normalizeWindowDimension(value, ISLAND_WIDTH));
       const closedHeight = this.getClosedHeight();
       this.requestedHeight = closedHeight;
       if (target === "hidden-hotspot") {
@@ -504,10 +514,10 @@ function createWindowClasses(dependencies) {
     }
     applyRequestedHeight(height) {
       if (this.win.isDestroyed()) return;
-      const clamped = Math.max(1, Math.min(ISLAND_HEIGHT, Math.round(height)));
+      const clamped = Math.min(ISLAND_HEIGHT, normalizeWindowDimension(height, this.getClosedHeight()));
       this.requestedHeight = clamped;
       if (this.shouldStayConcealed) return;
-      const [width] = this.win.getSize();
+      const [width] = this.win.getSize().map((value) => normalizeWindowDimension(value, ISLAND_WIDTH));
       this.win.setSize(width, clamped);
       // 无刘海屏上，收起态窗口对齐菜单栏高度，展开态从屏幕顶部向下生长。
       // 两者 y 定位不同，跨阈值时需要重新 fixPanel。

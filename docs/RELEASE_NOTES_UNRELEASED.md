@@ -1,4 +1,18 @@
-# WorkIsland v1.6.2
+# WorkIsland v1.6.3
+
+修复部分显示配置下灵动岛收起时窗口高度不是整数，导致主进程参数转换失败并弹出 JavaScript error。窗口几何现在统一校验并取整，异常值回退到合法尺寸；贴边几何也按同样规则处理。
+
+本版同时包含当前主分支已合并的 Atoll 可选扩展、Kiro IDE / CLI 与 Grok Build 接入、多终端管理等未单独发版的功能。原有下载、地区、系统语言和菜单栏设置均不是这次报错的原因，用户无需修改设置。
+
+本机验证包括 Electron 43.3.0 参数复现、805 项自动检查、签名 arm64 DMG 构建、隔离启动和 `codesign --verify --deep --strict`。GitHub Actions 会重新完成 arm64 与 x64 构建、签名、公证、Staple 和 SHA-256 校验。尚未在反馈用户的具体设备上验证，若仍出现报错请提供截图与应用日志。
+
+### English Summary
+
+v1.6.3 fixes a main-process startup error caused by non-integer collapsed-window geometry on some displays. Window dimensions are now normalized to valid integers with safe fallbacks, including docked geometry. This release also includes the latest merged main-branch features. The error is not caused by download method, region, system language or menu-bar settings, and no user setting change is required. It has been verified locally with Electron 43.3.0, automated checks, a signed arm64 build and an isolated launch; the reporting user's device is still awaiting verification.
+
+---
+
+## v1.6.2（历史说明）
 
 会话搜索与回源更顺手，Agent 接入更省心，系统状态融入灵动岛。本版包含 v1.5.1 之后已经合并的功能与修复。
 

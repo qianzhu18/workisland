@@ -42,12 +42,14 @@ const clamp01 = (v) => Math.max(0, Math.min(1, v));
 function pillSize(screenInfo) {
   const info = screenInfo ?? {};
   const menuBarHeight = Number(info.menuBarHeight) || 0;
+  const notchHeight = Number(info.notchHeight);
+  const notchWidth = Number(info.notchWidth);
   const depth = info.hasNotch
-    ? Number(info.notchHeight) || DOCK.STRIP_DEPTH
+    ? Number.isFinite(notchHeight) && notchHeight > 0 ? notchHeight : DOCK.STRIP_DEPTH
     : menuBarHeight > 0 && menuBarHeight < 40 ? menuBarHeight : 24;
-  const notchWidth = info.hasNotch ? Number(info.notchWidth) || 126 : 126;
+  const safeNotchWidth = info.hasNotch && Number.isFinite(notchWidth) && notchWidth > 0 ? notchWidth : 126;
   // 与渲染层空闲态一致：本体宽度 + 两侧留白（有刘海 62，无刘海 72）
-  const len = Math.max(notchWidth, 126) + (info.hasNotch ? 62 : 72);
+  const len = Math.max(safeNotchWidth, 126) + (info.hasNotch ? 62 : 72);
   return { len: Math.round(len) || DOCK.STRIP_LEN, depth: Math.max(1, Math.round(depth)) };
 }
 
@@ -60,14 +62,14 @@ function pillSize(screenInfo) {
 function dockGeometry(display, edge, offset, strip) {
   const b = display.bounds;
   const wa = display.workArea ?? b;
-  const len = strip?.len ?? DOCK.STRIP_LEN;
-  const depth = strip?.depth ?? DOCK.STRIP_DEPTH;
+  const len = Math.round(strip?.len ?? DOCK.STRIP_LEN);
+  const depth = Math.round(strip?.depth ?? DOCK.STRIP_DEPTH);
   if (edge === "top") {
     const w = DOCK.HPANEL_W;
-    const winX = Math.max(b.x, Math.min(b.x + Math.round((b.width - w) * offset), b.x + b.width - w));
-    const stripX = Math.max(b.x, Math.min(b.x + Math.round((b.width - len) * offset), b.x + b.width - len));
+    const winX = Math.round(Math.max(b.x, Math.min(b.x + (b.width - w) * offset, b.x + b.width - w)));
+    const stripX = Math.round(Math.max(b.x, Math.min(b.x + (b.width - len) * offset, b.x + b.width - len)));
     return {
-      bounds: { x: winX, y: b.y, width: w, height: DOCK.TOP_WINDOW_H },
+      bounds: { x: winX, y: Math.round(b.y), width: w, height: DOCK.TOP_WINDOW_H },
       strip: { spanOffset: stripX - winX, len, depth }
     };
   }
@@ -75,8 +77,8 @@ function dockGeometry(display, edge, offset, strip) {
   const h = DOCK.VPANEL_H;
   const stripCenter = wa.y + offset * wa.height;
   const stripTop = Math.max(wa.y, Math.min(Math.round(stripCenter - len / 2), wa.y + wa.height - len));
-  const winY = Math.max(wa.y, Math.min(stripTop, wa.y + wa.height - h));
-  const x = edge === "left" ? wa.x : wa.x + wa.width - w;
+  const winY = Math.round(Math.max(wa.y, Math.min(stripTop, wa.y + wa.height - h)));
+  const x = Math.round(edge === "left" ? wa.x : wa.x + wa.width - w);
   return {
     bounds: { x, y: winY, width: w, height: h },
     strip: { spanOffset: stripTop - winY, len, depth }
