@@ -5,6 +5,7 @@
   const releasePage = `https://github.com/${repository}/releases/latest`;
   const releaseApi = `https://api.github.com/repos/${repository}/releases/latest`;
   const releasesApi = `https://api.github.com/repos/${repository}/releases?per_page=100`;
+  const downloadCountUrl = "/download-count.json";
   const configUrl = "/download-config.json";
 
   function isHttpsUrl(value) {
@@ -51,9 +52,17 @@
     });
   }
 
-  function updateDownloadCount(releases) {
-    if (!Array.isArray(releases)) return;
-    const total = releases.reduce((releaseTotal, release) => {
+  function applyDownloadCount(total) {
+    if (!Number.isFinite(total) || total <= 0) return;
+    document.querySelectorAll("[data-download-count]").forEach((node) => {
+      const value = node.querySelector("[data-download-count-value]");
+      if (value) value.textContent = total.toLocaleString("en-US");
+    });
+  }
+
+  function totalDmgDownloads(releases) {
+    if (!Array.isArray(releases)) return 0;
+    return releases.reduce((releaseTotal, release) => {
       const assets = Array.isArray(release?.assets) ? release.assets : [];
       return releaseTotal + assets.reduce((assetTotal, asset) => {
         const name = typeof asset?.name === "string" ? asset.name : "";
@@ -61,13 +70,6 @@
         return assetTotal + (/\.dmg$/i.test(name) && Number.isFinite(downloads) ? downloads : 0);
       }, 0);
     }, 0);
-    if (total <= 0) return;
-
-    document.querySelectorAll("[data-download-count]").forEach((node) => {
-      const value = node.querySelector("[data-download-count-value]");
-      if (value) value.textContent = total.toLocaleString("en-US");
-      node.hidden = false;
-    });
   }
 
   function normalizeMirrorManifest(manifest) {
@@ -119,9 +121,17 @@
 
   async function loadDownloadCount() {
     try {
-      updateDownloadCount(await getJson(releasesApi, 2500, { Accept: "application/vnd.github+json" }));
+      const local = await getJson(downloadCountUrl, 1200);
+      applyDownloadCount(Number(local?.total));
     } catch {
-      // The count is decorative; never block the page when GitHub is unavailable.
+      // The static number in the page remains visible.
+    }
+
+    try {
+      const releases = await getJson(releasesApi, 2500, { Accept: "application/vnd.github+json" });
+      applyDownloadCount(totalDmgDownloads(releases));
+    } catch {
+      // Keep the local count when GitHub is unavailable.
     }
   }
 
