@@ -153,25 +153,63 @@ function writeState(filePath, state) {
   }
 }
 
-async function fetchLatestRelease(fetchImpl, releaseUrl) {
+// Bound the whole metadata request, including body consumption. Promise.race
+// also protects against a transport that does not settle promptly on abort.
+async function fetchMetadata(fetchImpl, url, accept, consume, {
+  timeoutMs = UPDATE_REQUEST_TIMEOUT_MS,
+  retryDelaysMs = DOWNLOAD_RETRY_DELAYS_MS,
+  logger = console
+} = {}) {
   if (typeof fetchImpl !== "function") throw new Error(i18n.t("update.error.fetchUnavailable"));
-  const controller = typeof AbortController === "function" ? new AbortController() : null;
-  const timeout = controller ? setTimeout(() => controller.abort(), UPDATE_REQUEST_TIMEOUT_MS) : null;
-  try {
-    const response = await fetchImpl(releaseUrl, {
-      headers: {
-        Accept: "application/vnd.github+json",
-        "User-Agent": "WorkIsland-update-check"
-      },
-      signal: controller?.signal
-    });
-    if (!response?.ok) throw new Error(i18n.t("update.error.releaseRequest", { status: response?.status ?? "unknown" }));
-    const release = normalizeRelease(await response.json());
-    if (!release) throw new Error(i18n.t("update.error.invalidRelease"));
-    return release;
-  } finally {
-    if (timeout) clearTimeout(timeout);
+  for (let attempt = 0; ; attempt += 1) {
+    const controller = new AbortController();
+    let timer;
+    try {
+      return await Promise.race([
+        (async () => {
+          const response = await fetchImpl(url, {
+            headers: { Accept: accept, "User-Agent": "WorkIsland-update-check" },
+            cache: "no-store",
+            signal: controller.signal
+          });
+          if (!response?.ok) {
+            await response?.body?.cancel?.().catch(() => {});
+            const error = new Error(i18n.t("update.error.releaseRequest", { status: response?.status ?? "unknown" }));
+            error.status = Number(response?.status) || 0;
+            throw error;
+          }
+          return consume(response);
+        })(),
+        new Promise((_, reject) => {
+          timer = setTimeout(() => {
+            const error = new Error("Update request timed out");
+            error.code = "ETIMEDOUT";
+            controller.abort();
+            reject(error);
+          }, timeoutMs);
+        })
+      ]);
+    } catch (error) {
+      controller.abort();
+      if (attempt >= DOWNLOAD_MAX_ATTEMPTS - 1 || !isRetryableDownloadError(error)) throw error;
+      logger.warn?.(`[UpdateService] metadata request attempt ${attempt + 1} failed`, error);
+    } finally {
+      clearTimeout(timer);
+    }
+    await waitForRetry(retryDelaysMs[attempt + 1] ?? retryDelaysMs.at(-1) ?? 0);
   }
+}
+
+async function fetchLatestRelease(fetchImpl, releaseUrl, options) {
+  return fetchMetadata(fetchImpl, releaseUrl, "application/vnd.github+json", async (response) => {
+    const release = normalizeRelease(await response.json());
+    if (!release) {
+      const error = new Error(i18n.t("update.error.invalidRelease"));
+      error.status = 422;
+      throw error;
+    }
+    return release;
+  }, options);
 }
 
 function responseText(response) {
@@ -180,21 +218,37 @@ function responseText(response) {
 }
 
 function bodyToAsyncIterable(body) {
-  if (body && typeof body[Symbol.asyncIterator] === "function") return body;
+  // Explicit readers can cancel a pending read; async-generator return() may hang.
   if (body && typeof body.getReader === "function") {
-    return (async function* () {
-      const reader = body.getReader();
-      try {
-        for (;;) {
-          const { done, value } = await reader.read();
-          if (done) return;
-          yield value;
-        }
-      } finally {
-        reader.releaseLock?.();
+    const reader = body.getReader();
+    let released = false;
+    const release = () => {
+      if (!released) {
+        released = true;
+        try { reader.releaseLock?.(); } catch {}
       }
-    })();
+    };
+    return {
+      [Symbol.asyncIterator]() { return this; },
+      async next() {
+        try {
+          const result = await reader.read();
+          if (result.done) release();
+          return result;
+        } catch (error) {
+          release();
+          throw error;
+        }
+      },
+      async return() {
+        if (!released) {
+          try { await reader.cancel(); } finally { release(); }
+        }
+        return { done: true };
+      }
+    };
   }
+  if (body && typeof body[Symbol.asyncIterator] === "function") return body[Symbol.asyncIterator]();
   throw new Error(i18n.t("update.error.missingStream"));
 }
 
@@ -205,6 +259,7 @@ function createDownloadHttpError(status) {
 }
 
 function isRetryableDownloadError(error) {
+  if (error?.downloadFilesystemError || error?.downloadIntegrityError) return false;
   const status = Number(error?.status) || 0;
   return status === 0 || status === 408 || status === 425 || status === 429 || status >= 500;
 }
@@ -215,58 +270,162 @@ function waitForRetry(delayMs) {
   return new Promise((resolve) => setTimeout(resolve, delay));
 }
 
-// GitHub Release 会重定向到短期签名的资产地址；网络稍有波动时，Node/Electron
-// 的流读取会抛出 `fetch failed`。保留已写入的前缀，使用 HTTP Range 继续传输。
-// 如果中间 CDN 忽略 Range 并返回 200，则安全地从头写入，绝不拼接重复字节。
+// Retain only fully written, hashed prefixes during automatic network retries.
+// A server ignoring Range is safe to consume only after resetting that prefix.
 async function downloadToFile(fetchImpl, url, destinationPath, {
   expectedSize = 0,
+  expectedChecksum = null,
   onProgress = () => {},
   logger = console,
   maxAttempts = DOWNLOAD_MAX_ATTEMPTS,
-  retryDelaysMs = DOWNLOAD_RETRY_DELAYS_MS
+  retryDelaysMs = DOWNLOAD_RETRY_DELAYS_MS,
+  requestTimeoutMs = 30e3,
+  idleTimeoutMs = 30e3
 } = {}) {
-  const attempts = Math.max(1, Number(maxAttempts) || DOWNLOAD_MAX_ATTEMPTS);
+  const attempts = Math.max(1, Math.floor(Number(maxAttempts) || DOWNLOAD_MAX_ATTEMPTS));
   const total = Math.max(0, Number(expectedSize) || 0);
+  const timeoutMs = (value) => Number.isFinite(Number(value)) && Number(value) > 0 ? Number(value) : 30e3;
   let hash = createHash("sha256");
   let received = 0;
   let lastReportedAt = 0;
   let lastError = null;
+  const checksum = /^[a-f0-9]{64}$/i.test(String(expectedChecksum)) ? String(expectedChecksum).toLowerCase() : null;
+  const metadataPath = `${destinationPath}.partial.json`;
+  const identity = JSON.stringify({ url, total, checksum });
+  const persistent = Boolean(checksum && total > 0);
 
-  async function resetPartialDownload() {
-    received = 0;
-    hash = createHash("sha256");
-    await fs.promises.rm(destinationPath, { force: true }).catch(() => {});
+  async function filesystem(operation) {
+    try { return await operation(); } catch (error) {
+      // Failed writes may change the file without changing our hash: do not resume.
+      const failure = new Error(error?.message || "Download file operation failed", { cause: error });
+      failure.code = error?.code;
+      failure.downloadFilesystemError = true;
+      throw failure;
+    }
   }
 
-  await resetPartialDownload();
+  async function resetPartialDownload() {
+    await filesystem(() => fs.promises.rm(destinationPath, { force: true }));
+    received = 0;
+    hash = createHash("sha256");
+  }
+
+  // Never await broken cancellation implementations or leave rejected cleanup promises.
+  function quietly(operation) {
+    try { Promise.resolve(operation()).catch(() => {}); } catch {}
+  }
+  function cancelBody(body) {
+    if (typeof body?.destroy === "function") quietly(() => body.destroy());
+    else if (typeof body?.cancel === "function") quietly(() => body.cancel());
+    else if (typeof body?.return === "function") quietly(() => body.return());
+  }
+
+  async function removeMetadata() {
+    await fs.promises.rm(metadataPath, { force: true }).catch(() => {});
+  }
+  try {
+    let reusable = false;
+    if (persistent) {
+      const metadata = await filesystem(async () => {
+        try { return await fs.promises.readFile(metadataPath, "utf8"); }
+        catch (error) { if (error.code === "ENOENT") return null; throw error; }
+      });
+      if (metadata === identity) {
+        const stat = await filesystem(async () => {
+          try { return await fs.promises.lstat(destinationPath); }
+          catch (error) { if (error.code === "ENOENT") return null; throw error; }
+        });
+        if (stat?.isFile() && stat.size > 0 && stat.size <= total) {
+          await filesystem(async () => {
+            for await (const chunk of fs.createReadStream(destinationPath)) hash.update(chunk);
+          });
+          received = stat.size;
+          reusable = received < total || hash.copy().digest("hex") === checksum;
+          if (reusable && received === total) {
+            await removeMetadata();
+            onProgress({ received, total, pct: 100 });
+            return { received, sha256: checksum };
+          }
+        }
+      }
+    }
+    if (!reusable) await resetPartialDownload();
+    if (persistent) await filesystem(() => fs.promises.writeFile(metadataPath, identity));
+    else await removeMetadata();
+  } catch (error) {
+    await fs.promises.rm(destinationPath, { force: true }).catch(() => {});
+    await removeMetadata();
+    throw error;
+  }
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     const resumeAt = received;
     const headers = { Accept: "application/octet-stream", "User-Agent": "WorkIsland-update-check" };
     if (resumeAt > 0) headers.Range = `bytes=${resumeAt}-`;
-    let controller = typeof AbortController === "function" ? new AbortController() : null;
+    const controller = typeof AbortController === "function" ? new AbortController() : null;
+    let response = null;
+    let iterator = null;
     let handle = null;
+    let abandoned = false;
+    let resetOnFailure = false;
+    const abort = () => quietly(() => controller?.abort());
+    async function bounded(operation, duration, label) {
+      let timer;
+      try {
+        return await Promise.race([
+          Promise.resolve().then(operation),
+          new Promise((_, reject) => {
+            timer = setTimeout(() => {
+              const error = new Error(`Update download ${label} timed out`);
+              error.code = "ETIMEDOUT";
+              reject(error);
+              abort();
+            }, timeoutMs(duration));
+          })
+        ]);
+      } finally {
+        clearTimeout(timer);
+      }
+    }
     try {
-      const response = await fetchImpl(url, { headers, signal: controller?.signal });
-      // 416 means our partial prefix is no longer usable. Clear it and retry from byte 0.
-      if (resumeAt > 0 && response.status === 416) {
-        await resetPartialDownload();
-        if (attempt < attempts) {
-          logger.warn?.("[UpdateService] download server rejected Range; restarting from byte 0");
-          await waitForRetry(retryDelaysMs[attempt] ?? retryDelaysMs.at?.(-1) ?? 0);
-          continue;
-        }
+      response = await bounded(async () => {
+        const result = await fetchImpl(url, { headers, signal: controller?.signal });
+        // Fetch mocks and nonstandard transports may ignore abort and resolve late.
+        if (abandoned) cancelBody(result?.body);
+        return result;
+      }, requestTimeoutMs, "request");
+      if (resumeAt > 0 && response?.status === 416) {
+        resetOnFailure = true;
+        throw new Error("Update download server rejected Range");
       }
       if (!response?.ok) throw createDownloadHttpError(response?.status);
-      if (resumeAt > 0 && response.status !== 206) {
+      let responseTotal = total;
+      if (response.status === 206) {
+        const range = String(response.headers?.get?.("content-range") ?? "").match(/^bytes (\d+)-(\d+)\/(\d+)$/i);
+        const [start, end, size] = range ? range.slice(1).map(Number) : [];
+        if (!range || ![start, end, size].every(Number.isSafeInteger) || start !== resumeAt ||
+            size <= start || end !== size - 1 || (total > 0 && size !== total)) {
+          resetOnFailure = true;
+          throw new Error("Update download returned an invalid Content-Range");
+        }
+        responseTotal = size;
+      } else if (resumeAt > 0) {
         logger.warn?.("[UpdateService] download server ignored Range; restarting from byte 0");
         await resetPartialDownload();
       }
 
-      handle = await fs.promises.open(destinationPath, received > 0 ? "a" : "w");
-      for await (const chunk of bodyToAsyncIterable(response.body)) {
-        const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      iterator = bodyToAsyncIterable(response.body);
+      handle = await filesystem(() => fs.promises.open(destinationPath, received > 0 ? "a" : "w"));
+      for (;;) {
+        const { done, value } = await bounded(() => iterator.next(), idleTimeoutMs, "stream idle");
+        if (done) break;
+        const buffer = Buffer.isBuffer(value) ? value : Buffer.from(value);
+        if (responseTotal > 0 && buffer.length > responseTotal - received) {
+          resetOnFailure = true;
+          throw new Error("Update download exceeded its expected length");
+        }
+        // writeFile completes short writes; hash/count commit only after full success.
+        await filesystem(() => handle.writeFile(buffer));
         hash.update(buffer);
-        await handle.write(buffer, 0, buffer.length);
         received += buffer.length;
         const at = Date.now();
         if (at - lastReportedAt >= DOWNLOAD_PROGRESS_MIN_INTERVAL_MS) {
@@ -274,26 +433,50 @@ async function downloadToFile(fetchImpl, url, destinationPath, {
           onProgress({ received, total, pct: total > 0 ? Math.min(100, Math.round((received / total) * 100)) : 0 });
         }
       }
-      if (total > 0 && received !== total) {
+      if (responseTotal > 0 && received !== responseTotal) {
         throw new Error(i18n.t("update.error.downloadIncomplete"));
       }
-      onProgress({ received, total, pct: total > 0 ? 100 : 100 });
+      const completedHandle = handle;
+      handle = null;
+      await filesystem(() => completedHandle.close());
+      const sha256 = hash.copy().digest("hex");
+      if (checksum && sha256 !== checksum) {
+        const error = new Error(i18n.t("update.error.checksum"));
+        error.downloadIntegrityError = true;
+        throw error;
+      }
+      await removeMetadata();
+      onProgress({ received, total, pct: 100 });
       logger.debug?.(`[UpdateService] downloaded ${received} bytes from ${url} in ${attempt} attempt(s)`);
-      return { received, sha256: hash.digest("hex") };
+      return { received, sha256 };
     } catch (error) {
-      controller?.abort();
+      abandoned = true;
+      abort();
+      if (iterator) quietly(() => iterator.return?.());
+      else cancelBody(response?.body);
+      if (typeof response?.body?.destroy === "function") quietly(() => response.body.destroy());
       lastError = error;
-      const shouldRetry = attempt < attempts && isRetryableDownloadError(error);
-      if (!shouldRetry) break;
-      logger.warn?.(`[UpdateService] download attempt ${attempt}/${attempts} failed; resuming`, error);
+      if (handle) {
+        const failedHandle = handle;
+        handle = null;
+        try { await filesystem(() => failedHandle.close()); } catch (closeError) { lastError = closeError; }
+      }
+      if (resetOnFailure || (total > 0 && received >= total)) {
+        try { await resetPartialDownload(); } catch (resetError) { lastError = resetError; }
+      }
+      if (attempt >= attempts || !isRetryableDownloadError(lastError)) break;
+      logger.warn?.(`[UpdateService] download attempt ${attempt}/${attempts} failed; resuming`, lastError);
       await waitForRetry(retryDelaysMs[attempt] ?? retryDelaysMs.at?.(-1) ?? 0);
-    } finally {
-      await handle?.close();
-      controller = null;
     }
   }
-  await fs.promises.rm(destinationPath, { force: true }).catch(() => {});
-  if (isRetryableDownloadError(lastError)) throw new Error(i18n.t("update.error.downloadRetriesExhausted"));
+  // Only a metadata-bound, fully committed prefix survives a manual retry.
+  if (!(persistent && received > 0 && received < total && isRetryableDownloadError(lastError))) {
+    await fs.promises.rm(destinationPath, { force: true }).catch(() => {});
+    await removeMetadata();
+  }
+  if (isRetryableDownloadError(lastError)) {
+    throw new Error(i18n.t("update.error.downloadRetriesExhausted"), { cause: lastError });
+  }
   throw lastError instanceof Error ? lastError : new Error(i18n.t("update.error.downloadFailed"));
 }
 
@@ -359,12 +542,16 @@ function createUpdateService({
   arch = process.arch,
   platform = process.platform,
   downloadRetryDelaysMs = DOWNLOAD_RETRY_DELAYS_MS,
+  requestTimeoutMs = UPDATE_REQUEST_TIMEOUT_MS,
+  downloadIdleTimeoutMs = 30e3,
   getInstallDir
 } = {}) {
   if (!app || typeof app.getVersion !== "function") throw new TypeError("app.getVersion is required");
   const statePath = path.join(userDataPath || ".", UPDATE_STATE_FILE);
   let state = readState(statePath);
   let inFlight = null;
+  let downloadInFlight = null;
+  let lastFailedCheckAt = null;
   let initialTimer = null;
   let intervalTimer = null;
   let updateState = { phase: "idle", progress: null, release: null, error: null, downloadedPath: null };
@@ -466,15 +653,21 @@ function createUpdateService({
   }
 
   async function runCheck({ notify = true } = {}) {
-    state.lastCheckedAt = now();
-    writeState(statePath, state);
     try {
-      const release = await fetchLatestRelease(fetchImpl, releaseUrl);
+      const release = await fetchLatestRelease(fetchImpl, releaseUrl, {
+        timeoutMs: requestTimeoutMs, retryDelaysMs: downloadRetryDelaysMs, logger
+      });
+      state.lastCheckedAt = now();
+      lastFailedCheckAt = null;
       state.latestRelease = release;
       writeState(statePath, state);
       const result = resultForRelease(release);
       if (result.status === "update-available") {
-        onUpdateAvailable(result);
+        try {
+          onUpdateAvailable(result);
+        } catch (error) {
+          logger.warn?.("[UpdateService] onUpdateAvailable listener failed:", error);
+        }
         if (notify && state.lastNotifiedVersion !== result.latestVersion) {
           if (showUpdateNotification(result)) {
             state.lastNotifiedVersion = result.latestVersion;
@@ -487,6 +680,7 @@ function createUpdateService({
       }
       return result;
     } catch (error) {
+      lastFailedCheckAt = now();
       logger.warn?.("[UpdateService] check failed:", error);
       return {
         status: "error",
@@ -506,7 +700,12 @@ function createUpdateService({
     if (!force && getSettings()?.updateChecksEnabled === false) {
       return Promise.resolve({ status: "disabled", reason: "user-disabled", currentVersion: currentVersion() });
     }
-    if (!force && state.lastCheckedAt && now() - state.lastCheckedAt < minIntervalMs) {
+    // Join an active request before considering cache/cooldown shortcuts.
+    if (inFlight) return inFlight;
+    if (!force && lastFailedCheckAt !== null && now() - lastFailedCheckAt < Math.min(60e3, intervalMs)) {
+      return Promise.resolve({ status: "skipped", reason: "retry-backoff", currentVersion: currentVersion() });
+    }
+    if (!force && lastFailedCheckAt === null && state.lastCheckedAt && now() >= state.lastCheckedAt && now() - state.lastCheckedAt < minIntervalMs) {
       if (state.latestRelease) {
         const cachedResult = resultForRelease(state.latestRelease);
         // 缓存捷径不经过 runCheck 的推送链路；缓存里已有新版时补一次状态推送，
@@ -527,7 +726,13 @@ function createUpdateService({
   }
 
   // 把更新下载到本地并做 SHA-256 校验，完成后进入 ready 阶段等待安装。
-  async function download() {
+  function download() {
+    if (downloadInFlight) return downloadInFlight;
+    downloadInFlight = Promise.resolve().then(runDownload).finally(() => { downloadInFlight = null; });
+    return downloadInFlight;
+  }
+
+  async function runDownload() {
     if (!isSupportedPlatform) return { ...getUpdateState(), error: i18n.t("update.error.unsupportedPlatform") };
     if (isDevelopment()) return { ...getUpdateState(), error: i18n.t("update.error.downloadInDevelopment") };
     if (updateState.phase === "downloading" || updateState.phase === "ready" || updateState.phase === "installing") {
@@ -535,13 +740,19 @@ function createUpdateService({
     }
     let release = updateState.release ?? state.latestRelease ?? null;
     let result = null;
-    if (!release || !release.assets) {
+    const stale = !state.lastCheckedAt || now() < state.lastCheckedAt || now() - state.lastCheckedAt >= minIntervalMs;
+    if (!release || !Array.isArray(release.assets) || stale || updateState.phase === "error" ||
+        !pickDmgAsset(release.assets, arch) || !pickChecksumAsset(release.assets, arch)) {
       result = await check({ force: true, notify: false });
       release = state.latestRelease;
       if (result?.status !== "update-available" || !release) {
-        publishState({ phase: "idle", error: result?.message ?? i18n.t("update.error.upToDate") });
+        publishState({ phase: result?.status === "error" ? "error" : "idle", error: result?.message ?? i18n.t("update.error.upToDate") });
         return getUpdateState();
       }
+    }
+    if (compareVersions(release.version, currentVersion()) !== 1) {
+      publishState({ phase: "idle", error: i18n.t("update.error.upToDate"), release, downloadedPath: null, progress: null });
+      return getUpdateState();
     }
     const asset = pickDmgAsset(release.assets, arch);
     if (!asset) {
@@ -549,29 +760,44 @@ function createUpdateService({
       return getUpdateState();
     }
     const downloadDir = path.join(userDataPath || ".", UPDATE_DOWNLOAD_DIR);
+    if (path.basename(asset.name) !== asset.name || /[\\/]/.test(asset.name)) {
+      publishState({ phase: "error", error: i18n.t("update.error.assetMissing") });
+      return getUpdateState();
+    }
     const destinationPath = path.join(downloadDir, asset.name);
     publishState({ phase: "downloading", progress: { received: 0, total: asset.size, pct: 0 }, release, error: null, downloadedPath: null });
     try {
+      const checksumAsset = pickChecksumAsset(release.assets, arch);
+      if (!checksumAsset) throw new Error(i18n.t("update.error.checksum"));
+      const expected = await fetchMetadata(fetchImpl, checksumAsset.url, "text/plain", async (response) => {
+        const value = extractChecksum(await responseText(response), asset.name);
+        if (!value) {
+          const error = new Error(i18n.t("update.error.checksum"));
+          error.status = 422;
+          throw error;
+        }
+        return value;
+      }, { timeoutMs: requestTimeoutMs, retryDelaysMs: downloadRetryDelaysMs, logger });
       fs.mkdirSync(downloadDir, { recursive: true });
       const { sha256 } = await downloadToFile(fetchImpl, asset.url, destinationPath, {
         expectedSize: asset.size,
+        expectedChecksum: expected,
+        requestTimeoutMs,
+        idleTimeoutMs: downloadIdleTimeoutMs,
         onProgress: (progress) => publishState({ progress }),
         logger,
         retryDelaysMs: downloadRetryDelaysMs
       });
-      const checksumAsset = pickChecksumAsset(release.assets, arch);
-      if (!checksumAsset) throw new Error(i18n.t("update.error.checksum"));
-      const checksumResponse = await fetchImpl(checksumAsset.url, {
-        headers: { Accept: "text/plain", "User-Agent": "WorkIsland-update-check" }
-      });
-      if (!checksumResponse?.ok) throw new Error(i18n.t("update.error.checksum"));
-      const expected = extractChecksum(await responseText(checksumResponse), asset.name);
-      if (!expected || expected !== sha256) throw new Error(i18n.t("update.error.checksum"));
+      if (expected !== sha256) {
+        await fs.promises.rm(destinationPath, { force: true }).catch(() => {});
+        throw new Error(i18n.t("update.error.checksum"));
+      }
       publishState({ phase: "ready", progress: { received: asset.size, total: asset.size, pct: 100 }, downloadedPath: destinationPath, error: null });
       showReadyNotification();
       return getUpdateState();
     } catch (error) {
-      await fs.promises.rm(destinationPath, { force: true }).catch(() => {});
+      // The transfer helper retains only identity-bound resumable data; checksum
+      // metadata failures must not discard a previous partial download.
       logger.warn?.("[UpdateService] download failed:", error);
       publishState({ phase: "error", error: error?.message || i18n.t("update.error.downloadFailed") });
       return getUpdateState();
@@ -616,7 +842,9 @@ function createUpdateService({
     initialTimer = setTimeout(() => {
       initialTimer = null;
       void check().catch(() => {});
-      intervalTimer = setInterval(() => void check().catch(() => {}), intervalMs);
+      // Poll cheaply through the successful-check cache; failed checks can recover
+      // after a short backoff rather than waiting another 24 hours.
+      intervalTimer = setInterval(() => void check().catch(() => {}), Math.min(intervalMs, 60e3));
     }, initialDelayMs);
   }
 

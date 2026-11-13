@@ -234,6 +234,7 @@ test("download failure surfaces an error state with the message", async () => {
     downloadRetryDelaysMs: [0, 0, 0],
     fetchImpl: async (url) => {
       if (url === RELEASE_API_URL) return { ok: true, json: async () => payload };
+      if (url.endsWith("SHA256SUMS.txt")) return { ok: true, text: async () => `${"a".repeat(64)}  WorkIsland-1.0.0-arm64.dmg\n` };
       downloadRequests += 1;
       return { ok: false, status: 502 };
     },
@@ -281,7 +282,7 @@ test("download resumes a GitHub asset after its response stream drops", async ()
         return {
           ok: true,
           status: 206,
-          headers: { get: () => String(dmgBytes.length - 4) },
+          headers: { get: (name) => name.toLowerCase() === "content-range" ? "bytes 4-7/8" : String(dmgBytes.length - 4) },
           body: (async function* () { yield dmgBytes.subarray(4); })()
         };
       }
@@ -535,13 +536,13 @@ for (const invalid of ['missing-asset','unmatched-entry','unavailable-file']) {
     if(invalid==='missing-asset')payload.assets=payload.assets.filter(a=>!a.name.startsWith('SHA256SUMS'));
     const userDataPath=mkdtempSync(join(tmpdir(),'workisland-checksum-required-'));
     const service=createUpdateService({platform:'darwin',app:makeApp('0.9.0'),arch:'arm64',userDataPath,
-      notificationClass:null,logger:{warn(){},debug(){}},fetchImpl:async url=>{
+      notificationClass:null,downloadRetryDelaysMs:[0,0,0],logger:{warn(){},debug(){}},fetchImpl:async url=>{
         if(url===RELEASE_API_URL)return {ok:true,json:async()=>payload};
         if(url.endsWith('SHA256SUMS.txt'))return invalid==='unavailable-file'?{ok:false,status:503}:{ok:true,text:async()=>`${'a'.repeat(64)}  other.dmg\n`};
         return {ok:true,headers:{get:()=>String(bytes.length)},body:(async function*(){yield bytes;})()};
       }});
     await service.check({force:true,notify:false});
-    const state=await service.download();assert.equal(state.phase,'error');assert.match(state.error,/verification failed/i);
+    const state=await service.download();assert.equal(state.phase,'error');assert.match(state.error,invalid==='unavailable-file'?/HTTP 503/:/verification failed/i);
     assert.equal(existsSync(join(userDataPath,'update','WorkIsland-1.0.0-arm64.dmg')),false);
   });
 }
