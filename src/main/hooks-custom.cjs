@@ -12,7 +12,7 @@ const log = require("electron-log");
 const utils = require("@electron-toolkit/utils");
 const { getSocketPath } = require("./bridge-protocol.cjs");
 const { shellQuote, buildDevHooksCliCommand, wrapWithInstallCheck } = require("./hook-shared.cjs");
-const { discoverRunningDshProfiles } = require("./dsh-profile-discovery.cjs");
+const { discoverRunningDshProfiles, isDesktopDshProcess } = require("./dsh-profile-discovery.cjs");
 const { needsBridgeReinstall, isDshVerificationCurrent, buildDshBridgeConfig, DSH_BRIDGE_PACKAGE } = require("../shared/dsh-auto-connect.cjs");
 const { createSerializedJsonUpdater } = require("./serialized-json-updater.cjs");
 const execFileAsync = promisify(execFile);
@@ -21,7 +21,12 @@ function commandQuote(value) { return `'${String(value).replace(/'/g, `'\\''`)}'
 async function runProfilePnpm(profileDir, args) {
   const shell = fs.existsSync(process.env.SHELL || "") ? process.env.SHELL : "/bin/zsh";
   const command = ["pnpm", ...args].map(commandQuote).join(" ");
-  return execFileAsync(shell, ["-l", "-c", command], { cwd: profileDir, encoding: "utf8", timeout: 300000, killSignal: "SIGKILL", maxBuffer: 1024 * 1024 });
+  // corepack 版 pnpm（登录 shell PATH 里常是 /usr/local/bin/pnpm）会向上
+  // 查找最近的 packageManager 字段；用户家目录若残留 package.json（例如
+  // "packageManager": "yarn"）就会拒绝执行任何 pnpm 命令。关掉 strict 匹配
+  // 后 corepack shim 不再强制字段一致，安装即可通过。
+  const env = { ...process.env, COREPACK_ENABLE_STRICT: "0" };
+  return execFileAsync(shell, ["-l", "-c", command], { cwd: profileDir, encoding: "utf8", timeout: 300000, killSignal: "SIGKILL", maxBuffer: 1024 * 1024, env });
 }
 
 function createPluginContext(pluginId, opts) {
@@ -175,9 +180,12 @@ class DeepSeekHarnessHookManager {
     const { stdout } = await execFileAsync("/bin/ps", ["-axo", "pid=,command="], { encoding: "utf8", maxBuffer: 4 * 1024 * 1024 });
     // launcher 用 `dsh web --port 3080` 启动时命令行里没有 --profile，所以不能
     // 只按 --profile 筛候选；先粗筛 DSH 进程，再用 eww 读 DSH_HOME/端口。
+    // 桌面客户端（Electron）没有 dsh 子命令进程，主进程/Helper 靠 App 路径
+    // 与 user-data-dir 标记识别（见 dsh-profile-discovery.cjs）。
     const candidatePids = String(stdout).split(/\r?\n/)
-      .filter((line) => /\bdsh\b/.test(line))
-      .filter((line) => /(?:^|\s)--profile(?:=|\s+)/.test(line) || /(?:^|\s)(?:web|tui|headless|acp|sdk)(?:\s|$)/.test(line))
+      .filter((line) => isDesktopDshProcess(line) || (/\bdsh\b/.test(line)
+        && (/(?:^|\s)--profile(?:=|\s+)/.test(line)
+          || /(?:^|\s)(?:web|tui|headless|acp|sdk|desktop)(?:\s|$)/.test(line))))
       .map((line) => line.trim().match(/^(\d+)\b/)?.[1])
       .filter(Boolean);
     const detailed = [];

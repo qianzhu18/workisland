@@ -59,3 +59,54 @@ test("ignores dsh mentions that do not describe a running harness", () => {
   const output = "99 ?? S 0:00 node /tmp/dsh-helper.js --watch\n100 ?? S 0:00 node /tmp/dsh-cache-worker.js";
   assert.deepEqual(discoverRunningDshProfiles(output, { homeDir: "/Users/bao/.dsh" }), []);
 });
+
+test("discovers the Electron desktop client main process as the desktop profile", () => {
+  const output = "22001 ?? S 0:01 /Applications/DeepSeek Harness.app/Contents/MacOS/DeepSeek Harness";
+  assert.deepEqual(discoverRunningDshProfiles(output, { homeDir: "/Users/bao/.dsh" }), [{
+    pid: 22001,
+    name: "desktop",
+    homeDir: "/Users/bao/.dsh",
+    profileDir: "/Users/bao/.dsh/profiles/desktop"
+  }]);
+});
+
+test("deduplicates desktop helper processes and keeps the main-process pid", () => {
+  const output = [
+    "22001 ?? S 0:01 /Applications/DeepSeek Harness.app/Contents/MacOS/DeepSeek Harness",
+    "22002 ?? S 0:00 /Applications/DeepSeek Harness.app/Contents/Frameworks/DeepSeek Harness Helper.app/Contents/MacOS/DeepSeek Harness Helper --type=gpu-process --user-data-dir=/Users/bao/Library/Application Support/@deepseek-ai/dsh-desktop",
+    "22003 ?? S 0:00 /Applications/DeepSeek Harness.app/Contents/Frameworks/DeepSeek Harness Helper (Renderer).app/Contents/MacOS/DeepSeek Harness Helper (Renderer) --type=renderer --user-data-dir=/Users/bao/Library/Application Support/@deepseek-ai/dsh-desktop"
+  ].join("\n");
+  const found = discoverRunningDshProfiles(output, { homeDir: "/Users/bao/.dsh" });
+  assert.equal(found.length, 1);
+  assert.equal(found[0].name, "desktop");
+  assert.equal(found[0].pid, 22001, "main process wins over helpers even if listed later");
+});
+
+test("prefers the main process pid when a helper line is seen first", () => {
+  const output = [
+    "91001 ?? S 0:00 /Applications/DeepSeek Harness.app/Contents/Frameworks/DeepSeek Harness Helper.app/Contents/MacOS/DeepSeek Harness Helper --type=utility --user-data-dir=/Users/bao/Library/Application Support/@deepseek-ai/dsh-desktop",
+    "91002 ?? S 0:01 /Applications/DeepSeek Harness.app/Contents/MacOS/DeepSeek Harness"
+  ].join("\n");
+  const found = discoverRunningDshProfiles(output, { homeDir: "/Users/bao/.dsh" });
+  assert.equal(found.length, 1);
+  assert.equal(found[0].pid, 91002, "a non-helper main process replaces a helper-only record");
+});
+
+test("derives the desktop profile from the dsh desktop subcommand", () => {
+  const output = "7701 ?? S 0:00 /usr/local/bin/dsh desktop --port 56248";
+  assert.deepEqual(discoverRunningDshProfiles(output, { homeDir: "/Users/bao/.dsh" }), [{
+    pid: 7701,
+    name: "desktop",
+    port: 56248,
+    homeDir: "/Users/bao/.dsh",
+    profileDir: "/Users/bao/.dsh/profiles/desktop"
+  }]);
+});
+
+test("ignores desktop paths mentioned by unrelated commands", () => {
+  const output = [
+    "10 /usr/bin/node /Applications/DeepSeek Harness.app/Contents/MacOS/DeepSeek Harness --profile wrong",
+    "11 /usr/bin/echo --user-data-dir=/Users/u/Library/Application Support/@deepseek-ai/dsh-desktop"
+  ].join("\n");
+  assert.deepEqual(discoverRunningDshProfiles(output, { homeDir: "/Users/bao/.dsh" }), []);
+});
