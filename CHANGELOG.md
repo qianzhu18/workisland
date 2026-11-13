@@ -12,6 +12,8 @@
 
 ## [Unreleased]
 
+- 修复 DeepSeek Harness 桌面客户端的 profile 识别，以及用户目录配置了其他包管理器时 bridge 安装失败的问题。修改后仍需重启正在运行的 DeepSeek Harness，收到事件后才能完成连接验证。
+
 - macOS：可选在 Atoll 中查看 WorkIsland 的 Agent、审批、提问和任务结果。在设置中启用后，Atoll 显示实时活动，详细操作复用 WorkIsland 原生监控面板。
 
 - 文件架支持粘贴剪贴板中的截图与图片；图片副本保存到本地，移出文件架不会删除保存的图片。
