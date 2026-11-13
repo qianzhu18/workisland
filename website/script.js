@@ -3,25 +3,25 @@ const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)
 const scenes = {
   overview: {
     caption: "真实运行界面：多个任务同时推进，状态一眼扫完。",
-    image: "assets/demo/overview.png",
+    image: "assets/demo/overview.png?v=20261022-recovery",
     alt: "真实 WorkIsland 总览界面：三个 Claude Code 任务在后台运行",
     duration: 4300
   },
   approval: {
     caption: "真实审批界面：文件差异、拒绝与允许操作一起出现。",
-    image: "assets/demo/approval.png",
+    image: "assets/demo/approval.png?v=20261022-recovery",
     alt: "真实 WorkIsland 审批界面：允许或拒绝一次文件写入",
     duration: 5300
   },
   ask: {
     caption: "真实提问界面：在 Island 里选择答案，不必回到终端找问题。",
-    image: "assets/demo/question.png",
+    image: "assets/demo/question.png?v=20261022-recovery",
     alt: "真实 WorkIsland 提问界面：选择首页行动按钮文案",
     duration: 5300
   },
   jump: {
     caption: "真实完成状态：会话保留 Ghostty 回源标记，点击即可回到原上下文。",
-    image: "assets/demo/jump.png",
+    image: "assets/demo/jump.png?v=20261022-recovery",
     alt: "真实 WorkIsland 完成界面：任务完成并标记 Ghostty 回源目标",
     duration: 4600
   }
@@ -84,7 +84,7 @@ const tourScenes = {
     index: "01 / 03",
     title: "连接你已经在用的 Agent",
     description: "打开 WorkIsland 后，它通过本地连接器读取真实的任务事件。没有连接成功，不会伪造一个“已完成”的状态给你看。",
-    image: "assets/demo/overview.png",
+    image: "assets/demo/overview.png?v=20261022-recovery",
     alt: "真实 WorkIsland 总览界面",
     windowTitle: "连接到 Codex",
     windowCopy: "识别本机的真实任务状态",
@@ -97,7 +97,7 @@ const tourScenes = {
     index: "02 / 03",
     title: "离开终端，任务仍然可见",
     description: "当多个任务并行推进，Island 只显示最相关的状态。你可以阅读、开会或继续下一件事，而不是轮流检查每一个终端。",
-    image: "assets/demo/overview.png",
+    image: "assets/demo/overview.png?v=20261022-recovery",
     alt: "真实 WorkIsland 多任务总览界面",
     windowTitle: "3 个任务正在运行",
     windowCopy: "release-check · launch-flow · settings-ui",
@@ -110,7 +110,7 @@ const tourScenes = {
     index: "03 / 03",
     title: "遇到关键节点，再回来处理",
     description: "需要审批、回答或检查结果时，WorkIsland 会带着准确的上下文出现。处理完后，一键回到原会话继续工作。",
-    image: "assets/demo/approval.png",
+    image: "assets/demo/approval.png?v=20261022-recovery",
     alt: "真实 WorkIsland 审批界面",
     windowTitle: "等待你的确认",
     windowCopy: "允许 Agent 更新 session-policy.cjs",
@@ -191,9 +191,13 @@ document.addEventListener("visibilitychange", () => {
 activateScene("overview");
 setTourScene("connect");
 
-// Umami 事件埋点：下载转化与 GitHub 外链点击。统计脚本未加载时静默跳过。
+// 事件埋点：下载转化与 GitHub 外链点击。
+// 2026-10-30：Umami 已从页面移除（原统计主机不可用），此前 trackEvent 只调用 window.umami，
+// 导致 download_click / github_click 自移除后从未上报。现改为主用 Clarity 自定义事件。
+// 统计脚本均未加载时静默跳过，不影响站点功能。
 function trackEvent(name, data) {
-  try { window.umami?.track(name, data); } catch { /* 统计失败不影响站点 */ }
+  try { window.clarity?.("event", name); } catch { /* 统计失败不影响站点 */ }
+  try { window.umami?.track(name, data); } catch { /* 兼容：Umami 恢复后自动生效 */ }
 }
 document.addEventListener("click", (event) => {
   const link = event.target.closest?.("a");

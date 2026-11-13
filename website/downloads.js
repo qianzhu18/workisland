@@ -28,24 +28,18 @@
     }
   }
 
-  function findMacAsset(release) {
-    const assets = Array.isArray(release?.assets) ? release.assets : [];
-    return assets.find((asset) => {
-      const name = typeof asset?.name === "string" ? asset.name : "";
-      const url = asset?.url || asset?.browser_download_url;
-      return /\.dmg$/i.test(name) && /arm64/i.test(name) && isHttpsUrl(url);
-    });
-  }
-
   function updateDownloadLinks(release) {
     const tag = typeof release?.tag_name === "string" ? release.tag_name : "";
-    const asset = findMacAsset(release);
-    const downloadUrl = asset?.url || asset?.browser_download_url || release?.html_url || releasePage;
+    const assets = Array.isArray(release?.assets) ? release.assets : [];
 
-    document.querySelectorAll("[data-download-link]").forEach((link) => {
-      link.href = downloadUrl;
-      if (asset) link.setAttribute("download", "");
-      else link.removeAttribute("download");
+    document.querySelectorAll("[data-download-arch]").forEach((link) => {
+      const arch = link.dataset.downloadArch;
+      const asset = assets.find((candidate) =>
+        typeof candidate?.name === "string"
+        && candidate.name.toLowerCase().endsWith(`-${arch}.dmg`)
+        && isHttpsUrl(candidate.browser_download_url)
+      );
+      link.href = asset?.browser_download_url || releasePage;
     });
     document.querySelectorAll("[data-version]").forEach((node) => {
       node.textContent = tag || "最新稳定版";
@@ -76,31 +70,26 @@
     if (!manifest || typeof manifest !== "object") return null;
     const version = typeof manifest.version === "string" ? manifest.version : "";
     const assets = Array.isArray(manifest.assets) ? manifest.assets : [];
-    const macAsset = assets.find((asset) => (
+    const macAssets = assets.filter((asset) =>
       asset?.platform === "macos"
-      && asset?.arch === "arm64"
-      && /\.dmg$/i.test(asset?.name || "")
-      && isHttpsUrl(asset?.url)
-    ));
-    if (!macAsset) return null;
+      && /-(arm64|x64)\.dmg$/i.test(asset.name || "")
+      && isHttpsUrl(asset.url)
+    );
+    if (macAssets.length === 0) return null;
 
     return {
       tag_name: version,
-      html_url: isHttpsUrl(manifest.fallbackUrl) ? manifest.fallbackUrl : releasePage,
-      assets: [{ name: macAsset.name, url: macAsset.url }]
+      assets: macAssets.map(({ name, url }) => ({ name, browser_download_url: url }))
     };
   }
 
   async function loadLatestRelease() {
-    // The static fallback always works, including before OSS is configured.
-    updateDownloadLinks({ html_url: releasePage });
-
     try {
       const config = await getJson(configUrl, 1200);
       const manifestUrl = config?.mirrorManifestUrl;
       if (isHttpsUrl(manifestUrl)) {
         const mirrorRelease = normalizeMirrorManifest(await getJson(manifestUrl, 2500));
-        if (mirrorRelease) {
+        if (mirrorRelease?.assets.length === 2) {
           updateDownloadLinks(mirrorRelease);
           return;
         }

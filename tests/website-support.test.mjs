@@ -142,9 +142,9 @@ test("website tracks every public page with Clarity and discloses the third-part
     assert.match(page, /"yd6hexza0b"/);
   }
 
-  assert.match(guide, /官网使用自托管 Umami 与 Microsoft Clarity/);
+  assert.match(guide, /官网使用 Microsoft Clarity/);
   assert.match(guide, /https:\/\/privacy\.microsoft\.com\/privacystatement/);
-  assert.match(english, /This website uses self-hosted Umami and Microsoft Clarity/);
+  assert.match(english, /This website uses Microsoft Clarity/);
 });
 
 test("website gives English searchers a complete, reciprocal product page", () => {
@@ -188,7 +188,7 @@ test("website metadata states the product intent and canonical share preview", (
   assert.match(english, /When work needs you, you should not have to go looking for it\./);
   assert.match(guide, /<title>WorkIsland 产品手册：安装、连接与 AI Agent 任务监控<\/title>/);
   assert.match(html, /property="og:url" content="https:\/\/workisland\.yanglaishe\.cn\/"/);
-  assert.match(html, /property="og:image" content="https:\/\/workisland\.yanglaishe\.cn\/assets\/demo\/overview\.png"/);
+  assert.match(html, /property="og:image" content="https:\/\/workisland\.yanglaishe\.cn\/assets\/demo\/overview\.png(\?v=[^"]*)?"/);
   assert.match(html, /name="twitter:card" content="summary_large_image"/);
   assert.match(html, /"@type": "WebSite"/);
   assert.match(html, /"url": "https:\/\/workisland\.yanglaishe\.cn\/"/);
@@ -223,7 +223,7 @@ test("website can prefer an OSS-compatible manifest without removing the GitHub 
   const config = JSON.parse(readFileSync(downloadConfigUrl, "utf8"));
   const downloadsScript = readFileSync(downloadsScriptUrl, "utf8");
 
-  assert.match(config.mirrorManifestUrl, /^https:\/\//);
+  assert.equal(config.mirrorManifestUrl, "", "The old origin must not serve installer metadata");
   assert.match(downloadsScript, /const configUrl = "\/download-config\.json"/);
   assert.match(downloadsScript, /mirrorManifestUrl/);
   assert.match(downloadsScript, /https:\/\/github\.com\/\$\{repository\}\/releases\/latest/);

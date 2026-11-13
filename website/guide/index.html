@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#151518">
-    <meta name="description" content="WorkIsland 产品手册：在 Apple Silicon Mac 上安装并连接 AI 编程 Agent，完成首次任务、理解状态、隐私和反馈。">
+    <meta name="description" content="WorkIsland 产品手册：在 Apple 芯片或 Intel Mac 上安装并连接 AI 编程 Agent，完成首次任务、理解状态、隐私和反馈。">
     <link rel="canonical" href="https://workisland.yanglaishe.cn/guide/">
     <link rel="alternate" type="text/markdown" href="https://workisland.yanglaishe.cn/guide/index.md">
     <link rel="describedby" type="text/markdown" href="https://workisland.yanglaishe.cn/llms.txt">
@@ -14,20 +14,20 @@
     <meta property="og:url" content="https://workisland.yanglaishe.cn/guide/">
     <meta property="og:site_name" content="WorkIsland">
     <meta property="og:locale" content="zh_CN">
-    <meta property="og:image" content="https://workisland.yanglaishe.cn/assets/demo/overview.png">
+    <meta property="og:image" content="https://workisland.yanglaishe.cn/assets/demo/overview.png?v=20261022-recovery">
     <meta property="og:image:width" content="1480">
     <meta property="og:image:height" content="1144">
     <meta property="og:image:alt" content="WorkIsland 显示多个 AI 编程 Agent 任务状态的真实界面">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="WorkIsland 产品手册：安装、连接与 AI Agent 任务监控">
     <meta name="twitter:description" content="从安装到第一次回源，用一条真实任务确认 WorkIsland 是否适合你的工作流。">
-    <meta name="twitter:image" content="https://workisland.yanglaishe.cn/assets/demo/overview.png">
+    <meta name="twitter:image" content="https://workisland.yanglaishe.cn/assets/demo/overview.png?v=20261022-recovery">
     <meta name="twitter:image:alt" content="WorkIsland 显示多个 AI 编程 Agent 任务状态的真实界面">
     <title>WorkIsland 产品手册：安装、连接与 AI Agent 任务监控</title>
-    <link rel="icon" href="../icon.png" type="image/png">
-    <link rel="stylesheet" href="../tokens.css">
-    <link rel="stylesheet" href="guide.css?v=20260817-image-frame">
-    <script async defer src="https://umami.yanglaishe.cn/script.js" data-website-id="77be7067-a168-465e-adb5-5e546e879e54"></script>
+    <link rel="icon" href="../icon.png?v=20261022-recovery" type="image/png">
+    <link rel="stylesheet" href="../tokens.css?v=20261022-recovery">
+    <link rel="stylesheet" href="guide.css?v=20261022-recovery">
+
     <!-- Microsoft Clarity：页面体验与交互分析；加载失败不会影响官网功能。 -->
     <script type="text/javascript">
       (function(c,l,a,r,i,t,y){
@@ -40,7 +40,7 @@
   <body>
     <header class="guide-nav">
       <a class="guide-brand" href="../" aria-label="返回 WorkIsland 首页">
-        <img src="../icon.png" alt="" width="28" height="28">
+        <img src="../icon.png?v=20261022-recovery" alt="" width="28" height="28">
         <span>WorkIsland</span>
       </a>
       <nav aria-label="手册导航">
@@ -62,7 +62,7 @@
           <a class="guide-primary" href="#start">开始使用 <span aria-hidden="true">↓</span></a>
         </div>
         <figure class="guide-shot">
-          <img src="../assets/demo/overview.png" fetchpriority="high" width="1480" height="1144" alt="WorkIsland 显示多个 Agent 任务状态的真实界面">
+          <img src="../assets/demo/overview.png?v=20261022-recovery" fetchpriority="high" width="1480" height="1144" alt="WorkIsland 显示多个 Agent 任务状态的真实界面">
           <figcaption>真实 WorkIsland 界面，演示数据已脱敏。</figcaption>
         </figure>
       </section>
@@ -71,7 +71,7 @@
         <p class="guide-kicker">QUICK START</p>
         <h2>从安装到第一个真实信号</h2>
         <ol class="guide-steps">
-          <li><span>01</span><div><h3>安装应用</h3><p>从官方 GitHub Release 下载 Apple Silicon DMG，将 WorkIsland 拖入“应用程序”。测试版如被 macOS 拦截，请只确认来源为官方 Release 后再按系统提示处理。</p></div></li>
+          <li><span>01</span><div><h3>安装应用</h3><p>从官方 GitHub Release 下载对应芯片的 DMG，将 WorkIsland 拖入“应用程序”。测试版如被 macOS 拦截，请只确认来源为官方 Release 后再按系统提示处理。</p></div></li>
           <li><span>02</span><div><h3>检查 Agent 连接</h3><p>打开设置中的 Agent 页面，选择你已经在使用的 Agent，并按页面提示完成本地连接。没有连接成功时，应用不会伪造任务状态。</p></div></li>
           <li><span>03</span><div><h3>开始第一个任务</h3><p>在已连接的 Agent 中运行一个真实任务。任务运行、等待处理或完成时，观察屏幕顶部的 Island；需要时点击相应任务回到原来的终端或应用。</p></div></li>
         </ol>
@@ -112,7 +112,7 @@
         <p class="guide-kicker">LOCAL FIRST</p>
         <h2>你的会话留在 Mac 上</h2>
         <p>WorkIsland 不需要云端账户。会话内容、代码、路径、项目名、主机名和用户名不会被上传。</p>
-        <p>官网使用自托管 Umami 与 Microsoft Clarity 了解页面访问和交互；Clarity 由 Microsoft 提供，适用其<a href="https://privacy.microsoft.com/privacystatement" target="_blank" rel="noreferrer">隐私声明</a>。统计服务不可用时，不影响官网或应用使用。</p>
+        <p>官网使用 Microsoft Clarity 了解页面访问和交互；Clarity 由 Microsoft 提供，适用其<a href="https://privacy.microsoft.com/privacystatement" target="_blank" rel="noreferrer">隐私声明</a>。统计服务不可用时，不影响官网或应用使用。</p>
         <div class="guide-privacy-grid">
           <article><h3>匿名统计默认开启</h3><p>数据范围和关闭方式会在设置 → 关于中公开说明；不开启或关闭统计都不影响产品功能。</p></article>
           <article><h3>随时由你关闭</h3><p>可在设置 → 关于中随时关闭。关闭会立即清空尚未上报的数据；旧版本中已明确拒绝的选择会被保留。</p></article>
@@ -139,6 +139,6 @@
       <a href="https://github.com/qianzhu18/workisland" target="_blank" rel="noreferrer">GitHub</a>
       <span>本地优先的 Agent 状态中枢。</span>
     </footer>
-    <script src="../downloads.js" defer></script>
+    <script src="../downloads.js?v=20261113" defer></script>
   </body>
 </html>
