@@ -284,7 +284,8 @@ test("guide frames its product screenshot without exposing the empty lower captu
 });
 
 test("release workflow marks prerelease tags as prereleases", () => {
-  assert.match(releaseWorkflow, /prerelease:\s*\$\{\{\s*contains\(github\.ref_name, '-'/);
+  assert.match(releaseWorkflow, /if \[\[ "\$RELEASE_TAG" == \*-\* \]\]; then prerelease=\(--prerelease\)/);
+  assert.match(releaseWorkflow, /--draft --generate-notes "\$\{prerelease\[@\]\}"/);
 });
 
 test("release workflow keeps macOS releases separate from Windows Alpha tags", () => {

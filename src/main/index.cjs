@@ -829,6 +829,9 @@ async function runIslandApp() {
     app: electron.app,
     shell: electron.shell,
     notificationClass: electron.Notification,
+    // Use Chromium's network stack so release checks and asset downloads honor
+    // macOS system proxies/PAC and the same certificate policy as the app.
+    fetchImpl: (url, options) => electron.net.fetch(url, options),
     userDataPath: electron.app.getPath("userData"),
     getSettings: () => coordinator.getSettings(),
     onUpdateAvailable: (update) => {
