@@ -60,6 +60,7 @@ const HOST_APP_MATCHERS = Object.freeze([
   ["/trae solo.app/", "TraeWork"],
   ["/trae cn.app/", "Trae CN"],
   ["/trae.app/", "Trae"],
+  ["/alma.app/", "Alma"],
   ["/claude.app/", "Claude"],
   ["/cursor.app/", "Cursor"],
   ["/kiro.app/", "Kiro"],
@@ -281,6 +282,11 @@ async function main() {
         if (/^(?:\/dev\/)?tty[a-z0-9]+$/i.test(tty)) payload.terminal_tty = tty.startsWith('/dev/') ? tty : `/dev/${tty}`;
       } catch {}
     }
+  }
+  if (source === "alma") {
+    // Alma runs the hook through a short-lived shell. That shell exits with
+    // the hook, so watching its pid would end the Island session immediately.
+    delete payload.pid;
   }
   if(source==='grok-build'){
     payload=normalizeGrokPayload(payload,process.env);

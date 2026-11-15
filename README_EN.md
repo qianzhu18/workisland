@@ -81,7 +81,7 @@ Contributors on the Windows port can use `npm run package:win` to build the inst
 
 ## Agent Compatibility
 
-WorkIsland has first-party adapters for Claude Code, Codex, Coco, Cursor, TraeCode, ZCode, WorkBuddy / CodeBuddy, OpenCode, Sara, Kimi Code, Gemini CLI, GitHub Copilot CLI, Hermes, Aiden, DeepSeek Harness, and TRAE CLI. MiMo, Trae Work, Trae CN, and generic custom-Hook connections are not advertised because they have not passed a real end-to-end integration test. TraeCode requires its in-app Hooks switch and local automatic execution mode to be enabled before events can reach WorkIsland.
+WorkIsland has first-party adapters for Claude Code, Codex, Coco, Cursor, TraeCode, ZCode, WorkBuddy / CodeBuddy, OpenCode, Sara, Kimi Code, Gemini CLI, GitHub Copilot CLI, Hermes, Aiden, DeepSeek Harness, TRAE CLI, and Alma. MiMo, Trae Work, Trae CN, and generic custom-Hook connections are not advertised because they have not passed a real end-to-end integration test. TraeCode requires its in-app Hooks switch and local automatic execution mode to be enabled before events can reach WorkIsland.
 
 ## Product Links
 

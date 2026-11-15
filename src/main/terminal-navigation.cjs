@@ -229,6 +229,7 @@ function createTerminalNavigation({
     // Qoder CLI 的宿主可能是独立 Qoder IDE，也可能是千问办公（QwenWorkCN）
     // 内嵌的 qoderclicn（两者共用 ~/.qoder/settings.json，issue #158）。
     kiro: "dev.kiro.desktop",
+    alma: "com.yetone.alma",
     qoder: "com.qoder.ide",
     qoderide: "com.qoder.ide",
     qwenworkcn: "cn.qwenwork.desktop.mac",
