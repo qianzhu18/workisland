@@ -20,7 +20,7 @@ const EXPECTED_AGENT_ICONS = Object.freeze({
   codebuddy: "codebuddy.svg",
   opencode: "opencode.svg",
   sara: "sara.svg",
-  kimi: "kimi.svg",
+  kimi: "kimi.png",
   gemini: "gemini.svg",
   "copilot-cli": "copilot.svg",
   hermes: "hermes.svg",
@@ -28,7 +28,7 @@ const EXPECTED_AGENT_ICONS = Object.freeze({
   dsh: "dsh.png",
   traex: "trae.svg",
   kiro: "kiro.svg",
-  "grok-build": "agent.svg",
+  "grok-build": "grok.png",
   alma: "alma.png",
   "plugin:omp": "pi.svg",
   "plugin:pi": "pi.svg"
