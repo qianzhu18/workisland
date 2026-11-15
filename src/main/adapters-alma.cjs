@@ -17,8 +17,31 @@ function almaSessionId(payload, input) {
     || text(payload.conversation_id);
 }
 
+const METADATA_BLOCK = /<(context_from_earlier_conversation|managed_agent_profile|system-reminder|alma_notification)\b[^>]*>[\s\S]*?<\/\1>/gi;
+
+function cleanAlmaPrompt(raw) {
+  return String(raw || "")
+    .replace(METADATA_BLOCK, " ")
+    .replace(/\[Message sent-at:[^\]]*\]/g, " ")
+    .replace(/\[This message arrived while you were busy[\s\S]*?\]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isMetadataText(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return true;
+  return cleanAlmaPrompt(raw).length === 0;
+}
+
 function promptText(input, payload) {
-  return text(input.content) || text(payload.prompt) || text(payload.user_prompt);
+  const parts = Array.isArray(input.parts) ? input.parts : [];
+  const fromParts = parts
+    .filter((part) => part && part.type === "text" && typeof part.text === "string" && !isMetadataText(part.text))
+    .map((part) => cleanAlmaPrompt(part.text))
+    .filter(Boolean);
+  if (fromParts.length > 0) return fromParts.join(" ");
+  return cleanAlmaPrompt(text(input.content) || text(payload.prompt) || text(payload.user_prompt));
 }
 
 function summarizeTool(toolName, args) {

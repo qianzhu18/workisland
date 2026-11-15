@@ -36,7 +36,7 @@ const AGENT_ICON_URLS = Object.freeze({
   dumate: "../assets/brands/dumate.png",
   opencode: "../assets/brands/opencode.svg",
   sara: "../assets/brands/sara.svg",
-  kimi: "../assets/brands/kimi.svg",
+  kimi: "../assets/brands/kimi.png",
   gemini: "../assets/brands/gemini.svg",
   "copilot-cli": "../assets/brands/copilot.svg",
   hermes: "../assets/brands/hermes.svg",
@@ -44,7 +44,7 @@ const AGENT_ICON_URLS = Object.freeze({
   dsh: "../assets/brands/dsh.png",
   traex: "../assets/brands/trae.svg",
   kiro: "../assets/brands/kiro.svg",
-  "grok-build": "../assets/brands/agent.svg",
+  "grok-build": "../assets/brands/grok.png",
   alma: "../assets/brands/alma.png",
   "plugin:omp": "../assets/brands/pi.svg",
   "plugin:pi": "../assets/brands/pi.svg"
