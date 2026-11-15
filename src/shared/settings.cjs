@@ -5,6 +5,8 @@ const ISLAND_PANEL_MAX_HEIGHT_DEFAULT_PX = 540;
 const DEFAULT_HOOK_TOGGLES = {
   kiro: false,
   "grok-build": false,
+  // Alma's file hooks are opt-in until a real lifecycle event verifies them.
+  alma: false,
   claude: true,
   codex: true,
   coco: true,

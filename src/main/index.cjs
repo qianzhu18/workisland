@@ -259,7 +259,8 @@ const SOURCE_TO_TERMINAL_APP = {
   workbuddy: "WorkBuddy",
   codebuddy: "CodeBuddy CN",
   qoder: "Qoder",
-  dumate: "DuMate"
+  dumate: "DuMate",
+  alma: "Alma"
 };
 const GENERIC_VSCODE_APPS = /* @__PURE__ */ new Set([
   "vs code",
