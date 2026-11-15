@@ -13,6 +13,7 @@
 ## [Unreleased]
 
 - 修复 DeepSeek Harness 桌面客户端的 profile 识别，以及用户目录配置了其他包管理器时 bridge 安装失败的问题。修改后仍需重启正在运行的 DeepSeek Harness，收到事件后才能完成连接验证。
+- 设置中的 Alma 与 DeepSeek Harness 改用各自应用图标，不再使用通用占位图。
 - 新增 Alma 生命周期 Hook。在设置中连接后写入 `~/.config/alma/hooks.json`，显示会话、用户消息、工具活动和本轮完成，并可回到 Alma。默认关闭，收到真实事件后才标记已验证；审批仍在 Alma 中处理。详见 [Alma 接入说明](docs/ALMA.md)。
 
 - macOS：可选在 Atoll 中查看 WorkIsland 的 Agent、审批、提问和任务结果。在设置中启用后，Atoll 显示实时活动，详细操作复用 WorkIsland 原生监控面板。

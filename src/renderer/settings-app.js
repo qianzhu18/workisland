@@ -41,11 +41,11 @@ const AGENT_ICON_URLS = Object.freeze({
   "copilot-cli": "../assets/brands/copilot.svg",
   hermes: "../assets/brands/hermes.svg",
   aiden: "../assets/brands/agent.svg",
-  dsh: "../assets/brands/agent.svg",
+  dsh: "../assets/brands/dsh.png",
   traex: "../assets/brands/trae.svg",
   kiro: "../assets/brands/kiro.svg",
   "grok-build": "../assets/brands/agent.svg",
-  alma: "../assets/brands/alma.svg",
+  alma: "../assets/brands/alma.png",
   "plugin:omp": "../assets/brands/pi.svg",
   "plugin:pi": "../assets/brands/pi.svg"
 });

@@ -25,11 +25,11 @@ const EXPECTED_AGENT_ICONS = Object.freeze({
   "copilot-cli": "copilot.svg",
   hermes: "hermes.svg",
   aiden: "agent.svg",
-  dsh: "agent.svg",
+  dsh: "dsh.png",
   traex: "trae.svg",
   kiro: "kiro.svg",
   "grok-build": "agent.svg",
-  alma: "alma.svg",
+  alma: "alma.png",
   "plugin:omp": "pi.svg",
   "plugin:pi": "pi.svg"
 });
