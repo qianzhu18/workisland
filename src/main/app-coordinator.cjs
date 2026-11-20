@@ -28,6 +28,7 @@ const { ZCodeHookManager, WorkBuddyHookManager, CodeBuddyHookManager, QoderHookM
 const { KiroHookManager } = require("./hooks-kiro.cjs");
 const { GrokBuildHookManager } = require("./hooks-grok-build.cjs");
 const { AlmaHookManager } = require("./hooks-alma.cjs");
+const { AlmaApprovalBridge } = require("./alma-approvals.cjs");
 const { DuMateHookManager } = require("./hooks-dumate.cjs");
 const { initSoundDirs, playSoundEvent } = require("./sound-service.cjs");
 const { createAgentSoundDeduplicator, resolveCodexTranscriptSoundEvent } = require("./agent-sound-policy.cjs");
@@ -651,6 +652,7 @@ function createAppCoordinatorClass({
         this.clipboardHistoryService.setEnabled(this.settings.clipboardHistoryEnabled === true);
       });
       this.terminalService.setEnabled(this.settings.terminalEnabled !== false);
+      this.startAlmaApprovalBridge();
       this.startCodexTranscriptWatcher();
       this.startUsageDiscovery();
       // DSH 自动接入：一次性迁移旧开关，然后挂一条低成本的巡检定时器。
@@ -693,6 +695,32 @@ function createAppCoordinatorClass({
       void pushBarkNotification(this.settings, eventId, agentName);
       if (suppressLocalAlert) return false;
       return playSoundEvent(eventId, this.settings);
+    }
+    /**
+     * 启动 Alma 审批桥（独立于 hook 的审批通道）。
+     *
+     * Alma 的 hook 是 fire-and-forget，没有 permission 事件；但它的本地 handoff
+     * API 暴露待审批列表（就是 Alma 内弹的「允许/始终允许」）。桥轮询该接口，
+     * 把待审批接进 agentEvent 管线成为灵动岛卡片；用户在岛上点允许/拒绝时
+     * POST 回 Alma。设置里可选完全信任（自动 allow_always）或留在 Alma（native）。
+     */
+    startAlmaApprovalBridge() {
+      try {
+        this.almaApprovalBridge = new AlmaApprovalBridge({
+          getConfig: () => ({
+            enabled: this.isHookToolEnabled("alma"),
+            mode: resolveApprovalMode(this.settings, "alma")
+          })
+        });
+        this.almaApprovalBridge.on("event", (event) => {
+          this.bridge.emitEvent(event);
+        });
+        this.almaApprovalBridge.start();
+        log.info("[AppCoordinator] alma approval bridge started");
+      } catch (err) {
+        log.warn("[AppCoordinator] alma approval bridge failed to start:", err?.message ?? err);
+        this.almaApprovalBridge = null;
+      }
     }
     /**
      * 启动 Codex transcript watcher（独立于 hook 的完成检测通道）。
@@ -1493,6 +1521,10 @@ function createAppCoordinatorClass({
       }
       this.settings = { ...this.settings, ...partial };
       Object.assign(this.settings, normalizeAtollSettings(this.settings));
+      // Alma 审批桥跟随开关与审批模式（bridge/trust/native）即时启停。
+      if (("hookToggles" in (partial ?? {})) || ("approvalModes" in (partial ?? {}))) {
+        this.almaApprovalBridge?.sync();
+      }
       if ("atollIntegrationEnabled" in partial || "agentDisplayTarget" in partial) {
         this.atollPanel.close();
         void this.atollIntegration.sync(this.settings);
@@ -1578,6 +1610,18 @@ function createAppCoordinatorClass({
         log.warn("[AppCoordinator] ignoring bridge approval for external permission", sessionId, mode);
         return;
       }
+      if (session.tool === "alma") {
+        // Alma approvals are not hook-directive clients; the pending card carries
+        // Alma's handoff requestId and resolution POSTs to its local API.
+        const requestId = session.permissionRequest?.id;
+        if (requestId) {
+          this.telemetry?.track(EVENTS.APPROVAL_HANDLED, { action, tool: session.tool });
+          await this.almaApprovalBridge?.resolveById(requestId, action);
+        } else {
+          log.warn("[AppCoordinator] alma approval missing requestId", sessionId);
+        }
+        return;
+      }
       const resolution = {
         action,
         message: void 0
@@ -1591,6 +1635,16 @@ function createAppCoordinatorClass({
       const mode = session.permissionRequest?.approvalMode ?? "bridge";
       if (mode === "terminalNative") {
         log.warn("[AppCoordinator] ignoring bridge deny for external permission", sessionId, mode);
+        return;
+      }
+      if (session.tool === "alma") {
+        const requestId = session.permissionRequest?.id;
+        if (requestId) {
+          this.telemetry?.track(EVENTS.APPROVAL_HANDLED, { action: "deny", tool: session.tool });
+          await this.almaApprovalBridge?.resolveById(requestId, "deny");
+        } else {
+          log.warn("[AppCoordinator] alma approval missing requestId", sessionId);
+        }
         return;
       }
       this.telemetry?.track(EVENTS.APPROVAL_HANDLED, { action: "deny", tool: session.tool });

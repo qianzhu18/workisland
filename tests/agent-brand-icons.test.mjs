@@ -24,7 +24,7 @@ const EXPECTED_AGENT_ICONS = Object.freeze({
   gemini: "gemini.svg",
   "copilot-cli": "copilot.svg",
   hermes: "hermes.svg",
-  aiden: "agent.svg",
+  aiden: "aiden.png",
   dsh: "dsh.png",
   traex: "trae.svg",
   kiro: "kiro.svg",

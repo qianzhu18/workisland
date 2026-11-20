@@ -12,8 +12,9 @@
 
 ## [Unreleased]
 
-- Alma 卡片只显示用户真正发送的话，不再带上发送时间、先前上下文和系统包装。
+- Alma 工具审批接入灵动岛：轮询 Alma 本地 handoff 审批队列，把「允许 / 始终允许」变成岛上的审批卡片，点卡片直接回复 Alma（不再需要去 Alma 里点）。设置中可切换 完全信任（自动允许）或 留在 Alma（不接管）。
 - 设置中的 Kimi Code 与 Grok Build 改用各自应用图标。
+- Aiden 改用其官方品牌图标。
 
 - 修复 DeepSeek Harness 桌面客户端的 profile 识别，以及用户目录配置了其他包管理器时 bridge 安装失败的问题。修改后仍需重启正在运行的 DeepSeek Harness，收到事件后才能完成连接验证。
 - 设置中的 Alma 与 DeepSeek Harness 改用各自应用图标，不再使用通用占位图。

@@ -165,6 +165,8 @@
   "settings.agents.approval.label": "Approval method for {agent}",
   "settings.agents.approval.saved": "Approval method saved; the Hook will refresh automatically",
   "settings.agents.approval.terminal": "Terminal Approval",
+  "settings.agents.approval.trust": "Full trust",
+  "settings.agents.approval.native": "Leave in Alma",
   "settings.agents.awaitingEvent": "Connection configuration is installed. Run a real task; Connected appears only after an event is received.",
   "settings.agents.capability.completion": "Completion Notices",
   "settings.agents.capability.inferredCompletion": "Inferred Completion",
