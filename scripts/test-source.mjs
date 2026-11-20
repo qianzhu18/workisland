@@ -19,6 +19,7 @@ const { createWindowClasses } = require("../src/main/windows.cjs");
 const {
   APPROVAL_MODE,
   CONFIGURABLE_APPROVAL_AGENTS,
+  approvalModesFor,
   normalizeApprovalModes,
   resolveApprovalMode
 } = require("../src/shared/approval-policy.cjs");
@@ -208,14 +209,17 @@ const defaultsB = createDefaultSettings();
 defaultsA.sound.volume = 1;
 assert.equal(defaultsB.sound.volume, 50, "default settings instances must not share nested state");
 assert.equal(DEFAULT_SETTINGS.sound.volume, 50);
-assert.deepEqual(CONFIGURABLE_APPROVAL_AGENTS, ["codex", "coco", "copilot-cli", "traex"]);
+assert.deepEqual(CONFIGURABLE_APPROVAL_AGENTS, ["codex", "coco", "copilot-cli", "traex", "alma"]);
 assert.ok(CONFIGURABLE_APPROVAL_AGENTS.every((agent) => DEFAULT_SETTINGS.approvalModes[agent] === "bridge"));
 assert.equal(resolveApprovalMode({}, "codex"), APPROVAL_MODE.ISLAND);
+assert.equal(resolveApprovalMode({}, "alma"), APPROVAL_MODE.ISLAND);
+assert.deepEqual(approvalModesFor("alma"), [APPROVAL_MODE.ISLAND, APPROVAL_MODE.TRUST, APPROVAL_MODE.NATIVE]);
 assert.deepEqual(normalizeApprovalModes({ codex: "terminalNative", unknown: "bridge" }), {
   codex: "terminalNative",
   coco: "bridge",
   "copilot-cli": "bridge",
-  traex: "bridge"
+  traex: "bridge",
+  alma: "bridge"
 });
 assert.equal(quoteShellArgument("it's", "linux"), `'it'"'"'s'`);
 assert.equal(

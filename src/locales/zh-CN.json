@@ -165,6 +165,8 @@
   "settings.agents.approval.label": "{agent} 审批方式",
   "settings.agents.approval.saved": "审批方式已保存，Hook 将自动刷新",
   "settings.agents.approval.terminal": "终端审批",
+  "settings.agents.approval.trust": "完全信任",
+  "settings.agents.approval.native": "留在 Alma",
   "settings.agents.awaitingEvent": "连接配置已写入；请运行一次实际任务。收到事件后才会显示“已连接”。",
   "settings.agents.capability.completion": "完成提醒",
   "settings.agents.capability.inferredCompletion": "推断完成",

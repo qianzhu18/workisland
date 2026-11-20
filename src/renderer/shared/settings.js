@@ -84,7 +84,8 @@ const DEFAULT_APPROVAL_MODES = {
   codex: "bridge",
   coco: "bridge",
   "copilot-cli": "bridge",
-  "traex": "bridge"
+  "traex": "bridge",
+  alma: "bridge"
 };
 const DEFAULT_SOUND_EVENTS = {
   appLaunch: { enabled: true },

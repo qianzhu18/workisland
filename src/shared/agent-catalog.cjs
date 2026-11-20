@@ -64,8 +64,8 @@ const CORE_AGENT_DESCRIPTORS = Object.freeze([
   descriptor("grok-build", "Grok Build", "#D5D8DF", "Grok Build CLI 原生生命周期 Hook，支持状态、工具活动、完成/失败/取消及原生审批等待提示；审批仍在终端确认。此项不代表云端 Grok Bot 接入。", {
     completion: "native", approval: "observe", question: "nativeOnly", jump: "app"
   }),
-  descriptor("alma", "Alma", "#6C5CE7", "Alma 文件型生命周期 Hook，写入 ~/.config/alma/hooks.json。支持会话、用户消息、工具活动和本轮完成，点击回到 Alma。连接后收到真实事件才算已验证；审批仍在 Alma 中处理。", {
-    completion: "native", approval: "none", question: "none", jump: "app"
+  descriptor("alma", "Alma", "#6C5CE7", "Alma 文件型生命周期 Hook，写入 ~/.config/alma/hooks.json。支持会话、用户消息、工具活动和本轮完成，点击回到 Alma。连接后收到真实事件才算已验证；工具审批接管到灵动岛，也可切换为完全信任或留在 Alma。", {
+    completion: "native", approval: "bridge", question: "none", jump: "app", approvalConfigurable: true
   })
 ]);
 

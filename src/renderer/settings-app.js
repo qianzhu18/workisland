@@ -10,6 +10,7 @@ import {
   withAppearanceOpacity
 } from "./shared/appearance-settings-model.mjs";
 import { coverCrop } from "./shared/background-crop.mjs";
+import { approvalModesFor } from "../../shared/approval-policy.mjs";
 
 const api = window.settingsApi;
 
@@ -40,7 +41,7 @@ const AGENT_ICON_URLS = Object.freeze({
   gemini: "../assets/brands/gemini.svg",
   "copilot-cli": "../assets/brands/copilot.svg",
   hermes: "../assets/brands/hermes.svg",
-  aiden: "../assets/brands/agent.svg",
+  aiden: "../assets/brands/aiden.png",
   dsh: "../assets/brands/dsh.png",
   traex: "../assets/brands/trae.svg",
   kiro: "../assets/brands/kiro.svg",
@@ -778,7 +779,8 @@ function agentCard(report) {
   if (capabilities) content.append(el("div", "agent-detail", capabilities));
 
   if (report.capabilities?.approvalConfigurable) {
-    const approval = select(state.settings.approvalModes?.[agentId] || "bridge", [["bridge", t("settings.agents.approval.island")], ["terminalNative", t("settings.agents.approval.terminal")]], async value => {
+    const modeOptions = approvalModesFor(agentId).map(value => [value, t(`settings.agents.approval.${value}`)]);
+    const approval = select(state.settings.approvalModes?.[agentId] || "bridge", modeOptions, async value => {
       await save({ approvalModes: { ...(state.settings.approvalModes || {}), [agentId]: value } });
       showToast(t("settings.agents.approval.saved"));
     }, t("settings.agents.approval.label", { agent: label }));
