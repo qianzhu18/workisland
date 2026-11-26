@@ -31,15 +31,57 @@ class CodexMcpConfigManager {
     this.serverPath = options.serverPath;
     this.now = options.now || Date.now;
     this.detectClient = options.detectClient || (() => defaultDetectClient(this.fs, this.homeDir));
+    this.platform = options.platform || process.platform;
     if (typeof this.command !== "string" || !this.command || typeof this.serverPath !== "string" || !this.serverPath) {
       throw new TypeError("CodexMcpConfigManager requires command and serverPath");
     }
   }
 
+  #launcherPath() {
+    return path.join(this.homeDir, ".workisland", "workisland-mcp.sh");
+  }
+
+  /**
+   * Some clients (the ChatGPT/Codex desktop app on certain spawn paths) drop the
+   * configured env block when launching MCP servers. Launching the Electron
+   * binary without ELECTRON_RUN_AS_NODE starts a full GUI instance, which hits
+   * the single-instance lock and pops the settings window over the user's work.
+   * A launcher script that exports the env itself makes the spawn safe no matter
+   * what the client does, so the registered command points at this script.
+   */
+  #writeLauncher() {
+    const launcher = this.#launcherPath();
+    const quote = (value) => `'${String(value).replace(/'/g, `'\''`)}'`;
+    const script = [
+      "#!/bin/sh",
+      "# WorkIsland MCP launcher (generated; do not edit).",
+      "# Guarantees node-mode execution even when the client drops the env block.",
+      "export ELECTRON_RUN_AS_NODE=1",
+      `export WORKISLAND_MCP_CLIENT="Codex"`,
+      `exec ${quote(this.command)} ${quote(this.serverPath)}`,
+      ""
+    ].join("\n");
+    this.fs.mkdirSync(path.dirname(launcher), { recursive: true, mode: 0o700 });
+    this.fs.writeFileSync(launcher, script, { encoding: "utf8", mode: 0o755 });
+    this.fs.chmodSync(launcher, 0o755);
+    return launcher;
+  }
+
   get entry() {
+    if (this.platform === "win32") {
+      // .sh launchers do not run on Windows; the env block is the only guard there.
+      return {
+        command: this.command,
+        args: [this.serverPath],
+        env: {
+          ELECTRON_RUN_AS_NODE: "1",
+          WORKISLAND_MCP_CLIENT: "Codex"
+        }
+      };
+    }
     return {
-      command: this.command,
-      args: [this.serverPath],
+      command: this.#launcherPath(),
+      args: [],
       env: {
         ELECTRON_RUN_AS_NODE: "1",
         WORKISLAND_MCP_CLIENT: "Codex"
@@ -85,6 +127,7 @@ class CodexMcpConfigManager {
   connect() {
     const { text, parsed } = this.#read();
     const backupPath = this.#backup(text);
+    if (this.platform !== "win32") this.#writeLauncher();
     parsed.features = parsed.features && typeof parsed.features === "object"
       ? parsed.features
       : {};
@@ -137,6 +180,7 @@ class CodexMcpConfigManager {
   }
 
   manualConfiguration() {
+    if (this.platform !== "win32") this.#writeLauncher();
     const document = {
       features: { mcp_2026_07_28: true },
       mcp_servers: { workisland: this.entry }

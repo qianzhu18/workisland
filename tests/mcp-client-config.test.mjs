@@ -27,18 +27,25 @@ function harness(initialConfig = "") {
 
 test("connect preserves unrelated Codex settings and creates a recoverable backup", () => {
   const original = `model = "gpt-5.6-sol"\n\n[mcp_servers.other]\ncommand = "other-server"\nargs = ["--safe"]\n`;
-  const { configPath, manager } = harness(original);
+  const { configPath, manager, homeDir } = harness(original);
 
   const result = manager.connect();
   const parsed = toml.parse(fs.readFileSync(configPath, "utf8"));
   assert.equal(parsed.model, "gpt-5.6-sol");
   assert.deepEqual(parsed.mcp_servers.other, { command: "other-server", args: ["--safe"] });
+  const launcherPath = path.join(homeDir, ".workisland", "workisland-mcp.sh");
   assert.deepEqual(parsed.mcp_servers.workisland, {
-    command: "/Applications/WorkIsland.app/Contents/MacOS/WorkIsland",
-    args: ["/Applications/WorkIsland.app/Contents/Resources/app.asar/src/island/workisland-mcp/index.mjs"],
+    command: launcherPath,
+    args: [],
     env: { ELECTRON_RUN_AS_NODE: "1", WORKISLAND_MCP_CLIENT: "Codex" }
   });
   assert.equal(parsed.features.mcp_2026_07_28, true);
+  // The launcher must self-set the env so a client that drops the env block
+  // still starts Electron in node mode instead of popping the GUI.
+  const launcher = fs.readFileSync(launcherPath, "utf8");
+  assert.match(launcher, /export ELECTRON_RUN_AS_NODE=1/);
+  assert.match(launcher, /exec '\/Applications\/WorkIsland\.app[^']*' '\/Applications\/WorkIsland\.app[^']*'/);
+  assert.equal(fs.statSync(launcherPath).mode & 0o111, 0o111, "launcher must be executable");
   assert.equal(fs.readFileSync(result.backupPath, "utf8"), original);
   assert.equal(result.configured, true);
   assert.equal(manager.status([]).connectionState, "configured");
@@ -50,7 +57,7 @@ test("reconnecting updates one WorkIsland entry without duplicates", () => {
   manager.connect();
   const text = fs.readFileSync(configPath, "utf8");
   assert.equal((text.match(/\[mcp_servers\.workisland\]/g) || []).length, 1);
-  assert.equal(toml.parse(text).mcp_servers.workisland.command.includes("WorkIsland.app"), true);
+  assert.equal(toml.parse(text).mcp_servers.workisland.command.endsWith("workisland-mcp.sh"), true);
 });
 
 test("disconnect removes only WorkIsland and keeps other MCP clients", () => {
@@ -83,10 +90,24 @@ test("status distinguishes configured from a real recent client call", () => {
 });
 
 test("manual configuration contains the same bounded stdio entry", () => {
-  const { manager } = harness(null);
+  const { manager, homeDir } = harness(null);
   const manual = manager.manualConfiguration();
   assert.match(manual.toml, /\[mcp_servers\.workisland\]/);
-  assert.equal(manual.entry.command.includes("WorkIsland.app"), true);
+  assert.equal(manual.entry.command.endsWith("workisland-mcp.sh"), true);
+  const launcherPath = path.join(homeDir, ".workisland", "workisland-mcp.sh");
+  assert.equal(fs.existsSync(launcherPath), true, "manual setup must materialize the launcher");
   assert.deepEqual(toml.parse(manual.toml).mcp_servers.workisland, manual.entry);
   assert.equal(toml.parse(manual.toml).features.mcp_2026_07_28, true);
+});
+
+test("windows keeps the binary entry because .sh launchers do not run there", () => {
+  const { configPath, manager } = harness("");
+  manager.platform = "win32";
+  manager.connect();
+  const parsed = toml.parse(fs.readFileSync(configPath, "utf8"));
+  assert.deepEqual(parsed.mcp_servers.workisland, {
+    command: "/Applications/WorkIsland.app/Contents/MacOS/WorkIsland",
+    args: ["/Applications/WorkIsland.app/Contents/Resources/app.asar/src/island/workisland-mcp/index.mjs"],
+    env: { ELECTRON_RUN_AS_NODE: "1", WORKISLAND_MCP_CLIENT: "Codex" }
+  });
 });
