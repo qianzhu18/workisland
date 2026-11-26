@@ -152,6 +152,16 @@ for (const file of targets) {
 }
 
 const settingsApp = readFileSync(join(root, "src/renderer/settings-app.js"), "utf8");
+// Renderer windows load sources directly (no bundler): every relative import
+// in settings-app.js must resolve to a real file, or the settings window dies
+// before i18n and shows raw English HTML.
+for (const match of settingsApp.matchAll(/from\s+["'](\.[^"']+)["']/g)) {
+  const resolved = resolve(join(root, "src/renderer"), match[1]);
+  if (!existsSync(resolved)) {
+    console.error(`settings-app.js imports a missing file: ${match[1]} -> ${resolved}`);
+    process.exit(1);
+  }
+}
 for (const unavailableFeature of ["feishuNotify", "remoteProfiles", "cloudAgentStatus"]) {
   if (settingsApp.includes(unavailableFeature)) {
     console.error(`Unavailable settings feature returned: ${unavailableFeature}`);

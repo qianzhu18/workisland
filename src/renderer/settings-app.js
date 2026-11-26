@@ -10,7 +10,7 @@ import {
   withAppearanceOpacity
 } from "./shared/appearance-settings-model.mjs";
 import { coverCrop } from "./shared/background-crop.mjs";
-import { approvalModesFor } from "../../shared/approval-policy.mjs";
+import { approvalModesFor } from "./shared/approval-policy.mjs";
 
 const api = window.settingsApi;
 
