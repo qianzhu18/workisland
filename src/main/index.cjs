@@ -822,9 +822,18 @@ async function runIslandApp() {
   electron.app.on("activate", () => {
     localization.refreshSystemLocale();
   });
-  electron.app.on("second-instance", () => {
-    log.info("[main] second-instance launch — surfacing settings window");
-    coordinator.openSettingsWindow();
+  // A second launch is almost always an external client (Codex/ChatGPT MCP)
+  // mis-spawning the Electron binary, not the user asking for settings.
+  // Surfacing a window over the user's work was the wrong default; log it and
+  // stay quiet unless the launch carries the explicit settings argv.
+  electron.app.on("second-instance", (_event, argv) => {
+    const wantsSettings = Array.isArray(argv) && argv.includes("--open-settings");
+    if (wantsSettings) {
+      log.info("[main] second-instance launch — surfacing settings window (explicit)");
+      coordinator.openSettingsWindow();
+    } else {
+      log.info("[main] second-instance launch ignored (no --open-settings argv)");
+    }
   });
   updateService = createUpdateService({
     app: electron.app,
